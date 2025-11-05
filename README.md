@@ -18,5 +18,5 @@ TODO: How to test the data against the JSON Schema?
 Notes related to the schema:
 
 1. If a model does not come from HuggingFace, do a reasonable effort of capturing the developer name in a standard format (e.g. `openai` or `anthropic`)
-2.
+2. TODO:
 3. TODO: inference_engine vs inference_platform
