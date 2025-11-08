@@ -1,0 +1,65 @@
+{
+  "schema_version": "0.0.1",
+  "evaluation_id": "livecodebenchpro/openai/gpt-4.1/1760492095.8105888",
+  "retrieved_timestamp": "1760492095.8105888",
+  "source_metadata": {
+    "source_organization_name": "New York University,  Princeton University, University of California San Diego, University of Washington and Canyon Crest Academy",
+    "evaluator_relationship": "third_party"
+  },
+  "model_info": {
+    "name": "openai/gpt-4.1",
+    "developer": "OpenAI",
+    "inference_platform": "openrouter",
+    "id": "openai/gpt-4.1"
+  },
+  "evaluation_results": [
+    {
+      "evaluation_name": "Hard Problems",
+      "metric_config": {
+        "evaluation_description": "Pass@1 on Hard Problems",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0,
+        "max_score": 1
+      },
+      "score_details": {
+        "score": 0.0
+      }
+    },
+    {
+      "evaluation_name": "Medium Problems",
+      "metric_config": {
+        "evaluation_description": "Pass@1 on Medium Problems",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0,
+        "max_score": 1
+      },
+      "score_details": {
+        "score": 0.0
+      }
+    },
+    {
+      "evaluation_name": "Easy Problems",
+      "metric_config": {
+        "evaluation_description": "Pass@1 on Easy Problems",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0,
+        "max_score": 1
+      },
+      "score_details": {
+        "score": 0.19718309859154928
+      }
+    }
+  ],
+  "source_data": [
+    "https://webhook.cp-bench.orzzh.com/leaderboard/llm/difficulty?difficulty=hard&benchmark_mode=live",
+    "https://webhook.cp-bench.orzzh.com/leaderboard/llm/difficulty?difficulty=medium&benchmark_mode=live",
+    "https://webhook.cp-bench.orzzh.com/leaderboard/llm/difficulty?difficulty=easy&benchmark_mode=live"
+  ],
+  "evaluation_source": {
+    "evaluation_source_name": "Live Code Bench Pro",
+    "evaluation_source_type": "leaderboard"
+  }
+}

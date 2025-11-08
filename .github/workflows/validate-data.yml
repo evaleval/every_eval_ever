@@ -1,0 +1,38 @@
+name: Validate data
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'scripts/validate_data.py'
+      - 'data/**'
+  pull_request:
+    paths:
+      - 'scripts/validate_data.py'
+      - 'data/**'
+
+jobs:
+  validate-json:
+    name: Validate data
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: "Set up Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.9.4"
+          # Disable cache because there are no requirements lockfiles
+          enable-cache: false
+
+      - name: Download latest schema
+        run: wget https://raw.githubusercontent.com/evaleval/evalHub/refs/heads/main/schema/eval.schema.json
+
+      - name: Validate data
+        run: uv run scripts/validate_data.py --schema-path eval.schema.json data

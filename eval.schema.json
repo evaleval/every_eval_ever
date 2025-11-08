@@ -1,0 +1,282 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "version": "0.0.1",
+    "type": "object",
+    "description": "Schema for storing and validating LLMs evaluation data, including model configuration, prompts, instances, Output, and evaluation metrics",
+    "required": [
+        "schema_version",
+        "evaluation_id",
+        "evaluation_source",
+        "retrieved_timestamp",
+        "source_data",
+        "source_metadata",
+        "model_info",
+        "evaluation_results"
+    ],
+    "properties": {
+        "schema_version": {
+            "type": "string",
+            "description": "Version of the schema used for this evaluation data"
+        },
+        "evaluation_id": {
+            "type": "string",
+            "description": "Unique identifier for this specific evaluation run. Use org_name/eval_name/retrieved_timestamp format"
+        },
+        "retrieved_timestamp": {
+            "type": "string",
+            "description": "Timestamp for when this record was created"
+        },
+        "source_data": {
+            "type": "array",
+            "description": "URLs for the source of the evaluation data",
+            "items": {
+                "type": "string"
+            }
+        },
+        "evaluation_source": {
+            "type": "object",
+            "description": "Details about evaluation origin. There are options that evaluations come from leaderboards (e.g. Live Code Bench Pro) or evaluation platforms (e.g. lm-eval, inspect ai, HELM...).",
+            "required": [
+                "evaluation_source_name",
+                "evaluation_source_type"
+            ],
+            "properties": {
+                "evaluation_source_name": {
+                    "type": "string",
+                    "description": "Name of the source (e.g. title of the source leaderboard or name of the platform used for the evaluation."
+                },
+                "evaluation_source_type": {
+                    "type": "string",
+                    "enum": [
+                        "leaderboard", 
+                        "evaluation_platform"
+                    ],
+                    "description": "Type of evaluation source, e.g., leaderboard or evaluation platform"
+                }
+            }
+        },
+        "source_metadata": {
+            "type": "object",
+            "description": "Metadata about the source of the leaderboard data",
+            "required": [
+                "source_organization_name",
+                "evaluator_relationship"
+            ],
+            "properties": {
+                "source_organization_name": {
+                    "type": "string",
+                    "description": "Name of the organization that provides the data"
+                },
+                "source_organization_url": {
+                    "type": "string",
+                    "description": "URL for the organization that provides the data"
+                },
+                "source_organization_logo_url": {
+                    "type": "string",
+                    "description": "URL for the Logo for the organization that provides the data"
+                },
+                "evaluator_relationship": {
+                    "type": "string",
+                    "description": "Relationship between the evaluator and the model",
+                    "enum": [
+                        "first_party",
+                        "third_party",
+                        "collaborative",
+                        "other"
+                    ]
+                }
+            }
+        },
+        "model_info": {
+            "type": "object",
+            "description": "Complete model specification including basic information, technical configuration and inference settings",
+            "required": [
+                "name",
+                "id"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Model name provided by evaluation source"
+                },
+                "id": {
+                    "type": "string",
+                    "description": "Model name standarized to HuggingFace format (e.g. meta-llama/Llama-3.1-8B-Instruct)"
+                },
+                "developer": {
+                    "type": "string",
+                    "description": "Name of organization that provides the model (e.g. 'OpenAI')"
+                },
+                "inference_platform": {
+                    "type": "string",
+                    "description": "Description of platform used to run the evaluations (e.g. local machine, Bedrock)"
+                }
+            }
+        },
+        "evaluation_results": {
+            "type": "array",
+            "description": "Array of evaluation results",
+            "items": {
+                "type": "object",
+                "required": [
+                    "evaluation_name",
+                    "metric_config",
+                    "score_details"
+                ],
+                "properties": {
+                    "evaluation_name": {
+                        "type": "string",
+                        "description": "Name of the evaluation"
+                    },
+                    "evaluation_timestamp": {
+                        "type": "string",
+                        "description": "Timestamp for when the evaluations were run"
+                    },
+                    "metric_config": {
+                        "type": "object",
+                        "description": "Details about the metric",
+                        "required": [
+                            "lower_is_better"
+                        ],
+                        "properties": {
+                            "evaluation_description": {
+                                "type": "string",
+                                "description": "Description of the evaluation"
+                            },
+                            "lower_is_better": {
+                                "type": "boolean",
+                                "description": "Whether a lower score is better"
+                            },
+                            "score_type": {
+                                "type": "string",
+                                "description": "Type of score",
+                                "enum": [
+                                    "binary",
+                                    "continuous",
+                                    "levels"
+                                ]
+                            },
+                            "level_names": {
+                                "type": "array",
+                                "description": "Names of the score levels",
+                                "items": {
+                                    "type": "string"
+                                }
+                            },
+                            "level_metadata": {
+                                "type": "array",
+                                "description": "Additional Description for each Score Level",
+                                "items": {
+                                    "type": "string"
+                                }
+                            },
+                            "has_unknown_level": {
+                                "type": "boolean",
+                                "description": "Indicates whether there is an Unknown Level - if True, then a score of -1 will be treated as Unknown"
+                            },
+                            "min_score": {
+                                "type": "number",
+                                "description": "Minimum possible score for continuous metric"
+                            },
+                            "max_score": {
+                                "type": "number",
+                                "description": "Maximum possible score for continuous metric"
+                            }
+                        },
+                        "if": {
+                            "properties": {
+                                "score_type": {
+                                    "const": "levels"
+                                }
+                            }
+                        },
+                        "then": {
+                            "required": [
+                                "level_names",
+                                "has_unknown_level"
+                            ]
+                        },
+                        "else": {
+                            "if": {
+                                "properties": {
+                                    "score_type": {
+                                        "const": "continuous"
+                                    }
+                                }
+                            },
+                            "then": {
+                                "required": [
+                                    "min_score",
+                                    "max_score"
+                                ]
+                            }
+                        }
+                    },
+                    "score_details": {
+                        "type": "object",
+                        "description": "The score for the evaluation and related details",
+                        "required": [
+                            "score"
+                        ],
+                        "properties": {
+                            "score": {
+                                "type": "number",
+                                "description": "The score for the evaluation"
+                            },
+                            "details": {
+                                "type": "object",
+                                "description": "Any additional details about the score",
+                                "additionalProperties": true
+                            }
+                        }
+                    },
+                    "detailed_evaluation_results_url": {
+                        "type": "string",
+                        "description": "Link to detailed evaluation data"
+                    },
+                    "generation_config": {
+                        "type": "object",
+                        "generation_args": {
+                                "type": "object",
+                                "description": "Parameters used to generate results - properties may vary by model type",
+                                "properties": {
+                                    "temperature": {
+                                        "type": [
+                                            "null",
+                                            "number"
+                                        ],
+                                        "description": "Sampling temperature"
+                                    },
+                                    "top_p": {
+                                        "type": [
+                                            "null",
+                                            "number"
+                                        ],
+                                        "description": "Nucleus sampling parameter"
+                                    },
+                                    "top_k": {
+                                        "type": [
+                                            "null",
+                                            "number"
+                                        ],
+                                        "description": "Top-k sampling parameter"
+                                    },
+                                    "max_tokens": {
+                                        "type": "integer",
+                                        "minimum": 1,
+                                        "description": "Maximum number of tokens to generate"
+                                    }
+                                },
+                                "additionalProperties": true
+                        },
+                        "additional_details": {
+                            "type": "string",
+                            "description": "Additional details about how the results for this metric were generated."
+                        }
+                    }
+                }
+            }
+
+        }
+    }
+}
