@@ -1,0 +1,107 @@
+{
+  "schema_version": "0.0.1",
+  "evaluation_id": "hfopenllm_v2/Magpie-Align_Llama-3.1-8B-Magpie-Align-v0.1/1762652579.744737",
+  "retrieved_timestamp": "1762652579.744738",
+  "source_data": [
+    "https://open-llm-leaderboard-open-llm-leaderboard.hf.space/api/leaderboard/formatted"
+  ],
+  "evaluation_source": {
+    "evaluation_source_name": "HF Open LLM v2",
+    "evaluation_source_type": "leaderboard"
+  },
+  "source_metadata": {
+    "source_organization_name": "Hugging Face",
+    "evaluator_relationship": "third_party"
+  },
+  "model_info": {
+    "name": "Magpie-Align/Llama-3.1-8B-Magpie-Align-v0.1",
+    "developer": "meta",
+    "inference_platform": "unknown",
+    "id": "Magpie-Align/Llama-3.1-8B-Magpie-Align-v0.1"
+  },
+  "evaluation_results": [
+    {
+      "evaluation_name": "IFEval",
+      "metric_config": {
+        "evaluation_description": "Accuracy on IFEval",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0,
+        "max_score": 1
+      },
+      "score_details": {
+        "score": 0.4457838535086903
+      }
+    },
+    {
+      "evaluation_name": "BBH",
+      "metric_config": {
+        "evaluation_description": "Accuracy on BBH",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0,
+        "max_score": 1
+      },
+      "score_details": {
+        "score": 0.46223963164680143
+      }
+    },
+    {
+      "evaluation_name": "MATH Level 5",
+      "metric_config": {
+        "evaluation_description": "Exact Match on MATH Level 5",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0,
+        "max_score": 1
+      },
+      "score_details": {
+        "score": 0.06646525679758308
+      }
+    },
+    {
+      "evaluation_name": "GPQA",
+      "metric_config": {
+        "evaluation_description": "Accuracy on GPQA",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0,
+        "max_score": 1
+      },
+      "score_details": {
+        "score": 0.2634228187919463
+      }
+    },
+    {
+      "evaluation_name": "MUSR",
+      "metric_config": {
+        "evaluation_description": "Accuracy on MUSR",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0,
+        "max_score": 1
+      },
+      "score_details": {
+        "score": 0.31406249999999997
+      }
+    },
+    {
+      "evaluation_name": "MMLU-PRO",
+      "metric_config": {
+        "evaluation_description": "Accuracy on MMLU-PRO",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0,
+        "max_score": 1
+      },
+      "score_details": {
+        "score": 0.32621343085106386
+      }
+    }
+  ],
+  "additional_details": {
+    "precision": "bfloat16",
+    "architecture": "LlamaForCausalLM",
+    "params_billions": 8.03
+  }
+}
