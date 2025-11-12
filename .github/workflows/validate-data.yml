@@ -5,10 +5,12 @@ on:
     branches: [ main ]
     paths:
       - 'scripts/validate_data.py'
+      - 'eval.schema.json'
       - 'data/**'
   pull_request:
     paths:
       - 'scripts/validate_data.py'
+      - 'eval.schema.json'
       - 'data/**'
 
 jobs:
@@ -31,8 +33,5 @@ jobs:
           # Disable cache because there are no requirements lockfiles
           enable-cache: false
 
-      - name: Download latest schema
-        run: wget https://raw.githubusercontent.com/evaleval/evalHub/refs/heads/main/schema/eval.schema.json
-
       - name: Validate data
-        run: uv run scripts/validate_data.py --schema-path eval.schema.json data
+        run: uv run pre-commit run --all-files
