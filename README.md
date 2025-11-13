@@ -16,13 +16,13 @@ To run the pre-commit on all files:
 uv run pre-commit run --all-files
 ```
 
-To run the pre-commit specific files:
+To run the pre-commit on specific files:
 
 ```sh
-uv run pre-commit run --files /path/to/data/a.json /path/to/data/b.json
+uv run pre-commit run --files a.json b.json c.json
 ```
 
-To install the pre-commit so that it will run when before `git commit` (optional):
+To install the pre-commit so that it will run before `git commit` (optional):
 
 ```sh
 uv run pre-commit install
