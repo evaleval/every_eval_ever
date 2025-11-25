@@ -1,13 +1,7 @@
-# /// script
-# requires-python = ">=3.12"
-# dependencies = [
-#     "jsonschema>=4.25",
-# ]
-# ///
-
 import argparse
 import json
 import os
+from typing import List
 
 from jsonschema.exceptions import ValidationError
 from jsonschema.protocols import Validator
@@ -27,12 +21,12 @@ def validate_file(file_path: str, validator: Validator) -> None:
     validator.validate(instance)
 
 
-def expand_paths(paths: str) -> str:
+def expand_paths(paths: List[str]) -> List[str]:
     """Expand folders to file paths"""
-    file_paths = []
+    file_paths: List[str] = []
     for path in paths:
         if os.path.isfile(path) and path.endswith(".json"):
-            file_paths.append(file_paths)
+            file_paths.append(path)
         elif os.path.isdir(path):
             for root, _, file_names in os.walk(path):
                 for file_name in file_names:
@@ -53,7 +47,7 @@ def annotate_error(file_path: str, message: str, **kwargs) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(
         prog="validate_data",
-        description="Validates that the JSON data conforms to the Pydantic schema",
+        description="Validates that the JSON data conforms to the JSON schema",
     )
     parser.add_argument(
         "paths", nargs="+", type=str, help="File or folder paths to the JSON data"
@@ -108,6 +102,7 @@ def main() -> None:
             print(f"{file_path}")
             print("  " + message)
             print()
+            raise
     print(f"{num_passed} file(s) passed; {num_failed} file(s) failed")
     print()
     if num_failed > 0:

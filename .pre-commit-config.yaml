@@ -1,0 +1,9 @@
+repos:
+- repo: local
+  hooks:
+    - id: validate-data
+      name: Validate data
+      entry: uv run python scripts/validate_data.py --schema-path eval.schema.json
+      exclude: '^.*\.schema\.json$'
+      language: system
+      types_or: [json]
