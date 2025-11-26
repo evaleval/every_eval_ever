@@ -1,7 +1,7 @@
 {
   "schema_version": "0.0.1",
-  "evaluation_id": "helm_lite/deepseek-ai_deepseek-llm-67b-chat/1764107854.7263072",
-  "retrieved_timestamp": "1764107854.7263072",
+  "evaluation_id": "helm_lite/google_gemma-2-27b-it/1764176840.996087",
+  "retrieved_timestamp": "1764176840.996087",
   "source_data": [
     "https://storage.googleapis.com/crfm-helm-public/lite/benchmark_output/releases/v1.13.0/groups/core_scenarios.json"
   ],
@@ -14,9 +14,9 @@
     "evaluator_relationship": "third_party"
   },
   "model_info": {
-    "name": "DeepSeek LLM Chat (67B)",
-    "id": "deepseek-ai/deepseek-llm-67b-chat",
-    "developer": "deepseek-ai",
+    "name": "Gemma 2 Instruct (27B)",
+    "id": "google/gemma-2-27b-it",
+    "developer": "google",
     "inference_platform": "unknown"
   },
   "evaluation_results": [
@@ -30,9 +30,11 @@
         "max_score": 1.0
       },
       "score_details": {
-        "score": 0.488,
+        "score": 0.675,
         "details": {
-          "description": null
+          "accuracy_description": null,
+          "efficiency_description": null,
+          "eval_time_mean_win_rate": 0.741
         }
       },
       "generation_config": {}
@@ -47,9 +49,11 @@
         "max_score": 1.0
       },
       "score_details": {
-        "score": 0.581,
+        "score": 0.79,
         "details": {
-          "description": "min=0.581, mean=0.581, max=0.581, sum=0.581 (1)"
+          "accuracy_description": "min=0.79, mean=0.79, max=0.79, sum=0.79 (1)",
+          "efficiency_description": "min=0.66, mean=0.66, max=0.66, sum=0.66 (1)",
+          "eval_time": 0.66
         }
       },
       "generation_config": {}
@@ -64,9 +68,11 @@
         "max_score": 1.0
       },
       "score_details": {
-        "score": 0.733,
+        "score": 0.731,
         "details": {
-          "description": "min=0.733, mean=0.733, max=0.733, sum=0.733 (1)"
+          "accuracy_description": "min=0.731, mean=0.731, max=0.731, sum=0.731 (1)",
+          "efficiency_description": "min=0.486, mean=0.486, max=0.486, sum=0.486 (1)",
+          "eval_time": 0.486
         }
       },
       "generation_config": {
@@ -83,9 +89,11 @@
         "max_score": 1.0
       },
       "score_details": {
-        "score": 0.412,
+        "score": 0.353,
         "details": {
-          "description": "min=0.412, mean=0.412, max=0.412, sum=0.412 (1)"
+          "accuracy_description": "min=0.353, mean=0.353, max=0.353, sum=0.353 (1)",
+          "efficiency_description": "min=0.358, mean=0.358, max=0.358, sum=0.358 (1)",
+          "eval_time": 0.358
         }
       },
       "generation_config": {
@@ -102,9 +110,11 @@
         "max_score": 1.0
       },
       "score_details": {
-        "score": 0.88,
+        "score": 0.918,
         "details": {
-          "description": "min=0.88, mean=0.88, max=0.88, sum=0.88 (1)"
+          "accuracy_description": "min=0.918, mean=0.918, max=0.918, sum=0.918 (1)",
+          "efficiency_description": "min=0.327, mean=0.327, max=0.327, sum=0.327 (1)",
+          "eval_time": 0.327
         }
       },
       "generation_config": {
@@ -122,9 +132,11 @@
         "max_score": 1.0
       },
       "score_details": {
-        "score": 0.641,
+        "score": 0.664,
         "details": {
-          "description": "min=0.44, mean=0.641, max=0.91, sum=3.203 (5)"
+          "accuracy_description": "min=0.44, mean=0.664, max=0.93, sum=3.32 (5)",
+          "efficiency_description": "min=0.317, mean=0.329, max=0.337, sum=1.643 (5)",
+          "eval_time": 0.329
         }
       },
       "generation_config": {
@@ -148,9 +160,11 @@
         "max_score": 1.0
       },
       "score_details": {
-        "score": 0.615,
+        "score": 0.746,
         "details": {
-          "description": "min=0.456, mean=0.615, max=0.748, sum=4.304 (7)"
+          "accuracy_description": "min=0.513, mean=0.746, max=0.93, sum=5.219 (7)",
+          "efficiency_description": "min=1.515, mean=1.903, max=2.648, sum=13.324 (7)",
+          "eval_time": 1.903
         }
       },
       "generation_config": {
@@ -178,9 +192,11 @@
         "max_score": 1.0
       },
       "score_details": {
-        "score": 0.795,
+        "score": 0.812,
         "details": {
-          "description": "min=0.795, mean=0.795, max=0.795, sum=0.795 (1)"
+          "accuracy_description": "min=0.812, mean=0.812, max=0.812, sum=0.812 (1)",
+          "efficiency_description": "min=2.332, mean=2.332, max=2.332, sum=2.332 (1)",
+          "eval_time": 2.332
         }
       },
       "generation_config": {}
@@ -195,9 +211,11 @@
         "max_score": 1.0
       },
       "score_details": {
-        "score": 0.637,
+        "score": 0.7,
         "details": {
-          "description": "min=0.45, mean=0.637, max=0.821, sum=3.183 (5)"
+          "accuracy_description": "min=0.439, mean=0.7, max=0.979, sum=3.499 (5)",
+          "efficiency_description": "min=0.328, mean=0.44, max=0.796, sum=2.202 (5)",
+          "eval_time": 0.44
         }
       },
       "generation_config": {
@@ -220,9 +238,11 @@
         "max_score": 1.0
       },
       "score_details": {
-        "score": 0.628,
+        "score": 0.684,
         "details": {
-          "description": "min=0.628, mean=0.628, max=0.628, sum=0.628 (1)"
+          "accuracy_description": "min=0.684, mean=0.684, max=0.684, sum=0.684 (1)",
+          "efficiency_description": "min=0.451, mean=0.451, max=0.451, sum=0.451 (1)",
+          "eval_time": 0.451
         }
       },
       "generation_config": {}
@@ -237,9 +257,11 @@
         "max_score": 1.0
       },
       "score_details": {
-        "score": 0.186,
+        "score": 0.214,
         "details": {
-          "description": "min=0.11, mean=0.186, max=0.236, sum=0.932 (5)"
+          "accuracy_description": "min=0.167, mean=0.214, max=0.241, sum=1.072 (5)",
+          "efficiency_description": "min=0.666, mean=0.698, max=0.715, sum=3.492 (5)",
+          "eval_time": 0.698
         }
       },
       "generation_config": {

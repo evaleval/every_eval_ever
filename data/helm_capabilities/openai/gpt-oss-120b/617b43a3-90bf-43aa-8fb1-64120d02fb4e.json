@@ -1,7 +1,7 @@
 {
   "schema_version": "0.0.1",
-  "evaluation_id": "helm_capabilities/allenai_olmo-2-1124-13b-instruct/1764107889.483011",
-  "retrieved_timestamp": "1764107889.483011",
+  "evaluation_id": "helm_capabilities/openai_gpt-oss-120b/1764176819.312159",
+  "retrieved_timestamp": "1764176819.312159",
   "source_data": [
     "https://storage.googleapis.com/crfm-helm-public/capabilities/benchmark_output/releases/v1.12.0/groups/core_scenarios.json"
   ],
@@ -14,9 +14,9 @@
     "evaluator_relationship": "third_party"
   },
   "model_info": {
-    "name": "OLMo 2 13B Instruct November 2024",
-    "id": "allenai/olmo-2-1124-13b-instruct",
-    "developer": "allenai",
+    "name": "gpt-oss-120b",
+    "id": "openai/gpt-oss-120b",
+    "developer": "openai",
     "inference_platform": "unknown"
   },
   "evaluation_results": [
@@ -30,9 +30,11 @@
         "max_score": 1.0
       },
       "score_details": {
-        "score": 0.44,
+        "score": 0.77,
         "details": {
-          "description": null
+          "accuracy_description": null,
+          "efficiency_description": null,
+          "eval_time_mean_win_rate": 19.583
         }
       },
       "generation_config": {}
@@ -47,16 +49,17 @@
         "max_score": 1.0
       },
       "score_details": {
-        "score": 0.31,
+        "score": 0.795,
         "details": {
-          "description": "min=0.31, mean=0.31, max=0.31, sum=0.31 (1)"
+          "accuracy_description": "min=0.795, mean=0.795, max=0.795, sum=0.795 (1)",
+          "efficiency_description": "min=6.268, mean=6.268, max=6.268, sum=6.268 (1)",
+          "eval_time": 6.268
         }
       },
       "generation_config": {
         "subset": "all",
         "use_chain_of_thought": "true",
-        "use_few_shot": "false",
-        "num_output_tokens": "2048"
+        "use_few_shot": "false"
       }
     },
     {
@@ -69,16 +72,17 @@
         "max_score": 1.0
       },
       "score_details": {
-        "score": 0.316,
+        "score": 0.684,
         "details": {
-          "description": "min=0.316, mean=0.316, max=0.316, sum=0.316 (1)"
+          "accuracy_description": "min=0.684, mean=0.684, max=0.684, sum=0.684 (1)",
+          "efficiency_description": "min=18.819, mean=18.819, max=18.819, sum=18.819 (1)",
+          "eval_time": 18.819
         }
       },
       "generation_config": {
         "subset": "gpqa_main",
         "use_chain_of_thought": "true",
-        "use_few_shot": "false",
-        "num_output_tokens": "2048"
+        "use_few_shot": "false"
       }
     },
     {
@@ -91,14 +95,14 @@
         "max_score": 1.0
       },
       "score_details": {
-        "score": 0.73,
+        "score": 0.836,
         "details": {
-          "description": "min=0.73, mean=0.73, max=0.73, sum=0.73 (1)"
+          "accuracy_description": "min=0.836, mean=0.836, max=0.836, sum=0.836 (1)",
+          "efficiency_description": "min=6.303, mean=6.303, max=6.303, sum=6.303 (1)",
+          "eval_time": 6.303
         }
       },
-      "generation_config": {
-        "num_output_tokens": "2048"
-      }
+      "generation_config": {}
     },
     {
       "evaluation_name": "IFEval - IFEval Strict Acc",
@@ -110,14 +114,15 @@
         "max_score": 1.0
       },
       "score_details": {
-        "score": 0.689,
+        "score": 0.845,
         "details": {
-          "description": "min=0.689, mean=0.689, max=0.689, sum=0.689 (1)"
+          "accuracy_description": "min=0.845, mean=0.845, max=0.845, sum=0.845 (1)",
+          "efficiency_description": "min=24.979, mean=24.979, max=24.979, sum=24.979 (1)",
+          "eval_time": 24.979
         }
       },
       "generation_config": {
-        "subset": "v2",
-        "num_output_tokens": "2048"
+        "subset": "v2"
       }
     },
     {
@@ -130,14 +135,14 @@
         "max_score": 1.0
       },
       "score_details": {
-        "score": 0.156,
+        "score": 0.688,
         "details": {
-          "description": "min=0.156, mean=0.156, max=0.156, sum=0.156 (1)"
+          "accuracy_description": "min=0.688, mean=0.688, max=0.688, sum=0.688 (1)",
+          "efficiency_description": "min=41.549, mean=41.549, max=41.549, sum=41.549 (1)",
+          "eval_time": 41.549
         }
       },
-      "generation_config": {
-        "num_output_tokens": "2048"
-      }
+      "generation_config": {}
     }
   ]
 }

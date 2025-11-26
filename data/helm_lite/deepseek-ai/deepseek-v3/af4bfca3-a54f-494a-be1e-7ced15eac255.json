@@ -1,7 +1,7 @@
 {
   "schema_version": "0.0.1",
-  "evaluation_id": "helm_lite/tiiuae_falcon-40b/1764107854.727117",
-  "retrieved_timestamp": "1764107854.727117",
+  "evaluation_id": "helm_lite/deepseek-ai_deepseek-v3/1764176840.9952419",
+  "retrieved_timestamp": "1764176840.9952419",
   "source_data": [
     "https://storage.googleapis.com/crfm-helm-public/lite/benchmark_output/releases/v1.13.0/groups/core_scenarios.json"
   ],
@@ -14,9 +14,9 @@
     "evaluator_relationship": "third_party"
   },
   "model_info": {
-    "name": "Falcon (40B)",
-    "id": "tiiuae/falcon-40b",
-    "developer": "tiiuae",
+    "name": "DeepSeek v3",
+    "id": "deepseek-ai/deepseek-v3",
+    "developer": "deepseek-ai",
     "inference_platform": "unknown"
   },
   "evaluation_results": [
@@ -30,9 +30,11 @@
         "max_score": 1.0
       },
       "score_details": {
-        "score": 0.217,
+        "score": 0.908,
         "details": {
-          "description": null
+          "accuracy_description": null,
+          "efficiency_description": null,
+          "eval_time_mean_win_rate": 0.115
         }
       },
       "generation_config": {}
@@ -47,9 +49,11 @@
         "max_score": 1.0
       },
       "score_details": {
-        "score": 0.671,
+        "score": 0.796,
         "details": {
-          "description": "min=0.671, mean=0.671, max=0.671, sum=0.671 (1)"
+          "accuracy_description": "min=0.796, mean=0.796, max=0.796, sum=0.796 (1)",
+          "efficiency_description": "min=6.44, mean=6.44, max=6.44, sum=6.44 (1)",
+          "eval_time": 6.44
         }
       },
       "generation_config": {}
@@ -64,9 +68,11 @@
         "max_score": 1.0
       },
       "score_details": {
-        "score": 0.676,
+        "score": 0.765,
         "details": {
-          "description": "min=0.676, mean=0.676, max=0.676, sum=0.676 (1)"
+          "accuracy_description": "min=0.765, mean=0.765, max=0.765, sum=0.765 (1)",
+          "efficiency_description": "min=5.606, mean=5.606, max=5.606, sum=5.606 (1)",
+          "eval_time": 5.606
         }
       },
       "generation_config": {
@@ -83,9 +89,11 @@
         "max_score": 1.0
       },
       "score_details": {
-        "score": 0.392,
+        "score": 0.467,
         "details": {
-          "description": "min=0.392, mean=0.392, max=0.392, sum=0.392 (1)"
+          "accuracy_description": "min=0.467, mean=0.467, max=0.467, sum=0.467 (1)",
+          "efficiency_description": "min=2.183, mean=2.183, max=2.183, sum=2.183 (1)",
+          "eval_time": 2.183
         }
       },
       "generation_config": {
@@ -102,9 +110,11 @@
         "max_score": 1.0
       },
       "score_details": {
-        "score": 0.662,
+        "score": 0.954,
         "details": {
-          "description": "min=0.662, mean=0.662, max=0.662, sum=0.662 (1)"
+          "accuracy_description": "min=0.954, mean=0.954, max=0.954, sum=0.954 (1)",
+          "efficiency_description": "min=1.746, mean=1.746, max=1.746, sum=1.746 (1)",
+          "eval_time": 1.746
         }
       },
       "generation_config": {
@@ -122,9 +132,11 @@
         "max_score": 1.0
       },
       "score_details": {
-        "score": 0.507,
+        "score": 0.803,
         "details": {
-          "description": "min=0.31, mean=0.507, max=0.79, sum=2.535 (5)"
+          "accuracy_description": "min=0.65, mean=0.803, max=0.92, sum=4.016 (5)",
+          "efficiency_description": "min=0.545, mean=0.564, max=0.585, sum=2.818 (5)",
+          "eval_time": 0.564
         }
       },
       "generation_config": {
@@ -148,9 +160,11 @@
         "max_score": 1.0
       },
       "score_details": {
-        "score": 0.128,
+        "score": 0.912,
         "details": {
-          "description": "min=0.019, mean=0.128, max=0.228, sum=0.893 (7)"
+          "accuracy_description": "min=0.816, mean=0.912, max=0.985, sum=6.385 (7)",
+          "efficiency_description": "min=7.691, mean=9.449, max=13.451, sum=66.142 (7)",
+          "eval_time": 9.449
         }
       },
       "generation_config": {
@@ -178,12 +192,16 @@
         "max_score": 1.0
       },
       "score_details": {
-        "score": 0.267,
+        "score": 0.94,
         "details": {
-          "description": "min=0.267, mean=0.267, max=0.267, sum=0.267 (1)"
+          "accuracy_description": "min=0.94, mean=0.94, max=0.94, sum=0.94 (1)",
+          "efficiency_description": "min=9.77, mean=9.77, max=9.77, sum=9.77 (1)",
+          "eval_time": 9.77
         }
       },
-      "generation_config": {}
+      "generation_config": {
+        "stop": "none"
+      }
     },
     {
       "evaluation_name": "GSM8K - EM",
@@ -195,9 +213,11 @@
         "max_score": 1.0
       },
       "score_details": {
-        "score": 0.442,
+        "score": 0.718,
         "details": {
-          "description": "min=0.204, mean=0.442, max=0.737, sum=2.209 (5)"
+          "accuracy_description": "min=0.425, mean=0.718, max=0.968, sum=3.589 (5)",
+          "efficiency_description": "min=0.566, mean=3.113, max=6.6, sum=15.563 (5)",
+          "eval_time": 3.113
         }
       },
       "generation_config": {
@@ -220,9 +240,11 @@
         "max_score": 1.0
       },
       "score_details": {
-        "score": 0.419,
+        "score": 0.809,
         "details": {
-          "description": "min=0.419, mean=0.419, max=0.419, sum=0.419 (1)"
+          "accuracy_description": "min=0.809, mean=0.809, max=0.809, sum=0.809 (1)",
+          "efficiency_description": "min=1.79, mean=1.79, max=1.79, sum=1.79 (1)",
+          "eval_time": 1.79
         }
       },
       "generation_config": {}
@@ -237,9 +259,11 @@
         "max_score": 1.0
       },
       "score_details": {
-        "score": 0.162,
+        "score": 0.209,
         "details": {
-          "description": "min=0.017, mean=0.162, max=0.208, sum=0.809 (5)"
+          "accuracy_description": "min=0.163, mean=0.209, max=0.252, sum=1.046 (5)",
+          "efficiency_description": "min=2.231, mean=2.677, max=3.02, sum=13.384 (5)",
+          "eval_time": 2.677
         }
       },
       "generation_config": {

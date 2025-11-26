@@ -6,6 +6,7 @@ import os
 
 from collections import defaultdict
 from pathlib import Path
+from typing import Any, Dict, List, Tuple
 
 from eval_types import (
     EvaluationLog, 
@@ -38,7 +39,7 @@ def save_to_file(unified_eval_log: EvaluationLog, output_filepath: str) -> bool:
         print(f"Problem with saving unified eval log to file: {e}")
         raise e
     
-def get_generation_config_from_run_specs(run_specs: str):
+def extract_generation_config_from_run_specs(run_specs: List[str]) -> Dict[str, Any]:
     generation_config = defaultdict(list)
 
     for run_spec in run_specs:
@@ -58,7 +59,7 @@ def get_generation_config_from_run_specs(run_specs: str):
     
     return generation_config
 
-def prepare_model_info_map(row):
+def extract_model_info(row: List) -> ModelInfo:
     model_name = row[0].get('value')
     run_spec_names = next(
         (r["run_spec_names"] for r in row if "run_spec_names" in r),
@@ -75,21 +76,50 @@ def prepare_model_info_map(row):
     developer = model_details.split('_')[0]
     model_id = model_details.replace('_', '/')
 
-    model_info = ModelInfo(
+    return ModelInfo(
         name=model_name,
         id=model_id,
         developer=developer,
         inference_platform='unknown'
     )
     
-    return model_info
+def extract_efficiency_stats(efficiency_row: List) -> Tuple[float, List[float]]:
+    mean_win_rate = efficiency_row[1].get('value')
+    eval_times_for_benchmarks = [
+        stats.get('value') for stats in efficiency_row
+    ]
+    return mean_win_rate, eval_times_for_benchmarks
+
+def prepare_score_details(
+    acc_stats: Dict[str, Any], 
+    eff_stats: Dict[str, Any], 
+    column_idx: int
+) -> ScoreDetails:
+    details = {
+        'accuracy_description': acc_stats.get('description'),
+        'efficiency_description': eff_stats.get('description')
+    }
+
+    if column_idx == 0: # mean_win_rate stats
+        details['eval_time_mean_win_rate'] = round(eff_stats.get('value'), 3)
+    else:
+        details['eval_time'] = round(eff_stats.get('value'), 3)
+    
+    return ScoreDetails(
+        score=round(acc_stats.get('value'), 3),
+        details=details
+    )
 
 def convert(leaderboard_name, leaderboard_data, evaluation_source, source_data):
-    acc_stats = leaderboard_data[0]
-    
-    rows = acc_stats.get('rows')
-    headers = acc_stats.get('header')
+    '''
+    Script for conversion data from leaderboards: HELM Capabilities, HELM Lite.
+    '''
+    accuracy_tab_data = leaderboard_data[0]
+    accuracy_rows = accuracy_tab_data.get('rows')
+    headers = accuracy_tab_data.get('header')
     eval_names = [header.get('value') for header in headers[1:]]
+
+    efficiency_rows = leaderboard_data[1].get('rows') if len(leaderboard_data) > 1 and leaderboard_data[1].get('title') == 'Efficiency' else []
 
     metrics = [
         MetricConfig(
@@ -104,27 +134,26 @@ def convert(leaderboard_name, leaderboard_data, evaluation_source, source_data):
 
     evaluation_logs = {}
 
-    for row in rows[:10]:
-        model_info = prepare_model_info_map(row)
+    for acc_row, eff_row in list(zip(accuracy_rows[:10], efficiency_rows[:10])):
+        model_info = extract_model_info(acc_row)
         retrieved_timestamp = str(time.time())
         evaluation_id=f'{leaderboard_name}/{model_info.id.replace('/', '_')}/{retrieved_timestamp}'
 
         evaluation_results = []
-        for idx, res in enumerate(row[1:]):
-            if not res.get('value'):
+        for column_idx, (acc_per_column, eff_per_column) in enumerate(zip(acc_row[1:], eff_row[1:])):
+            if not acc_per_column.get('value'):
                 continue
 
-            generation_config = get_generation_config_from_run_specs(res.get('run_spec_names')) if res.get('run_spec_names') else {}
+            generation_config = extract_generation_config_from_run_specs(acc_per_column.get('run_spec_names')) if acc_per_column.get('run_spec_names') else {}
 
             evaluation_results.append(
                 EvaluationResult(
-                    evaluation_name=eval_names[idx - 1],
-                    metric_config=metrics[idx - 1],
-                    score_details=ScoreDetails(
-                        score=round(res.get('value'), 3),
-                        details={
-                            'description': res.get('description')
-                        }
+                    evaluation_name=eval_names[column_idx - 1],
+                    metric_config=metrics[column_idx - 1],
+                    score_details=prepare_score_details(
+                        acc_per_column,
+                        eff_per_column,
+                        column_idx
                     ),
                     generation_config=generation_config
                 )
@@ -143,7 +172,7 @@ def convert(leaderboard_name, leaderboard_data, evaluation_source, source_data):
             evaluation_source=evaluation_source,
             evaluation_results=evaluation_results
         )
-        
+
         evaluation_logs[evaluation_id] = eval_log
 
         log_filename = f'{uuid.uuid4()}.json'
@@ -156,11 +185,11 @@ def convert(leaderboard_name, leaderboard_data, evaluation_source, source_data):
 
 
 if __name__ == '__main__':
-    leaderboard_name = 'HELM_Capabilities' # 'HELM_Lite'
+    leaderboard_name = 'HELM_Lite' # 'HELM_Capabilities'
     leaderboard_name = leaderboard_name.lower()
     source_data = [
-        'https://storage.googleapis.com/crfm-helm-public/capabilities/benchmark_output/releases/v1.12.0/groups/core_scenarios.json'
-        # 'https://storage.googleapis.com/crfm-helm-public/lite/benchmark_output/releases/v1.13.0/groups/core_scenarios.json'
+        # 'https://storage.googleapis.com/crfm-helm-public/capabilities/benchmark_output/releases/v1.12.0/groups/core_scenarios.json'
+        'https://storage.googleapis.com/crfm-helm-public/lite/benchmark_output/releases/v1.13.0/groups/core_scenarios.json'
     ]
 
     os.makedirs(f'data/{leaderboard_name}', exist_ok=True)
