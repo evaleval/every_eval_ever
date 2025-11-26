@@ -17,7 +17,12 @@
     "name": "nvidia/AceInstruct-72B",
     "developer": "nvidia",
     "inference_platform": "unknown",
-    "id": "nvidia/AceInstruct-72B"
+    "id": "nvidia/AceInstruct-72B",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "Qwen2ForCausalLM",
+      "params_billions": 72.706
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.48736702127659576
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "Qwen2ForCausalLM",
-    "params_billions": 72.706
-  }
+  ]
 }

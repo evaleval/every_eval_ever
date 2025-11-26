@@ -17,7 +17,12 @@
     "name": "MTSAIR/Cotype-Nano",
     "developer": "MTSAIR",
     "inference_platform": "unknown",
-    "id": "MTSAIR/Cotype-Nano"
+    "id": "MTSAIR/Cotype-Nano",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "Qwen2ForCausalLM",
+      "params_billions": 1.544
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.24767287234042554
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "Qwen2ForCausalLM",
-    "params_billions": 1.544
-  }
+  ]
 }

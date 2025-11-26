@@ -17,7 +17,12 @@
     "name": "01-ai/Yi-1.5-9B-32K",
     "developer": "01-ai",
     "inference_platform": "unknown",
-    "id": "01-ai/Yi-1.5-9B-32K"
+    "id": "01-ai/Yi-1.5-9B-32K",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 8.829
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.37649601063829785
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 8.829
-  }
+  ]
 }

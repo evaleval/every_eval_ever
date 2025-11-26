@@ -17,7 +17,12 @@
     "name": "neopolita/jessi-v0.1-bf16-falcon3-7b-instruct",
     "developer": "neopolita",
     "inference_platform": "unknown",
-    "id": "neopolita/jessi-v0.1-bf16-falcon3-7b-instruct"
+    "id": "neopolita/jessi-v0.1-bf16-falcon3-7b-instruct",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 7.456
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.3923703457446808
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 7.456
-  }
+  ]
 }

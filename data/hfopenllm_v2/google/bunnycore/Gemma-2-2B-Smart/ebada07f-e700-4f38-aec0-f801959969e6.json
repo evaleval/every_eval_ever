@@ -17,7 +17,12 @@
     "name": "bunnycore/Gemma-2-2B-Smart",
     "developer": "google",
     "inference_platform": "unknown",
-    "id": "bunnycore/Gemma-2-2B-Smart"
+    "id": "bunnycore/Gemma-2-2B-Smart",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "Gemma2ForCausalLM",
+      "params_billions": 2.614
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.2426030585106383
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "Gemma2ForCausalLM",
-    "params_billions": 2.614
-  }
+  ]
 }

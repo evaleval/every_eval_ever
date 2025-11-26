@@ -17,7 +17,12 @@
     "name": "HumanLLMs/Humanish-Qwen2.5-7B-Instruct",
     "developer": "HumanLLMs",
     "inference_platform": "unknown",
-    "id": "HumanLLMs/Humanish-Qwen2.5-7B-Instruct"
+    "id": "HumanLLMs/Humanish-Qwen2.5-7B-Instruct",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "Qwen2ForCausalLM",
+      "params_billions": 7.616
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.4398271276595745
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "Qwen2ForCausalLM",
-    "params_billions": 7.616
-  }
+  ]
 }

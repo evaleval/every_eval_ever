@@ -17,7 +17,12 @@
     "name": "togethercomputer/Llama-2-7B-32K-Instruct",
     "developer": "togethercomputer",
     "inference_platform": "unknown",
-    "id": "togethercomputer/Llama-2-7B-32K-Instruct"
+    "id": "togethercomputer/Llama-2-7B-32K-Instruct",
+    "additional_details": {
+      "precision": "float16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 7.0
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.17810837765957446
       }
     }
-  ],
-  "additional_details": {
-    "precision": "float16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 7.0
-  }
+  ]
 }

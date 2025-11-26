@@ -17,7 +17,12 @@
     "name": "oopere/pruned10-llama-3.2-3B",
     "developer": "meta",
     "inference_platform": "unknown",
-    "id": "oopere/pruned10-llama-3.2-3B"
+    "id": "oopere/pruned10-llama-3.2-3B",
+    "additional_details": {
+      "precision": "float16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 3.001
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.16397938829787234
       }
     }
-  ],
-  "additional_details": {
-    "precision": "float16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 3.001
-  }
+  ]
 }

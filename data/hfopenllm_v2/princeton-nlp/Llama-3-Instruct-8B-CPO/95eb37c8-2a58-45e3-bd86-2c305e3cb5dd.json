@@ -17,7 +17,12 @@
     "name": "princeton-nlp/Llama-3-Instruct-8B-CPO",
     "developer": "princeton-nlp",
     "inference_platform": "unknown",
-    "id": "princeton-nlp/Llama-3-Instruct-8B-CPO"
+    "id": "princeton-nlp/Llama-3-Instruct-8B-CPO",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 8.03
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.36519281914893614
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 8.03
-  }
+  ]
 }

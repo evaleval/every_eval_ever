@@ -17,7 +17,12 @@
     "name": "openchat/openchat_3.5",
     "developer": "openchat",
     "inference_platform": "unknown",
-    "id": "openchat/openchat_3.5"
+    "id": "openchat/openchat_3.5",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "MistralForCausalLM",
+      "params_billions": 7.0
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.31532579787234044
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "MistralForCausalLM",
-    "params_billions": 7.0
-  }
+  ]
 }

@@ -17,7 +17,12 @@
     "name": "h2oai/h2o-danube3-4b-base",
     "developer": "h2oai",
     "inference_platform": "unknown",
-    "id": "h2oai/h2o-danube3-4b-base"
+    "id": "h2oai/h2o-danube3-4b-base",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 3.962
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.2109375
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 3.962
-  }
+  ]
 }

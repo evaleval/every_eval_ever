@@ -17,7 +17,12 @@
     "name": "BEE-spoke-data/tFINE-900m-e16-d32-flan",
     "developer": "BEE-spoke-data",
     "inference_platform": "unknown",
-    "id": "BEE-spoke-data/tFINE-900m-e16-d32-flan"
+    "id": "BEE-spoke-data/tFINE-900m-e16-d32-flan",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "T5ForConditionalGeneration",
+      "params_billions": 0.887
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.1307347074468085
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "T5ForConditionalGeneration",
-    "params_billions": 0.887
-  }
+  ]
 }

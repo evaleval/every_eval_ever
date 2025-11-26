@@ -17,7 +17,12 @@
     "name": "lmsys/vicuna-7b-v1.5",
     "developer": "lmsys",
     "inference_platform": "unknown",
-    "id": "lmsys/vicuna-7b-v1.5"
+    "id": "lmsys/vicuna-7b-v1.5",
+    "additional_details": {
+      "precision": "float16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 7.0
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.21467752659574468
       }
     }
-  ],
-  "additional_details": {
-    "precision": "float16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 7.0
-  }
+  ]
 }

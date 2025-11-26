@@ -17,7 +17,12 @@
     "name": "tomasmcm/sky-t1-coder-32b-flash",
     "developer": "tomasmcm",
     "inference_platform": "unknown",
-    "id": "tomasmcm/sky-t1-coder-32b-flash"
+    "id": "tomasmcm/sky-t1-coder-32b-flash",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "Qwen2ForCausalLM",
+      "params_billions": 32.764
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.5782081117021277
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "Qwen2ForCausalLM",
-    "params_billions": 32.764
-  }
+  ]
 }

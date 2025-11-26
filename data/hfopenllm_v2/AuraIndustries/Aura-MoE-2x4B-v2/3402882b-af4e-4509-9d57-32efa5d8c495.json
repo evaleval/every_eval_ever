@@ -17,7 +17,12 @@
     "name": "AuraIndustries/Aura-MoE-2x4B-v2",
     "developer": "AuraIndustries",
     "inference_platform": "unknown",
-    "id": "AuraIndustries/Aura-MoE-2x4B-v2"
+    "id": "AuraIndustries/Aura-MoE-2x4B-v2",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "MixtralForCausalLM",
+      "params_billions": 7.231
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.2609707446808511
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "MixtralForCausalLM",
-    "params_billions": 7.231
-  }
+  ]
 }

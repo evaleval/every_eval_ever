@@ -17,7 +17,12 @@
     "name": "cognitivecomputations/dolphin-2.9.2-qwen2-72b",
     "developer": "alibaba",
     "inference_platform": "unknown",
-    "id": "cognitivecomputations/dolphin-2.9.2-qwen2-72b"
+    "id": "cognitivecomputations/dolphin-2.9.2-qwen2-72b",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "Qwen2ForCausalLM",
+      "params_billions": 72.0
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.547124335106383
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "Qwen2ForCausalLM",
-    "params_billions": 72.0
-  }
+  ]
 }

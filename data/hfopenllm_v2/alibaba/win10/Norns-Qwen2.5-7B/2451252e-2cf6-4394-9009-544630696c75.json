@@ -17,7 +17,12 @@
     "name": "win10/Norns-Qwen2.5-7B",
     "developer": "alibaba",
     "inference_platform": "unknown",
-    "id": "win10/Norns-Qwen2.5-7B"
+    "id": "win10/Norns-Qwen2.5-7B",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "Qwen2ForCausalLM",
+      "params_billions": 7.616
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.34133976063829785
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "Qwen2ForCausalLM",
-    "params_billions": 7.616
-  }
+  ]
 }

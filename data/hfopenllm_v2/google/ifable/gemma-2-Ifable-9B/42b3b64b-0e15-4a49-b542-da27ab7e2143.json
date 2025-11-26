@@ -17,7 +17,12 @@
     "name": "ifable/gemma-2-Ifable-9B",
     "developer": "google",
     "inference_platform": "unknown",
-    "id": "ifable/gemma-2-Ifable-9B"
+    "id": "ifable/gemma-2-Ifable-9B",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "Gemma2ForCausalLM",
+      "params_billions": 9.242
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.4226230053191489
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "Gemma2ForCausalLM",
-    "params_billions": 9.242
-  }
+  ]
 }

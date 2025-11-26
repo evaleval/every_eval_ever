@@ -17,7 +17,12 @@
     "name": "agentlans/Llama3.1-LexiHermes-SuperStorm",
     "developer": "meta",
     "inference_platform": "unknown",
-    "id": "agentlans/Llama3.1-LexiHermes-SuperStorm"
+    "id": "agentlans/Llama3.1-LexiHermes-SuperStorm",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 8.03
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.3843916223404255
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 8.03
-  }
+  ]
 }

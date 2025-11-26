@@ -17,7 +17,12 @@
     "name": "HPAI-BSC/Llama3-Aloe-8B-Alpha",
     "developer": "meta",
     "inference_platform": "unknown",
-    "id": "HPAI-BSC/Llama3-Aloe-8B-Alpha"
+    "id": "HPAI-BSC/Llama3-Aloe-8B-Alpha",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 8.03
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.3295378989361702
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 8.03
-  }
+  ]
 }

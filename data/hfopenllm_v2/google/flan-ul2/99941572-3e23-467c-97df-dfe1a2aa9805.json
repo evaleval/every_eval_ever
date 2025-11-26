@@ -17,7 +17,12 @@
     "name": "google/flan-ul2",
     "developer": "google",
     "inference_platform": "unknown",
-    "id": "google/flan-ul2"
+    "id": "google/flan-ul2",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "T5ForConditionalGeneration",
+      "params_billions": 19.46
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.24933510638297873
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "T5ForConditionalGeneration",
-    "params_billions": 19.46
-  }
+  ]
 }

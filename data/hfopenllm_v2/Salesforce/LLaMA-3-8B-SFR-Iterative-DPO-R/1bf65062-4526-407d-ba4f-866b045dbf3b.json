@@ -17,7 +17,12 @@
     "name": "Salesforce/LLaMA-3-8B-SFR-Iterative-DPO-R",
     "developer": "Salesforce",
     "inference_platform": "unknown",
-    "id": "Salesforce/LLaMA-3-8B-SFR-Iterative-DPO-R"
+    "id": "Salesforce/LLaMA-3-8B-SFR-Iterative-DPO-R",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 8.03
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.3172373670212766
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 8.03
-  }
+  ]
 }

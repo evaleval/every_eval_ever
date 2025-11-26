@@ -13,6 +13,7 @@
         "model_info",
         "evaluation_results"
     ],
+    "additionalProperties": false,
     "properties": {
         "schema_version": {
             "type": "string",
@@ -20,18 +21,60 @@
         },
         "evaluation_id": {
             "type": "string",
-            "description": "Unique identifier for this specific evaluation run. Use org_name/eval_name/retrieved_timestamp format"
+            "description": "Unique identifier for this specific evaluation run. Use eval_name/model_id/retrieved_timestamp format"
         },
         "retrieved_timestamp": {
             "type": "string",
-            "description": "Timestamp for when this record was created"
+            "description": "Timestamp for when this record was created - using Unix Epoch time format"
         },
         "source_data": {
-            "type": "array",
-            "description": "URLs for the source of the evaluation data",
-            "items": {
-                "type": "string"
-            }
+            "description": "Source of dataset used for evaluation. There are two options supported: HuggingFace dataset or url for other data source.",
+            "oneOf": [
+                {
+                    "type": "array",
+                    "description": "URLs for the source of the evaluation data",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                {
+                    "type": "object",
+                    "description": "Details about HuggingFace dataset used for evaluation",
+                    "required": [
+                        "dataset_name"
+                    ],
+                    "properties": {
+                        "dataset_name": {
+                            "type": "string",
+                            "description": "Name of the source dataset"
+                        },
+                        "hf_repo": {
+                            "type": "string",
+                            "description": "HuggingFace repository identifier"
+                        },
+                        "hf_split": {
+                            "type": "string",
+                            "description": "One of train, val or test."
+                        },
+                        "samples_number": {
+                            "type": "integer",
+                            "description": "Number of samples in the dataset"
+                        },
+                        "sample_ids": {
+                            "type": "array",
+                            "description": "Array of sample ids used for evaluation",
+                            "items": {
+                                "type": ["integer", "string"]
+                            }
+                        },
+                        "additional_details": {
+                            "type": "object",
+                            "description": "Additional dataset info parameters",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            ]
         },
         "evaluation_source": {
             "type": "object",
@@ -48,7 +91,7 @@
                 "evaluation_source_type": {
                     "type": "string",
                     "enum": [
-                        "leaderboard", 
+                        "leaderboard",
                         "evaluation_platform"
                     ],
                     "description": "Type of evaluation source, e.g., leaderboard or evaluation platform"
@@ -101,7 +144,7 @@
                 },
                 "id": {
                     "type": "string",
-                    "description": "Model name standarized to HuggingFace format (e.g. meta-llama/Llama-3.1-8B-Instruct)"
+                    "description": "Model name in HuggingFace format (e.g. meta-llama/Llama-3.1-8B-Instruct for models available on HuggingFace or openai/azure/gpt-4o-mini-2024-07-18 for closed API models)"
                 },
                 "developer": {
                     "type": "string",
@@ -109,7 +152,16 @@
                 },
                 "inference_platform": {
                     "type": "string",
-                    "description": "Description of platform used to run the evaluations (e.g. local machine, Bedrock)"
+                    "description": "Name of inference platform which provides an access to models by API to run the evaluations or provides models weights to run them locally (e.g. HuggingFace, Bedrock, Together AI)"
+                },
+                "inference_engine": {
+                    "type": "string",
+                    "description": "Name of inference engine which provides an access to optimized models to use them for local evaluations (e.g. vLLM, Ollama)."
+                },
+                "additional_details": {
+                    "type": "object",
+                    "description": "Additional model configuration parameters",
+                    "additionalProperties": true
                 }
             }
         },
@@ -213,7 +265,6 @@
                         }
                     },
                     "score_details": {
-                        "type": "object",
                         "description": "The score for the evaluation and related details",
                         "required": [
                             "score"
@@ -237,37 +288,37 @@
                     "generation_config": {
                         "type": "object",
                         "generation_args": {
-                                "type": "object",
-                                "description": "Parameters used to generate results - properties may vary by model type",
-                                "properties": {
-                                    "temperature": {
-                                        "type": [
-                                            "null",
-                                            "number"
-                                        ],
-                                        "description": "Sampling temperature"
-                                    },
-                                    "top_p": {
-                                        "type": [
-                                            "null",
-                                            "number"
-                                        ],
-                                        "description": "Nucleus sampling parameter"
-                                    },
-                                    "top_k": {
-                                        "type": [
-                                            "null",
-                                            "number"
-                                        ],
-                                        "description": "Top-k sampling parameter"
-                                    },
-                                    "max_tokens": {
-                                        "type": "integer",
-                                        "minimum": 1,
-                                        "description": "Maximum number of tokens to generate"
-                                    }
+                            "type": "object",
+                            "description": "Parameters used to generate results - properties may vary by model type",
+                            "properties": {
+                                "temperature": {
+                                    "type": [
+                                        "null",
+                                        "number"
+                                    ],
+                                    "description": "Sampling temperature"
                                 },
-                                "additionalProperties": true
+                                "top_p": {
+                                    "type": [
+                                        "null",
+                                        "number"
+                                    ],
+                                    "description": "Nucleus sampling parameter"
+                                },
+                                "top_k": {
+                                    "type": [
+                                        "null",
+                                        "number"
+                                    ],
+                                    "description": "Top-k sampling parameter"
+                                },
+                                "max_tokens": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "description": "Maximum number of tokens to generate"
+                                }
+                            },
+                            "additionalProperties": true
                         },
                         "additional_details": {
                             "type": "string",
@@ -276,7 +327,116 @@
                     }
                 }
             }
-
+        },
+        "detailed_evaluation_results_per_samples": {
+            "description": "Detailed eval results for all individual samples in the evaluation. This can be provided as source link or list of DetailedEvaluationResultsPerSample objects.",
+            "anyOf": [
+                {
+                    "type": "string",
+                    "description": "Link to detailed evaluation data for all samples"
+                },
+                {
+                    "type": "array",
+                    "description": "Array of evaluation results",
+                    "items": {
+                        "type": "object",
+                        "required": [
+                            "sample_id",
+                            "input",
+                            "ground_truth",
+                            "response"
+                        ],
+                        "properties": {
+                            "sample_id": {
+                                "type": "string",
+                                "description": "Simple sample ID"
+                            },
+                            "input": {
+                                "type": "string",
+                                "description": "Raw input for the model"
+                            },
+                            "prompt": {
+                                "type": "string",
+                                "description": "Full prompt for the model"
+                            },
+                            "ground_truth": {
+                                "description": "Target response that may include one or multiple correct answers.",
+                                "oneOf": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    }
+                                ]
+                            },
+                            "response": {
+                                "type": "string",
+                                "description": "Response from the model"
+                            },
+                            "choices": {
+                                "description": "Either an array of possible responses (list of strings) or an array of string pairs [choice, response].",
+                                "oneOf": [
+                                    {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "array",
+                                            "items": [
+                                                {
+                                                    "type": "string"
+                                                },
+                                                {
+                                                    "type": "string"
+                                                }
+                                            ],
+                                            "minItems": 2,
+                                            "maxItems": 2
+                                        }
+                                    }
+                                ]
+                            },
+                            "full_logprobs": {
+                                "type": "array",
+                                "description": "Full log probabilities generated for this sample",
+                                "items": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "required": [
+                                            "token_id",
+                                            "logprob",
+                                            "decoded_token"
+                                        ],
+                                        "properties": {
+                                            "token_id": {
+                                                "type": "number",
+                                                "description": "Id of token for which we keep its logprob"
+                                            },
+                                            "logprob": {
+                                                "type": "number",
+                                                "description": "Log probability of the token"
+                                            },
+                                            "decoded_token": {
+                                                "type": "string",
+                                                "description": "The decoded string representation of the token"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            ]
         }
     }
 }

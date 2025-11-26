@@ -17,7 +17,12 @@
     "name": "nlpguy/Mistral-NeMo-Minitron-Upscale-v2",
     "developer": "mistral",
     "inference_platform": "unknown",
-    "id": "nlpguy/Mistral-NeMo-Minitron-Upscale-v2"
+    "id": "nlpguy/Mistral-NeMo-Minitron-Upscale-v2",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "MistralForCausalLM",
+      "params_billions": 12.451
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.1926529255319149
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "MistralForCausalLM",
-    "params_billions": 12.451
-  }
+  ]
 }

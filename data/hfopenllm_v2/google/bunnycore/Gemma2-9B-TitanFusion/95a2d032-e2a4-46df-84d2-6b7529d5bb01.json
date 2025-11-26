@@ -17,7 +17,12 @@
     "name": "bunnycore/Gemma2-9B-TitanFusion",
     "developer": "google",
     "inference_platform": "unknown",
-    "id": "bunnycore/Gemma2-9B-TitanFusion"
+    "id": "bunnycore/Gemma2-9B-TitanFusion",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "Gemma2ForCausalLM",
+      "params_billions": 10.159
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.39602726063829785
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "Gemma2ForCausalLM",
-    "params_billions": 10.159
-  }
+  ]
 }

@@ -17,7 +17,12 @@
     "name": "bunnycore/Phi-4-RR-Shoup",
     "developer": "microsoft",
     "inference_platform": "unknown",
-    "id": "bunnycore/Phi-4-RR-Shoup"
+    "id": "bunnycore/Phi-4-RR-Shoup",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 14.66
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.5428856382978723
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 14.66
-  }
+  ]
 }

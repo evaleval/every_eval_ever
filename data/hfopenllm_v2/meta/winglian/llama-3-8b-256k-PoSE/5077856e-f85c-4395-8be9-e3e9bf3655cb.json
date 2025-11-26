@@ -17,7 +17,12 @@
     "name": "winglian/llama-3-8b-256k-PoSE",
     "developer": "meta",
     "inference_platform": "unknown",
-    "id": "winglian/llama-3-8b-256k-PoSE"
+    "id": "winglian/llama-3-8b-256k-PoSE",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 8.03
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.1116190159574468
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 8.03
-  }
+  ]
 }

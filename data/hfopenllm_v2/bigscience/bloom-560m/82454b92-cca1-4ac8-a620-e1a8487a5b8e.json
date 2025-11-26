@@ -17,7 +17,12 @@
     "name": "bigscience/bloom-560m",
     "developer": "bigscience",
     "inference_platform": "unknown",
-    "id": "bigscience/bloom-560m"
+    "id": "bigscience/bloom-560m",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "BloomForCausalLM",
+      "params_billions": 0.559
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.11643949468085106
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "BloomForCausalLM",
-    "params_billions": 0.559
-  }
+  ]
 }

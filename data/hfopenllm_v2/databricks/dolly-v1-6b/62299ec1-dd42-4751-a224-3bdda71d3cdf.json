@@ -17,7 +17,12 @@
     "name": "databricks/dolly-v1-6b",
     "developer": "databricks",
     "inference_platform": "unknown",
-    "id": "databricks/dolly-v1-6b"
+    "id": "databricks/dolly-v1-6b",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "GPTJForCausalLM",
+      "params_billions": 6.0
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.12657912234042554
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "GPTJForCausalLM",
-    "params_billions": 6.0
-  }
+  ]
 }

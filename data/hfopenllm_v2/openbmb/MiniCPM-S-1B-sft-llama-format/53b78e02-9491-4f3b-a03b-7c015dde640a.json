@@ -17,7 +17,12 @@
     "name": "openbmb/MiniCPM-S-1B-sft-llama-format",
     "developer": "openbmb",
     "inference_platform": "unknown",
-    "id": "openbmb/MiniCPM-S-1B-sft-llama-format"
+    "id": "openbmb/MiniCPM-S-1B-sft-llama-format",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 1.0
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.1858377659574468
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 1.0
-  }
+  ]
 }

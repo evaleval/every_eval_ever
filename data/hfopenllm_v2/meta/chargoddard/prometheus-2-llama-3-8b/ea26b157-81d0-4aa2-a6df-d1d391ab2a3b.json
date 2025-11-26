@@ -17,7 +17,12 @@
     "name": "chargoddard/prometheus-2-llama-3-8b",
     "developer": "meta",
     "inference_platform": "unknown",
-    "id": "chargoddard/prometheus-2-llama-3-8b"
+    "id": "chargoddard/prometheus-2-llama-3-8b",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 8.03
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.30867686170212766
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 8.03
-  }
+  ]
 }

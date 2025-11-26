@@ -17,7 +17,12 @@
     "name": "microsoft/Orca-2-13b",
     "developer": "microsoft",
     "inference_platform": "unknown",
-    "id": "microsoft/Orca-2-13b"
+    "id": "microsoft/Orca-2-13b",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 13.0
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.27493351063829785
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 13.0
-  }
+  ]
 }

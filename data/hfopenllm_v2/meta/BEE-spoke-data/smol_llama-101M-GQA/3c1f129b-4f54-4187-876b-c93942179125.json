@@ -17,7 +17,12 @@
     "name": "BEE-spoke-data/smol_llama-101M-GQA",
     "developer": "meta",
     "inference_platform": "unknown",
-    "id": "BEE-spoke-data/smol_llama-101M-GQA"
+    "id": "BEE-spoke-data/smol_llama-101M-GQA",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 0.101
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.11070478723404255
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 0.101
-  }
+  ]
 }

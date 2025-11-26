@@ -17,7 +17,12 @@
     "name": "google/mt5-xl",
     "developer": "google",
     "inference_platform": "unknown",
-    "id": "google/mt5-xl"
+    "id": "google/mt5-xl",
+    "additional_details": {
+      "precision": "float16",
+      "architecture": "MT5ForConditionalGeneration",
+      "params_billions": 3.23
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.11195146276595745
       }
     }
-  ],
-  "additional_details": {
-    "precision": "float16",
-    "architecture": "MT5ForConditionalGeneration",
-    "params_billions": 3.23
-  }
+  ]
 }

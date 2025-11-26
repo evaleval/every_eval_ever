@@ -17,7 +17,12 @@
     "name": "facebook/opt-1.3b",
     "developer": "facebook",
     "inference_platform": "unknown",
-    "id": "facebook/opt-1.3b"
+    "id": "facebook/opt-1.3b",
+    "additional_details": {
+      "precision": "float16",
+      "architecture": "OPTForCausalLM",
+      "params_billions": 1.3
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.11070478723404255
       }
     }
-  ],
-  "additional_details": {
-    "precision": "float16",
-    "architecture": "OPTForCausalLM",
-    "params_billions": 1.3
-  }
+  ]
 }

@@ -17,7 +17,12 @@
     "name": "mosama/Qwen2.5-1.5B-Instruct-CoT-Reflection",
     "developer": "mosama",
     "inference_platform": "unknown",
-    "id": "mosama/Qwen2.5-1.5B-Instruct-CoT-Reflection"
+    "id": "mosama/Qwen2.5-1.5B-Instruct-CoT-Reflection",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "Qwen2ForCausalLM",
+      "params_billions": 1.544
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.26512632978723405
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "Qwen2ForCausalLM",
-    "params_billions": 1.544
-  }
+  ]
 }

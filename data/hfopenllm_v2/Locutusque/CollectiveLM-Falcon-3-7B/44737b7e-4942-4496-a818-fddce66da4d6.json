@@ -17,7 +17,12 @@
     "name": "Locutusque/CollectiveLM-Falcon-3-7B",
     "developer": "Locutusque",
     "inference_platform": "unknown",
-    "id": "Locutusque/CollectiveLM-Falcon-3-7B"
+    "id": "Locutusque/CollectiveLM-Falcon-3-7B",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 7.456
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.35987367021276595
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 7.456
-  }
+  ]
 }

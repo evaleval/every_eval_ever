@@ -17,7 +17,12 @@
     "name": "beomi/gemma-mling-7b",
     "developer": "google",
     "inference_platform": "unknown",
-    "id": "beomi/gemma-mling-7b"
+    "id": "beomi/gemma-mling-7b",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "GemmaForCausalLM",
+      "params_billions": 8.538
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.2632978723404255
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "GemmaForCausalLM",
-    "params_billions": 8.538
-  }
+  ]
 }

@@ -17,7 +17,12 @@
     "name": "HuggingFaceTB/SmolLM2-1.7B",
     "developer": "HuggingFaceTB",
     "inference_platform": "unknown",
-    "id": "HuggingFaceTB/SmolLM2-1.7B"
+    "id": "HuggingFaceTB/SmolLM2-1.7B",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 1.71
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.2137632978723404
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 1.71
-  }
+  ]
 }

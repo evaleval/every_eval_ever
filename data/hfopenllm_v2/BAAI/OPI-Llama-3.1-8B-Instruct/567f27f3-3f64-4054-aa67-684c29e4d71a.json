@@ -17,7 +17,12 @@
     "name": "BAAI/OPI-Llama-3.1-8B-Instruct",
     "developer": "BAAI",
     "inference_platform": "unknown",
-    "id": "BAAI/OPI-Llama-3.1-8B-Instruct"
+    "id": "BAAI/OPI-Llama-3.1-8B-Instruct",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 8.03
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.21243351063829788
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 8.03
-  }
+  ]
 }

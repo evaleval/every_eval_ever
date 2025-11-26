@@ -17,7 +17,12 @@
     "name": "cckm/tinymistral_950m",
     "developer": "mistral",
     "inference_platform": "unknown",
-    "id": "cckm/tinymistral_950m"
+    "id": "cckm/tinymistral_950m",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "MistralForCausalLM",
+      "params_billions": 0.955
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.10962433510638298
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "MistralForCausalLM",
-    "params_billions": 0.955
-  }
+  ]
 }

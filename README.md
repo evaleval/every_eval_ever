@@ -15,6 +15,7 @@ Each JSON file is named with a **UUID (Universally Unique Identifier)** in the f
 - **Multiple evaluations** of the same model can exist without conflicts (each gets a unique UUID)
 - **Different timestamps** are stored as separate files with different UUIDs (not as separate folders)
 - A model may have multiple result files, with each file representing different iterations or runs of the leaderboard/evaluation
+- UUID's can be generated using Python's `uuid.uuid4()` function.
 
 **Example**: The model `openai/gpt-4o-2024-11-20` might have multiple files like:
 - `e70acf51-30ef-4c20-b7cc-51704d114d70.json` (evaluation run #1)
@@ -32,16 +33,25 @@ Note: Each file can contain multiple individual results related to one model. Se
 
 ### Schema Instructions
 
-1. **`model_info`**: Use HuggingFace formatting (`developer_name/model_name`). If a model does not come from HuggingFace, use the exact API reference. Check [examples in /data/livecodebenchpro](data/livecodebenchpro/).Notably, some do have a **date included in the model name**, but others **do not**. For example:
+1. **`model_info`**: Use HuggingFace formatting (`developer_name/model_name`). If a model does not come from HuggingFace, use the exact API reference. Check [examples in /data/livecodebenchpro](data/livecodebenchpro/). Notably, some do have a **date included in the model name**, but others **do not**. For example:
 - OpenAI: `gpt-4o-2024-11-20`, `gpt-5-2025-08-07`, `o3-2025-04-16`
 - Anthropic: `claude-3-7-sonnet-20250219`, `claude-3-sonnet-20240229`
 - Google: `gemini-2.5-pro`, `gemini-2.5-flash`
 - xAI (Grok): `grok-2-2024-08-13`, `grok-3-2025-01-15`
 
+2. **`evaluation_id`**: Use `{eval_name/model_id/retrieved_timestamp}` format (e.g. `livecodebenchpro/qwen3-235b-a22b-thinking-2507/1760492095.8105888`).
 
-2. **`evaluation_id`**: Use `{org_name}/{eval_name}/{retrieved_timestamp}` format.
+3. **`inference_platform`** vs **`inference_engine`**: Where possible specify where the evaluation was run using one of these two fields.
+- `inference_platform`: Use this field when the evaluation was run through a remote API (e.g., `openai`, `huggingface`, `openrouter`, `anthropic`, `xai`).
+- `inference_engine`: Use this field when the evaluation was run through a local inference engine (e.g. `vLLM`, `Ollama`).
 
-3. **`inference_platform`**: The platform where the model was run (e.g., `openai`, `huggingface`, `openrouter`, `anthropic`, `xai`).
+4. The schema is designed to accomodate both numeric and level-based (e.g. Low, Medium, High) metrics. For level-based metrics, the actual 'value' should be converted to an integer (e.g. Low = 1, Medium = 2, High = 3), and the 'level_names' propert should be used to specify the mapping of levels to integers.
+
+5. Additional details can be provided in several places in the schema. They are not required, but can be useful for detailed analysis.
+- `model_info.additional_details`: Use this field to provide any additional information about the model itself (e.g. number of parameters)
+- `evaluation_results.generation_config.generation_args`: Specify additional arguments used to generate outputs from the model
+- `evaluation_results.generation_config.additional_details`: Use this field to provide any additional information about the evaluation process that is not captured elsewhere
+
 
 ## Data Validation
 
@@ -89,3 +99,68 @@ scripts/
 ```
 
 Each evaluation (e.g., `livecodebenchpro`, `hfopenllm_v2`) has its own directory under `data/`. Within each evaluation, models are organized by model name, with a `{uuid}.json` file containing the evaluation results for that model.
+
+## Detailed Example
+
+```
+{
+  "schema_version": "0.0.1",
+  "evaluation_id": "hfopenllm_v2/Qwen_Qwen2.5-Math-72B-Instruct/1762652579.847774", # {eval_name}/{model_id}/{retrieved_timestamp}
+  "retrieved_timestamp": "1762652579.847775",  # UNIX timestamp
+  "source_data": [
+    "https://open-llm-leaderboard-open-llm-leaderboard.hf.space/api/leaderboard/formatted"
+  ],
+  "evaluation_source": {
+    "evaluation_source_name": "HF Open LLM v2",
+    "evaluation_source_type": "leaderboard" # This can be leaderboard OR evaluation_platform
+  },
+  "source_metadata": { # This information will be repeated in every model file
+    "source_organization_name": "Hugging Face",
+    "evaluator_relationship": "third_party"
+  },
+  "model_info": {
+    "name": "Qwen/Qwen2.5-Math-72B-Instruct",
+    "developer": "Qwen",
+    "inference_platform": "unknown",
+    "id": "Qwen/Qwen2.5-Math-72B-Instruct",
+    "additional_details": { # Optional details about the model
+        "precision": "bfloat16",
+        "architecture": "Qwen2ForCausalLM",
+        "params_billions": 72.706
+    }
+  },
+  "evaluation_results": [
+    {
+      "evaluation_name": "IFEval",
+      "metric_config": { # This information will be repeated in every model file
+        "evaluation_description": "Accuracy on IFEval",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0,
+        "max_score": 1
+      },
+      "score_details": {
+        "score": 0.4003466358151926
+      }
+    }
+...
+  ]
+}
+```
+
+**Level-based metrics example**
+
+```
+    {
+      "evaluation_name": "Data Transparency Rating",
+      "metric_config": {
+        "evaluation_description": "Evaluation of data documentation transparency",
+        "lower_is_better": false,
+        "score_type": "level",
+        "level_names": ["Low", "Medium", "High"]
+      },
+      "score_details": {
+        "score": 1
+      }
+    }
+```

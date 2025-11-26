@@ -17,7 +17,12 @@
     "name": "HuggingFaceH4/zephyr-7b-gemma-v0.1",
     "developer": "google",
     "inference_platform": "unknown",
-    "id": "HuggingFaceH4/zephyr-7b-gemma-v0.1"
+    "id": "HuggingFaceH4/zephyr-7b-gemma-v0.1",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "GemmaForCausalLM",
+      "params_billions": 8.538
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.2847406914893617
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "GemmaForCausalLM",
-    "params_billions": 8.538
-  }
+  ]
 }

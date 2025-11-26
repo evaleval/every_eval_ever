@@ -17,7 +17,12 @@
     "name": "SeaLLMs/SeaLLMs-v3-7B-Chat",
     "developer": "SeaLLMs",
     "inference_platform": "unknown",
-    "id": "SeaLLMs/SeaLLMs-v3-7B-Chat"
+    "id": "SeaLLMs/SeaLLMs-v3-7B-Chat",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "Qwen2ForCausalLM",
+      "params_billions": 7.616
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.3894614361702128
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "Qwen2ForCausalLM",
-    "params_billions": 7.616
-  }
+  ]
 }

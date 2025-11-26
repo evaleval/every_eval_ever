@@ -17,7 +17,12 @@
     "name": "win10/Qwen2.5-2B-Instruct",
     "developer": "win10",
     "inference_platform": "unknown",
-    "id": "win10/Qwen2.5-2B-Instruct"
+    "id": "win10/Qwen2.5-2B-Instruct",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "Qwen2ForCausalLM",
+      "params_billions": 2.9
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.19340093085106383
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "Qwen2ForCausalLM",
-    "params_billions": 2.9
-  }
+  ]
 }

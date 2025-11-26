@@ -17,7 +17,12 @@
     "name": "monsterapi/gemma-2-2b-LoRA-MonsterInstruct",
     "developer": "google",
     "inference_platform": "unknown",
-    "id": "monsterapi/gemma-2-2b-LoRA-MonsterInstruct"
+    "id": "monsterapi/gemma-2-2b-LoRA-MonsterInstruct",
+    "additional_details": {
+      "precision": "float16",
+      "architecture": "Gemma2ForCausalLM",
+      "params_billions": 2.614
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.19872007978723405
       }
     }
-  ],
-  "additional_details": {
-    "precision": "float16",
-    "architecture": "Gemma2ForCausalLM",
-    "params_billions": 2.614
-  }
+  ]
 }

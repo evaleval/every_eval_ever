@@ -17,7 +17,12 @@
     "name": "EleutherAI/gpt-neo-2.7B",
     "developer": "openai",
     "inference_platform": "unknown",
-    "id": "EleutherAI/gpt-neo-2.7B"
+    "id": "EleutherAI/gpt-neo-2.7B",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "GPTNeoForCausalLM",
+      "params_billions": 2.718
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.11627327127659574
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "GPTNeoForCausalLM",
-    "params_billions": 2.718
-  }
+  ]
 }

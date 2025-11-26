@@ -17,7 +17,12 @@
     "name": "amd/AMD-Llama-135m",
     "developer": "meta",
     "inference_platform": "unknown",
-    "id": "amd/AMD-Llama-135m"
+    "id": "amd/AMD-Llama-135m",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 0.134
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.11685505319148937
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 0.134
-  }
+  ]
 }

@@ -17,7 +17,12 @@
     "name": "meditsolutions/SmolLM2-MedIT-Upscale-2B",
     "developer": "meditsolutions",
     "inference_platform": "unknown",
-    "id": "meditsolutions/SmolLM2-MedIT-Upscale-2B"
+    "id": "meditsolutions/SmolLM2-MedIT-Upscale-2B",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 2.114
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.19705784574468085
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 2.114
-  }
+  ]
 }

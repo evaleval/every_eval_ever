@@ -17,7 +17,12 @@
     "name": "djuna/Gemma-2-gemmama-9b",
     "developer": "google",
     "inference_platform": "unknown",
-    "id": "djuna/Gemma-2-gemmama-9b"
+    "id": "djuna/Gemma-2-gemmama-9b",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "Gemma2ForCausalLM",
+      "params_billions": 10.159
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.3109208776595745
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "Gemma2ForCausalLM",
-    "params_billions": 10.159
-  }
+  ]
 }

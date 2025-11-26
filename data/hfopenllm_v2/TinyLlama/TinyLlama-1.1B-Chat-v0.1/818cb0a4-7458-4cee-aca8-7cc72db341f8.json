@@ -17,7 +17,12 @@
     "name": "TinyLlama/TinyLlama-1.1B-Chat-v0.1",
     "developer": "TinyLlama",
     "inference_platform": "unknown",
-    "id": "TinyLlama/TinyLlama-1.1B-Chat-v0.1"
+    "id": "TinyLlama/TinyLlama-1.1B-Chat-v0.1",
+    "additional_details": {
+      "precision": "float16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 1.1
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.10979055851063829
       }
     }
-  ],
-  "additional_details": {
-    "precision": "float16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 1.1
-  }
+  ]
 }

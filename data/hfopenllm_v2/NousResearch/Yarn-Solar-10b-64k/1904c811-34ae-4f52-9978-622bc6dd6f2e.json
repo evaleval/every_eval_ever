@@ -17,7 +17,12 @@
     "name": "NousResearch/Yarn-Solar-10b-64k",
     "developer": "NousResearch",
     "inference_platform": "unknown",
-    "id": "NousResearch/Yarn-Solar-10b-64k"
+    "id": "NousResearch/Yarn-Solar-10b-64k",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 10.0
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.3148271276595745
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 10.0
-  }
+  ]
 }

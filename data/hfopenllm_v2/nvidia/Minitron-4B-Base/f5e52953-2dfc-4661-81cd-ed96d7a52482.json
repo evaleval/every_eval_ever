@@ -17,7 +17,12 @@
     "name": "nvidia/Minitron-4B-Base",
     "developer": "nvidia",
     "inference_platform": "unknown",
-    "id": "nvidia/Minitron-4B-Base"
+    "id": "nvidia/Minitron-4B-Base",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "NemotronForCausalLM",
+      "params_billions": 4.0
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.261968085106383
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "NemotronForCausalLM",
-    "params_billions": 4.0
-  }
+  ]
 }

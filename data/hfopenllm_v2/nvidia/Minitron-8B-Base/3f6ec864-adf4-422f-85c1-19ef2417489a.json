@@ -17,7 +17,12 @@
     "name": "nvidia/Minitron-8B-Base",
     "developer": "nvidia",
     "inference_platform": "unknown",
-    "id": "nvidia/Minitron-8B-Base"
+    "id": "nvidia/Minitron-8B-Base",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "NemotronForCausalLM",
+      "params_billions": 7.22
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.31806848404255317
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "NemotronForCausalLM",
-    "params_billions": 7.22
-  }
+  ]
 }

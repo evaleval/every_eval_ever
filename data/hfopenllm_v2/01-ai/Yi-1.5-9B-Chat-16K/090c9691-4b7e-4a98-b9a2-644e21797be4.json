@@ -17,7 +17,12 @@
     "name": "01-ai/Yi-1.5-9B-Chat-16K",
     "developer": "01-ai",
     "inference_platform": "unknown",
-    "id": "01-ai/Yi-1.5-9B-Chat-16K"
+    "id": "01-ai/Yi-1.5-9B-Chat-16K",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 8.829
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.39935172872340424
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 8.829
-  }
+  ]
 }

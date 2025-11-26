@@ -17,7 +17,12 @@
     "name": "distilbert/distilgpt2",
     "developer": "openai",
     "inference_platform": "unknown",
-    "id": "distilbert/distilgpt2"
+    "id": "distilbert/distilgpt2",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "GPT2LMHeadModel",
+      "params_billions": 0.088
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.11868351063829788
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "GPT2LMHeadModel",
-    "params_billions": 0.088
-  }
+  ]
 }

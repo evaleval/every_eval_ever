@@ -17,7 +17,12 @@
     "name": "nvidia/Llama-3.1-Nemotron-70B-Instruct-HF",
     "developer": "nvidia",
     "inference_platform": "unknown",
-    "id": "nvidia/Llama-3.1-Nemotron-70B-Instruct-HF"
+    "id": "nvidia/Llama-3.1-Nemotron-70B-Instruct-HF",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 70.554
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.49185505319148937
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 70.554
-  }
+  ]
 }

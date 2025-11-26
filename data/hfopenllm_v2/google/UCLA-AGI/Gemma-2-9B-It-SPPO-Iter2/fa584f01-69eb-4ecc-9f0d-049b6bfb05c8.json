@@ -17,7 +17,12 @@
     "name": "UCLA-AGI/Gemma-2-9B-It-SPPO-Iter2",
     "developer": "google",
     "inference_platform": "unknown",
-    "id": "UCLA-AGI/Gemma-2-9B-It-SPPO-Iter2"
+    "id": "UCLA-AGI/Gemma-2-9B-It-SPPO-Iter2",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "Gemma2ForCausalLM",
+      "params_billions": 9.242
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.386968085106383
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "Gemma2ForCausalLM",
-    "params_billions": 9.242
-  }
+  ]
 }

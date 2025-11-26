@@ -17,7 +17,12 @@
     "name": "gpt2",
     "developer": "openai",
     "inference_platform": "unknown",
-    "id": "openai/gpt2"
+    "id": "openai/gpt2",
+    "additional_details": {
+      "precision": "float16",
+      "architecture": "GPT2LMHeadModel",
+      "params_billions": 0.137
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.1
       }
     }
-  ],
-  "additional_details": {
-    "precision": "float16",
-    "architecture": "GPT2LMHeadModel",
-    "params_billions": 0.137
-  }
+  ]
 }
