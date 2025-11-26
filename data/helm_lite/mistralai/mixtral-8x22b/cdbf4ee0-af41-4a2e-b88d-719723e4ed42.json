@@ -1,0 +1,278 @@
+{
+  "schema_version": "0.0.1",
+  "evaluation_id": "helm_lite/mistralai_mixtral-8x22b/1764179530.822734",
+  "retrieved_timestamp": "1764179530.822734",
+  "source_data": [
+    "https://storage.googleapis.com/crfm-helm-public/lite/benchmark_output/releases/v1.13.0/groups/core_scenarios.json"
+  ],
+  "evaluation_source": {
+    "evaluation_source_name": "helm_lite",
+    "evaluation_source_type": "leaderboard"
+  },
+  "source_metadata": {
+    "source_organization_name": "crfm",
+    "evaluator_relationship": "third_party"
+  },
+  "model_info": {
+    "name": "Mixtral (8x22B)",
+    "id": "mistralai/mixtral-8x22b",
+    "developer": "mistralai",
+    "inference_platform": "unknown"
+  },
+  "evaluation_results": [
+    {
+      "evaluation_name": "WMT 2014 - BLEU-4",
+      "metric_config": {
+        "evaluation_description": "WMT 2014 is a collection of machine translation datasets [(website)](https://www.statmt.org/wmt14/index.html).\n\nBLEU-4: Average BLEU score [(Papineni et al., 2002)](https://aclanthology.org/P02-1040/) based on 4-gram overlap.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.705,
+        "details": {
+          "accuracy_description": null,
+          "efficiency_description": null,
+          "eval_time_mean_win_rate": 0.535
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "Mean win rate",
+      "metric_config": {
+        "evaluation_description": "How many models this model outperforms on average (over columns).",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.779,
+        "details": {
+          "accuracy_description": "min=0.779, mean=0.779, max=0.779, sum=0.779 (1)",
+          "efficiency_description": "min=1.478, mean=1.478, max=1.478, sum=1.478 (1)",
+          "eval_time": 1.478
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "NarrativeQA - F1",
+      "metric_config": {
+        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Kočiský et al., 2017)](https://aclanthology.org/Q18-1023/).\n\nF1: Average F1 score in terms of word overlap between the model output and correct reference.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.726,
+        "details": {
+          "accuracy_description": "min=0.726, mean=0.726, max=0.726, sum=0.726 (1)",
+          "efficiency_description": "min=1.004, mean=1.004, max=1.004, sum=1.004 (1)",
+          "eval_time": 1.004
+        }
+      },
+      "generation_config": {
+        "mode": "openbook_longans"
+      }
+    },
+    {
+      "evaluation_name": "NaturalQuestions (open-book) - F1",
+      "metric_config": {
+        "evaluation_description": "The NaturalQuestions [(Kwiatkowski et al., 2019)](https://aclanthology.org/Q19-1026/) benchmark for question answering based on naturally-occurring queries through Google Search. The input includes the Wikipedia page with the answer.\n\nF1: Average F1 score in terms of word overlap between the model output and correct reference.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.478,
+        "details": {
+          "accuracy_description": "min=0.478, mean=0.478, max=0.478, sum=0.478 (1)",
+          "efficiency_description": "min=0.442, mean=0.442, max=0.442, sum=0.442 (1)",
+          "eval_time": 0.442
+        }
+      },
+      "generation_config": {
+        "mode": "closedbook"
+      }
+    },
+    {
+      "evaluation_name": "NaturalQuestions (closed-book) - F1",
+      "metric_config": {
+        "evaluation_description": "The NaturalQuestions [(Kwiatkowski et al., 2019)](https://aclanthology.org/Q19-1026/) benchmark for question answering based on naturally-occurring queries through Google Search. The input does not include the Wikipedia page with the answer.\n\nF1: Average F1 score in terms of word overlap between the model output and correct reference.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.882,
+        "details": {
+          "accuracy_description": "min=0.882, mean=0.882, max=0.882, sum=0.882 (1)",
+          "efficiency_description": "min=0.338, mean=0.338, max=0.338, sum=0.338 (1)",
+          "eval_time": 0.338
+        }
+      },
+      "generation_config": {
+        "dataset": "openbookqa",
+        "method": "multiple_choice_joint"
+      }
+    },
+    {
+      "evaluation_name": "OpenbookQA - EM",
+      "metric_config": {
+        "evaluation_description": "The OpenbookQA benchmark for commonsense-intensive open book question answering [(Mihaylov et al., 2018)](https://aclanthology.org/D18-1260/).\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.701,
+        "details": {
+          "accuracy_description": "min=0.48, mean=0.701, max=0.95, sum=3.507 (5)",
+          "efficiency_description": "min=0.313, mean=0.344, max=0.359, sum=1.722 (5)",
+          "eval_time": 0.344
+        }
+      },
+      "generation_config": {
+        "subject": [
+          "abstract_algebra",
+          "college_chemistry",
+          "computer_security",
+          "econometrics",
+          "us_foreign_policy"
+        ],
+        "method": "multiple_choice_joint"
+      }
+    },
+    {
+      "evaluation_name": "MMLU - EM",
+      "metric_config": {
+        "evaluation_description": "The Massive Multitask Language Understanding (MMLU) benchmark for knowledge-intensive question answering across 57 domains [(Hendrycks et al., 2021)](https://arxiv.org/pdf/2009.03300.pdf).\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.656,
+        "details": {
+          "accuracy_description": "min=0.5, mean=0.656, max=0.822, sum=4.589 (7)",
+          "efficiency_description": "min=2.009, mean=2.509, max=3.121, sum=17.565 (7)",
+          "eval_time": 2.509
+        }
+      },
+      "generation_config": {
+        "subject": [
+          "algebra",
+          "counting_and_probability",
+          "geometry",
+          "intermediate_algebra",
+          "number_theory",
+          "prealgebra",
+          "precalculus"
+        ],
+        "level": "1",
+        "use_official_examples": "False",
+        "use_chain_of_thought": "True"
+      }
+    },
+    {
+      "evaluation_name": "MATH - Equivalent (CoT)",
+      "metric_config": {
+        "evaluation_description": "The MATH benchmark for measuring mathematical problem solving on competition math problems with chain-of-thought style reasoning [(Hendrycks et al., 2021)](https://arxiv.org/pdf/2103.03874.pdf).\n\nEquivalent (CoT): Fraction of model outputs that are mathematically equivalent to the correct reference when using chain-of-thought prompting.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.8,
+        "details": {
+          "accuracy_description": "min=0.8, mean=0.8, max=0.8, sum=0.8 (1)",
+          "efficiency_description": "min=3.539, mean=3.539, max=3.539, sum=3.539 (1)",
+          "eval_time": 3.539
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "GSM8K - EM",
+      "metric_config": {
+        "evaluation_description": "The grade school math word problems dataset (GSM8K) for testing mathematical reasoning on grade-school math problems [(Cobbe et al., 2021)](https://arxiv.org/pdf/2110.14168.pdf).\n\nExact match (final number): Fraction of instances that the predicted output matches a correct reference exactly, ignoring text preceding the specified indicator.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.708,
+        "details": {
+          "accuracy_description": "min=0.441, mean=0.708, max=0.968, sum=3.539 (5)",
+          "efficiency_description": "min=0.372, mean=0.821, max=1.973, sum=4.107 (5)",
+          "eval_time": 0.821
+        }
+      },
+      "generation_config": {
+        "subset": [
+          "abercrombie",
+          "corporate_lobbying",
+          "function_of_decision_section",
+          "international_citizenship_questions",
+          "proa"
+        ]
+      }
+    },
+    {
+      "evaluation_name": "LegalBench - EM",
+      "metric_config": {
+        "evaluation_description": "LegalBench is a large collaboratively constructed benchmark of legal reasoning tasks [(Guha et al, 2023)](https://arxiv.org/pdf/2308.11462.pdf).\n\nQuasi-exact match: Fraction of instances that the predicted output matches a correct reference up to light processing.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.704,
+        "details": {
+          "accuracy_description": "min=0.704, mean=0.704, max=0.704, sum=0.704 (1)",
+          "efficiency_description": "min=0.463, mean=0.463, max=0.463, sum=0.463 (1)",
+          "eval_time": 0.463
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "MedQA - EM",
+      "metric_config": {
+        "evaluation_description": "MedQA is an open domain question answering dataset composed of questions from professional medical board exams ([Jin et al. 2020](https://arxiv.org/pdf/2009.13081.pdf)).\n\nQuasi-exact match: Fraction of instances that the predicted output matches a correct reference up to light processing.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.209,
+        "details": {
+          "accuracy_description": "min=0.133, mean=0.209, max=0.243, sum=1.045 (5)",
+          "efficiency_description": "min=0.928, mean=0.963, max=0.982, sum=4.813 (5)",
+          "eval_time": 0.963
+        }
+      },
+      "generation_config": {
+        "language_pair": [
+          "cs-en",
+          "de-en",
+          "fr-en",
+          "hi-en",
+          "ru-en"
+        ]
+      }
+    }
+  ]
+}

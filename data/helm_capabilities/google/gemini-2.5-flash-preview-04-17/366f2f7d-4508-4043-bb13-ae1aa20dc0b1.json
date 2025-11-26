@@ -1,0 +1,148 @@
+{
+  "schema_version": "0.0.1",
+  "evaluation_id": "helm_capabilities/google_gemini-2.5-flash-preview-04-17/1764179380.331595",
+  "retrieved_timestamp": "1764179380.331595",
+  "source_data": [
+    "https://storage.googleapis.com/crfm-helm-public/capabilities/benchmark_output/releases/v1.12.0/groups/core_scenarios.json"
+  ],
+  "evaluation_source": {
+    "evaluation_source_name": "helm_capabilities",
+    "evaluation_source_type": "leaderboard"
+  },
+  "source_metadata": {
+    "source_organization_name": "crfm",
+    "evaluator_relationship": "third_party"
+  },
+  "model_info": {
+    "name": "Gemini 2.5 Flash (04-17 preview)",
+    "id": "google/gemini-2.5-flash-preview-04-17",
+    "developer": "google",
+    "inference_platform": "unknown"
+  },
+  "evaluation_results": [
+    {
+      "evaluation_name": "Omni-MATH - Acc",
+      "metric_config": {
+        "evaluation_description": "Omni-MATH\n\nOmni-MATH Accuracy: Accuracy of the AI output judged by GPT-4.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.626,
+        "details": {
+          "accuracy_description": null,
+          "efficiency_description": null,
+          "mean_eval_time": 31.901
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "Mean score",
+      "metric_config": {
+        "evaluation_description": "The mean of the scores from all columns.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.639,
+        "details": {
+          "accuracy_description": "min=0.639, mean=0.639, max=0.639, sum=0.639 (1)",
+          "efficiency_description": "min=17.353, mean=17.353, max=17.353, sum=17.353 (1)",
+          "eval_time": 17.353
+        }
+      },
+      "generation_config": {
+        "subset": "all",
+        "use_chain_of_thought": "true",
+        "use_few_shot": "false"
+      }
+    },
+    {
+      "evaluation_name": "MMLU-Pro - COT correct",
+      "metric_config": {
+        "evaluation_description": "MMLU-Pro\n\nCOT correct: Fraction of correct answers after chain of thought",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.39,
+        "details": {
+          "accuracy_description": "min=0.39, mean=0.39, max=0.39, sum=0.39 (1)",
+          "efficiency_description": "min=38.125, mean=38.125, max=38.125, sum=38.125 (1)",
+          "eval_time": 38.125
+        }
+      },
+      "generation_config": {
+        "subset": "gpqa_main",
+        "use_chain_of_thought": "true",
+        "use_few_shot": "false"
+      }
+    },
+    {
+      "evaluation_name": "GPQA - COT correct",
+      "metric_config": {
+        "evaluation_description": "GPQA\n\nCOT correct: Fraction of correct answers after chain of thought",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.898,
+        "details": {
+          "accuracy_description": "min=0.898, mean=0.898, max=0.898, sum=0.898 (1)",
+          "efficiency_description": "min=11.266, mean=11.266, max=11.266, sum=11.266 (1)",
+          "eval_time": 11.266
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "IFEval - IFEval Strict Acc",
+      "metric_config": {
+        "evaluation_description": "IFEval\n\nIFEval strict accuracy: Fraction of instructions in the instance that are correctly followed.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.817,
+        "details": {
+          "accuracy_description": "min=0.817, mean=0.817, max=0.817, sum=0.817 (1)",
+          "efficiency_description": "min=32.789, mean=32.789, max=32.789, sum=32.789 (1)",
+          "eval_time": 32.789
+        }
+      },
+      "generation_config": {
+        "subset": "v2"
+      }
+    },
+    {
+      "evaluation_name": "WildBench - WB Score",
+      "metric_config": {
+        "evaluation_description": "WildBench\n\nWildBench Score: Score of the AI output judged by GPT-4o, rescaled to be between 0 and 1.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.384,
+        "details": {
+          "accuracy_description": "min=0.384, mean=0.384, max=0.384, sum=0.384 (1)",
+          "efficiency_description": "min=59.971, mean=59.971, max=59.971, sum=59.971 (1)",
+          "eval_time": 59.971
+        }
+      },
+      "generation_config": {}
+    }
+  ]
+}

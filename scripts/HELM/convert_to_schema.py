@@ -4,6 +4,7 @@ import uuid
 import requests
 import os
 
+from argparse import ArgumentParser
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
@@ -20,6 +21,16 @@ from eval_types import (
     ScoreType,
     SourceMetadata
 )
+
+def parse_args():
+    parser = ArgumentParser()
+
+    parser.add_argument('--leaderboard_name', type=str, default='HELM_Capabilities', choices=['HELM_Capabilities', 'HELM_Lite', 'HELM_Classic'])
+    parser.add_argument('--source_data_url', type=str, default='https://storage.googleapis.com/crfm-helm-public/capabilities/benchmark_output/releases/v1.12.0/groups/core_scenarios.json')
+
+    args = parser.parse_args()
+    return args
+
 
 def download_leaderboard(url):
     response = requests.get(url)
@@ -137,7 +148,7 @@ def convert(leaderboard_name, leaderboard_data, evaluation_source, source_data):
 
     evaluation_logs = {}
 
-    for acc_row, eff_row in list(zip(accuracy_rows[:10], efficiency_rows[:10])):
+    for acc_row, eff_row in list(zip(accuracy_rows, efficiency_rows)):
         model_info = extract_model_info(acc_row)
         retrieved_timestamp = str(time.time())
         evaluation_id=f'{leaderboard_name}/{model_info.id.replace('/', '_')}/{retrieved_timestamp}'
@@ -189,12 +200,10 @@ def convert(leaderboard_name, leaderboard_data, evaluation_source, source_data):
 
 
 if __name__ == '__main__':
-    leaderboard_name = 'HELM_Capabilities' # 'HELM_Lite'
-    leaderboard_name = leaderboard_name.lower()
-    source_data = [
-        'https://storage.googleapis.com/crfm-helm-public/capabilities/benchmark_output/releases/v1.12.0/groups/core_scenarios.json'
-        # 'https://storage.googleapis.com/crfm-helm-public/lite/benchmark_output/releases/v1.13.0/groups/core_scenarios.json'
-    ]
+    args = parse_args()
+
+    leaderboard_name = args.leaderboard_name.lower()
+    source_data = [args.source_data_url]
 
     os.makedirs(f'data/{leaderboard_name}', exist_ok=True)
 
@@ -206,3 +215,4 @@ if __name__ == '__main__':
     )
 
     convert(leaderboard_name, leaderboard_data, evaluation_source, source_data)
+    # 'https://storage.googleapis.com/crfm-helm-public/lite/benchmark_output/releases/v1.13.0/groups/core_scenarios.json'
