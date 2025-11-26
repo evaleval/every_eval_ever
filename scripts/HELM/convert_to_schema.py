@@ -93,14 +93,17 @@ def extract_efficiency_stats(efficiency_row: List) -> Tuple[float, List[float]]:
 def prepare_score_details(
     acc_stats: Dict[str, Any], 
     eff_stats: Dict[str, Any], 
-    column_idx: int
+    column_idx: int,
+    leaderboard_name: str
 ) -> ScoreDetails:
     details = {
         'accuracy_description': acc_stats.get('description'),
         'efficiency_description': eff_stats.get('description')
     }
 
-    if column_idx == 0: # mean_win_rate stats
+    if column_idx == 0 and leaderboard_name == 'helm_capabilities': # mean_score stats
+        details['mean_eval_time'] = round(eff_stats.get('value'), 3)
+    elif column_idx == 0 and leaderboard_name == 'helm_lite': # mean_win_rate stats
         details['eval_time_mean_win_rate'] = round(eff_stats.get('value'), 3)
     else:
         details['eval_time'] = round(eff_stats.get('value'), 3)
@@ -153,7 +156,8 @@ def convert(leaderboard_name, leaderboard_data, evaluation_source, source_data):
                     score_details=prepare_score_details(
                         acc_per_column,
                         eff_per_column,
-                        column_idx
+                        column_idx,
+                        leaderboard_name
                     ),
                     generation_config=generation_config
                 )
@@ -185,11 +189,11 @@ def convert(leaderboard_name, leaderboard_data, evaluation_source, source_data):
 
 
 if __name__ == '__main__':
-    leaderboard_name = 'HELM_Lite' # 'HELM_Capabilities'
+    leaderboard_name = 'HELM_Capabilities' # 'HELM_Lite'
     leaderboard_name = leaderboard_name.lower()
     source_data = [
-        # 'https://storage.googleapis.com/crfm-helm-public/capabilities/benchmark_output/releases/v1.12.0/groups/core_scenarios.json'
-        'https://storage.googleapis.com/crfm-helm-public/lite/benchmark_output/releases/v1.13.0/groups/core_scenarios.json'
+        'https://storage.googleapis.com/crfm-helm-public/capabilities/benchmark_output/releases/v1.12.0/groups/core_scenarios.json'
+        # 'https://storage.googleapis.com/crfm-helm-public/lite/benchmark_output/releases/v1.13.0/groups/core_scenarios.json'
     ]
 
     os.makedirs(f'data/{leaderboard_name}', exist_ok=True)

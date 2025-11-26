@@ -1,7 +1,7 @@
 {
   "schema_version": "0.0.1",
-  "evaluation_id": "helm_capabilities/allenai_olmo-2-1124-7b-instruct/1764176819.310952",
-  "retrieved_timestamp": "1764176819.310952",
+  "evaluation_id": "helm_capabilities/zai-org_glm-4.5-air-fp8/1764178796.577315",
+  "retrieved_timestamp": "1764178796.577315",
   "source_data": [
     "https://storage.googleapis.com/crfm-helm-public/capabilities/benchmark_output/releases/v1.12.0/groups/core_scenarios.json"
   ],
@@ -14,9 +14,9 @@
     "evaluator_relationship": "third_party"
   },
   "model_info": {
-    "name": "OLMo 2 7B Instruct November 2024",
-    "id": "allenai/olmo-2-1124-7b-instruct",
-    "developer": "allenai",
+    "name": "GLM-4.5-Air-FP8",
+    "id": "zai-org/glm-4.5-air-fp8",
+    "developer": "zai-org",
     "inference_platform": "unknown"
   },
   "evaluation_results": [
@@ -30,11 +30,11 @@
         "max_score": 1.0
       },
       "score_details": {
-        "score": 0.405,
+        "score": 0.67,
         "details": {
           "accuracy_description": null,
           "efficiency_description": null,
-          "eval_time_mean_win_rate": 164.449
+          "mean_eval_time": 36.156
         }
       },
       "generation_config": {}
@@ -49,18 +49,17 @@
         "max_score": 1.0
       },
       "score_details": {
-        "score": 0.292,
+        "score": 0.762,
         "details": {
-          "accuracy_description": "min=0.292, mean=0.292, max=0.292, sum=0.292 (1)",
-          "efficiency_description": "min=65.565, mean=65.565, max=65.565, sum=65.565 (1)",
-          "eval_time": 65.565
+          "accuracy_description": "min=0.762, mean=0.762, max=0.762, sum=0.762 (1)",
+          "efficiency_description": "min=30.422, mean=30.422, max=30.422, sum=30.422 (1)",
+          "eval_time": 30.422
         }
       },
       "generation_config": {
         "subset": "all",
         "use_chain_of_thought": "true",
-        "use_few_shot": "false",
-        "num_output_tokens": "2048"
+        "use_few_shot": "false"
       }
     },
     {
@@ -73,18 +72,17 @@
         "max_score": 1.0
       },
       "score_details": {
-        "score": 0.296,
+        "score": 0.594,
         "details": {
-          "accuracy_description": "min=0.296, mean=0.296, max=0.296, sum=0.296 (1)",
-          "efficiency_description": "min=184.733, mean=184.733, max=184.733, sum=184.733 (1)",
-          "eval_time": 184.733
+          "accuracy_description": "min=0.594, mean=0.594, max=0.594, sum=0.594 (1)",
+          "efficiency_description": "min=54.963, mean=54.963, max=54.963, sum=54.963 (1)",
+          "eval_time": 54.963
         }
       },
       "generation_config": {
         "subset": "gpqa_main",
         "use_chain_of_thought": "true",
-        "use_few_shot": "false",
-        "num_output_tokens": "2048"
+        "use_few_shot": "false"
       }
     },
     {
@@ -97,16 +95,14 @@
         "max_score": 1.0
       },
       "score_details": {
-        "score": 0.693,
+        "score": 0.812,
         "details": {
-          "accuracy_description": "min=0.693, mean=0.693, max=0.693, sum=0.693 (1)",
-          "efficiency_description": "min=102.503, mean=102.503, max=102.503, sum=102.503 (1)",
-          "eval_time": 102.503
+          "accuracy_description": "min=0.812, mean=0.812, max=0.812, sum=0.812 (1)",
+          "efficiency_description": "min=8.027, mean=8.027, max=8.027, sum=8.027 (1)",
+          "eval_time": 8.027
         }
       },
-      "generation_config": {
-        "num_output_tokens": "2048"
-      }
+      "generation_config": {}
     },
     {
       "evaluation_name": "IFEval - IFEval Strict Acc",
@@ -118,16 +114,15 @@
         "max_score": 1.0
       },
       "score_details": {
-        "score": 0.628,
+        "score": 0.789,
         "details": {
-          "accuracy_description": "min=0.628, mean=0.628, max=0.628, sum=0.628 (1)",
-          "efficiency_description": "min=236.772, mean=236.772, max=236.772, sum=236.772 (1)",
-          "eval_time": 236.772
+          "accuracy_description": "min=0.789, mean=0.789, max=0.789, sum=0.789 (1)",
+          "efficiency_description": "min=25.055, mean=25.055, max=25.055, sum=25.055 (1)",
+          "eval_time": 25.055
         }
       },
       "generation_config": {
-        "subset": "v2",
-        "num_output_tokens": "2048"
+        "subset": "v2"
       }
     },
     {
@@ -140,16 +135,14 @@
         "max_score": 1.0
       },
       "score_details": {
-        "score": 0.116,
+        "score": 0.391,
         "details": {
-          "accuracy_description": "min=0.116, mean=0.116, max=0.116, sum=0.116 (1)",
-          "efficiency_description": "min=232.672, mean=232.672, max=232.672, sum=232.672 (1)",
-          "eval_time": 232.672
+          "accuracy_description": "min=0.391, mean=0.391, max=0.391, sum=0.391 (1)",
+          "efficiency_description": "min=62.312, mean=62.312, max=62.312, sum=62.312 (1)",
+          "eval_time": 62.312
         }
       },
-      "generation_config": {
-        "num_output_tokens": "2048"
-      }
+      "generation_config": {}
     }
   ]
 }

@@ -1,7 +1,7 @@
 {
   "schema_version": "0.0.1",
-  "evaluation_id": "helm_capabilities/moonshotai_kimi-k2-instruct/1764176819.3127081",
-  "retrieved_timestamp": "1764176819.3127081",
+  "evaluation_id": "helm_capabilities/allenai_olmo-2-1124-13b-instruct/1764178796.576065",
+  "retrieved_timestamp": "1764178796.576065",
   "source_data": [
     "https://storage.googleapis.com/crfm-helm-public/capabilities/benchmark_output/releases/v1.12.0/groups/core_scenarios.json"
   ],
@@ -14,9 +14,9 @@
     "evaluator_relationship": "third_party"
   },
   "model_info": {
-    "name": "Kimi K2 Instruct",
-    "id": "moonshotai/kimi-k2-instruct",
-    "developer": "moonshotai",
+    "name": "OLMo 2 13B Instruct November 2024",
+    "id": "allenai/olmo-2-1124-13b-instruct",
+    "developer": "allenai",
     "inference_platform": "unknown"
   },
   "evaluation_results": [
@@ -30,11 +30,11 @@
         "max_score": 1.0
       },
       "score_details": {
-        "score": 0.768,
+        "score": 0.44,
         "details": {
           "accuracy_description": null,
           "efficiency_description": null,
-          "eval_time_mean_win_rate": 44.938
+          "mean_eval_time": 103.939
         }
       },
       "generation_config": {}
@@ -49,17 +49,18 @@
         "max_score": 1.0
       },
       "score_details": {
-        "score": 0.819,
+        "score": 0.31,
         "details": {
-          "accuracy_description": "min=0.819, mean=0.819, max=0.819, sum=0.819 (1)",
-          "efficiency_description": "min=20.295, mean=20.295, max=20.295, sum=20.295 (1)",
-          "eval_time": 20.295
+          "accuracy_description": "min=0.31, mean=0.31, max=0.31, sum=0.31 (1)",
+          "efficiency_description": "min=48.22, mean=48.22, max=48.22, sum=48.22 (1)",
+          "eval_time": 48.22
         }
       },
       "generation_config": {
         "subset": "all",
         "use_chain_of_thought": "true",
-        "use_few_shot": "false"
+        "use_few_shot": "false",
+        "num_output_tokens": "2048"
       }
     },
     {
@@ -72,17 +73,18 @@
         "max_score": 1.0
       },
       "score_details": {
-        "score": 0.652,
+        "score": 0.316,
         "details": {
-          "accuracy_description": "min=0.652, mean=0.652, max=0.652, sum=0.652 (1)",
-          "efficiency_description": "min=50.104, mean=50.104, max=50.104, sum=50.104 (1)",
-          "eval_time": 50.104
+          "accuracy_description": "min=0.316, mean=0.316, max=0.316, sum=0.316 (1)",
+          "efficiency_description": "min=44.368, mean=44.368, max=44.368, sum=44.368 (1)",
+          "eval_time": 44.368
         }
       },
       "generation_config": {
         "subset": "gpqa_main",
         "use_chain_of_thought": "true",
-        "use_few_shot": "false"
+        "use_few_shot": "false",
+        "num_output_tokens": "2048"
       }
     },
     {
@@ -95,14 +97,16 @@
         "max_score": 1.0
       },
       "score_details": {
-        "score": 0.85,
+        "score": 0.73,
         "details": {
-          "accuracy_description": "min=0.85, mean=0.85, max=0.85, sum=0.85 (1)",
-          "efficiency_description": "min=17.412, mean=17.412, max=17.412, sum=17.412 (1)",
-          "eval_time": 17.412
+          "accuracy_description": "min=0.73, mean=0.73, max=0.73, sum=0.73 (1)",
+          "efficiency_description": "min=71.901, mean=71.901, max=71.901, sum=71.901 (1)",
+          "eval_time": 71.901
         }
       },
-      "generation_config": {}
+      "generation_config": {
+        "num_output_tokens": "2048"
+      }
     },
     {
       "evaluation_name": "IFEval - IFEval Strict Acc",
@@ -114,15 +118,16 @@
         "max_score": 1.0
       },
       "score_details": {
-        "score": 0.862,
+        "score": 0.689,
         "details": {
-          "accuracy_description": "min=0.862, mean=0.862, max=0.862, sum=0.862 (1)",
-          "efficiency_description": "min=46.942, mean=46.942, max=46.942, sum=46.942 (1)",
-          "eval_time": 46.942
+          "accuracy_description": "min=0.689, mean=0.689, max=0.689, sum=0.689 (1)",
+          "efficiency_description": "min=194.337, mean=194.337, max=194.337, sum=194.337 (1)",
+          "eval_time": 194.337
         }
       },
       "generation_config": {
-        "subset": "v2"
+        "subset": "v2",
+        "num_output_tokens": "2048"
       }
     },
     {
@@ -135,14 +140,16 @@
         "max_score": 1.0
       },
       "score_details": {
-        "score": 0.654,
+        "score": 0.156,
         "details": {
-          "accuracy_description": "min=0.654, mean=0.654, max=0.654, sum=0.654 (1)",
-          "efficiency_description": "min=89.938, mean=89.938, max=89.938, sum=89.938 (1)",
-          "eval_time": 89.938
+          "accuracy_description": "min=0.156, mean=0.156, max=0.156, sum=0.156 (1)",
+          "efficiency_description": "min=160.871, mean=160.871, max=160.871, sum=160.871 (1)",
+          "eval_time": 160.871
         }
       },
-      "generation_config": {}
+      "generation_config": {
+        "num_output_tokens": "2048"
+      }
     }
   ]
 }
