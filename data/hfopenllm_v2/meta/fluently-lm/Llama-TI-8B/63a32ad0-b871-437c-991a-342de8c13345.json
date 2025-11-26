@@ -17,7 +17,12 @@
     "name": "fluently-lm/Llama-TI-8B",
     "developer": "meta",
     "inference_platform": "unknown",
-    "id": "fluently-lm/Llama-TI-8B"
+    "id": "fluently-lm/Llama-TI-8B",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 8.03
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.343999335106383
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 8.03
-  }
+  ]
 }

@@ -17,7 +17,12 @@
     "name": "google/flan-t5-small",
     "developer": "google",
     "inference_platform": "unknown",
-    "id": "google/flan-t5-small"
+    "id": "google/flan-t5-small",
+    "additional_details": {
+      "precision": "float16",
+      "architecture": "T5ForConditionalGeneration",
+      "params_billions": 0.077
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.1233377659574468
       }
     }
-  ],
-  "additional_details": {
-    "precision": "float16",
-    "architecture": "T5ForConditionalGeneration",
-    "params_billions": 0.077
-  }
+  ]
 }

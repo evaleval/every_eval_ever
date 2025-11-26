@@ -17,7 +17,12 @@
     "name": "nvidia/Llama-3.1-Minitron-4B-Depth-Base",
     "developer": "meta",
     "inference_platform": "unknown",
-    "id": "nvidia/Llama-3.1-Minitron-4B-Depth-Base"
+    "id": "nvidia/Llama-3.1-Minitron-4B-Depth-Base",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 4.02
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.2798371010638298
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 4.02
-  }
+  ]
 }

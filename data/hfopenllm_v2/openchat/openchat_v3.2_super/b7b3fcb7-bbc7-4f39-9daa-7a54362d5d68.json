@@ -17,7 +17,12 @@
     "name": "openchat/openchat_v3.2_super",
     "developer": "openchat",
     "inference_platform": "unknown",
-    "id": "openchat/openchat_v3.2_super"
+    "id": "openchat/openchat_v3.2_super",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 13.0
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.24251994680851063
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 13.0
-  }
+  ]
 }

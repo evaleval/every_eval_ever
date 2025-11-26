@@ -17,7 +17,12 @@
     "name": "databricks/dolly-v2-3b",
     "developer": "databricks",
     "inference_platform": "unknown",
-    "id": "databricks/dolly-v2-3b"
+    "id": "databricks/dolly-v2-3b",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "GPTNeoXForCausalLM",
+      "params_billions": 3.0
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.11452792553191489
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "GPTNeoXForCausalLM",
-    "params_billions": 3.0
-  }
+  ]
 }

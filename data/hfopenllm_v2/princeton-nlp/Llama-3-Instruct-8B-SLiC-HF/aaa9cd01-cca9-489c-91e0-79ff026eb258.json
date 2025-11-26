@@ -17,7 +17,12 @@
     "name": "princeton-nlp/Llama-3-Instruct-8B-SLiC-HF",
     "developer": "princeton-nlp",
     "inference_platform": "unknown",
-    "id": "princeton-nlp/Llama-3-Instruct-8B-SLiC-HF"
+    "id": "princeton-nlp/Llama-3-Instruct-8B-SLiC-HF",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 8.03
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.35846077127659576
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 8.03
-  }
+  ]
 }

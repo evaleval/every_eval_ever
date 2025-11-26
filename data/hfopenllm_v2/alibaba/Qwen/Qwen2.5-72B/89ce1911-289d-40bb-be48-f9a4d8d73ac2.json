@@ -17,7 +17,12 @@
     "name": "Qwen/Qwen2.5-72B",
     "developer": "alibaba",
     "inference_platform": "unknown",
-    "id": "Qwen/Qwen2.5-72B"
+    "id": "Qwen/Qwen2.5-72B",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "Qwen2ForCausalLM",
+      "params_billions": 72.706
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.5968251329787234
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "Qwen2ForCausalLM",
-    "params_billions": 72.706
-  }
+  ]
 }

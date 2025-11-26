@@ -17,7 +17,12 @@
     "name": "mistral-community/Mistral-7B-v0.2",
     "developer": "mistral",
     "inference_platform": "unknown",
-    "id": "mistral-community/Mistral-7B-v0.2"
+    "id": "mistral-community/Mistral-7B-v0.2",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "MistralForCausalLM",
+      "params_billions": 7.242
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.2952958776595745
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "MistralForCausalLM",
-    "params_billions": 7.242
-  }
+  ]
 }

@@ -17,7 +17,12 @@
     "name": "stabilityai/stablelm-2-1_6b-chat",
     "developer": "stabilityai",
     "inference_platform": "unknown",
-    "id": "stabilityai/stablelm-2-1_6b-chat"
+    "id": "stabilityai/stablelm-2-1_6b-chat",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "StableLmForCausalLM",
+      "params_billions": 1.645
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.16215093085106383
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "StableLmForCausalLM",
-    "params_billions": 1.645
-  }
+  ]
 }

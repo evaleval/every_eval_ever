@@ -17,7 +17,12 @@
     "name": "google/recurrentgemma-9b",
     "developer": "google",
     "inference_platform": "unknown",
-    "id": "google/recurrentgemma-9b"
+    "id": "google/recurrentgemma-9b",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "RecurrentGemmaForCausalLM",
+      "params_billions": 9.0
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.2604720744680851
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "RecurrentGemmaForCausalLM",
-    "params_billions": 9.0
-  }
+  ]
 }

@@ -17,7 +17,12 @@
     "name": "princeton-nlp/Sheared-LLaMA-2.7B",
     "developer": "meta",
     "inference_platform": "unknown",
-    "id": "princeton-nlp/Sheared-LLaMA-2.7B"
+    "id": "princeton-nlp/Sheared-LLaMA-2.7B",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 2.7
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.11868351063829788
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 2.7
-  }
+  ]
 }

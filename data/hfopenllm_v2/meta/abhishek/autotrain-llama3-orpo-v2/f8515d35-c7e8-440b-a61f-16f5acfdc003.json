@@ -17,7 +17,12 @@
     "name": "abhishek/autotrain-llama3-orpo-v2",
     "developer": "meta",
     "inference_platform": "unknown",
-    "id": "abhishek/autotrain-llama3-orpo-v2"
+    "id": "abhishek/autotrain-llama3-orpo-v2",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 8.03
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.22182513297872342
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 8.03
-  }
+  ]
 }

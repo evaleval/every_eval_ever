@@ -17,7 +17,12 @@
     "name": "vonjack/MobileLLM-125M-HF",
     "developer": "vonjack",
     "inference_platform": "unknown",
-    "id": "vonjack/MobileLLM-125M-HF"
+    "id": "vonjack/MobileLLM-125M-HF",
+    "additional_details": {
+      "precision": "float16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 0.125
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.1163563829787234
       }
     }
-  ],
-  "additional_details": {
-    "precision": "float16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 0.125
-  }
+  ]
 }

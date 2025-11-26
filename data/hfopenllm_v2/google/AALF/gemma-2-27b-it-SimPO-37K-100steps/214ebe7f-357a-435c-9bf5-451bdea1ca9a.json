@@ -17,7 +17,12 @@
     "name": "AALF/gemma-2-27b-it-SimPO-37K-100steps",
     "developer": "google",
     "inference_platform": "unknown",
-    "id": "AALF/gemma-2-27b-it-SimPO-37K-100steps"
+    "id": "AALF/gemma-2-27b-it-SimPO-37K-100steps",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "Gemma2ForCausalLM",
+      "params_billions": 27.227
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.21251662234042554
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "Gemma2ForCausalLM",
-    "params_billions": 27.227
-  }
+  ]
 }

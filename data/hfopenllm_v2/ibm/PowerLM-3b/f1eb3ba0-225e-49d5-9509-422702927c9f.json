@@ -17,7 +17,12 @@
     "name": "ibm/PowerLM-3b",
     "developer": "ibm",
     "inference_platform": "unknown",
-    "id": "ibm/PowerLM-3b"
+    "id": "ibm/PowerLM-3b",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "GraniteForCausalLM",
+      "params_billions": 3.512
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.20162898936170212
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "GraniteForCausalLM",
-    "params_billions": 3.512
-  }
+  ]
 }

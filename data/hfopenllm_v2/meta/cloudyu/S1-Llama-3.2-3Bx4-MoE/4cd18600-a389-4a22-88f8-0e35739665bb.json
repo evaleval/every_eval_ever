@@ -17,7 +17,12 @@
     "name": "cloudyu/S1-Llama-3.2-3Bx4-MoE",
     "developer": "meta",
     "inference_platform": "unknown",
-    "id": "cloudyu/S1-Llama-3.2-3Bx4-MoE"
+    "id": "cloudyu/S1-Llama-3.2-3Bx4-MoE",
+    "additional_details": {
+      "precision": "float16",
+      "architecture": "MixtralForCausalLM",
+      "params_billions": 9.555
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.30435505319148937
       }
     }
-  ],
-  "additional_details": {
-    "precision": "float16",
-    "architecture": "MixtralForCausalLM",
-    "params_billions": 9.555
-  }
+  ]
 }

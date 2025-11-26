@@ -17,7 +17,12 @@
     "name": "bunnycore/Phi-4-Model-Stock",
     "developer": "microsoft",
     "inference_platform": "unknown",
-    "id": "bunnycore/Phi-4-Model-Stock"
+    "id": "bunnycore/Phi-4-Model-Stock",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 14.66
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.5368184840425532
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 14.66
-  }
+  ]
 }

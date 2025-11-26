@@ -17,7 +17,12 @@
     "name": "sakhan10/quantized_open_llama_3b_v2",
     "developer": "meta",
     "inference_platform": "unknown",
-    "id": "sakhan10/quantized_open_llama_3b_v2"
+    "id": "sakhan10/quantized_open_llama_3b_v2",
+    "additional_details": {
+      "precision": "float16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 3.0
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.10954122340425532
       }
     }
-  ],
-  "additional_details": {
-    "precision": "float16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 3.0
-  }
+  ]
 }

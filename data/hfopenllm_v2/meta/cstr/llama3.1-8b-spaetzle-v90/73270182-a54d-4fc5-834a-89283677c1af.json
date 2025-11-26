@@ -17,7 +17,12 @@
     "name": "cstr/llama3.1-8b-spaetzle-v90",
     "developer": "meta",
     "inference_platform": "unknown",
-    "id": "cstr/llama3.1-8b-spaetzle-v90"
+    "id": "cstr/llama3.1-8b-spaetzle-v90",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 8.03
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.37308843085106386
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 8.03
-  }
+  ]
 }

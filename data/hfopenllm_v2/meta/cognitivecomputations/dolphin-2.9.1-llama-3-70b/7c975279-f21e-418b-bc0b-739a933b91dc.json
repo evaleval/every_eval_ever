@@ -17,7 +17,12 @@
     "name": "cognitivecomputations/dolphin-2.9.1-llama-3-70b",
     "developer": "meta",
     "inference_platform": "unknown",
-    "id": "cognitivecomputations/dolphin-2.9.1-llama-3-70b"
+    "id": "cognitivecomputations/dolphin-2.9.1-llama-3-70b",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 70.554
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.41298204787234044
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 70.554
-  }
+  ]
 }

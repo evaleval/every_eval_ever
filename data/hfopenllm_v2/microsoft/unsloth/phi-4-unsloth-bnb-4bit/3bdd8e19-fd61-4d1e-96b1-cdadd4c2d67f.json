@@ -17,7 +17,12 @@
     "name": "unsloth/phi-4-unsloth-bnb-4bit",
     "developer": "microsoft",
     "inference_platform": "unknown",
-    "id": "unsloth/phi-4-unsloth-bnb-4bit"
+    "id": "unsloth/phi-4-unsloth-bnb-4bit",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 8.483
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.5285904255319149
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 8.483
-  }
+  ]
 }

@@ -17,7 +17,12 @@
     "name": "lightblue/suzume-llama-3-8B-multilingual-orpo-borda-half",
     "developer": "meta",
     "inference_platform": "unknown",
-    "id": "lightblue/suzume-llama-3-8B-multilingual-orpo-borda-half"
+    "id": "lightblue/suzume-llama-3-8B-multilingual-orpo-borda-half",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 8.03
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.36136968085106386
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 8.03
-  }
+  ]
 }

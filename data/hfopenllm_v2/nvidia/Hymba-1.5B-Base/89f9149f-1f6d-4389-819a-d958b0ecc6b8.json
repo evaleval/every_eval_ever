@@ -17,7 +17,12 @@
     "name": "nvidia/Hymba-1.5B-Base",
     "developer": "nvidia",
     "inference_platform": "unknown",
-    "id": "nvidia/Hymba-1.5B-Base"
+    "id": "nvidia/Hymba-1.5B-Base",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "HymbaForCausalLM",
+      "params_billions": 1.523
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.19223736702127658
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "HymbaForCausalLM",
-    "params_billions": 1.523
-  }
+  ]
 }

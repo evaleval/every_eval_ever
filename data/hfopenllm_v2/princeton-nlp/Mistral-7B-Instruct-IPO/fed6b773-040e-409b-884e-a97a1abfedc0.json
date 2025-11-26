@@ -17,7 +17,12 @@
     "name": "princeton-nlp/Mistral-7B-Instruct-IPO",
     "developer": "princeton-nlp",
     "inference_platform": "unknown",
-    "id": "princeton-nlp/Mistral-7B-Instruct-IPO"
+    "id": "princeton-nlp/Mistral-7B-Instruct-IPO",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "MistralForCausalLM",
+      "params_billions": 7.242
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.2707779255319149
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "MistralForCausalLM",
-    "params_billions": 7.242
-  }
+  ]
 }

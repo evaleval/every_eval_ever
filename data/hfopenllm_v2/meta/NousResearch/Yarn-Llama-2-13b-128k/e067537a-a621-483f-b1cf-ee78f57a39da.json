@@ -17,7 +17,12 @@
     "name": "NousResearch/Yarn-Llama-2-13b-128k",
     "developer": "meta",
     "inference_platform": "unknown",
-    "id": "NousResearch/Yarn-Llama-2-13b-128k"
+    "id": "NousResearch/Yarn-Llama-2-13b-128k",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 13.0
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.23204787234042554
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 13.0
-  }
+  ]
 }

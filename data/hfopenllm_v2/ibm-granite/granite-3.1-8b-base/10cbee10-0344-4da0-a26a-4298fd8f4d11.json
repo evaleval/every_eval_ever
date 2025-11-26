@@ -17,7 +17,12 @@
     "name": "ibm-granite/granite-3.1-8b-base",
     "developer": "ibm-granite",
     "inference_platform": "unknown",
-    "id": "ibm-granite/granite-3.1-8b-base"
+    "id": "ibm-granite/granite-3.1-8b-base",
+    "additional_details": {
+      "precision": "float16",
+      "architecture": "GraniteForCausalLM",
+      "params_billions": 8.171
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.3232214095744681
       }
     }
-  ],
-  "additional_details": {
-    "precision": "float16",
-    "architecture": "GraniteForCausalLM",
-    "params_billions": 8.171
-  }
+  ]
 }

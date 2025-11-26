@@ -17,7 +17,12 @@
     "name": "oopere/Llama-FinSent-S",
     "developer": "meta",
     "inference_platform": "unknown",
-    "id": "oopere/Llama-FinSent-S"
+    "id": "oopere/Llama-FinSent-S",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 0.914
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.11336436170212766
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 0.914
-  }
+  ]
 }

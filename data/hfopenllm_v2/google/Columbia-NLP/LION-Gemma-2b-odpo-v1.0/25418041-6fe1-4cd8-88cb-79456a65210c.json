@@ -17,7 +17,12 @@
     "name": "Columbia-NLP/LION-Gemma-2b-odpo-v1.0",
     "developer": "google",
     "inference_platform": "unknown",
-    "id": "Columbia-NLP/LION-Gemma-2b-odpo-v1.0"
+    "id": "Columbia-NLP/LION-Gemma-2b-odpo-v1.0",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "GemmaForCausalLM",
+      "params_billions": 2.506
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.1692154255319149
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "GemmaForCausalLM",
-    "params_billions": 2.506
-  }
+  ]
 }

@@ -17,7 +17,12 @@
     "name": "aws-prototyping/MegaBeam-Mistral-7B-512k",
     "developer": "mistral",
     "inference_platform": "unknown",
-    "id": "aws-prototyping/MegaBeam-Mistral-7B-512k"
+    "id": "aws-prototyping/MegaBeam-Mistral-7B-512k",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "MistralForCausalLM",
+      "params_billions": 7.242
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.25889295212765956
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "MistralForCausalLM",
-    "params_billions": 7.242
-  }
+  ]
 }

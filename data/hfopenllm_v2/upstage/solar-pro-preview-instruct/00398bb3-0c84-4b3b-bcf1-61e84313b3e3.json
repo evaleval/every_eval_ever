@@ -17,7 +17,12 @@
     "name": "upstage/solar-pro-preview-instruct",
     "developer": "upstage",
     "inference_platform": "unknown",
-    "id": "upstage/solar-pro-preview-instruct"
+    "id": "upstage/solar-pro-preview-instruct",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "SolarForCausalLM",
+      "params_billions": 22.14
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.52734375
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "SolarForCausalLM",
-    "params_billions": 22.14
-  }
+  ]
 }

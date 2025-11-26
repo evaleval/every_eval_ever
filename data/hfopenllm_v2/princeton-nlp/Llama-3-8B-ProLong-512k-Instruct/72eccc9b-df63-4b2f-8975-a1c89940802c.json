@@ -17,7 +17,12 @@
     "name": "princeton-nlp/Llama-3-8B-ProLong-512k-Instruct",
     "developer": "princeton-nlp",
     "inference_platform": "unknown",
-    "id": "princeton-nlp/Llama-3-8B-ProLong-512k-Instruct"
+    "id": "princeton-nlp/Llama-3-8B-ProLong-512k-Instruct",
+    "additional_details": {
+      "precision": "float16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 8.03
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.3246343085106383
       }
     }
-  ],
-  "additional_details": {
-    "precision": "float16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 8.03
-  }
+  ]
 }

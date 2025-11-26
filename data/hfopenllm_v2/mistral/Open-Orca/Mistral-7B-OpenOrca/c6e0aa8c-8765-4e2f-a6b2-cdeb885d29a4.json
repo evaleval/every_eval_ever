@@ -17,7 +17,12 @@
     "name": "Open-Orca/Mistral-7B-OpenOrca",
     "developer": "mistral",
     "inference_platform": "unknown",
-    "id": "Open-Orca/Mistral-7B-OpenOrca"
+    "id": "Open-Orca/Mistral-7B-OpenOrca",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "MistralForCausalLM",
+      "params_billions": 7.0
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.26529255319148937
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "MistralForCausalLM",
-    "params_billions": 7.0
-  }
+  ]
 }

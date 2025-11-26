@@ -17,7 +17,12 @@
     "name": "TencentARC/LLaMA-Pro-8B",
     "developer": "meta",
     "inference_platform": "unknown",
-    "id": "TencentARC/LLaMA-Pro-8B"
+    "id": "TencentARC/LLaMA-Pro-8B",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 8.357
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.18110039893617022
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 8.357
-  }
+  ]
 }

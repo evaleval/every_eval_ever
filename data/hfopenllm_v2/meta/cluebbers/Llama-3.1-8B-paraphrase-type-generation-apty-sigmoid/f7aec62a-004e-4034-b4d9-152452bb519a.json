@@ -17,7 +17,12 @@
     "name": "cluebbers/Llama-3.1-8B-paraphrase-type-generation-apty-sigmoid",
     "developer": "meta",
     "inference_platform": "unknown",
-    "id": "cluebbers/Llama-3.1-8B-paraphrase-type-generation-apty-sigmoid"
+    "id": "cluebbers/Llama-3.1-8B-paraphrase-type-generation-apty-sigmoid",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 8.03
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.2562333776595745
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 8.03
-  }
+  ]
 }

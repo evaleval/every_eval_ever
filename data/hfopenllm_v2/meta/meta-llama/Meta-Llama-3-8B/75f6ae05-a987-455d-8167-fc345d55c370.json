@@ -17,7 +17,12 @@
     "name": "meta-llama/Meta-Llama-3-8B",
     "developer": "meta",
     "inference_platform": "unknown",
-    "id": "meta-llama/Meta-Llama-3-8B"
+    "id": "meta-llama/Meta-Llama-3-8B",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 8.03
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.32097739361702127
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 8.03
-  }
+  ]
 }

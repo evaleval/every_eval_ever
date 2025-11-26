@@ -17,7 +17,12 @@
     "name": "meta-llama/Llama-2-7b-hf",
     "developer": "meta",
     "inference_platform": "unknown",
-    "id": "meta-llama/Llama-2-7b-hf"
+    "id": "meta-llama/Llama-2-7b-hf",
+    "additional_details": {
+      "precision": "float16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 6.738
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.18608710106382978
       }
     }
-  ],
-  "additional_details": {
-    "precision": "float16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 6.738
-  }
+  ]
 }

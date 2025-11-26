@@ -17,7 +17,12 @@
     "name": "CortexLM/btlm-7b-base-v0.2",
     "developer": "CortexLM",
     "inference_platform": "unknown",
-    "id": "CortexLM/btlm-7b-base-v0.2"
+    "id": "CortexLM/btlm-7b-base-v0.2",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 6.885
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.2349567819148936
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 6.885
-  }
+  ]
 }

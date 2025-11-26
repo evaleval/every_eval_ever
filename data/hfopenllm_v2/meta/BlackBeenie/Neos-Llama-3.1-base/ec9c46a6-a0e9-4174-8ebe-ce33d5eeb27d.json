@@ -17,7 +17,12 @@
     "name": "BlackBeenie/Neos-Llama-3.1-base",
     "developer": "meta",
     "inference_platform": "unknown",
-    "id": "BlackBeenie/Neos-Llama-3.1-base"
+    "id": "BlackBeenie/Neos-Llama-3.1-base",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 4.65
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.11120345744680851
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 4.65
-  }
+  ]
 }

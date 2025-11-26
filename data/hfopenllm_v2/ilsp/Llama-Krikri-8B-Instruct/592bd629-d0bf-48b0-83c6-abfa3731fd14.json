@@ -17,7 +17,12 @@
     "name": "ilsp/Llama-Krikri-8B-Instruct",
     "developer": "ilsp",
     "inference_platform": "unknown",
-    "id": "ilsp/Llama-Krikri-8B-Instruct"
+    "id": "ilsp/Llama-Krikri-8B-Instruct",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 8.202
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.3312832446808511
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 8.202
-  }
+  ]
 }

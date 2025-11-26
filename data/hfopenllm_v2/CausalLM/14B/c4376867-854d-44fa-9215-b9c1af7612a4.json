@@ -17,7 +17,12 @@
     "name": "CausalLM/14B",
     "developer": "CausalLM",
     "inference_platform": "unknown",
-    "id": "CausalLM/14B"
+    "id": "CausalLM/14B",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 14.0
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.3221409574468085
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 14.0
-  }
+  ]
 }

@@ -17,7 +17,12 @@
     "name": "mkxu/llama-3-8b-instruct-fpo",
     "developer": "mkxu",
     "inference_platform": "unknown",
-    "id": "mkxu/llama-3-8b-instruct-fpo"
+    "id": "mkxu/llama-3-8b-instruct-fpo",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 8.03
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.36045545212765956
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 8.03
-  }
+  ]
 }

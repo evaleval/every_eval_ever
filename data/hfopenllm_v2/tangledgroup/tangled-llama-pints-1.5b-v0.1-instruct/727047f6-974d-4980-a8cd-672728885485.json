@@ -17,7 +17,12 @@
     "name": "tangledgroup/tangled-llama-pints-1.5b-v0.1-instruct",
     "developer": "tangledgroup",
     "inference_platform": "unknown",
-    "id": "tangledgroup/tangled-llama-pints-1.5b-v0.1-instruct"
+    "id": "tangledgroup/tangled-llama-pints-1.5b-v0.1-instruct",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 1.5
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.11087101063829788
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 1.5
-  }
+  ]
 }

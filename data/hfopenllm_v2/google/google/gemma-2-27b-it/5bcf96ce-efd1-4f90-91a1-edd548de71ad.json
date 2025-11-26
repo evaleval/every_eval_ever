@@ -17,7 +17,12 @@
     "name": "google/gemma-2-27b-it",
     "developer": "google",
     "inference_platform": "unknown",
-    "id": "google/gemma-2-27b-it"
+    "id": "google/gemma-2-27b-it",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "Gemma2ForCausalLM",
+      "params_billions": 27.227
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.4451462765957447
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "Gemma2ForCausalLM",
-    "params_billions": 27.227
-  }
+  ]
 }

@@ -17,7 +17,12 @@
     "name": "agentlans/Gemma2-9B-AdvancedFuse",
     "developer": "google",
     "inference_platform": "unknown",
-    "id": "agentlans/Gemma2-9B-AdvancedFuse"
+    "id": "agentlans/Gemma2-9B-AdvancedFuse",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "Gemma2ForCausalLM",
+      "params_billions": 9.242
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.4000166223404255
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "Gemma2ForCausalLM",
-    "params_billions": 9.242
-  }
+  ]
 }

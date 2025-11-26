@@ -17,7 +17,12 @@
     "name": "mosaicml/mpt-7b",
     "developer": "mosaicml",
     "inference_platform": "unknown",
-    "id": "mosaicml/mpt-7b"
+    "id": "mosaicml/mpt-7b",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "MPTForCausalLM",
+      "params_billions": 7.0
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.12059507978723404
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "MPTForCausalLM",
-    "params_billions": 7.0
-  }
+  ]
 }

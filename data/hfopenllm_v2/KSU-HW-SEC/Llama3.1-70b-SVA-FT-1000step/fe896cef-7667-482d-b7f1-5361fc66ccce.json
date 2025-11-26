@@ -17,7 +17,12 @@
     "name": "KSU-HW-SEC/Llama3.1-70b-SVA-FT-1000step",
     "developer": "KSU-HW-SEC",
     "inference_platform": "unknown",
-    "id": "KSU-HW-SEC/Llama3.1-70b-SVA-FT-1000step"
+    "id": "KSU-HW-SEC/Llama3.1-70b-SVA-FT-1000step",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 70.554
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.5251828457446809
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 70.554
-  }
+  ]
 }

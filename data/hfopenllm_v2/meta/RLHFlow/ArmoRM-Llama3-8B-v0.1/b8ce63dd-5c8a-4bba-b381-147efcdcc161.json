@@ -17,7 +17,12 @@
     "name": "RLHFlow/ArmoRM-Llama3-8B-v0.1",
     "developer": "meta",
     "inference_platform": "unknown",
-    "id": "RLHFlow/ArmoRM-Llama3-8B-v0.1"
+    "id": "RLHFlow/ArmoRM-Llama3-8B-v0.1",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForRewardModelWithGating",
+      "params_billions": 7.511
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.10779587765957446
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForRewardModelWithGating",
-    "params_billions": 7.511
-  }
+  ]
 }

@@ -17,7 +17,12 @@
     "name": "UCLA-AGI/Mistral7B-PairRM-SPPO",
     "developer": "mistral",
     "inference_platform": "unknown",
-    "id": "UCLA-AGI/Mistral7B-PairRM-SPPO"
+    "id": "UCLA-AGI/Mistral7B-PairRM-SPPO",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "MistralForCausalLM",
+      "params_billions": 7.242
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.26205119680851063
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "MistralForCausalLM",
-    "params_billions": 7.242
-  }
+  ]
 }

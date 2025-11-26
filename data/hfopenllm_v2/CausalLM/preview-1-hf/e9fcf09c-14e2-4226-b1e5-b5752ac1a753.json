@@ -17,7 +17,12 @@
     "name": "CausalLM/preview-1-hf",
     "developer": "CausalLM",
     "inference_platform": "unknown",
-    "id": "CausalLM/preview-1-hf"
+    "id": "CausalLM/preview-1-hf",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "GlmForCausalLM",
+      "params_billions": 9.543
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.35970744680851063
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "GlmForCausalLM",
-    "params_billions": 9.543
-  }
+  ]
 }

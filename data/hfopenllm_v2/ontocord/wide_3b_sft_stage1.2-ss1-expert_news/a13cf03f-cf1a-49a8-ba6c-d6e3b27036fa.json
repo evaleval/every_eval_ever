@@ -17,7 +17,12 @@
     "name": "ontocord/wide_3b_sft_stage1.2-ss1-expert_news",
     "developer": "ontocord",
     "inference_platform": "unknown",
-    "id": "ontocord/wide_3b_sft_stage1.2-ss1-expert_news"
+    "id": "ontocord/wide_3b_sft_stage1.2-ss1-expert_news",
+    "additional_details": {
+      "precision": "float16",
+      "architecture": "Qwen2ForCausalLM",
+      "params_billions": 3.759
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.11112034574468085
       }
     }
-  ],
-  "additional_details": {
-    "precision": "float16",
-    "architecture": "Qwen2ForCausalLM",
-    "params_billions": 3.759
-  }
+  ]
 }

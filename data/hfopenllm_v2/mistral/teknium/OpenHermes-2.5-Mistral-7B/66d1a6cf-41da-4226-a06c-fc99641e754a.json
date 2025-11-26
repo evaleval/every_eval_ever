@@ -17,7 +17,12 @@
     "name": "teknium/OpenHermes-2.5-Mistral-7B",
     "developer": "mistral",
     "inference_platform": "unknown",
-    "id": "teknium/OpenHermes-2.5-Mistral-7B"
+    "id": "teknium/OpenHermes-2.5-Mistral-7B",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "MistralForCausalLM",
+      "params_billions": 7.242
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.3054355053191489
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "MistralForCausalLM",
-    "params_billions": 7.242
-  }
+  ]
 }

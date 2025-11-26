@@ -17,7 +17,12 @@
     "name": "princeton-nlp/gemma-2-9b-it-SimPO",
     "developer": "google",
     "inference_platform": "unknown",
-    "id": "princeton-nlp/gemma-2-9b-it-SimPO"
+    "id": "princeton-nlp/gemma-2-9b-it-SimPO",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "Gemma2ForCausalLM",
+      "params_billions": 9.242
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.39752327127659576
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "Gemma2ForCausalLM",
-    "params_billions": 9.242
-  }
+  ]
 }

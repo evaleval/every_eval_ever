@@ -17,7 +17,12 @@
     "name": "princeton-nlp/gemma-2-9b-it-DPO",
     "developer": "princeton-nlp",
     "inference_platform": "unknown",
-    "id": "princeton-nlp/gemma-2-9b-it-DPO"
+    "id": "princeton-nlp/gemma-2-9b-it-DPO",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "Gemma2ForCausalLM",
+      "params_billions": 9.242
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.3723404255319149
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "Gemma2ForCausalLM",
-    "params_billions": 9.242
-  }
+  ]
 }

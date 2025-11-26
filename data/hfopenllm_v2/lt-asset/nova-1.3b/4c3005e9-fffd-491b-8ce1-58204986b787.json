@@ -17,7 +17,12 @@
     "name": "lt-asset/nova-1.3b",
     "developer": "lt-asset",
     "inference_platform": "unknown",
-    "id": "lt-asset/nova-1.3b"
+    "id": "lt-asset/nova-1.3b",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "NovaForCausalLM",
+      "params_billions": 1.347
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.11419547872340426
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "NovaForCausalLM",
-    "params_billions": 1.347
-  }
+  ]
 }

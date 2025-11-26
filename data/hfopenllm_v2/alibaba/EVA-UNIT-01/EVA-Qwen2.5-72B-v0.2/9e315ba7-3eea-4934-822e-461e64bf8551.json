@@ -17,7 +17,12 @@
     "name": "EVA-UNIT-01/EVA-Qwen2.5-72B-v0.2",
     "developer": "alibaba",
     "inference_platform": "unknown",
-    "id": "EVA-UNIT-01/EVA-Qwen2.5-72B-v0.2"
+    "id": "EVA-UNIT-01/EVA-Qwen2.5-72B-v0.2",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "Qwen2ForCausalLM",
+      "params_billions": 72.706
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.581283244680851
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "Qwen2ForCausalLM",
-    "params_billions": 72.706
-  }
+  ]
 }

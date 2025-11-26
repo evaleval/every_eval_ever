@@ -17,7 +17,12 @@
     "name": "SeppeV/SmolLM_pretrained_with_sft_trained_with_1pc_data_on_a_preference_dpo",
     "developer": "SeppeV",
     "inference_platform": "unknown",
-    "id": "SeppeV/SmolLM_pretrained_with_sft_trained_with_1pc_data_on_a_preference_dpo"
+    "id": "SeppeV/SmolLM_pretrained_with_sft_trained_with_1pc_data_on_a_preference_dpo",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 0.135
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.11610704787234043
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 0.135
-  }
+  ]
 }

@@ -17,7 +17,12 @@
     "name": "sequelbox/gemma-2-9B-MOTH",
     "developer": "google",
     "inference_platform": "unknown",
-    "id": "sequelbox/gemma-2-9B-MOTH"
+    "id": "sequelbox/gemma-2-9B-MOTH",
+    "additional_details": {
+      "precision": "float16",
+      "architecture": "Gemma2ForCausalLM",
+      "params_billions": 9.242
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.11402925531914894
       }
     }
-  ],
-  "additional_details": {
-    "precision": "float16",
-    "architecture": "Gemma2ForCausalLM",
-    "params_billions": 9.242
-  }
+  ]
 }

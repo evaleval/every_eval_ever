@@ -17,7 +17,12 @@
     "name": "ibm-granite/granite-3.0-1b-a400m-base",
     "developer": "ibm-granite",
     "inference_platform": "unknown",
-    "id": "ibm-granite/granite-3.0-1b-a400m-base"
+    "id": "ibm-granite/granite-3.0-1b-a400m-base",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "GraniteForCausalLM",
+      "params_billions": 1.335
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.11519281914893617
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "GraniteForCausalLM",
-    "params_billions": 1.335
-  }
+  ]
 }

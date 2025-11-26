@@ -17,7 +17,12 @@
     "name": "BlackBeenie/Llama-3.1-8B-pythonic-passthrough-merge",
     "developer": "meta",
     "inference_platform": "unknown",
-    "id": "BlackBeenie/Llama-3.1-8B-pythonic-passthrough-merge"
+    "id": "BlackBeenie/Llama-3.1-8B-pythonic-passthrough-merge",
+    "additional_details": {
+      "precision": "float16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 20.245
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.1332280585106383
       }
     }
-  ],
-  "additional_details": {
-    "precision": "float16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 20.245
-  }
+  ]
 }

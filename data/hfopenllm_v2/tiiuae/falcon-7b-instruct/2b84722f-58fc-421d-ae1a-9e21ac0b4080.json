@@ -17,7 +17,12 @@
     "name": "tiiuae/falcon-7b-instruct",
     "developer": "tiiuae",
     "inference_platform": "unknown",
-    "id": "tiiuae/falcon-7b-instruct"
+    "id": "tiiuae/falcon-7b-instruct",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "FalconForCausalLM",
+      "params_billions": 7.0
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.1155252659574468
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "FalconForCausalLM",
-    "params_billions": 7.0
-  }
+  ]
 }

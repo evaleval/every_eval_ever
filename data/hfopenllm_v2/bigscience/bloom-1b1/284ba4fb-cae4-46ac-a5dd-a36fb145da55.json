@@ -17,7 +17,12 @@
     "name": "bigscience/bloom-1b1",
     "developer": "bigscience",
     "inference_platform": "unknown",
-    "id": "bigscience/bloom-1b1"
+    "id": "bigscience/bloom-1b1",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "BloomForCausalLM",
+      "params_billions": 1.065
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.1107878989361702
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "BloomForCausalLM",
-    "params_billions": 1.065
-  }
+  ]
 }

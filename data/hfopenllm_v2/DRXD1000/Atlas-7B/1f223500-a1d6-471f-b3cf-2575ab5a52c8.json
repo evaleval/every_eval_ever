@@ -17,7 +17,12 @@
     "name": "DRXD1000/Atlas-7B",
     "developer": "DRXD1000",
     "inference_platform": "unknown",
-    "id": "DRXD1000/Atlas-7B"
+    "id": "DRXD1000/Atlas-7B",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 7.768
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.14012632978723405
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 7.768
-  }
+  ]
 }

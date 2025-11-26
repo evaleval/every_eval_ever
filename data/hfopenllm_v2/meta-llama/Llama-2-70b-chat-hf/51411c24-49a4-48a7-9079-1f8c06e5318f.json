@@ -17,7 +17,12 @@
     "name": "meta-llama/Llama-2-70b-chat-hf",
     "developer": "meta-llama",
     "inference_platform": "unknown",
-    "id": "meta-llama/Llama-2-70b-chat-hf"
+    "id": "meta-llama/Llama-2-70b-chat-hf",
+    "additional_details": {
+      "precision": "float16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 68.977
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.2432679521276596
       }
     }
-  ],
-  "additional_details": {
-    "precision": "float16",
-    "architecture": "LlamaForCausalLM",
-    "params_billions": 68.977
-  }
+  ]
 }

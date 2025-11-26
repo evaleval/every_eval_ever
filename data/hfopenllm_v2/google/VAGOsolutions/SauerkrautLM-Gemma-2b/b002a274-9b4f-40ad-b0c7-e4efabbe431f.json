@@ -17,7 +17,12 @@
     "name": "VAGOsolutions/SauerkrautLM-Gemma-2b",
     "developer": "google",
     "inference_platform": "unknown",
-    "id": "VAGOsolutions/SauerkrautLM-Gemma-2b"
+    "id": "VAGOsolutions/SauerkrautLM-Gemma-2b",
+    "additional_details": {
+      "precision": "bfloat16",
+      "architecture": "GemmaForCausalLM",
+      "params_billions": 2.506
+    }
   },
   "evaluation_results": [
     {
@@ -98,10 +103,5 @@
         "score": 0.14685837765957446
       }
     }
-  ],
-  "additional_details": {
-    "precision": "bfloat16",
-    "architecture": "GemmaForCausalLM",
-    "params_billions": 2.506
-  }
+  ]
 }
