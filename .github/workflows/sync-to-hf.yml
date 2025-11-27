@@ -1,0 +1,42 @@
+name: Sync to HuggingFace Dataset
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'data/**/*.json'
+  workflow_dispatch: 
+
+jobs:
+  sync-to-huggingface:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install datasets huggingface_hub pandas pyarrow
+      
+      - name: Convert modified leaderboards to Parquet
+        env:
+          HF_DATASET_REPO: evaleval/every_eval_ever
+          HF_TOKEN: ${{ secrets.EVERY_EVAL_EVER_DATASET_FINEGRAINED }}
+        run: |
+          python scripts/convert_to_parquet.py
+        
+      - name: Upload to HuggingFace
+        env:
+          HF_DATASET_REPO: evaleval/every_eval_ever
+          HF_TOKEN: ${{ secrets.EVERY_EVAL_EVER_DATASET_FINEGRAINED }}
+        run: |
+          python scripts/upload_to_hf.py
+
