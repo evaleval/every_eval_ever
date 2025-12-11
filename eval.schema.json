@@ -1,6 +1,6 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
-    "version": "0.0.1",
+    "version": "0.1.0",
     "type": "object",
     "description": "Schema for storing and validating LLMs evaluation data, including model configuration, prompts, instances, Output, and evaluation metrics",
     "required": [
@@ -76,36 +76,27 @@
                 }
             ]
         },
-        "evaluation_source": {
-            "type": "object",
-            "description": "Details about evaluation origin. There are options that evaluations come from leaderboards (e.g. Live Code Bench Pro) or evaluation platforms (e.g. lm-eval, inspect ai, HELM...).",
-            "required": [
-                "evaluation_source_name",
-                "evaluation_source_type"
-            ],
-            "properties": {
-                "evaluation_source_name": {
-                    "type": "string",
-                    "description": "Name of the source (e.g. title of the source leaderboard or name of the platform used for the evaluation."
-                },
-                "evaluation_source_type": {
-                    "type": "string",
-                    "enum": [
-                        "leaderboard",
-                        "evaluation_platform"
-                    ],
-                    "description": "Type of evaluation source, e.g., leaderboard or evaluation platform"
-                }
-            }
-        },
         "source_metadata": {
             "type": "object",
             "description": "Metadata about the source of the leaderboard data",
             "required": [
+                "source_type",
                 "source_organization_name",
                 "evaluator_relationship"
             ],
             "properties": {
+                "source_name": {
+                    "type": "string",
+                    "description": "Name of the source (e.g. title of the source leaderboard or name of the platform used for the evaluation)."
+                },
+                "source_type": {
+                    "type": "string",
+                    "enum": [
+                        "documentation",
+                        "evaluation_run"
+                    ],
+                    "description": "Whether the data comes from a direct evaluation run or from documentation"
+                },
                 "source_organization_name": {
                     "type": "string",
                     "description": "Name of the organization that provides the data"
@@ -316,6 +307,14 @@
                                     "type": "integer",
                                     "minimum": 1,
                                     "description": "Maximum number of tokens to generate"
+                                },
+                                "execution_command": {
+                                    "type": "string",
+                                    "description": "Command used to run the model to generate results"
+                                },
+                                "chain_of_thought": {
+                                    "type": "boolean",
+                                    "description": "Whether chain-of-thought or reasoning was used to generate results"
                                 }
                             },
                             "additionalProperties": true
