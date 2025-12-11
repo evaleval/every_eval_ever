@@ -45,9 +45,11 @@ Note: Each file can contain multiple individual results related to one model. Se
 - `inference_platform`: Use this field when the evaluation was run through a remote API (e.g., `openai`, `huggingface`, `openrouter`, `anthropic`, `xai`).
 - `inference_engine`: Use this field when the evaluation was run through a local inference engine (e.g. `vLLM`, `Ollama`).
 
-4. The schema is designed to accomodate both numeric and level-based (e.g. Low, Medium, High) metrics. For level-based metrics, the actual 'value' should be converted to an integer (e.g. Low = 1, Medium = 2, High = 3), and the 'level_names' propert should be used to specify the mapping of levels to integers.
+4. The `source_type` has two options: `documentation` and `evaluation_platform`. Use `documentation` when the evaluation results are extracted from a documentation source (e.g., a leaderboard website or API). Use `evaluation_platform` when the evaluation was run locally or through an evaluation platform.
 
-5. Additional details can be provided in several places in the schema. They are not required, but can be useful for detailed analysis.
+5. The schema is designed to accomodate both numeric and level-based (e.g. Low, Medium, High) metrics. For level-based metrics, the actual 'value' should be converted to an integer (e.g. Low = 1, Medium = 2, High = 3), and the 'level_names' propert should be used to specify the mapping of levels to integers.
+
+6. Additional details can be provided in several places in the schema. They are not required, but can be useful for detailed analysis.
 - `model_info.additional_details`: Use this field to provide any additional information about the model itself (e.g. number of parameters)
 - `evaluation_results.generation_config.generation_args`: Specify additional arguments used to generate outputs from the model
 - `evaluation_results.generation_config.additional_details`: Use this field to provide any additional information about the evaluation process that is not captured elsewhere
@@ -104,17 +106,15 @@ Each evaluation (e.g., `livecodebenchpro`, `hfopenllm_v2`) has its own directory
 
 ```
 {
-  "schema_version": "0.0.1",
+  "schema_version": "0.1.0",
   "evaluation_id": "hfopenllm_v2/Qwen_Qwen2.5-Math-72B-Instruct/1762652579.847774", # {eval_name}/{model_id}/{retrieved_timestamp}
   "retrieved_timestamp": "1762652579.847775",  # UNIX timestamp
   "source_data": [
     "https://open-llm-leaderboard-open-llm-leaderboard.hf.space/api/leaderboard/formatted"
   ],
-  "evaluation_source": {
-    "evaluation_source_name": "HF Open LLM v2",
-    "evaluation_source_type": "leaderboard" # This can be leaderboard OR evaluation_platform
-  },
   "source_metadata": { # This information will be repeated in every model file
+    "evaluation_source_name": "HF Open LLM v2",
+    "evaluation_source_type": "documentation" # This can be documentation OR evaluation_platform
     "source_organization_name": "Hugging Face",
     "evaluator_relationship": "third_party"
   },
