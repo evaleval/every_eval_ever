@@ -1,0 +1,1651 @@
+{
+  "schema_version": "0.0.1",
+  "evaluation_id": "helm_lite/cohere_command-light/1765639040.409865",
+  "retrieved_timestamp": "1765639040.409865",
+  "source_data": [
+    "https://storage.googleapis.com/crfm-helm-public/lite/benchmark_output/releases/v1.13.0/groups/core_scenarios.json"
+  ],
+  "source_metadata": {
+    "source_name": "helm_lite",
+    "source_type": "documentation",
+    "source_organization_name": "crfm",
+    "evaluator_relationship": "third_party"
+  },
+  "model_info": {
+    "name": "Command Light",
+    "id": "cohere/command-light",
+    "developer": "cohere",
+    "inference_platform": "unknown"
+  },
+  "evaluation_results": [
+    {
+      "evaluation_name": "Mean win rate",
+      "metric_config": {
+        "evaluation_description": "How many models this model outperforms on average (over columns).",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.105,
+        "details": {
+          "description": null,
+          "tab": "Accuracy"
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "NarrativeQA - F1",
+      "metric_config": {
+        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Kočiský et al., 2017)](https://aclanthology.org/Q18-1023/).\n\nF1: Average F1 score in terms of word overlap between the model output and correct reference.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.629,
+        "details": {
+          "description": "min=0.629, mean=0.629, max=0.629, sum=0.629 (1)",
+          "tab": "Accuracy"
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "NaturalQuestions (open-book) - F1",
+      "metric_config": {
+        "evaluation_description": "The NaturalQuestions [(Kwiatkowski et al., 2019)](https://aclanthology.org/Q19-1026/) benchmark for question answering based on naturally-occurring queries through Google Search. The input includes the Wikipedia page with the answer.\n\nF1: Average F1 score in terms of word overlap between the model output and correct reference.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.686,
+        "details": {
+          "description": "min=0.686, mean=0.686, max=0.686, sum=0.686 (1)",
+          "tab": "Accuracy"
+        }
+      },
+      "generation_config": {
+        "mode": "openbook_longans"
+      }
+    },
+    {
+      "evaluation_name": "NaturalQuestions (closed-book) - F1",
+      "metric_config": {
+        "evaluation_description": "The NaturalQuestions [(Kwiatkowski et al., 2019)](https://aclanthology.org/Q19-1026/) benchmark for question answering based on naturally-occurring queries through Google Search. The input does not include the Wikipedia page with the answer.\n\nF1: Average F1 score in terms of word overlap between the model output and correct reference.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.195,
+        "details": {
+          "description": "min=0.195, mean=0.195, max=0.195, sum=0.195 (1)",
+          "tab": "Accuracy"
+        }
+      },
+      "generation_config": {
+        "mode": "closedbook"
+      }
+    },
+    {
+      "evaluation_name": "OpenbookQA - EM",
+      "metric_config": {
+        "evaluation_description": "The OpenbookQA benchmark for commonsense-intensive open book question answering [(Mihaylov et al., 2018)](https://aclanthology.org/D18-1260/).\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.398,
+        "details": {
+          "description": "min=0.398, mean=0.398, max=0.398, sum=0.398 (1)",
+          "tab": "Accuracy"
+        }
+      },
+      "generation_config": {
+        "dataset": "openbookqa",
+        "method": "multiple_choice_joint"
+      }
+    },
+    {
+      "evaluation_name": "MMLU - EM",
+      "metric_config": {
+        "evaluation_description": "The Massive Multitask Language Understanding (MMLU) benchmark for knowledge-intensive question answering across 57 domains [(Hendrycks et al., 2021)](https://arxiv.org/pdf/2009.03300.pdf).\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.386,
+        "details": {
+          "description": "min=0.25, mean=0.386, max=0.57, sum=1.928 (5)",
+          "tab": "Accuracy"
+        }
+      },
+      "generation_config": {
+        "subject": [
+          "abstract_algebra",
+          "college_chemistry",
+          "computer_security",
+          "econometrics",
+          "us_foreign_policy"
+        ],
+        "method": "multiple_choice_joint"
+      }
+    },
+    {
+      "evaluation_name": "MATH - Equivalent (CoT)",
+      "metric_config": {
+        "evaluation_description": "The MATH benchmark for measuring mathematical problem solving on competition math problems with chain-of-thought style reasoning [(Hendrycks et al., 2021)](https://arxiv.org/pdf/2103.03874.pdf).\n\nEquivalent (CoT): Fraction of model outputs that are mathematically equivalent to the correct reference when using chain-of-thought prompting.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.098,
+        "details": {
+          "description": "min=0.026, mean=0.098, max=0.167, sum=0.687 (7)",
+          "tab": "Accuracy"
+        }
+      },
+      "generation_config": {
+        "subject": [
+          "algebra",
+          "counting_and_probability",
+          "geometry",
+          "intermediate_algebra",
+          "number_theory",
+          "prealgebra",
+          "precalculus"
+        ],
+        "level": "1",
+        "use_official_examples": "False",
+        "use_chain_of_thought": "True"
+      }
+    },
+    {
+      "evaluation_name": "GSM8K - EM",
+      "metric_config": {
+        "evaluation_description": "The grade school math word problems dataset (GSM8K) for testing mathematical reasoning on grade-school math problems [(Cobbe et al., 2021)](https://arxiv.org/pdf/2110.14168.pdf).\n\nExact match (final number): Fraction of instances that the predicted output matches a correct reference exactly, ignoring text preceding the specified indicator.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.149,
+        "details": {
+          "description": "min=0.149, mean=0.149, max=0.149, sum=0.149 (1)",
+          "tab": "Accuracy"
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "LegalBench - EM",
+      "metric_config": {
+        "evaluation_description": "LegalBench is a large collaboratively constructed benchmark of legal reasoning tasks [(Guha et al, 2023)](https://arxiv.org/pdf/2308.11462.pdf).\n\nQuasi-exact match: Fraction of instances that the predicted output matches a correct reference up to light processing.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.397,
+        "details": {
+          "description": "min=0.173, mean=0.397, max=0.874, sum=1.983 (5)",
+          "tab": "Accuracy"
+        }
+      },
+      "generation_config": {
+        "subset": [
+          "abercrombie",
+          "corporate_lobbying",
+          "function_of_decision_section",
+          "international_citizenship_questions",
+          "proa"
+        ]
+      }
+    },
+    {
+      "evaluation_name": "MedQA - EM",
+      "metric_config": {
+        "evaluation_description": "MedQA is an open domain question answering dataset composed of questions from professional medical board exams ([Jin et al. 2020](https://arxiv.org/pdf/2009.13081.pdf)).\n\nQuasi-exact match: Fraction of instances that the predicted output matches a correct reference up to light processing.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.312,
+        "details": {
+          "description": "min=0.312, mean=0.312, max=0.312, sum=0.312 (1)",
+          "tab": "Accuracy"
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "WMT 2014 - BLEU-4",
+      "metric_config": {
+        "evaluation_description": "WMT 2014 is a collection of machine translation datasets [(website)](https://www.statmt.org/wmt14/index.html).\n\nBLEU-4: Average BLEU score [(Papineni et al., 2002)](https://aclanthology.org/P02-1040/) based on 4-gram overlap.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.023,
+        "details": {
+          "description": "min=0.0, mean=0.023, max=0.064, sum=0.113 (5)",
+          "tab": "Accuracy"
+        }
+      },
+      "generation_config": {
+        "language_pair": [
+          "cs-en",
+          "de-en",
+          "fr-en",
+          "hi-en",
+          "ru-en"
+        ]
+      }
+    },
+    {
+      "evaluation_name": "Mean win rate",
+      "metric_config": {
+        "evaluation_description": "How many models this model outperforms on average (over columns).",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.469,
+        "details": {
+          "description": null,
+          "tab": "Efficiency"
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "NarrativeQA - Observed inference time (s)",
+      "metric_config": {
+        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Kočiský et al., 2017)](https://aclanthology.org/Q18-1023/).\n\nObserved inference runtime (s): Average observed time to process a request to the model (via an API, and thus depends on particular deployment).",
+        "lower_is_better": true,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 42.0
+      },
+      "score_details": {
+        "score": 0.896,
+        "details": {
+          "description": "min=0.896, mean=0.896, max=0.896, sum=0.896 (1)",
+          "tab": "Efficiency"
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "NaturalQuestions (open-book) - Observed inference time (s)",
+      "metric_config": {
+        "evaluation_description": "The NaturalQuestions [(Kwiatkowski et al., 2019)](https://aclanthology.org/Q19-1026/) benchmark for question answering based on naturally-occurring queries through Google Search. The input includes the Wikipedia page with the answer.\n\nObserved inference runtime (s): Average observed time to process a request to the model (via an API, and thus depends on particular deployment).",
+        "lower_is_better": true,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 69.0
+      },
+      "score_details": {
+        "score": 1.08,
+        "details": {
+          "description": "min=1.08, mean=1.08, max=1.08, sum=1.08 (1)",
+          "tab": "Efficiency"
+        }
+      },
+      "generation_config": {
+        "mode": "openbook_longans"
+      }
+    },
+    {
+      "evaluation_name": "NaturalQuestions (closed-book) - Observed inference time (s)",
+      "metric_config": {
+        "evaluation_description": "The NaturalQuestions [(Kwiatkowski et al., 2019)](https://aclanthology.org/Q19-1026/) benchmark for question answering based on naturally-occurring queries through Google Search. The input does not include the Wikipedia page with the answer.\n\nObserved inference runtime (s): Average observed time to process a request to the model (via an API, and thus depends on particular deployment).",
+        "lower_is_better": true,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 64.0
+      },
+      "score_details": {
+        "score": 0.696,
+        "details": {
+          "description": "min=0.696, mean=0.696, max=0.696, sum=0.696 (1)",
+          "tab": "Efficiency"
+        }
+      },
+      "generation_config": {
+        "mode": "closedbook"
+      }
+    },
+    {
+      "evaluation_name": "OpenbookQA - Observed inference time (s)",
+      "metric_config": {
+        "evaluation_description": "The OpenbookQA benchmark for commonsense-intensive open book question answering [(Mihaylov et al., 2018)](https://aclanthology.org/D18-1260/).\n\nObserved inference runtime (s): Average observed time to process a request to the model (via an API, and thus depends on particular deployment).",
+        "lower_is_better": true,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 5.0
+      },
+      "score_details": {
+        "score": 0.705,
+        "details": {
+          "description": "min=0.705, mean=0.705, max=0.705, sum=0.705 (1)",
+          "tab": "Efficiency"
+        }
+      },
+      "generation_config": {
+        "dataset": "openbookqa",
+        "method": "multiple_choice_joint"
+      }
+    },
+    {
+      "evaluation_name": "MMLU - Observed inference time (s)",
+      "metric_config": {
+        "evaluation_description": "The Massive Multitask Language Understanding (MMLU) benchmark for knowledge-intensive question answering across 57 domains [(Hendrycks et al., 2021)](https://arxiv.org/pdf/2009.03300.pdf).\n\nObserved inference runtime (s): Average observed time to process a request to the model (via an API, and thus depends on particular deployment).",
+        "lower_is_better": true,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 13.0
+      },
+      "score_details": {
+        "score": 0.749,
+        "details": {
+          "description": "min=0.405, mean=0.749, max=1.412, sum=3.747 (5)",
+          "tab": "Efficiency"
+        }
+      },
+      "generation_config": {
+        "subject": [
+          "abstract_algebra",
+          "college_chemistry",
+          "computer_security",
+          "econometrics",
+          "us_foreign_policy"
+        ],
+        "method": "multiple_choice_joint"
+      }
+    },
+    {
+      "evaluation_name": "MATH - Observed inference time (s)",
+      "metric_config": {
+        "evaluation_description": "The MATH benchmark for measuring mathematical problem solving on competition math problems with chain-of-thought style reasoning [(Hendrycks et al., 2021)](https://arxiv.org/pdf/2103.03874.pdf).\n\nObserved inference runtime (s): Average observed time to process a request to the model (via an API, and thus depends on particular deployment).",
+        "lower_is_better": true,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 72.0
+      },
+      "score_details": {
+        "score": 2.374,
+        "details": {
+          "description": "min=1.821, mean=2.374, max=2.948, sum=16.62 (7)",
+          "tab": "Efficiency"
+        }
+      },
+      "generation_config": {
+        "subject": [
+          "algebra",
+          "counting_and_probability",
+          "geometry",
+          "intermediate_algebra",
+          "number_theory",
+          "prealgebra",
+          "precalculus"
+        ],
+        "level": "1",
+        "use_official_examples": "False",
+        "use_chain_of_thought": "True"
+      }
+    },
+    {
+      "evaluation_name": "GSM8K - Observed inference time (s)",
+      "metric_config": {
+        "evaluation_description": "The grade school math word problems dataset (GSM8K) for testing mathematical reasoning on grade-school math problems [(Cobbe et al., 2021)](https://arxiv.org/pdf/2110.14168.pdf).\n\nObserved inference runtime (s): Average observed time to process a request to the model (via an API, and thus depends on particular deployment).",
+        "lower_is_better": true,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 75.0
+      },
+      "score_details": {
+        "score": 1.751,
+        "details": {
+          "description": "min=1.751, mean=1.751, max=1.751, sum=1.751 (1)",
+          "tab": "Efficiency"
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "LegalBench - Observed inference time (s)",
+      "metric_config": {
+        "evaluation_description": "LegalBench is a large collaboratively constructed benchmark of legal reasoning tasks [(Guha et al, 2023)](https://arxiv.org/pdf/2308.11462.pdf).\n\nObserved inference runtime (s): Average observed time to process a request to the model (via an API, and thus depends on particular deployment).",
+        "lower_is_better": true,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 9.0
+      },
+      "score_details": {
+        "score": 0.783,
+        "details": {
+          "description": "min=0.423, mean=0.783, max=1.232, sum=3.916 (5)",
+          "tab": "Efficiency"
+        }
+      },
+      "generation_config": {
+        "subset": [
+          "abercrombie",
+          "corporate_lobbying",
+          "function_of_decision_section",
+          "international_citizenship_questions",
+          "proa"
+        ]
+      }
+    },
+    {
+      "evaluation_name": "MedQA - Observed inference time (s)",
+      "metric_config": {
+        "evaluation_description": "MedQA is an open domain question answering dataset composed of questions from professional medical board exams ([Jin et al. 2020](https://arxiv.org/pdf/2009.13081.pdf)).\n\nObserved inference runtime (s): Average observed time to process a request to the model (via an API, and thus depends on particular deployment).",
+        "lower_is_better": true,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 5.0
+      },
+      "score_details": {
+        "score": 0.896,
+        "details": {
+          "description": "min=0.896, mean=0.896, max=0.896, sum=0.896 (1)",
+          "tab": "Efficiency"
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "WMT 2014 - Observed inference time (s)",
+      "metric_config": {
+        "evaluation_description": "WMT 2014 is a collection of machine translation datasets [(website)](https://www.statmt.org/wmt14/index.html).\n\nObserved inference runtime (s): Average observed time to process a request to the model (via an API, and thus depends on particular deployment).",
+        "lower_is_better": true,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 21.0
+      },
+      "score_details": {
+        "score": 0.797,
+        "details": {
+          "description": "min=0.712, mean=0.797, max=0.934, sum=3.983 (5)",
+          "tab": "Efficiency"
+        }
+      },
+      "generation_config": {
+        "language_pair": [
+          "cs-en",
+          "de-en",
+          "fr-en",
+          "hi-en",
+          "ru-en"
+        ]
+      }
+    },
+    {
+      "evaluation_name": "Mean win rate",
+      "metric_config": {
+        "evaluation_description": "How many models this model outperforms on average (over columns).",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": -1.0,
+        "details": {
+          "description": null,
+          "tab": "General information"
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "NarrativeQA - # eval",
+      "metric_config": {
+        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Kočiský et al., 2017)](https://aclanthology.org/Q18-1023/).\n\n# eval: Number of evaluation instances.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 355.0
+      },
+      "score_details": {
+        "score": 355.0,
+        "details": {
+          "description": "min=355, mean=355, max=355, sum=355 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "NarrativeQA - # train",
+      "metric_config": {
+        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Kočiský et al., 2017)](https://aclanthology.org/Q18-1023/).\n\n# train: Number of training instances (e.g., in-context examples).",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 5.0
+      },
+      "score_details": {
+        "score": 1.941,
+        "details": {
+          "description": "min=1.941, mean=1.941, max=1.941, sum=1.941 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "NarrativeQA - truncated",
+      "metric_config": {
+        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Kočiský et al., 2017)](https://aclanthology.org/Q18-1023/).\n\ntruncated: Fraction of instances where the prompt itself was truncated (implies that there were no in-context examples).",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": -1.0,
+        "details": {
+          "description": "min=0, mean=0, max=0, sum=0 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "NarrativeQA - # prompt tokens",
+      "metric_config": {
+        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Kočiský et al., 2017)](https://aclanthology.org/Q18-1023/).\n\n# prompt tokens: Number of tokens in the prompt.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 4415.0
+      },
+      "score_details": {
+        "score": 1660.485,
+        "details": {
+          "description": "min=1660.485, mean=1660.485, max=1660.485, sum=1660.485 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "NarrativeQA - # output tokens",
+      "metric_config": {
+        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Kočiský et al., 2017)](https://aclanthology.org/Q18-1023/).\n\n# output tokens: Actual number of output tokens.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 45.0
+      },
+      "score_details": {
+        "score": 10.814,
+        "details": {
+          "description": "min=10.814, mean=10.814, max=10.814, sum=10.814 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "NaturalQuestions (open-book) - # eval",
+      "metric_config": {
+        "evaluation_description": "The NaturalQuestions [(Kwiatkowski et al., 2019)](https://aclanthology.org/Q19-1026/) benchmark for question answering based on naturally-occurring queries through Google Search. The input includes the Wikipedia page with the answer.\n\n# eval: Number of evaluation instances.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1000.0
+      },
+      "score_details": {
+        "score": 1000.0,
+        "details": {
+          "description": "min=1000, mean=1000, max=1000, sum=1000 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "mode": "openbook_longans"
+      }
+    },
+    {
+      "evaluation_name": "NaturalQuestions (open-book) - # train",
+      "metric_config": {
+        "evaluation_description": "The NaturalQuestions [(Kwiatkowski et al., 2019)](https://aclanthology.org/Q19-1026/) benchmark for question answering based on naturally-occurring queries through Google Search. The input includes the Wikipedia page with the answer.\n\n# train: Number of training instances (e.g., in-context examples).",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 5.0
+      },
+      "score_details": {
+        "score": 4.617,
+        "details": {
+          "description": "min=4.617, mean=4.617, max=4.617, sum=4.617 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "mode": "openbook_longans"
+      }
+    },
+    {
+      "evaluation_name": "NaturalQuestions (open-book) - truncated",
+      "metric_config": {
+        "evaluation_description": "The NaturalQuestions [(Kwiatkowski et al., 2019)](https://aclanthology.org/Q19-1026/) benchmark for question answering based on naturally-occurring queries through Google Search. The input includes the Wikipedia page with the answer.\n\ntruncated: Fraction of instances where the prompt itself was truncated (implies that there were no in-context examples).",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.039,
+        "details": {
+          "description": "min=0.039, mean=0.039, max=0.039, sum=0.039 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "mode": "openbook_longans"
+      }
+    },
+    {
+      "evaluation_name": "NaturalQuestions (open-book) - # prompt tokens",
+      "metric_config": {
+        "evaluation_description": "The NaturalQuestions [(Kwiatkowski et al., 2019)](https://aclanthology.org/Q19-1026/) benchmark for question answering based on naturally-occurring queries through Google Search. The input includes the Wikipedia page with the answer.\n\n# prompt tokens: Number of tokens in the prompt.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 2538.0
+      },
+      "score_details": {
+        "score": 1557.639,
+        "details": {
+          "description": "min=1557.639, mean=1557.639, max=1557.639, sum=1557.639 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "mode": "openbook_longans"
+      }
+    },
+    {
+      "evaluation_name": "NaturalQuestions (open-book) - # output tokens",
+      "metric_config": {
+        "evaluation_description": "The NaturalQuestions [(Kwiatkowski et al., 2019)](https://aclanthology.org/Q19-1026/) benchmark for question answering based on naturally-occurring queries through Google Search. The input includes the Wikipedia page with the answer.\n\n# output tokens: Actual number of output tokens.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 40.0
+      },
+      "score_details": {
+        "score": 10.869,
+        "details": {
+          "description": "min=10.869, mean=10.869, max=10.869, sum=10.869 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "mode": "openbook_longans"
+      }
+    },
+    {
+      "evaluation_name": "NaturalQuestions (closed-book) - # eval",
+      "metric_config": {
+        "evaluation_description": "The NaturalQuestions [(Kwiatkowski et al., 2019)](https://aclanthology.org/Q19-1026/) benchmark for question answering based on naturally-occurring queries through Google Search. The input does not include the Wikipedia page with the answer.\n\n# eval: Number of evaluation instances.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1000.0
+      },
+      "score_details": {
+        "score": 1000.0,
+        "details": {
+          "description": "min=1000, mean=1000, max=1000, sum=1000 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "mode": "closedbook"
+      }
+    },
+    {
+      "evaluation_name": "NaturalQuestions (closed-book) - # train",
+      "metric_config": {
+        "evaluation_description": "The NaturalQuestions [(Kwiatkowski et al., 2019)](https://aclanthology.org/Q19-1026/) benchmark for question answering based on naturally-occurring queries through Google Search. The input does not include the Wikipedia page with the answer.\n\n# train: Number of training instances (e.g., in-context examples).",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 5.0
+      },
+      "score_details": {
+        "score": 5.0,
+        "details": {
+          "description": "min=5, mean=5, max=5, sum=5 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "mode": "closedbook"
+      }
+    },
+    {
+      "evaluation_name": "NaturalQuestions (closed-book) - truncated",
+      "metric_config": {
+        "evaluation_description": "The NaturalQuestions [(Kwiatkowski et al., 2019)](https://aclanthology.org/Q19-1026/) benchmark for question answering based on naturally-occurring queries through Google Search. The input does not include the Wikipedia page with the answer.\n\ntruncated: Fraction of instances where the prompt itself was truncated (implies that there were no in-context examples).",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": -1.0,
+        "details": {
+          "description": "min=0, mean=0, max=0, sum=0 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "mode": "closedbook"
+      }
+    },
+    {
+      "evaluation_name": "NaturalQuestions (closed-book) - # prompt tokens",
+      "metric_config": {
+        "evaluation_description": "The NaturalQuestions [(Kwiatkowski et al., 2019)](https://aclanthology.org/Q19-1026/) benchmark for question answering based on naturally-occurring queries through Google Search. The input does not include the Wikipedia page with the answer.\n\n# prompt tokens: Number of tokens in the prompt.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 212.0
+      },
+      "score_details": {
+        "score": 115.191,
+        "details": {
+          "description": "min=115.191, mean=115.191, max=115.191, sum=115.191 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "mode": "closedbook"
+      }
+    },
+    {
+      "evaluation_name": "NaturalQuestions (closed-book) - # output tokens",
+      "metric_config": {
+        "evaluation_description": "The NaturalQuestions [(Kwiatkowski et al., 2019)](https://aclanthology.org/Q19-1026/) benchmark for question answering based on naturally-occurring queries through Google Search. The input does not include the Wikipedia page with the answer.\n\n# output tokens: Actual number of output tokens.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 51.0
+      },
+      "score_details": {
+        "score": 17.348,
+        "details": {
+          "description": "min=17.348, mean=17.348, max=17.348, sum=17.348 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "mode": "closedbook"
+      }
+    },
+    {
+      "evaluation_name": "OpenbookQA - # eval",
+      "metric_config": {
+        "evaluation_description": "The OpenbookQA benchmark for commonsense-intensive open book question answering [(Mihaylov et al., 2018)](https://aclanthology.org/D18-1260/).\n\n# eval: Number of evaluation instances.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 500.0
+      },
+      "score_details": {
+        "score": 500.0,
+        "details": {
+          "description": "min=500, mean=500, max=500, sum=500 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "dataset": "openbookqa",
+        "method": "multiple_choice_joint"
+      }
+    },
+    {
+      "evaluation_name": "OpenbookQA - # train",
+      "metric_config": {
+        "evaluation_description": "The OpenbookQA benchmark for commonsense-intensive open book question answering [(Mihaylov et al., 2018)](https://aclanthology.org/D18-1260/).\n\n# train: Number of training instances (e.g., in-context examples).",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 5.0
+      },
+      "score_details": {
+        "score": 5.0,
+        "details": {
+          "description": "min=5, mean=5, max=5, sum=5 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "dataset": "openbookqa",
+        "method": "multiple_choice_joint"
+      }
+    },
+    {
+      "evaluation_name": "OpenbookQA - truncated",
+      "metric_config": {
+        "evaluation_description": "The OpenbookQA benchmark for commonsense-intensive open book question answering [(Mihaylov et al., 2018)](https://aclanthology.org/D18-1260/).\n\ntruncated: Fraction of instances where the prompt itself was truncated (implies that there were no in-context examples).",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": -1.0,
+        "details": {
+          "description": "min=0, mean=0, max=0, sum=0 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "dataset": "openbookqa",
+        "method": "multiple_choice_joint"
+      }
+    },
+    {
+      "evaluation_name": "OpenbookQA - # prompt tokens",
+      "metric_config": {
+        "evaluation_description": "The OpenbookQA benchmark for commonsense-intensive open book question answering [(Mihaylov et al., 2018)](https://aclanthology.org/D18-1260/).\n\n# prompt tokens: Number of tokens in the prompt.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 329.0
+      },
+      "score_details": {
+        "score": 246.682,
+        "details": {
+          "description": "min=246.682, mean=246.682, max=246.682, sum=246.682 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "dataset": "openbookqa",
+        "method": "multiple_choice_joint"
+      }
+    },
+    {
+      "evaluation_name": "OpenbookQA - # output tokens",
+      "metric_config": {
+        "evaluation_description": "The OpenbookQA benchmark for commonsense-intensive open book question answering [(Mihaylov et al., 2018)](https://aclanthology.org/D18-1260/).\n\n# output tokens: Actual number of output tokens.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 1.0,
+        "details": {
+          "description": "min=1, mean=1, max=1, sum=1 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "dataset": "openbookqa",
+        "method": "multiple_choice_joint"
+      }
+    },
+    {
+      "evaluation_name": "MMLU - # eval",
+      "metric_config": {
+        "evaluation_description": "The Massive Multitask Language Understanding (MMLU) benchmark for knowledge-intensive question answering across 57 domains [(Hendrycks et al., 2021)](https://arxiv.org/pdf/2009.03300.pdf).\n\n# eval: Number of evaluation instances.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 103.0
+      },
+      "score_details": {
+        "score": 102.8,
+        "details": {
+          "description": "min=100, mean=102.8, max=114, sum=514 (5)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "subject": [
+          "abstract_algebra",
+          "college_chemistry",
+          "computer_security",
+          "econometrics",
+          "us_foreign_policy"
+        ],
+        "method": "multiple_choice_joint"
+      }
+    },
+    {
+      "evaluation_name": "MMLU - # train",
+      "metric_config": {
+        "evaluation_description": "The Massive Multitask Language Understanding (MMLU) benchmark for knowledge-intensive question answering across 57 domains [(Hendrycks et al., 2021)](https://arxiv.org/pdf/2009.03300.pdf).\n\n# train: Number of training instances (e.g., in-context examples).",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 5.0
+      },
+      "score_details": {
+        "score": 5.0,
+        "details": {
+          "description": "min=5, mean=5, max=5, sum=25 (5)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "subject": [
+          "abstract_algebra",
+          "college_chemistry",
+          "computer_security",
+          "econometrics",
+          "us_foreign_policy"
+        ],
+        "method": "multiple_choice_joint"
+      }
+    },
+    {
+      "evaluation_name": "MMLU - truncated",
+      "metric_config": {
+        "evaluation_description": "The Massive Multitask Language Understanding (MMLU) benchmark for knowledge-intensive question answering across 57 domains [(Hendrycks et al., 2021)](https://arxiv.org/pdf/2009.03300.pdf).\n\ntruncated: Fraction of instances where the prompt itself was truncated (implies that there were no in-context examples).",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": -1.0,
+        "details": {
+          "description": "min=0, mean=0, max=0, sum=0 (5)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "subject": [
+          "abstract_algebra",
+          "college_chemistry",
+          "computer_security",
+          "econometrics",
+          "us_foreign_policy"
+        ],
+        "method": "multiple_choice_joint"
+      }
+    },
+    {
+      "evaluation_name": "MMLU - # prompt tokens",
+      "metric_config": {
+        "evaluation_description": "The Massive Multitask Language Understanding (MMLU) benchmark for knowledge-intensive question answering across 57 domains [(Hendrycks et al., 2021)](https://arxiv.org/pdf/2009.03300.pdf).\n\n# prompt tokens: Number of tokens in the prompt.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 544.0
+      },
+      "score_details": {
+        "score": 481.26,
+        "details": {
+          "description": "min=372.75, mean=481.26, max=628.421, sum=2406.301 (5)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "subject": [
+          "abstract_algebra",
+          "college_chemistry",
+          "computer_security",
+          "econometrics",
+          "us_foreign_policy"
+        ],
+        "method": "multiple_choice_joint"
+      }
+    },
+    {
+      "evaluation_name": "MMLU - # output tokens",
+      "metric_config": {
+        "evaluation_description": "The Massive Multitask Language Understanding (MMLU) benchmark for knowledge-intensive question answering across 57 domains [(Hendrycks et al., 2021)](https://arxiv.org/pdf/2009.03300.pdf).\n\n# output tokens: Actual number of output tokens.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 1.0,
+        "details": {
+          "description": "min=1, mean=1, max=1, sum=5 (5)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "subject": [
+          "abstract_algebra",
+          "college_chemistry",
+          "computer_security",
+          "econometrics",
+          "us_foreign_policy"
+        ],
+        "method": "multiple_choice_joint"
+      }
+    },
+    {
+      "evaluation_name": "MATH - # eval",
+      "metric_config": {
+        "evaluation_description": "The MATH benchmark for measuring mathematical problem solving on competition math problems with chain-of-thought style reasoning [(Hendrycks et al., 2021)](https://arxiv.org/pdf/2103.03874.pdf).\n\n# eval: Number of evaluation instances.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 63.0
+      },
+      "score_details": {
+        "score": 62.429,
+        "details": {
+          "description": "min=30, mean=62.429, max=135, sum=437 (7)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "subject": [
+          "algebra",
+          "counting_and_probability",
+          "geometry",
+          "intermediate_algebra",
+          "number_theory",
+          "prealgebra",
+          "precalculus"
+        ],
+        "level": "1",
+        "use_official_examples": "False",
+        "use_chain_of_thought": "True"
+      }
+    },
+    {
+      "evaluation_name": "MATH - # train",
+      "metric_config": {
+        "evaluation_description": "The MATH benchmark for measuring mathematical problem solving on competition math problems with chain-of-thought style reasoning [(Hendrycks et al., 2021)](https://arxiv.org/pdf/2103.03874.pdf).\n\n# train: Number of training instances (e.g., in-context examples).",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 8.0
+      },
+      "score_details": {
+        "score": 6.878,
+        "details": {
+          "description": "min=2.962, mean=6.878, max=8, sum=48.146 (7)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "subject": [
+          "algebra",
+          "counting_and_probability",
+          "geometry",
+          "intermediate_algebra",
+          "number_theory",
+          "prealgebra",
+          "precalculus"
+        ],
+        "level": "1",
+        "use_official_examples": "False",
+        "use_chain_of_thought": "True"
+      }
+    },
+    {
+      "evaluation_name": "MATH - truncated",
+      "metric_config": {
+        "evaluation_description": "The MATH benchmark for measuring mathematical problem solving on competition math problems with chain-of-thought style reasoning [(Hendrycks et al., 2021)](https://arxiv.org/pdf/2103.03874.pdf).\n\ntruncated: Fraction of instances where the prompt itself was truncated (implies that there were no in-context examples).",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": -1.0,
+        "details": {
+          "description": "min=0, mean=0, max=0, sum=0 (7)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "subject": [
+          "algebra",
+          "counting_and_probability",
+          "geometry",
+          "intermediate_algebra",
+          "number_theory",
+          "prealgebra",
+          "precalculus"
+        ],
+        "level": "1",
+        "use_official_examples": "False",
+        "use_chain_of_thought": "True"
+      }
+    },
+    {
+      "evaluation_name": "MATH - # prompt tokens",
+      "metric_config": {
+        "evaluation_description": "The MATH benchmark for measuring mathematical problem solving on competition math problems with chain-of-thought style reasoning [(Hendrycks et al., 2021)](https://arxiv.org/pdf/2103.03874.pdf).\n\n# prompt tokens: Number of tokens in the prompt.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1526.0
+      },
+      "score_details": {
+        "score": 1177.329,
+        "details": {
+          "description": "min=925.333, mean=1177.329, max=1534.058, sum=8241.302 (7)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "subject": [
+          "algebra",
+          "counting_and_probability",
+          "geometry",
+          "intermediate_algebra",
+          "number_theory",
+          "prealgebra",
+          "precalculus"
+        ],
+        "level": "1",
+        "use_official_examples": "False",
+        "use_chain_of_thought": "True"
+      }
+    },
+    {
+      "evaluation_name": "MATH - # output tokens",
+      "metric_config": {
+        "evaluation_description": "The MATH benchmark for measuring mathematical problem solving on competition math problems with chain-of-thought style reasoning [(Hendrycks et al., 2021)](https://arxiv.org/pdf/2103.03874.pdf).\n\n# output tokens: Actual number of output tokens.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 373.0
+      },
+      "score_details": {
+        "score": 106.589,
+        "details": {
+          "description": "min=83.228, mean=106.589, max=137.692, sum=746.121 (7)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "subject": [
+          "algebra",
+          "counting_and_probability",
+          "geometry",
+          "intermediate_algebra",
+          "number_theory",
+          "prealgebra",
+          "precalculus"
+        ],
+        "level": "1",
+        "use_official_examples": "False",
+        "use_chain_of_thought": "True"
+      }
+    },
+    {
+      "evaluation_name": "GSM8K - # eval",
+      "metric_config": {
+        "evaluation_description": "The grade school math word problems dataset (GSM8K) for testing mathematical reasoning on grade-school math problems [(Cobbe et al., 2021)](https://arxiv.org/pdf/2110.14168.pdf).\n\n# eval: Number of evaluation instances.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1000.0
+      },
+      "score_details": {
+        "score": 1000.0,
+        "details": {
+          "description": "min=1000, mean=1000, max=1000, sum=1000 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "GSM8K - # train",
+      "metric_config": {
+        "evaluation_description": "The grade school math word problems dataset (GSM8K) for testing mathematical reasoning on grade-school math problems [(Cobbe et al., 2021)](https://arxiv.org/pdf/2110.14168.pdf).\n\n# train: Number of training instances (e.g., in-context examples).",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 5.0
+      },
+      "score_details": {
+        "score": 5.0,
+        "details": {
+          "description": "min=5, mean=5, max=5, sum=5 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "GSM8K - truncated",
+      "metric_config": {
+        "evaluation_description": "The grade school math word problems dataset (GSM8K) for testing mathematical reasoning on grade-school math problems [(Cobbe et al., 2021)](https://arxiv.org/pdf/2110.14168.pdf).\n\ntruncated: Fraction of instances where the prompt itself was truncated (implies that there were no in-context examples).",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": -1.0,
+        "details": {
+          "description": "min=0, mean=0, max=0, sum=0 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "GSM8K - # prompt tokens",
+      "metric_config": {
+        "evaluation_description": "The grade school math word problems dataset (GSM8K) for testing mathematical reasoning on grade-school math problems [(Cobbe et al., 2021)](https://arxiv.org/pdf/2110.14168.pdf).\n\n# prompt tokens: Number of tokens in the prompt.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1256.0
+      },
+      "score_details": {
+        "score": 942.424,
+        "details": {
+          "description": "min=942.424, mean=942.424, max=942.424, sum=942.424 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "GSM8K - # output tokens",
+      "metric_config": {
+        "evaluation_description": "The grade school math word problems dataset (GSM8K) for testing mathematical reasoning on grade-school math problems [(Cobbe et al., 2021)](https://arxiv.org/pdf/2110.14168.pdf).\n\n# output tokens: Actual number of output tokens.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 400.0
+      },
+      "score_details": {
+        "score": 80.184,
+        "details": {
+          "description": "min=80.184, mean=80.184, max=80.184, sum=80.184 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "LegalBench - # eval",
+      "metric_config": {
+        "evaluation_description": "LegalBench is a large collaboratively constructed benchmark of legal reasoning tasks [(Guha et al, 2023)](https://arxiv.org/pdf/2308.11462.pdf).\n\n# eval: Number of evaluation instances.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 410.0
+      },
+      "score_details": {
+        "score": 409.4,
+        "details": {
+          "description": "min=95, mean=409.4, max=1000, sum=2047 (5)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "subset": [
+          "abercrombie",
+          "corporate_lobbying",
+          "function_of_decision_section",
+          "international_citizenship_questions",
+          "proa"
+        ]
+      }
+    },
+    {
+      "evaluation_name": "LegalBench - # train",
+      "metric_config": {
+        "evaluation_description": "LegalBench is a large collaboratively constructed benchmark of legal reasoning tasks [(Guha et al, 2023)](https://arxiv.org/pdf/2308.11462.pdf).\n\n# train: Number of training instances (e.g., in-context examples).",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 5.0
+      },
+      "score_details": {
+        "score": 3.878,
+        "details": {
+          "description": "min=0.388, mean=3.878, max=5, sum=19.388 (5)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "subset": [
+          "abercrombie",
+          "corporate_lobbying",
+          "function_of_decision_section",
+          "international_citizenship_questions",
+          "proa"
+        ]
+      }
+    },
+    {
+      "evaluation_name": "LegalBench - truncated",
+      "metric_config": {
+        "evaluation_description": "LegalBench is a large collaboratively constructed benchmark of legal reasoning tasks [(Guha et al, 2023)](https://arxiv.org/pdf/2308.11462.pdf).\n\ntruncated: Fraction of instances where the prompt itself was truncated (implies that there were no in-context examples).",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.003,
+        "details": {
+          "description": "min=0, mean=0.003, max=0.014, sum=0.014 (5)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "subset": [
+          "abercrombie",
+          "corporate_lobbying",
+          "function_of_decision_section",
+          "international_citizenship_questions",
+          "proa"
+        ]
+      }
+    },
+    {
+      "evaluation_name": "LegalBench - # prompt tokens",
+      "metric_config": {
+        "evaluation_description": "LegalBench is a large collaboratively constructed benchmark of legal reasoning tasks [(Guha et al, 2023)](https://arxiv.org/pdf/2308.11462.pdf).\n\n# prompt tokens: Number of tokens in the prompt.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1840.0
+      },
+      "score_details": {
+        "score": 566.501,
+        "details": {
+          "description": "min=205.295, mean=566.501, max=1529.327, sum=2832.507 (5)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "subset": [
+          "abercrombie",
+          "corporate_lobbying",
+          "function_of_decision_section",
+          "international_citizenship_questions",
+          "proa"
+        ]
+      }
+    },
+    {
+      "evaluation_name": "LegalBench - # output tokens",
+      "metric_config": {
+        "evaluation_description": "LegalBench is a large collaboratively constructed benchmark of legal reasoning tasks [(Guha et al, 2023)](https://arxiv.org/pdf/2308.11462.pdf).\n\n# output tokens: Actual number of output tokens.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 13.0
+      },
+      "score_details": {
+        "score": 6.64,
+        "details": {
+          "description": "min=1.074, mean=6.64, max=23.614, sum=33.198 (5)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "subset": [
+          "abercrombie",
+          "corporate_lobbying",
+          "function_of_decision_section",
+          "international_citizenship_questions",
+          "proa"
+        ]
+      }
+    },
+    {
+      "evaluation_name": "MedQA - # eval",
+      "metric_config": {
+        "evaluation_description": "MedQA is an open domain question answering dataset composed of questions from professional medical board exams ([Jin et al. 2020](https://arxiv.org/pdf/2009.13081.pdf)).\n\n# eval: Number of evaluation instances.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 503.0
+      },
+      "score_details": {
+        "score": 503.0,
+        "details": {
+          "description": "min=503, mean=503, max=503, sum=503 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "MedQA - # train",
+      "metric_config": {
+        "evaluation_description": "MedQA is an open domain question answering dataset composed of questions from professional medical board exams ([Jin et al. 2020](https://arxiv.org/pdf/2009.13081.pdf)).\n\n# train: Number of training instances (e.g., in-context examples).",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 5.0
+      },
+      "score_details": {
+        "score": 5.0,
+        "details": {
+          "description": "min=5, mean=5, max=5, sum=5 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "MedQA - truncated",
+      "metric_config": {
+        "evaluation_description": "MedQA is an open domain question answering dataset composed of questions from professional medical board exams ([Jin et al. 2020](https://arxiv.org/pdf/2009.13081.pdf)).\n\ntruncated: Fraction of instances where the prompt itself was truncated (implies that there were no in-context examples).",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": -1.0,
+        "details": {
+          "description": "min=0, mean=0, max=0, sum=0 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "MedQA - # prompt tokens",
+      "metric_config": {
+        "evaluation_description": "MedQA is an open domain question answering dataset composed of questions from professional medical board exams ([Jin et al. 2020](https://arxiv.org/pdf/2009.13081.pdf)).\n\n# prompt tokens: Number of tokens in the prompt.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1244.0
+      },
+      "score_details": {
+        "score": 1016.738,
+        "details": {
+          "description": "min=1016.738, mean=1016.738, max=1016.738, sum=1016.738 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "MedQA - # output tokens",
+      "metric_config": {
+        "evaluation_description": "MedQA is an open domain question answering dataset composed of questions from professional medical board exams ([Jin et al. 2020](https://arxiv.org/pdf/2009.13081.pdf)).\n\n# output tokens: Actual number of output tokens.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 1.0,
+        "details": {
+          "description": "min=1, mean=1, max=1, sum=1 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "WMT 2014 - # eval",
+      "metric_config": {
+        "evaluation_description": "WMT 2014 is a collection of machine translation datasets [(website)](https://www.statmt.org/wmt14/index.html).\n\n# eval: Number of evaluation instances.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 586.0
+      },
+      "score_details": {
+        "score": 568.8,
+        "details": {
+          "description": "min=503, mean=568.8, max=832, sum=2844 (5)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "language_pair": [
+          "cs-en",
+          "de-en",
+          "fr-en",
+          "hi-en",
+          "ru-en"
+        ]
+      }
+    },
+    {
+      "evaluation_name": "WMT 2014 - # train",
+      "metric_config": {
+        "evaluation_description": "WMT 2014 is a collection of machine translation datasets [(website)](https://www.statmt.org/wmt14/index.html).\n\n# train: Number of training instances (e.g., in-context examples).",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 1.0,
+        "details": {
+          "description": "min=1, mean=1, max=1, sum=5 (5)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "language_pair": [
+          "cs-en",
+          "de-en",
+          "fr-en",
+          "hi-en",
+          "ru-en"
+        ]
+      }
+    },
+    {
+      "evaluation_name": "WMT 2014 - truncated",
+      "metric_config": {
+        "evaluation_description": "WMT 2014 is a collection of machine translation datasets [(website)](https://www.statmt.org/wmt14/index.html).\n\ntruncated: Fraction of instances where the prompt itself was truncated (implies that there were no in-context examples).",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": -1.0,
+        "details": {
+          "description": "min=0, mean=0, max=0, sum=0 (5)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "language_pair": [
+          "cs-en",
+          "de-en",
+          "fr-en",
+          "hi-en",
+          "ru-en"
+        ]
+      }
+    },
+    {
+      "evaluation_name": "WMT 2014 - # prompt tokens",
+      "metric_config": {
+        "evaluation_description": "WMT 2014 is a collection of machine translation datasets [(website)](https://www.statmt.org/wmt14/index.html).\n\n# prompt tokens: Number of tokens in the prompt.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 221.0
+      },
+      "score_details": {
+        "score": 149.459,
+        "details": {
+          "description": "min=129.757, mean=149.459, max=178.821, sum=747.297 (5)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "language_pair": [
+          "cs-en",
+          "de-en",
+          "fr-en",
+          "hi-en",
+          "ru-en"
+        ]
+      }
+    },
+    {
+      "evaluation_name": "WMT 2014 - # output tokens",
+      "metric_config": {
+        "evaluation_description": "WMT 2014 is a collection of machine translation datasets [(website)](https://www.statmt.org/wmt14/index.html).\n\n# output tokens: Actual number of output tokens.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 100.0
+      },
+      "score_details": {
+        "score": 39.885,
+        "details": {
+          "description": "min=30.895, mean=39.885, max=47.65, sum=199.426 (5)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "language_pair": [
+          "cs-en",
+          "de-en",
+          "fr-en",
+          "hi-en",
+          "ru-en"
+        ]
+      }
+    }
+  ]
+}

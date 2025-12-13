@@ -113,8 +113,8 @@ Each evaluation (e.g., `livecodebenchpro`, `hfopenllm_v2`) has its own directory
     "https://open-llm-leaderboard-open-llm-leaderboard.hf.space/api/leaderboard/formatted"
   ],
   "source_metadata": { # This information will be repeated in every model file
-    "evaluation_source_name": "HF Open LLM v2",
-    "evaluation_source_type": "documentation" # This can be documentation OR evaluation_platform
+    "source_name": "HF Open LLM v2",
+    "source_type": "documentation" # This can be documentation OR evaluation_run
     "source_organization_name": "Hugging Face",
     "evaluator_relationship": "third_party"
   },

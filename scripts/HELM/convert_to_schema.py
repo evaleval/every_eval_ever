@@ -13,8 +13,6 @@ from eval_types import (
     EvaluationLog, 
     EvaluatorRelationship,
     EvaluationResult,
-    EvaluationSource,
-    EvaluationSourceType,
     MetricConfig,
     ModelInfo,
     ScoreDetails,
@@ -119,7 +117,7 @@ def check_min_and_max_values_in_columns(tab_rows):
 
     return mins, maxs
 
-def convert(leaderboard_name, leaderboard_data, evaluation_source, source_data):
+def convert(leaderboard_name, leaderboard_data, source_name, source_type, source_data):
     '''
     Script for conversion data from leaderboards: HELM Capabilities, HELM Lite.
     '''
@@ -179,12 +177,13 @@ def convert(leaderboard_name, leaderboard_data, evaluation_source, source_data):
             evaluation_id=evaluation_id,
             retrieved_timestamp=retrieved_timestamp,
             source_metadata=SourceMetadata(
+                source_name=source_name,
+                source_type=source_type,
                 source_organization_name='crfm',
                 evaluator_relationship=EvaluatorRelationship.third_party
             ),
             model_info=model_info,
             source_data=source_data,
-            evaluation_source=evaluation_source,
             evaluation_results=evaluation_results
         )
 
@@ -210,14 +209,9 @@ if __name__ == '__main__':
 
     leaderboard_data = download_leaderboard(source_data[0])
 
-    evaluation_source = EvaluationSource(
-        evaluation_source_name=leaderboard_name,
-        evaluation_source_type=EvaluationSourceType.leaderboard
-    )
-
-    convert(leaderboard_name, leaderboard_data, evaluation_source, source_data)
-    # uv run python3 -m scripts.HELM.convert_to_schema --leaderboard_name HELM_Instruct --source_data_url https://storage.googleapis.com/crfm-helm-public/instruct/benchmark_output/releases/v1.0.0/groups/instruction_following.json
-    # https://storage.googleapis.com/crfm-helm-public/capabilities/benchmark_output/releases/v1.12.0/groups/core_scenarios.json
+    convert(leaderboard_name, leaderboard_data, leaderboard_name, 'documentation', source_data)
+    
+    # uv run python3 -m scripts.HELM.convert_to_schema --leaderboard_name HELM_Instruct --source_data_url https://storage.googleapis.com/crfm-helm-public/instruct/benchmark_output/releases/v1.0.0/groups/instruction_following.json    # https://storage.googleapis.com/crfm-helm-public/capabilities/benchmark_output/releases/v1.12.0/groups/core_scenarios.json
     # https://storage.googleapis.com/crfm-helm-public/lite/benchmark_output/releases/v1.13.0/groups/core_scenarios.json
     # https://storage.googleapis.com/crfm-helm-public/benchmark_output/releases/v0.4.0/groups/core_scenarios.json
     # https://storage.googleapis.com/crfm-helm-public/instruct/benchmark_output/releases/v1.0.0/groups/instruction_following.json
