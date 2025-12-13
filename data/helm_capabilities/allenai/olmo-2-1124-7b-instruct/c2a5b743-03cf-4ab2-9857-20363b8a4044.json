@@ -1,0 +1,807 @@
+{
+  "schema_version": "0.0.1",
+  "evaluation_id": "helm_capabilities/allenai_olmo-2-1124-7b-instruct/1765639038.6063008",
+  "retrieved_timestamp": "1765639038.6063008",
+  "source_data": [
+    "https://storage.googleapis.com/crfm-helm-public/capabilities/benchmark_output/releases/v1.12.0/groups/core_scenarios.json"
+  ],
+  "source_metadata": {
+    "source_name": "helm_capabilities",
+    "source_type": "documentation",
+    "source_organization_name": "crfm",
+    "evaluator_relationship": "third_party"
+  },
+  "model_info": {
+    "name": "OLMo 2 7B Instruct November 2024",
+    "id": "allenai/olmo-2-1124-7b-instruct",
+    "developer": "allenai",
+    "inference_platform": "unknown"
+  },
+  "evaluation_results": [
+    {
+      "evaluation_name": "Mean score",
+      "metric_config": {
+        "evaluation_description": "The mean of the scores from all columns.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.405,
+        "details": {
+          "description": null,
+          "tab": "Accuracy"
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "MMLU-Pro - COT correct",
+      "metric_config": {
+        "evaluation_description": "MMLU-Pro\n\nCOT correct: Fraction of correct answers after chain of thought",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.292,
+        "details": {
+          "description": "min=0.292, mean=0.292, max=0.292, sum=0.292 (1)",
+          "tab": "Accuracy"
+        }
+      },
+      "generation_config": {
+        "subset": "all",
+        "use_chain_of_thought": "true",
+        "use_few_shot": "false",
+        "num_output_tokens": "2048"
+      }
+    },
+    {
+      "evaluation_name": "GPQA - COT correct",
+      "metric_config": {
+        "evaluation_description": "GPQA\n\nCOT correct: Fraction of correct answers after chain of thought",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.296,
+        "details": {
+          "description": "min=0.296, mean=0.296, max=0.296, sum=0.296 (1)",
+          "tab": "Accuracy"
+        }
+      },
+      "generation_config": {
+        "subset": "gpqa_main",
+        "use_chain_of_thought": "true",
+        "use_few_shot": "false",
+        "num_output_tokens": "2048"
+      }
+    },
+    {
+      "evaluation_name": "IFEval - IFEval Strict Acc",
+      "metric_config": {
+        "evaluation_description": "IFEval\n\nIFEval strict accuracy: Fraction of instructions in the instance that are correctly followed.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.693,
+        "details": {
+          "description": "min=0.693, mean=0.693, max=0.693, sum=0.693 (1)",
+          "tab": "Accuracy"
+        }
+      },
+      "generation_config": {
+        "num_output_tokens": "2048"
+      }
+    },
+    {
+      "evaluation_name": "WildBench - WB Score",
+      "metric_config": {
+        "evaluation_description": "WildBench\n\nWildBench Score: Score of the AI output judged by GPT-4o, rescaled to be between 0 and 1.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.628,
+        "details": {
+          "description": "min=0.628, mean=0.628, max=0.628, sum=0.628 (1)",
+          "tab": "Accuracy"
+        }
+      },
+      "generation_config": {
+        "subset": "v2",
+        "num_output_tokens": "2048"
+      }
+    },
+    {
+      "evaluation_name": "Omni-MATH - Acc",
+      "metric_config": {
+        "evaluation_description": "Omni-MATH\n\nOmni-MATH Accuracy: Accuracy of the AI output judged by GPT-4.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.116,
+        "details": {
+          "description": "min=0.116, mean=0.116, max=0.116, sum=0.116 (1)",
+          "tab": "Accuracy"
+        }
+      },
+      "generation_config": {
+        "num_output_tokens": "2048"
+      }
+    },
+    {
+      "evaluation_name": "Mean score",
+      "metric_config": {
+        "evaluation_description": "The mean of the scores from all columns.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 450.0
+      },
+      "score_details": {
+        "score": 164.449,
+        "details": {
+          "description": null,
+          "tab": "Efficiency"
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "MMLU-Pro - Observed inference time (s)",
+      "metric_config": {
+        "evaluation_description": "MMLU-Pro\n\nObserved inference runtime (s): Average observed time to process a request to the model (via an API, and thus depends on particular deployment).",
+        "lower_is_better": true,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 227.0
+      },
+      "score_details": {
+        "score": 65.565,
+        "details": {
+          "description": "min=65.565, mean=65.565, max=65.565, sum=65.565 (1)",
+          "tab": "Efficiency"
+        }
+      },
+      "generation_config": {
+        "subset": "all",
+        "use_chain_of_thought": "true",
+        "use_few_shot": "false",
+        "num_output_tokens": "2048"
+      }
+    },
+    {
+      "evaluation_name": "GPQA - Observed inference time (s)",
+      "metric_config": {
+        "evaluation_description": "GPQA\n\nObserved inference runtime (s): Average observed time to process a request to the model (via an API, and thus depends on particular deployment).",
+        "lower_is_better": true,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 264.0
+      },
+      "score_details": {
+        "score": 184.733,
+        "details": {
+          "description": "min=184.733, mean=184.733, max=184.733, sum=184.733 (1)",
+          "tab": "Efficiency"
+        }
+      },
+      "generation_config": {
+        "subset": "gpqa_main",
+        "use_chain_of_thought": "true",
+        "use_few_shot": "false",
+        "num_output_tokens": "2048"
+      }
+    },
+    {
+      "evaluation_name": "IFEval - Observed inference time (s)",
+      "metric_config": {
+        "evaluation_description": "IFEval\n\nObserved inference runtime (s): Average observed time to process a request to the model (via an API, and thus depends on particular deployment).",
+        "lower_is_better": true,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 438.0
+      },
+      "score_details": {
+        "score": 102.503,
+        "details": {
+          "description": "min=102.503, mean=102.503, max=102.503, sum=102.503 (1)",
+          "tab": "Efficiency"
+        }
+      },
+      "generation_config": {
+        "num_output_tokens": "2048"
+      }
+    },
+    {
+      "evaluation_name": "WildBench - Observed inference time (s)",
+      "metric_config": {
+        "evaluation_description": "WildBench\n\nObserved inference runtime (s): Average observed time to process a request to the model (via an API, and thus depends on particular deployment).",
+        "lower_is_better": true,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 916.0
+      },
+      "score_details": {
+        "score": 236.772,
+        "details": {
+          "description": "min=236.772, mean=236.772, max=236.772, sum=236.772 (1)",
+          "tab": "Efficiency"
+        }
+      },
+      "generation_config": {
+        "subset": "v2",
+        "num_output_tokens": "2048"
+      }
+    },
+    {
+      "evaluation_name": "Omni-MATH - Observed inference time (s)",
+      "metric_config": {
+        "evaluation_description": "Omni-MATH\n\nObserved inference runtime (s): Average observed time to process a request to the model (via an API, and thus depends on particular deployment).",
+        "lower_is_better": true,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 402.0
+      },
+      "score_details": {
+        "score": 232.672,
+        "details": {
+          "description": "min=232.672, mean=232.672, max=232.672, sum=232.672 (1)",
+          "tab": "Efficiency"
+        }
+      },
+      "generation_config": {
+        "num_output_tokens": "2048"
+      }
+    },
+    {
+      "evaluation_name": "MMLU-Pro - # eval",
+      "metric_config": {
+        "evaluation_description": "MMLU-Pro\n\n# eval: Number of evaluation instances.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1000.0
+      },
+      "score_details": {
+        "score": 1000.0,
+        "details": {
+          "description": "min=1000, mean=1000, max=1000, sum=1000 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "subset": "all",
+        "use_chain_of_thought": "true",
+        "use_few_shot": "false",
+        "num_output_tokens": "2048"
+      }
+    },
+    {
+      "evaluation_name": "MMLU-Pro - # train",
+      "metric_config": {
+        "evaluation_description": "MMLU-Pro\n\n# train: Number of training instances (e.g., in-context examples).",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": -1.0,
+        "details": {
+          "description": "min=0, mean=0, max=0, sum=0 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "subset": "all",
+        "use_chain_of_thought": "true",
+        "use_few_shot": "false",
+        "num_output_tokens": "2048"
+      }
+    },
+    {
+      "evaluation_name": "MMLU-Pro - truncated",
+      "metric_config": {
+        "evaluation_description": "MMLU-Pro\n\ntruncated: Fraction of instances where the prompt itself was truncated (implies that there were no in-context examples).",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": -1.0,
+        "details": {
+          "description": "min=0, mean=0, max=0, sum=0 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "subset": "all",
+        "use_chain_of_thought": "true",
+        "use_few_shot": "false",
+        "num_output_tokens": "2048"
+      }
+    },
+    {
+      "evaluation_name": "MMLU-Pro - # prompt tokens",
+      "metric_config": {
+        "evaluation_description": "MMLU-Pro\n\n# prompt tokens: Number of tokens in the prompt.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 267.0
+      },
+      "score_details": {
+        "score": 228.506,
+        "details": {
+          "description": "min=228.506, mean=228.506, max=228.506, sum=228.506 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "subset": "all",
+        "use_chain_of_thought": "true",
+        "use_few_shot": "false",
+        "num_output_tokens": "2048"
+      }
+    },
+    {
+      "evaluation_name": "MMLU-Pro - # output tokens",
+      "metric_config": {
+        "evaluation_description": "MMLU-Pro\n\n# output tokens: Actual number of output tokens.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 4424.0
+      },
+      "score_details": {
+        "score": 265.659,
+        "details": {
+          "description": "min=265.659, mean=265.659, max=265.659, sum=265.659 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "subset": "all",
+        "use_chain_of_thought": "true",
+        "use_few_shot": "false",
+        "num_output_tokens": "2048"
+      }
+    },
+    {
+      "evaluation_name": "GPQA - # eval",
+      "metric_config": {
+        "evaluation_description": "GPQA\n\n# eval: Number of evaluation instances.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 446.0
+      },
+      "score_details": {
+        "score": 446.0,
+        "details": {
+          "description": "min=446, mean=446, max=446, sum=446 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "subset": "gpqa_main",
+        "use_chain_of_thought": "true",
+        "use_few_shot": "false",
+        "num_output_tokens": "2048"
+      }
+    },
+    {
+      "evaluation_name": "GPQA - # train",
+      "metric_config": {
+        "evaluation_description": "GPQA\n\n# train: Number of training instances (e.g., in-context examples).",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": -1.0,
+        "details": {
+          "description": "min=0, mean=0, max=0, sum=0 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "subset": "gpqa_main",
+        "use_chain_of_thought": "true",
+        "use_few_shot": "false",
+        "num_output_tokens": "2048"
+      }
+    },
+    {
+      "evaluation_name": "GPQA - truncated",
+      "metric_config": {
+        "evaluation_description": "GPQA\n\ntruncated: Fraction of instances where the prompt itself was truncated (implies that there were no in-context examples).",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.002,
+        "details": {
+          "description": "min=0.002, mean=0.002, max=0.002, sum=0.002 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "subset": "gpqa_main",
+        "use_chain_of_thought": "true",
+        "use_few_shot": "false",
+        "num_output_tokens": "2048"
+      }
+    },
+    {
+      "evaluation_name": "GPQA - # prompt tokens",
+      "metric_config": {
+        "evaluation_description": "GPQA\n\n# prompt tokens: Number of tokens in the prompt.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 282.0
+      },
+      "score_details": {
+        "score": 247.26,
+        "details": {
+          "description": "min=247.26, mean=247.26, max=247.26, sum=247.26 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "subset": "gpqa_main",
+        "use_chain_of_thought": "true",
+        "use_few_shot": "false",
+        "num_output_tokens": "2048"
+      }
+    },
+    {
+      "evaluation_name": "GPQA - # output tokens",
+      "metric_config": {
+        "evaluation_description": "GPQA\n\n# output tokens: Actual number of output tokens.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 8629.0
+      },
+      "score_details": {
+        "score": 381.121,
+        "details": {
+          "description": "min=381.121, mean=381.121, max=381.121, sum=381.121 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "subset": "gpqa_main",
+        "use_chain_of_thought": "true",
+        "use_few_shot": "false",
+        "num_output_tokens": "2048"
+      }
+    },
+    {
+      "evaluation_name": "IFEval - # eval",
+      "metric_config": {
+        "evaluation_description": "IFEval\n\n# eval: Number of evaluation instances.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 541.0
+      },
+      "score_details": {
+        "score": 541.0,
+        "details": {
+          "description": "min=541, mean=541, max=541, sum=541 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "num_output_tokens": "2048"
+      }
+    },
+    {
+      "evaluation_name": "IFEval - # train",
+      "metric_config": {
+        "evaluation_description": "IFEval\n\n# train: Number of training instances (e.g., in-context examples).",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": -1.0,
+        "details": {
+          "description": "min=0, mean=0, max=0, sum=0 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "num_output_tokens": "2048"
+      }
+    },
+    {
+      "evaluation_name": "IFEval - truncated",
+      "metric_config": {
+        "evaluation_description": "IFEval\n\ntruncated: Fraction of instances where the prompt itself was truncated (implies that there were no in-context examples).",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": -1.0,
+        "details": {
+          "description": "min=0, mean=0, max=0, sum=0 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "num_output_tokens": "2048"
+      }
+    },
+    {
+      "evaluation_name": "IFEval - # prompt tokens",
+      "metric_config": {
+        "evaluation_description": "IFEval\n\n# prompt tokens: Number of tokens in the prompt.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 52.0
+      },
+      "score_details": {
+        "score": 46.054,
+        "details": {
+          "description": "min=46.054, mean=46.054, max=46.054, sum=46.054 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "num_output_tokens": "2048"
+      }
+    },
+    {
+      "evaluation_name": "IFEval - # output tokens",
+      "metric_config": {
+        "evaluation_description": "IFEval\n\n# output tokens: Actual number of output tokens.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 3203.0
+      },
+      "score_details": {
+        "score": 306.706,
+        "details": {
+          "description": "min=306.706, mean=306.706, max=306.706, sum=306.706 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "num_output_tokens": "2048"
+      }
+    },
+    {
+      "evaluation_name": "WildBench - # eval",
+      "metric_config": {
+        "evaluation_description": "WildBench\n\n# eval: Number of evaluation instances.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1000.0
+      },
+      "score_details": {
+        "score": 1000.0,
+        "details": {
+          "description": "min=1000, mean=1000, max=1000, sum=1000 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "subset": "v2",
+        "num_output_tokens": "2048"
+      }
+    },
+    {
+      "evaluation_name": "WildBench - # train",
+      "metric_config": {
+        "evaluation_description": "WildBench\n\n# train: Number of training instances (e.g., in-context examples).",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": -1.0,
+        "details": {
+          "description": "min=0, mean=0, max=0, sum=0 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "subset": "v2",
+        "num_output_tokens": "2048"
+      }
+    },
+    {
+      "evaluation_name": "WildBench - truncated",
+      "metric_config": {
+        "evaluation_description": "WildBench\n\ntruncated: Fraction of instances where the prompt itself was truncated (implies that there were no in-context examples).",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": -1.0,
+        "details": {
+          "description": "min=0, mean=0, max=0, sum=0 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "subset": "v2",
+        "num_output_tokens": "2048"
+      }
+    },
+    {
+      "evaluation_name": "WildBench - # prompt tokens",
+      "metric_config": {
+        "evaluation_description": "WildBench\n\n# prompt tokens: Number of tokens in the prompt.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": -1.0,
+        "details": {
+          "description": "min=0, mean=0, max=0, sum=0 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "subset": "v2",
+        "num_output_tokens": "2048"
+      }
+    },
+    {
+      "evaluation_name": "WildBench - # output tokens",
+      "metric_config": {
+        "evaluation_description": "WildBench\n\n# output tokens: Actual number of output tokens.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 4399.0
+      },
+      "score_details": {
+        "score": 768.348,
+        "details": {
+          "description": "min=768.348, mean=768.348, max=768.348, sum=768.348 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "subset": "v2",
+        "num_output_tokens": "2048"
+      }
+    },
+    {
+      "evaluation_name": "Omni-MATH - # eval",
+      "metric_config": {
+        "evaluation_description": "Omni-MATH\n\n# eval: Number of evaluation instances.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1000.0
+      },
+      "score_details": {
+        "score": 1000.0,
+        "details": {
+          "description": "min=1000, mean=1000, max=1000, sum=1000 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "num_output_tokens": "2048"
+      }
+    },
+    {
+      "evaluation_name": "Omni-MATH - # train",
+      "metric_config": {
+        "evaluation_description": "Omni-MATH\n\n# train: Number of training instances (e.g., in-context examples).",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": -1.0,
+        "details": {
+          "description": "min=0, mean=0, max=0, sum=0 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "num_output_tokens": "2048"
+      }
+    },
+    {
+      "evaluation_name": "Omni-MATH - truncated",
+      "metric_config": {
+        "evaluation_description": "Omni-MATH\n\ntruncated: Fraction of instances where the prompt itself was truncated (implies that there were no in-context examples).",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.001,
+        "details": {
+          "description": "min=0.001, mean=0.001, max=0.001, sum=0.001 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "num_output_tokens": "2048"
+      }
+    },
+    {
+      "evaluation_name": "Omni-MATH - # prompt tokens",
+      "metric_config": {
+        "evaluation_description": "Omni-MATH\n\n# prompt tokens: Number of tokens in the prompt.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 121.0
+      },
+      "score_details": {
+        "score": 108.843,
+        "details": {
+          "description": "min=108.843, mean=108.843, max=108.843, sum=108.843 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "num_output_tokens": "2048"
+      }
+    },
+    {
+      "evaluation_name": "Omni-MATH - # output tokens",
+      "metric_config": {
+        "evaluation_description": "Omni-MATH\n\n# output tokens: Actual number of output tokens.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 11089.0
+      },
+      "score_details": {
+        "score": 799.769,
+        "details": {
+          "description": "min=799.769, mean=799.769, max=799.769, sum=799.769 (1)",
+          "tab": "General information"
+        }
+      },
+      "generation_config": {
+        "num_output_tokens": "2048"
+      }
+    }
+  ]
+}
