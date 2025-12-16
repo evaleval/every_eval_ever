@@ -1,0 +1,99 @@
+{
+  "schema_version": "0.0.1",
+  "evaluation_id": "inspect_ai/ollama/qwen2.5:0.5b/allenai/ai2_arc/1761001924.0",
+  "retrieved_timestamp": "1761001924.0",
+  "source_data": {
+    "dataset_name": "ai2_arc",
+    "hf_repo": "allenai/ai2_arc",
+    "hf_split": null,
+    "samples_number": 2376,
+    "sample_ids": [
+      1,
+      2,
+      3
+    ],
+    "additional_details": null
+  },
+  "source_metadata": {
+    "source_name": "inspect_ai",
+    "source_type": "evaluation_run",
+    "source_organization_name": "unknown",
+    "source_organization_url": null,
+    "source_organization_logo_url": null,
+    "evaluator_relationship": "third_party"
+  },
+  "model_info": {
+    "name": "ollama/qwen2.5:0.5b",
+    "id": "ollama/qwen2.5-0.5b",
+    "developer": "ollama",
+    "inference_platform": null,
+    "inference_engine": "ollama",
+    "additional_details": null
+  },
+  "evaluation_results": [
+    {
+      "evaluation_name": "choice",
+      "evaluation_timestamp": "1761001936.0",
+      "metric_config": {
+        "evaluation_description": "accuracy",
+        "lower_is_better": false,
+        "score_type": null,
+        "level_names": null,
+        "level_metadata": null,
+        "has_unknown_level": null,
+        "min_score": null,
+        "max_score": null
+      },
+      "score_details": {
+        "score": 0.3333333333333333,
+        "details": null
+      },
+      "detailed_evaluation_results_url": null,
+      "generation_config": {}
+    }
+  ],
+  "detailed_evaluation_results_per_samples": [
+    {
+      "sample_id": "1",
+      "input": "Which statement best explains why photosynthesis is the foundation of most food webs?",
+      "prompt": null,
+      "ground_truth": "A",
+      "response": "A",
+      "choices": [
+        "Sunlight is the source of energy for nearly all ecosystems.",
+        "Most ecosystems are found on land instead of in water.",
+        "Carbon dioxide is more available than other gases.",
+        "The producers in all ecosystems are plants."
+      ],
+      "full_logprobs": null
+    },
+    {
+      "sample_id": "2",
+      "input": "Which piece of safety equipment is used to keep mold spores from entering the respiratory system?",
+      "prompt": null,
+      "ground_truth": "B",
+      "response": "D",
+      "choices": [
+        "safety goggles",
+        "breathing mask",
+        "rubber gloves",
+        "lead apron"
+      ],
+      "full_logprobs": null
+    },
+    {
+      "sample_id": "3",
+      "input": "Meiosis is a type of cell division in which germ cells divide to produce haploid cells. Where does meiosis occur?",
+      "prompt": null,
+      "ground_truth": "D",
+      "response": "A",
+      "choices": [
+        "brain cells",
+        "bone cells",
+        "muscle cells",
+        "ovary cells"
+      ],
+      "full_logprobs": null
+    }
+  ]
+}
