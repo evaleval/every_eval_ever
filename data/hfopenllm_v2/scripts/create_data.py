@@ -172,7 +172,8 @@ def convert_to_evalhub_format(input_data: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def process_models(
-    models_data: List[Dict[str, Any]], output_dir: str = "/Users/random/every_eval_ever/data/hfopenllm_v2"
+    models_data: List[Dict[str, Any]],
+    output_dir: str = "/Users/random/every_eval_ever/data/hfopenllm_v2",
 ):
     """
     Process a list of model evaluation dicts and save them in evalHub format.

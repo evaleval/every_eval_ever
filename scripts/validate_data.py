@@ -1,6 +1,7 @@
 import argparse
 import json
 import os
+from pathlib import Path
 from typing import List
 
 from jsonschema.exceptions import ValidationError
@@ -8,15 +9,15 @@ from jsonschema.protocols import Validator
 from jsonschema.validators import validator_for
 
 
-def get_schema_validator(file_path: str) -> Validator:
-    with open(file_path, "r") as f:
+def get_schema_validator(file_path: str | Path) -> Validator:
+    with open(file_path, "r", encoding="utf-8") as f:
         schema = json.load(f)
         validator_cls = validator_for(schema)
         return validator_cls(schema)
 
 
 def validate_file(file_path: str, validator: Validator) -> None:
-    with open(file_path, "r") as f:
+    with open(file_path, "r", encoding="utf-8") as f:
         instance = json.load(f)
     validator.validate(instance)
 
@@ -45,6 +46,11 @@ def annotate_error(file_path: str, message: str, **kwargs) -> None:
 
 
 def main() -> None:
+    # Default to the repo's eval.schema.json if available (keeps validation
+    # automatically in sync with schema changes in this repository).
+    repo_root = Path(__file__).resolve().parent.parent
+    default_schema_path = repo_root / "eval.schema.json"
+
     parser = argparse.ArgumentParser(
         prog="validate_data",
         description="Validates that the JSON data conforms to the JSON schema",
@@ -56,8 +62,12 @@ def main() -> None:
         "-s",
         "--schema-path",
         type=str,
-        help="File path to the JSON schema",
-        required=True,
+        help=(
+            "File path to the JSON schema. "
+            "Defaults to eval.schema.json in the repo root if present."
+        ),
+        required=not default_schema_path.exists(),
+        default=str(default_schema_path) if default_schema_path.exists() else None,
     )
     args = parser.parse_args()
     file_paths = expand_paths(args.paths)
