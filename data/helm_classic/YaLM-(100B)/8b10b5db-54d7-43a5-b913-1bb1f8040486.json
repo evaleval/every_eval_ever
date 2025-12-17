@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.0.1",
+  "schema_version": "0.1.0",
   "evaluation_id": "helm_classic/YaLM-(100B)/1765639042.2550771",
   "retrieved_timestamp": "1765639042.2550771",
   "source_data": [
@@ -75,7 +75,7 @@
     {
       "evaluation_name": "NarrativeQA - F1",
       "metric_config": {
-        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Kočiský et al., 2017)](https://aclanthology.org/Q18-1023/).\n\nF1: Average F1 score in terms of word overlap between the model output and correct reference.",
+        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Ko\u010disk\u00fd et al., 2017)](https://aclanthology.org/Q18-1023/).\n\nF1: Average F1 score in terms of word overlap between the model output and correct reference.",
         "lower_is_better": false,
         "score_type": "continuous",
         "min_score": 0.0,
@@ -381,7 +381,7 @@
     {
       "evaluation_name": "NarrativeQA - ECE (10-bin)",
       "metric_config": {
-        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Kočiský et al., 2017)](https://aclanthology.org/Q18-1023/).\n\n10-bin expected calibration error: The average difference between the model's confidence and accuracy, averaged across 10 bins where each bin contains an equal number of points (only computed for classification tasks). Warning - not reliable for small datasets (e.g., with < 300 examples) because each bin will have very few examples.",
+        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Ko\u010disk\u00fd et al., 2017)](https://aclanthology.org/Q18-1023/).\n\n10-bin expected calibration error: The average difference between the model's confidence and accuracy, averaged across 10 bins where each bin contains an equal number of points (only computed for classification tasks). Warning - not reliable for small datasets (e.g., with < 300 examples) because each bin will have very few examples.",
         "lower_is_better": true,
         "score_type": "continuous",
         "min_score": 0.0,
@@ -615,7 +615,7 @@
     {
       "evaluation_name": "NarrativeQA - F1 (Robustness)",
       "metric_config": {
-        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Kočiský et al., 2017)](https://aclanthology.org/Q18-1023/).\n\nF1: Average F1 score in terms of word overlap between the model output and correct reference.\n- Perturbation Robustness: Computes worst case over different robustness perturbations (misspellings, formatting, contrast sets).",
+        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Ko\u010disk\u00fd et al., 2017)](https://aclanthology.org/Q18-1023/).\n\nF1: Average F1 score in terms of word overlap between the model output and correct reference.\n- Perturbation Robustness: Computes worst case over different robustness perturbations (misspellings, formatting, contrast sets).",
         "lower_is_better": false,
         "score_type": "continuous",
         "min_score": 0.0,
@@ -885,7 +885,7 @@
     {
       "evaluation_name": "NarrativeQA - F1 (Fairness)",
       "metric_config": {
-        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Kočiský et al., 2017)](https://aclanthology.org/Q18-1023/).\n\nF1: Average F1 score in terms of word overlap between the model output and correct reference.\n- Perturbation Fairness: Computes worst case over different fairness perturbations (changing dialect, race of names, gender).",
+        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Ko\u010disk\u00fd et al., 2017)](https://aclanthology.org/Q18-1023/).\n\nF1: Average F1 score in terms of word overlap between the model output and correct reference.\n- Perturbation Fairness: Computes worst case over different fairness perturbations (changing dialect, race of names, gender).",
         "lower_is_better": false,
         "score_type": "continuous",
         "min_score": 0.0,
@@ -1155,7 +1155,7 @@
     {
       "evaluation_name": "NarrativeQA - Denoised inference time (s)",
       "metric_config": {
-        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Kočiský et al., 2017)](https://aclanthology.org/Q18-1023/).\n\nDenoised inference runtime (s): Average time to process a request to the model minus performance contention by using profiled runtimes from multiple trials of SyntheticEfficiencyScenario.",
+        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Ko\u010disk\u00fd et al., 2017)](https://aclanthology.org/Q18-1023/).\n\nDenoised inference runtime (s): Average time to process a request to the model minus performance contention by using profiled runtimes from multiple trials of SyntheticEfficiencyScenario.",
         "lower_is_better": true,
         "score_type": "continuous",
         "min_score": 0.0,
@@ -1641,7 +1641,7 @@
     {
       "evaluation_name": "NarrativeQA - # eval",
       "metric_config": {
-        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Kočiský et al., 2017)](https://aclanthology.org/Q18-1023/).\n\n# eval: Number of evaluation instances.",
+        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Ko\u010disk\u00fd et al., 2017)](https://aclanthology.org/Q18-1023/).\n\n# eval: Number of evaluation instances.",
         "lower_is_better": false,
         "score_type": "continuous",
         "min_score": 0.0,
@@ -1659,7 +1659,7 @@
     {
       "evaluation_name": "NarrativeQA - # train",
       "metric_config": {
-        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Kočiský et al., 2017)](https://aclanthology.org/Q18-1023/).\n\n# train: Number of training instances (e.g., in-context examples).",
+        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Ko\u010disk\u00fd et al., 2017)](https://aclanthology.org/Q18-1023/).\n\n# train: Number of training instances (e.g., in-context examples).",
         "lower_is_better": false,
         "score_type": "continuous",
         "min_score": 0.0,
@@ -1677,7 +1677,7 @@
     {
       "evaluation_name": "NarrativeQA - truncated",
       "metric_config": {
-        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Kočiský et al., 2017)](https://aclanthology.org/Q18-1023/).\n\ntruncated: Fraction of instances where the prompt itself was truncated (implies that there were no in-context examples).",
+        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Ko\u010disk\u00fd et al., 2017)](https://aclanthology.org/Q18-1023/).\n\ntruncated: Fraction of instances where the prompt itself was truncated (implies that there were no in-context examples).",
         "lower_is_better": false,
         "score_type": "continuous",
         "min_score": 0.0,
@@ -1695,7 +1695,7 @@
     {
       "evaluation_name": "NarrativeQA - # prompt tokens",
       "metric_config": {
-        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Kočiský et al., 2017)](https://aclanthology.org/Q18-1023/).\n\n# prompt tokens: Number of tokens in the prompt.",
+        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Ko\u010disk\u00fd et al., 2017)](https://aclanthology.org/Q18-1023/).\n\n# prompt tokens: Number of tokens in the prompt.",
         "lower_is_better": false,
         "score_type": "continuous",
         "min_score": 0.0,
@@ -1713,7 +1713,7 @@
     {
       "evaluation_name": "NarrativeQA - # output tokens",
       "metric_config": {
-        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Kočiský et al., 2017)](https://aclanthology.org/Q18-1023/).\n\n# output tokens: Actual number of output tokens.",
+        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Ko\u010disk\u00fd et al., 2017)](https://aclanthology.org/Q18-1023/).\n\n# output tokens: Actual number of output tokens.",
         "lower_is_better": false,
         "score_type": "continuous",
         "min_score": 0.0,
@@ -1731,7 +1731,7 @@
     {
       "evaluation_name": "NarrativeQA - # trials",
       "metric_config": {
-        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Kočiský et al., 2017)](https://aclanthology.org/Q18-1023/).\n\n# trials: Number of trials, where in each trial we choose an independent, random set of training instances.",
+        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Ko\u010disk\u00fd et al., 2017)](https://aclanthology.org/Q18-1023/).\n\n# trials: Number of trials, where in each trial we choose an independent, random set of training instances.",
         "lower_is_better": false,
         "score_type": "continuous",
         "min_score": 0.0,
@@ -3243,7 +3243,7 @@
     {
       "evaluation_name": "NarrativeQA - Stereotypes (race)",
       "metric_config": {
-        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Kočiský et al., 2017)](https://aclanthology.org/Q18-1023/).\n\nStereotypical associations (race, profession): Measures uneven association of racial groups (Asian, Hispanic, White) with target professions. This measurement is based on cooccurence statistics between the racially-associated names (word list from [Garg et al., 2018](https://www.pnas.org/doi/10.1073/pnas.1720347115); race associations based on US Census statistics) and the target professions (word list from [Bolukbasi et al., 2016](https://papers.nips.cc/paper/2016/hash/a486cd07e4ac3d270571622f4f316ec5-Abstract.html)).",
+        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Ko\u010disk\u00fd et al., 2017)](https://aclanthology.org/Q18-1023/).\n\nStereotypical associations (race, profession): Measures uneven association of racial groups (Asian, Hispanic, White) with target professions. This measurement is based on cooccurence statistics between the racially-associated names (word list from [Garg et al., 2018](https://www.pnas.org/doi/10.1073/pnas.1720347115); race associations based on US Census statistics) and the target professions (word list from [Bolukbasi et al., 2016](https://papers.nips.cc/paper/2016/hash/a486cd07e4ac3d270571622f4f316ec5-Abstract.html)).",
         "lower_is_better": true,
         "score_type": "continuous",
         "min_score": 0.0,
@@ -3261,7 +3261,7 @@
     {
       "evaluation_name": "NarrativeQA - Stereotypes (gender)",
       "metric_config": {
-        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Kočiský et al., 2017)](https://aclanthology.org/Q18-1023/).\n\nStereotypical associations (gender, profession): Measures uneven association of gender groups (male, female) with target professions. This measurement is based on cooccurence statistics between the gender terms (word list from [Bolukbasi et al., 2016](https://papers.nips.cc/paper/2016/hash/a486cd07e4ac3d270571622f4f316ec5-Abstract.html)) and the target professions (word list from [Bolukbasi et al., 2016](https://papers.nips.cc/paper/2016/hash/a486cd07e4ac3d270571622f4f316ec5-Abstract.html)).",
+        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Ko\u010disk\u00fd et al., 2017)](https://aclanthology.org/Q18-1023/).\n\nStereotypical associations (gender, profession): Measures uneven association of gender groups (male, female) with target professions. This measurement is based on cooccurence statistics between the gender terms (word list from [Bolukbasi et al., 2016](https://papers.nips.cc/paper/2016/hash/a486cd07e4ac3d270571622f4f316ec5-Abstract.html)) and the target professions (word list from [Bolukbasi et al., 2016](https://papers.nips.cc/paper/2016/hash/a486cd07e4ac3d270571622f4f316ec5-Abstract.html)).",
         "lower_is_better": true,
         "score_type": "continuous",
         "min_score": 0.0,
@@ -3279,7 +3279,7 @@
     {
       "evaluation_name": "NarrativeQA - Representation (race)",
       "metric_config": {
-        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Kočiský et al., 2017)](https://aclanthology.org/Q18-1023/).\n\nDemographic representation (race): Measures uneven representation of racial groups (Asian, Hispanic, White). This measurement is based on disparities in the frequency statistics across racially-associated names (word list from [Garg et al., 2018](https://www.pnas.org/doi/10.1073/pnas.1720347115); race associations based on US Census statistics).",
+        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Ko\u010disk\u00fd et al., 2017)](https://aclanthology.org/Q18-1023/).\n\nDemographic representation (race): Measures uneven representation of racial groups (Asian, Hispanic, White). This measurement is based on disparities in the frequency statistics across racially-associated names (word list from [Garg et al., 2018](https://www.pnas.org/doi/10.1073/pnas.1720347115); race associations based on US Census statistics).",
         "lower_is_better": true,
         "score_type": "continuous",
         "min_score": 0.0,
@@ -3297,7 +3297,7 @@
     {
       "evaluation_name": "NarrativeQA - Representation (gender)",
       "metric_config": {
-        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Kočiský et al., 2017)](https://aclanthology.org/Q18-1023/).\n\nDemographic representation (gender): Measures uneven representation of gender groups (male, female). This measurement is based on disparities in the frequency statistics across gender terms (word list from [Bolukbasi et al., 2016](https://papers.nips.cc/paper/2016/hash/a486cd07e4ac3d270571622f4f316ec5-Abstract.html)).",
+        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Ko\u010disk\u00fd et al., 2017)](https://aclanthology.org/Q18-1023/).\n\nDemographic representation (gender): Measures uneven representation of gender groups (male, female). This measurement is based on disparities in the frequency statistics across gender terms (word list from [Bolukbasi et al., 2016](https://papers.nips.cc/paper/2016/hash/a486cd07e4ac3d270571622f4f316ec5-Abstract.html)).",
         "lower_is_better": true,
         "score_type": "continuous",
         "min_score": 0.0,
@@ -4071,7 +4071,7 @@
     {
       "evaluation_name": "NarrativeQA - Toxic fraction",
       "metric_config": {
-        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Kočiský et al., 2017)](https://aclanthology.org/Q18-1023/).\n\nToxic fraction: Fraction of model outputs that are toxic (based on the PerspectiveAPI toxicity classifier).",
+        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Ko\u010disk\u00fd et al., 2017)](https://aclanthology.org/Q18-1023/).\n\nToxic fraction: Fraction of model outputs that are toxic (based on the PerspectiveAPI toxicity classifier).",
         "lower_is_better": true,
         "score_type": "continuous",
         "min_score": 0.0,
