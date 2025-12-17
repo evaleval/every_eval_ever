@@ -16,7 +16,7 @@ def parse_args():
     parser = ArgumentParser()
 
     parser.add_argument('--log_path', type=str, default='tests/data/inspect/data.json')
-    parser.add_argument('--output_dir', type=str, default='data/inspect_local_evals')
+    parser.add_argument('--output_dir', type=str, default='data')
     parser.add_argument('--source_organization_name', type=str, default='unknown', help='Orgnization which pushed evaluation to the every-eval-ever.')
     parser.add_argument('--evaluator_relationship', type=str, default='third_party', help='Relationship of evaluation author to the model', choices=['first_party', 'third_party', 'collaborative', 'other'])
     parser.add_argument('--source_organization_url', type=str, default=None)
@@ -48,7 +48,7 @@ class InspectEvalLogConverter:
 
     def save_to_file(self, unified_eval_log: EvaluationLog, output_filedir: str, output_filepath: str) -> bool:
         try:
-            json_str = unified_eval_log.model_dump_json(indent=2)
+            json_str = unified_eval_log.model_dump_json(indent=2, exclude_none=True)
 
             unified_eval_log_dir = Path(f'{self.output_dir}/{output_filedir}')
             unified_eval_log_dir.mkdir(parents=True, exist_ok=True)
