@@ -18,6 +18,7 @@ from eval_types import (
     EvaluationResult,
     MetricConfig,
     ModelInfo,
+	ScoreType,
     ScoreDetails,
     SourceData,
     SourceMetadata,
@@ -261,7 +262,10 @@ class HELMAdapter(BaseEvaluationAdapter):
 		for metric_name in metric_names:
 			metric_config = MetricConfig(
 				evaluation_description=metric_name,
-				lower_is_better=False # TODO is not always true, possible to fetch correct value from schema.json
+				lower_is_better=False, # TODO is not always true, possible to fetch correct value from schema.json
+				score_type=ScoreType.continuous,
+				min_score=0,
+				max_score=1
 			)
 
 			# TODO consider to filter out a subset of relevant stats

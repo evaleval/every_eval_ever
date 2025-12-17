@@ -11,6 +11,7 @@ from eval_types import (
     EvaluationResult,
     MetricConfig,
     ModelInfo,
+    ScoreType,
     ScoreDetails,
     SourceData,
     SourceMetadata,
@@ -113,7 +114,10 @@ class InspectAIAdapter(BaseEvaluationAdapter):
                         evaluation_timestamp=convert_timestamp_to_unix_format(eval_stats.completed_at),
                         metric_config=MetricConfig(
                             evaluation_description=metric_info.name,
-                            lower_is_better=False # probably there is no access to such info
+                            lower_is_better=False, # probably there is no access to such info
+                            score_type=ScoreType.continuous,
+                            min_score=0,
+                            max_score=1
                         ),
                         score_details=ScoreDetails(
                             score=metric_info.value
