@@ -3,7 +3,7 @@ import os
 from inspect_ai.log import EvalLog, EvalSpec, EvalStats, read_eval_log
 
 from pathlib import Path
-from typing import Dict, List, Union
+from typing import Any, Dict, List, Union
 
 from eval_types import (
     DetailedEvaluationResultsPerSample,
@@ -13,15 +13,15 @@ from eval_types import (
     ModelInfo,
     ScoreDetails,
     SourceData,
-    SourceMetadata
+    SourceMetadata,
+    SourceType
 )
 
 from scripts.eval_converters.common.adapter import AdapterMetadata, BaseEvaluationAdapter, SupportedLibrary
 from scripts.eval_converters.common.error import AdapterError
 from scripts.eval_converters.common.utils import convert_timestamp_to_unix_format
 from scripts.eval_converters.inspect.utils import extract_model_info_from_model_path
-
-SCHEMA_VERSION = '0.0.1'
+from scripts.eval_converters import SCHEMA_VERSION
 
 class InspectAIAdapter(BaseEvaluationAdapter):
     """
@@ -56,7 +56,9 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         except Exception as e:
             raise AdapterError(f"Failed to load file {file_path}: {str(e)} for InspectAIAdapter")
 
-    def _transform_single(self, raw_data: EvalLog, metadata_args: Dict) -> EvaluationLog:
+    def _transform_single(
+        self, raw_data: EvalLog, metadata_args: Dict[str, Any]
+    ) -> EvaluationLog:
         eval_spec: EvalSpec = raw_data.eval
         eval_stats: EvalStats = raw_data.stats
 
@@ -72,7 +74,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
 
         source_metadata = SourceMetadata(
             source_name='inspect_ai',
-            source_type='evaluation_run',
+            source_type=SourceType.evaluation_run,
             source_organization_name=metadata_args.get('source_organization_name'),
             source_organization_url=metadata_args.get('source_organization_url'),
             source_organization_logo_url=metadata_args.get('source_organization_logo_url'),

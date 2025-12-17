@@ -5,33 +5,29 @@ from scripts.eval_converters.inspect.utils import extract_model_info_from_model_
 from eval_types import (
     EvaluationLog, 
     EvaluatorRelationship,
-    SourceData,
-    SourceMetadata,
-
+    SourceData
 )
 
-def _load_eval(adapter, filepath, source_metadata):
+def _load_eval(adapter, filepath, metadata_args):
     eval_path = Path(filepath)
-    converted_eval = adapter.transform_from_file(eval_path, source_metadata=source_metadata)
+    converted_eval = adapter.transform_from_file(eval_path, metadata_args=metadata_args)
     assert isinstance(converted_eval, EvaluationLog)
     assert isinstance(converted_eval.source_data, SourceData)
 
     assert converted_eval.source_metadata.source_name == 'inspect_ai'
-    assert converted_eval.source_metadata.source_type == 'evaluation_run'
+    assert converted_eval.source_metadata.source_type.value == 'evaluation_run'
 
     return converted_eval
 
 
 def test_pubmedqa_eval():
     adapter = InspectAIAdapter()
-    source_metadata = SourceMetadata(
-        source_name='inspect_ai',
-        source_type='evaluation_run',
-        source_organization_name='TestOrg',
-        evaluator_relationship=EvaluatorRelationship.first_party,
-    )
+    metadata_args = {
+        'source_organization_name': 'TestOrg',
+        'evaluator_relationship': EvaluatorRelationship.first_party,
+    }
 
-    converted_eval = _load_eval(adapter, 'tests/data/inspect/data_pubmedqa_gpt4o_mini.json', source_metadata)
+    converted_eval = _load_eval(adapter, 'tests/data/inspect/data_pubmedqa_gpt4o_mini.json', metadata_args)
 
     assert converted_eval.retrieved_timestamp == '1751553870.0'
     
@@ -60,14 +56,12 @@ def test_pubmedqa_eval():
 
 def test_arc_sonnet_eval():
     adapter = InspectAIAdapter()
-    source_metadata = SourceMetadata(
-        source_name='inspect_ai',
-        source_type='evaluation_run',
-        source_organization_name='TestOrg',
-        evaluator_relationship=EvaluatorRelationship.first_party,
-    )
 
-    converted_eval = _load_eval(adapter, 'tests/data/inspect/data_arc_sonnet.json', source_metadata)
+    metadata_args = {
+        'source_organization_name': 'TestOrg',
+        'evaluator_relationship': EvaluatorRelationship.first_party,
+    }
+    converted_eval = _load_eval(adapter, 'tests/data/inspect/data_arc_sonnet.json', metadata_args)
 
     assert converted_eval.retrieved_timestamp == '1761000045.0'
 
@@ -96,14 +90,12 @@ def test_arc_sonnet_eval():
 
 def test_arc_qwen_eval():
     adapter = InspectAIAdapter()
-    source_metadata = SourceMetadata(
-        source_name='inspect_ai',
-        source_type='evaluation_run',
-        source_organization_name='TestOrg',
-        evaluator_relationship=EvaluatorRelationship.first_party,
-    )
+    metadata_args = {
+        'source_organization_name': 'TestOrg',
+        'evaluator_relationship': EvaluatorRelationship.first_party,
+    }
 
-    converted_eval = _load_eval(adapter, 'tests/data/inspect/data_arc_qwen.json', source_metadata)
+    converted_eval = _load_eval(adapter, 'tests/data/inspect/data_arc_qwen.json', metadata_args)
 
     assert converted_eval.retrieved_timestamp == '1761001924.0'
 
