@@ -4,6 +4,6 @@ repos:
     - id: validate-data
       name: Validate data
       entry: uv run python scripts/validate_data.py --schema-path eval.schema.json
-      exclude: '^.*\.schema\.json$'
+      exclude: ^(tests/|.*\.schema\.json$)
       language: system
       types_or: [json]

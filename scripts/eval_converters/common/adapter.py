@@ -59,7 +59,9 @@ class BaseEvaluationAdapter(ABC):
         pass
     
     @abstractmethod
-    def _transform_single(self, raw_data: Any, metadata_args: Dict) -> EvaluationLog:
+    def _transform_single(
+        self, raw_data: Any, metadata_args: Dict[str, Any]
+    ) -> EvaluationLog:
         """
         Transform a single evaluation record.
         
@@ -74,7 +76,9 @@ class BaseEvaluationAdapter(ABC):
         """
         pass
     
-    def transform(self, data: Any, metadata_args: Dict) -> Union[EvaluationLog, List[EvaluationLog]]:
+    def transform(
+        self, data: Any, metadata_args: Dict[str, Any]
+    ) -> Union[EvaluationLog, List[EvaluationLog]]:
         """
         Transform evaluation data to unified schema format.
         
@@ -101,7 +105,9 @@ class BaseEvaluationAdapter(ABC):
         except Exception as e:
             self._handle_transformation_error(e, "data transformation")
             
-    def transform_from_file(self, file_path: Union[str, Path], metadata_args: Dict) -> Union[EvaluationLog, List[EvaluationLog]]:
+    def transform_from_file(
+        self, file_path: Union[str, Path], metadata_args: Dict[str, Any]
+    ) -> Union[EvaluationLog, List[EvaluationLog]]:
         """
         Load and transform evaluation data from file.
         
@@ -180,4 +186,5 @@ class BaseEvaluationAdapter(ABC):
             info = model_info(model_path)
             return info
         except Exception:
-            self.logger.warning(f"Model '{model_path}' not found on Hugging Face.")
+            # self.logger.warning(f"Model '{model_path}' not found on Hugging Face.")
+            pass
