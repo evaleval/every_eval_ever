@@ -6,8 +6,7 @@ import uuid
 
 from argparse import ArgumentParser
 from collections import defaultdict
-from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List
 
 from eval_types import (
     EvaluationLog, 
