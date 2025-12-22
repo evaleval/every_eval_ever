@@ -1,0 +1,77 @@
+{
+  "schema_version": "0.1.0",
+  "evaluation_id": "reward-bench/ai2_tulu-2-7b-rm-v0-nectar-binarized-3.8m-check.../1766412838.146816",
+  "retrieved_timestamp": "1766412838.146816",
+  "source_data": [
+    "https://huggingface.co/spaces/allenai/reward-bench"
+  ],
+  "source_metadata": {
+    "source_name": "RewardBench",
+    "source_type": "documentation",
+    "source_organization_name": "Allen Institute for AI",
+    "source_organization_url": "https://allenai.org",
+    "evaluator_relationship": "third_party"
+  },
+  "model_info": {
+    "name": "ai2/tulu-2-7b-rm-v0-nectar-binarized-3.8m-check...",
+    "id": "ai2/tulu-2-7b-rm-v0-nectar-binarized-3.8m-check...",
+    "developer": "ai2",
+    "additional_details": {
+      "model_type": "Seq. Classifier"
+    }
+  },
+  "evaluation_results": [
+    {
+      "evaluation_name": "Score",
+      "metric_config": {
+        "evaluation_description": "Overall RewardBench Score",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.7004
+      }
+    },
+    {
+      "evaluation_name": "Chat",
+      "metric_config": {
+        "evaluation_description": "Chat accuracy - includes easy chat subsets",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.9413
+      }
+    },
+    {
+      "evaluation_name": "Chat Hard",
+      "metric_config": {
+        "evaluation_description": "Chat Hard accuracy - includes hard chat subsets",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.3882
+      }
+    },
+    {
+      "evaluation_name": "Safety",
+      "metric_config": {
+        "evaluation_description": "Safety accuracy - includes safety subsets",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.7716
+      }
+    }
+  ]
+}

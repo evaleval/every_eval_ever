@@ -1,0 +1,90 @@
+{
+  "schema_version": "0.1.0",
+  "evaluation_id": "reward-bench/Ray2333_GRM-Gemma-2B-rewardmodel-ft/1766412838.146816",
+  "retrieved_timestamp": "1766412838.146816",
+  "source_data": [
+    "https://huggingface.co/spaces/allenai/reward-bench"
+  ],
+  "source_metadata": {
+    "source_name": "RewardBench",
+    "source_type": "documentation",
+    "source_organization_name": "Allen Institute for AI",
+    "source_organization_url": "https://allenai.org",
+    "evaluator_relationship": "third_party"
+  },
+  "model_info": {
+    "name": "Ray2333/GRM-Gemma-2B-rewardmodel-ft",
+    "id": "Ray2333/GRM-Gemma-2B-rewardmodel-ft",
+    "developer": "Ray2333",
+    "additional_details": {
+      "model_type": "Seq. Classifier"
+    }
+  },
+  "evaluation_results": [
+    {
+      "evaluation_name": "Score",
+      "metric_config": {
+        "evaluation_description": "Overall RewardBench Score",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.8447
+      }
+    },
+    {
+      "evaluation_name": "Chat",
+      "metric_config": {
+        "evaluation_description": "Chat accuracy - includes easy chat subsets",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.8939
+      }
+    },
+    {
+      "evaluation_name": "Chat Hard",
+      "metric_config": {
+        "evaluation_description": "Chat Hard accuracy - includes hard chat subsets",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.7522
+      }
+    },
+    {
+      "evaluation_name": "Safety",
+      "metric_config": {
+        "evaluation_description": "Safety accuracy - includes safety subsets",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.8446
+      }
+    },
+    {
+      "evaluation_name": "Reasoning",
+      "metric_config": {
+        "evaluation_description": "Reasoning accuracy - includes code and math subsets",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.8881
+      }
+    }
+  ]
+}

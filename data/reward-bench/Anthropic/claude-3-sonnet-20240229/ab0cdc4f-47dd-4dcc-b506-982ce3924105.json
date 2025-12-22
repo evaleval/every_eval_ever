@@ -1,0 +1,103 @@
+{
+  "schema_version": "0.1.0",
+  "evaluation_id": "reward-bench/Anthropic_claude-3-sonnet-20240229/1766412838.146816",
+  "retrieved_timestamp": "1766412838.146816",
+  "source_data": [
+    "https://huggingface.co/spaces/allenai/reward-bench"
+  ],
+  "source_metadata": {
+    "source_name": "RewardBench",
+    "source_type": "documentation",
+    "source_organization_name": "Allen Institute for AI",
+    "source_organization_url": "https://allenai.org",
+    "evaluator_relationship": "third_party"
+  },
+  "model_info": {
+    "name": "Anthropic/claude-3-sonnet-20240229",
+    "id": "Anthropic/claude-3-sonnet-20240229",
+    "developer": "Anthropic",
+    "additional_details": {
+      "model_type": "Generative"
+    }
+  },
+  "evaluation_results": [
+    {
+      "evaluation_name": "Score",
+      "metric_config": {
+        "evaluation_description": "Overall RewardBench Score",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.7458
+      }
+    },
+    {
+      "evaluation_name": "Chat",
+      "metric_config": {
+        "evaluation_description": "Chat accuracy - includes easy chat subsets",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.9344
+      }
+    },
+    {
+      "evaluation_name": "Chat Hard",
+      "metric_config": {
+        "evaluation_description": "Chat Hard accuracy - includes hard chat subsets",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.5658
+      }
+    },
+    {
+      "evaluation_name": "Safety",
+      "metric_config": {
+        "evaluation_description": "Safety accuracy - includes safety subsets",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.8169
+      }
+    },
+    {
+      "evaluation_name": "Reasoning",
+      "metric_config": {
+        "evaluation_description": "Reasoning accuracy - includes code and math subsets",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.6907
+      }
+    },
+    {
+      "evaluation_name": "Prior Sets (0.5 weight)",
+      "metric_config": {
+        "evaluation_description": "Prior Sets score (weighted 0.5) - includes test sets",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.6963
+      }
+    }
+  ]
+}
