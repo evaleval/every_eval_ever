@@ -1,0 +1,1482 @@
+{
+  "schema_version": "0.1.0",
+  "evaluation_id": "helm_classic/Luminous-Supreme-(70B)/1767656643.700665",
+  "retrieved_timestamp": "1767656643.700665",
+  "source_data": [
+    "https://storage.googleapis.com/crfm-helm-public/benchmark_output/releases/v0.4.0/groups/core_scenarios.json"
+  ],
+  "source_metadata": {
+    "source_name": "helm_classic",
+    "source_type": "documentation",
+    "source_organization_name": "crfm",
+    "evaluator_relationship": "third_party"
+  },
+  "model_info": {
+    "name": "Luminous Supreme (70B)",
+    "id": "Luminous-Supreme-(70B)",
+    "developer": "unknown",
+    "inference_platform": "unknown"
+  },
+  "evaluation_results": [
+    {
+      "evaluation_name": "Mean win rate",
+      "metric_config": {
+        "evaluation_description": "How many models this model outperform on average (over columns).",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.662,
+        "details": {
+          "description": null,
+          "tab": "Accuracy",
+          "Mean win rate - Calibration": {
+            "description": null,
+            "tab": "Calibration",
+            "score": 0.6242368177613321
+          },
+          "Mean win rate - Robustness": {
+            "description": null,
+            "tab": "Robustness",
+            "score": 0.5464102564102564
+          },
+          "Mean win rate - Fairness": {
+            "description": null,
+            "tab": "Fairness",
+            "score": 0.5218648018648019
+          },
+          "Mean win rate - Efficiency": {
+            "description": null,
+            "tab": "Efficiency",
+            "score": null
+          },
+          "Mean win rate - General information": {
+            "description": null,
+            "tab": "General information",
+            "score": null
+          },
+          "Mean win rate - Bias": {
+            "description": null,
+            "tab": "Bias",
+            "score": 0.5709490829944818
+          },
+          "Mean win rate - Toxicity": {
+            "description": null,
+            "tab": "Toxicity",
+            "score": 0.5562049062049063
+          },
+          "Mean win rate - Summarization metrics": {
+            "description": null,
+            "tab": "Summarization metrics",
+            "score": 0.7171052631578947
+          }
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "MMLU - EM",
+      "metric_config": {
+        "evaluation_description": "The Massive Multitask Language Understanding (MMLU) benchmark for knowledge-intensive question answering across 57 domains [(Hendrycks et al., 2021)](https://openreview.net/forum?id=d7KBjmI3GmQ).\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.38,
+        "details": {
+          "description": "min=0.22, mean=0.38, max=0.61, sum=5.702 (15)",
+          "tab": "Accuracy",
+          "MMLU - ECE (10-bin)": {
+            "description": "min=0.122, mean=0.154, max=0.217, sum=2.31 (15)",
+            "tab": "Calibration",
+            "score": 0.15396738685964684
+          },
+          "MMLU - EM (Robustness)": {
+            "description": "min=0.08, mean=0.255, max=0.51, sum=3.821 (15)",
+            "tab": "Robustness",
+            "score": 0.2547368421052632
+          },
+          "MMLU - EM (Fairness)": {
+            "description": "min=0.11, mean=0.264, max=0.51, sum=3.955 (15)",
+            "tab": "Fairness",
+            "score": 0.2636608187134503
+          },
+          "MMLU - Denoised inference time (s)": {
+            "description": "5 matching runs, but no matching metrics",
+            "tab": "Efficiency",
+            "score": null
+          },
+          "MMLU - # eval": {
+            "description": "min=100, mean=102.8, max=114, sum=1542 (15)",
+            "tab": "General information",
+            "score": 102.8
+          },
+          "MMLU - # train": {
+            "description": "min=5, mean=5, max=5, sum=75 (15)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "MMLU - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (15)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "MMLU - # prompt tokens": {
+            "description": "min=360.75, mean=471.075, max=618.447, sum=7066.132 (15)",
+            "tab": "General information",
+            "score": 471.0754736842105
+          },
+          "MMLU - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=15 (15)",
+            "tab": "General information",
+            "score": 1.0
+          },
+          "MMLU - # trials": {
+            "description": "min=3, mean=3, max=3, sum=45 (15)",
+            "tab": "General information",
+            "score": 3.0
+          }
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "BoolQ - EM",
+      "metric_config": {
+        "evaluation_description": "The BoolQ benchmark for binary (yes/no) question answering [(Clark et al., 2019)](https://aclanthology.org/N19-1300/).\n\nQuasi-exact match: Fraction of instances that the predicted output matches a correct reference up to light processing.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.775,
+        "details": {
+          "description": "min=0.748, mean=0.775, max=0.795, sum=2.325 (3)",
+          "tab": "Accuracy",
+          "BoolQ - ECE (10-bin)": {
+            "description": "min=0.06, mean=0.083, max=0.111, sum=0.248 (3)",
+            "tab": "Calibration",
+            "score": 0.08277086924611576
+          },
+          "BoolQ - EM (Robustness)": {
+            "description": "min=0.624, mean=0.665, max=0.693, sum=1.996 (3)",
+            "tab": "Robustness",
+            "score": 0.6653333333333333
+          },
+          "BoolQ - EM (Fairness)": {
+            "description": "min=0.66, mean=0.694, max=0.713, sum=2.081 (3)",
+            "tab": "Fairness",
+            "score": 0.6936666666666667
+          },
+          "BoolQ - Denoised inference time (s)": {
+            "description": "1 matching runs, but no matching metrics",
+            "tab": "Efficiency",
+            "score": null
+          },
+          "BoolQ - # eval": {
+            "description": "min=1000, mean=1000, max=1000, sum=3000 (3)",
+            "tab": "General information",
+            "score": 1000.0
+          },
+          "BoolQ - # train": {
+            "description": "min=5, mean=5, max=5, sum=15 (3)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "BoolQ - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (3)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "BoolQ - # prompt tokens": {
+            "description": "min=651.658, mean=908.991, max=1252.658, sum=2726.974 (3)",
+            "tab": "General information",
+            "score": 908.9913333333333
+          },
+          "BoolQ - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=3 (3)",
+            "tab": "General information",
+            "score": 1.0
+          },
+          "BoolQ - # trials": {
+            "description": "min=3, mean=3, max=3, sum=9 (3)",
+            "tab": "General information",
+            "score": 3.0
+          },
+          "BoolQ - Stereotypes (race)": {
+            "description": "(0)",
+            "tab": "Bias",
+            "score": null
+          },
+          "BoolQ - Stereotypes (gender)": {
+            "description": "(0)",
+            "tab": "Bias",
+            "score": null
+          },
+          "BoolQ - Representation (race)": {
+            "description": "(0)",
+            "tab": "Bias",
+            "score": null
+          },
+          "BoolQ - Representation (gender)": {
+            "description": "(0)",
+            "tab": "Bias",
+            "score": null
+          },
+          "BoolQ - Toxic fraction": {
+            "description": "min=0, mean=0, max=0, sum=0 (3)",
+            "tab": "Toxicity",
+            "score": 0.0
+          }
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "NarrativeQA - F1",
+      "metric_config": {
+        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Kočiský et al., 2017)](https://aclanthology.org/Q18-1023/).\n\nF1: Average F1 score in terms of word overlap between the model output and correct reference.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.711,
+        "details": {
+          "description": "min=0.687, mean=0.711, max=0.742, sum=2.133 (3)",
+          "tab": "Accuracy",
+          "NarrativeQA - ECE (10-bin)": {
+            "description": "min=0.036, mean=0.049, max=0.061, sum=0.147 (3)",
+            "tab": "Calibration",
+            "score": 0.04915634481869984
+          },
+          "NarrativeQA - F1 (Robustness)": {
+            "description": "min=0.557, mean=0.59, max=0.617, sum=1.771 (3)",
+            "tab": "Robustness",
+            "score": 0.5902392957151222
+          },
+          "NarrativeQA - F1 (Fairness)": {
+            "description": "min=0.562, mean=0.603, max=0.637, sum=1.808 (3)",
+            "tab": "Fairness",
+            "score": 0.6025352758861713
+          },
+          "NarrativeQA - Denoised inference time (s)": {
+            "description": "1 matching runs, but no matching metrics",
+            "tab": "Efficiency",
+            "score": null
+          },
+          "NarrativeQA - # eval": {
+            "description": "min=355, mean=355, max=355, sum=1065 (3)",
+            "tab": "General information",
+            "score": 355.0
+          },
+          "NarrativeQA - # train": {
+            "description": "min=1.039, mean=1.621, max=2.037, sum=4.862 (3)",
+            "tab": "General information",
+            "score": 1.6206572769953052
+          },
+          "NarrativeQA - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (3)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "NarrativeQA - # prompt tokens": {
+            "description": "min=1606.952, mean=1647.783, max=1694.642, sum=4943.349 (3)",
+            "tab": "General information",
+            "score": 1647.783098591549
+          },
+          "NarrativeQA - # output tokens": {
+            "description": "min=5.749, mean=6.84, max=8.158, sum=20.521 (3)",
+            "tab": "General information",
+            "score": 6.84037558685446
+          },
+          "NarrativeQA - # trials": {
+            "description": "min=3, mean=3, max=3, sum=9 (3)",
+            "tab": "General information",
+            "score": 3.0
+          },
+          "NarrativeQA - Stereotypes (race)": {
+            "description": "(0)",
+            "tab": "Bias",
+            "score": null
+          },
+          "NarrativeQA - Stereotypes (gender)": {
+            "description": "min=0.396, mean=0.465, max=0.5, sum=1.396 (3)",
+            "tab": "Bias",
+            "score": 0.46527777777777773
+          },
+          "NarrativeQA - Representation (race)": {
+            "description": "min=0.667, mean=0.667, max=0.667, sum=2 (3)",
+            "tab": "Bias",
+            "score": 0.6666666666666666
+          },
+          "NarrativeQA - Representation (gender)": {
+            "description": "min=0.216, mean=0.238, max=0.256, sum=0.714 (3)",
+            "tab": "Bias",
+            "score": 0.23804020866547204
+          },
+          "NarrativeQA - Toxic fraction": {
+            "description": "min=0.011, mean=0.016, max=0.02, sum=0.048 (3)",
+            "tab": "Toxicity",
+            "score": 0.01596244131455399
+          }
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "NaturalQuestions (open-book) - F1",
+      "metric_config": {
+        "evaluation_description": "The NaturalQuestions [(Kwiatkowski et al., 2019)](https://aclanthology.org/Q19-1026/) benchmark for question answering based on naturally-occurring queries through Google Search. The input includes the Wikipedia page with the answer.\n\nF1: Average F1 score in terms of word overlap between the model output and correct reference.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.649,
+        "details": {
+          "description": "min=0.644, mean=0.649, max=0.656, sum=1.946 (3)",
+          "tab": "Accuracy",
+          "NaturalQuestions (closed-book) - ECE (10-bin)": {
+            "description": "min=0.035, mean=0.041, max=0.045, sum=0.123 (3)",
+            "tab": "Calibration",
+            "score": 0.04112615448004484
+          },
+          "NaturalQuestions (open-book) - ECE (10-bin)": {
+            "description": "min=0.07, mean=0.074, max=0.077, sum=0.222 (3)",
+            "tab": "Calibration",
+            "score": 0.07410001302901324
+          },
+          "NaturalQuestions (closed-book) - F1 (Robustness)": {
+            "description": "min=0.243, mean=0.252, max=0.261, sum=0.757 (3)",
+            "tab": "Robustness",
+            "score": 0.25230806968086933
+          },
+          "NaturalQuestions (open-book) - F1 (Robustness)": {
+            "description": "min=0.576, mean=0.586, max=0.593, sum=1.758 (3)",
+            "tab": "Robustness",
+            "score": 0.5861072363623724
+          },
+          "NaturalQuestions (closed-book) - F1 (Fairness)": {
+            "description": "min=0.23, mean=0.241, max=0.25, sum=0.723 (3)",
+            "tab": "Fairness",
+            "score": 0.24089192251975544
+          },
+          "NaturalQuestions (open-book) - F1 (Fairness)": {
+            "description": "min=0.583, mean=0.597, max=0.61, sum=1.79 (3)",
+            "tab": "Fairness",
+            "score": 0.5966421355805813
+          },
+          "NaturalQuestions (closed-book) - Denoised inference time (s)": {
+            "description": "1 matching runs, but no matching metrics",
+            "tab": "Efficiency",
+            "score": null
+          },
+          "NaturalQuestions (open-book) - Denoised inference time (s)": {
+            "description": "1 matching runs, but no matching metrics",
+            "tab": "Efficiency",
+            "score": null
+          },
+          "NaturalQuestions (closed-book) - # eval": {
+            "description": "min=1000, mean=1000, max=1000, sum=3000 (3)",
+            "tab": "General information",
+            "score": 1000.0
+          },
+          "NaturalQuestions (closed-book) - # train": {
+            "description": "min=5, mean=5, max=5, sum=15 (3)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "NaturalQuestions (closed-book) - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (3)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "NaturalQuestions (closed-book) - # prompt tokens": {
+            "description": "min=109.087, mean=111.754, max=116.087, sum=335.261 (3)",
+            "tab": "General information",
+            "score": 111.75366666666667
+          },
+          "NaturalQuestions (closed-book) - # output tokens": {
+            "description": "min=4.262, mean=4.508, max=4.666, sum=13.525 (3)",
+            "tab": "General information",
+            "score": 4.508333333333334
+          },
+          "NaturalQuestions (closed-book) - # trials": {
+            "description": "min=3, mean=3, max=3, sum=9 (3)",
+            "tab": "General information",
+            "score": 3.0
+          },
+          "NaturalQuestions (open-book) - # eval": {
+            "description": "min=1000, mean=1000, max=1000, sum=3000 (3)",
+            "tab": "General information",
+            "score": 1000.0
+          },
+          "NaturalQuestions (open-book) - # train": {
+            "description": "min=4.691, mean=4.711, max=4.726, sum=14.134 (3)",
+            "tab": "General information",
+            "score": 4.711333333333333
+          },
+          "NaturalQuestions (open-book) - truncated": {
+            "description": "min=0.038, mean=0.039, max=0.04, sum=0.116 (3)",
+            "tab": "General information",
+            "score": 0.03866666666666666
+          },
+          "NaturalQuestions (open-book) - # prompt tokens": {
+            "description": "min=1224.733, mean=1384.565, max=1488.14, sum=4153.695 (3)",
+            "tab": "General information",
+            "score": 1384.5649999999998
+          },
+          "NaturalQuestions (open-book) - # output tokens": {
+            "description": "min=6.064, mean=6.362, max=6.864, sum=19.086 (3)",
+            "tab": "General information",
+            "score": 6.361999999999999
+          },
+          "NaturalQuestions (open-book) - # trials": {
+            "description": "min=3, mean=3, max=3, sum=9 (3)",
+            "tab": "General information",
+            "score": 3.0
+          },
+          "NaturalQuestions (closed-book) - Stereotypes (race)": {
+            "description": "min=0.667, mean=0.667, max=0.667, sum=2 (3)",
+            "tab": "Bias",
+            "score": 0.6666666666666666
+          },
+          "NaturalQuestions (closed-book) - Stereotypes (gender)": {
+            "description": "min=0.338, mean=0.446, max=0.5, sum=1.338 (3)",
+            "tab": "Bias",
+            "score": 0.445882557030098
+          },
+          "NaturalQuestions (closed-book) - Representation (race)": {
+            "description": "min=0.467, mean=0.48, max=0.498, sum=1.441 (3)",
+            "tab": "Bias",
+            "score": 0.48022397745392514
+          },
+          "NaturalQuestions (closed-book) - Representation (gender)": {
+            "description": "min=0.02, mean=0.125, max=0.265, sum=0.374 (3)",
+            "tab": "Bias",
+            "score": 0.12466386554621849
+          },
+          "NaturalQuestions (open-book) - Stereotypes (race)": {
+            "description": "min=0.667, mean=0.667, max=0.667, sum=0.667 (1)",
+            "tab": "Bias",
+            "score": 0.6666666666666667
+          },
+          "NaturalQuestions (open-book) - Stereotypes (gender)": {
+            "description": "min=0.4, mean=0.444, max=0.5, sum=1.333 (3)",
+            "tab": "Bias",
+            "score": 0.4444444444444445
+          },
+          "NaturalQuestions (open-book) - Representation (race)": {
+            "description": "min=0.401, mean=0.44, max=0.506, sum=1.319 (3)",
+            "tab": "Bias",
+            "score": 0.43982889050590296
+          },
+          "NaturalQuestions (open-book) - Representation (gender)": {
+            "description": "min=0.205, mean=0.22, max=0.25, sum=0.66 (3)",
+            "tab": "Bias",
+            "score": 0.2201426024955437
+          },
+          "NaturalQuestions (closed-book) - Toxic fraction": {
+            "description": "min=0.001, mean=0.002, max=0.003, sum=0.006 (3)",
+            "tab": "Toxicity",
+            "score": 0.002
+          },
+          "NaturalQuestions (open-book) - Toxic fraction": {
+            "description": "min=0, mean=0.001, max=0.002, sum=0.004 (3)",
+            "tab": "Toxicity",
+            "score": 0.0013333333333333333
+          }
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "QuAC - F1",
+      "metric_config": {
+        "evaluation_description": "The QuAC benchmark for question answering in the context of dialogues [(Choi et al., 2018)](https://aclanthology.org/D18-1241/).\n\nF1: Average F1 score in terms of word overlap between the model output and correct reference.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.37,
+        "details": {
+          "description": "min=0.364, mean=0.37, max=0.378, sum=1.111 (3)",
+          "tab": "Accuracy",
+          "QuAC - ECE (10-bin)": {
+            "description": "min=0.054, mean=0.058, max=0.061, sum=0.175 (3)",
+            "tab": "Calibration",
+            "score": 0.05820640656843105
+          },
+          "QuAC - F1 (Robustness)": {
+            "description": "min=0.221, mean=0.233, max=0.24, sum=0.699 (3)",
+            "tab": "Robustness",
+            "score": 0.23311906486145426
+          },
+          "QuAC - F1 (Fairness)": {
+            "description": "min=0.28, mean=0.288, max=0.3, sum=0.865 (3)",
+            "tab": "Fairness",
+            "score": 0.28824116919086756
+          },
+          "QuAC - Denoised inference time (s)": {
+            "description": "1 matching runs, but no matching metrics",
+            "tab": "Efficiency",
+            "score": null
+          },
+          "QuAC - # eval": {
+            "description": "min=1000, mean=1000, max=1000, sum=3000 (3)",
+            "tab": "General information",
+            "score": 1000.0
+          },
+          "QuAC - # train": {
+            "description": "min=0.84, mean=0.909, max=0.991, sum=2.727 (3)",
+            "tab": "General information",
+            "score": 0.9089999999999999
+          },
+          "QuAC - truncated": {
+            "description": "min=0.029, mean=0.033, max=0.037, sum=0.098 (3)",
+            "tab": "General information",
+            "score": 0.03266666666666667
+          },
+          "QuAC - # prompt tokens": {
+            "description": "min=1596.904, mean=1641.256, max=1672.92, sum=4923.768 (3)",
+            "tab": "General information",
+            "score": 1641.256
+          },
+          "QuAC - # output tokens": {
+            "description": "min=22.638, mean=26.241, max=28.094, sum=78.723 (3)",
+            "tab": "General information",
+            "score": 26.241000000000003
+          },
+          "QuAC - # trials": {
+            "description": "min=3, mean=3, max=3, sum=9 (3)",
+            "tab": "General information",
+            "score": 3.0
+          },
+          "QuAC - Stereotypes (race)": {
+            "description": "min=0.571, mean=0.598, max=0.615, sum=1.794 (3)",
+            "tab": "Bias",
+            "score": 0.5980796023899473
+          },
+          "QuAC - Stereotypes (gender)": {
+            "description": "min=0.408, mean=0.412, max=0.415, sum=1.236 (3)",
+            "tab": "Bias",
+            "score": 0.41214192227908586
+          },
+          "QuAC - Representation (race)": {
+            "description": "min=0.269, mean=0.305, max=0.351, sum=0.914 (3)",
+            "tab": "Bias",
+            "score": 0.3046567170277752
+          },
+          "QuAC - Representation (gender)": {
+            "description": "min=0.227, mean=0.232, max=0.235, sum=0.696 (3)",
+            "tab": "Bias",
+            "score": 0.23187441800624423
+          },
+          "QuAC - Toxic fraction": {
+            "description": "min=0.002, mean=0.002, max=0.003, sum=0.007 (3)",
+            "tab": "Toxicity",
+            "score": 0.0023333333333333335
+          }
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "HellaSwag - EM",
+      "metric_config": {
+        "evaluation_description": "The HellaSwag benchmark for commonsense reasoning in question answering [(Zellers et al., 2019)](https://aclanthology.org/P19-1472/).\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": -1.0,
+        "details": {
+          "description": "No matching runs",
+          "tab": "Accuracy",
+          "HellaSwag - ECE (10-bin)": {
+            "description": "No matching runs",
+            "tab": "Calibration",
+            "score": null
+          },
+          "HellaSwag - EM (Robustness)": {
+            "description": "No matching runs",
+            "tab": "Robustness",
+            "score": null
+          },
+          "HellaSwag - EM (Fairness)": {
+            "description": "No matching runs",
+            "tab": "Fairness",
+            "score": null
+          },
+          "HellaSwag - Denoised inference time (s)": {
+            "description": "No matching runs",
+            "tab": "Efficiency",
+            "score": null
+          },
+          "HellaSwag - # eval": {
+            "description": "No matching runs",
+            "tab": "General information",
+            "score": null
+          },
+          "HellaSwag - # train": {
+            "description": "No matching runs",
+            "tab": "General information",
+            "score": null
+          },
+          "HellaSwag - truncated": {
+            "description": "No matching runs",
+            "tab": "General information",
+            "score": null
+          },
+          "HellaSwag - # prompt tokens": {
+            "description": "No matching runs",
+            "tab": "General information",
+            "score": null
+          },
+          "HellaSwag - # output tokens": {
+            "description": "No matching runs",
+            "tab": "General information",
+            "score": null
+          },
+          "HellaSwag - # trials": {
+            "description": "No matching runs",
+            "tab": "General information",
+            "score": null
+          }
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "OpenbookQA - EM",
+      "metric_config": {
+        "evaluation_description": "The OpenbookQA benchmark for commonsense-intensive open book question answering [(Mihaylov et al., 2018)](https://aclanthology.org/D18-1260/).\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": -1.0,
+        "details": {
+          "description": "No matching runs",
+          "tab": "Accuracy",
+          "OpenbookQA - ECE (10-bin)": {
+            "description": "No matching runs",
+            "tab": "Calibration",
+            "score": null
+          },
+          "OpenbookQA - EM (Robustness)": {
+            "description": "No matching runs",
+            "tab": "Robustness",
+            "score": null
+          },
+          "OpenbookQA - EM (Fairness)": {
+            "description": "No matching runs",
+            "tab": "Fairness",
+            "score": null
+          },
+          "OpenbookQA - Denoised inference time (s)": {
+            "description": "No matching runs",
+            "tab": "Efficiency",
+            "score": null
+          },
+          "OpenbookQA - # eval": {
+            "description": "No matching runs",
+            "tab": "General information",
+            "score": null
+          },
+          "OpenbookQA - # train": {
+            "description": "No matching runs",
+            "tab": "General information",
+            "score": null
+          },
+          "OpenbookQA - truncated": {
+            "description": "No matching runs",
+            "tab": "General information",
+            "score": null
+          },
+          "OpenbookQA - # prompt tokens": {
+            "description": "No matching runs",
+            "tab": "General information",
+            "score": null
+          },
+          "OpenbookQA - # output tokens": {
+            "description": "No matching runs",
+            "tab": "General information",
+            "score": null
+          },
+          "OpenbookQA - # trials": {
+            "description": "No matching runs",
+            "tab": "General information",
+            "score": null
+          }
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "TruthfulQA - EM",
+      "metric_config": {
+        "evaluation_description": "The TruthfulQA benchmarking for measuring model truthfulness and commonsense knowledge in question answering [(Lin et al., 2022)](https://aclanthology.org/2022.acl-long.229/).\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.222,
+        "details": {
+          "description": "min=0.2, mean=0.222, max=0.258, sum=0.667 (3)",
+          "tab": "Accuracy",
+          "TruthfulQA - ECE (10-bin)": {
+            "description": "min=0.072, mean=0.092, max=0.102, sum=0.276 (3)",
+            "tab": "Calibration",
+            "score": 0.09195091586715554
+          },
+          "TruthfulQA - EM (Robustness)": {
+            "description": "min=0.092, mean=0.106, max=0.121, sum=0.318 (3)",
+            "tab": "Robustness",
+            "score": 0.10601427115188583
+          },
+          "TruthfulQA - EM (Fairness)": {
+            "description": "min=0.128, mean=0.132, max=0.138, sum=0.396 (3)",
+            "tab": "Fairness",
+            "score": 0.13200815494393475
+          },
+          "TruthfulQA - Denoised inference time (s)": {
+            "description": "1 matching runs, but no matching metrics",
+            "tab": "Efficiency",
+            "score": null
+          },
+          "TruthfulQA - # eval": {
+            "description": "min=654, mean=654, max=654, sum=1962 (3)",
+            "tab": "General information",
+            "score": 654.0
+          },
+          "TruthfulQA - # train": {
+            "description": "min=5, mean=5, max=5, sum=15 (3)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "TruthfulQA - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (3)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "TruthfulQA - # prompt tokens": {
+            "description": "min=504.073, mean=514.073, max=533.073, sum=1542.22 (3)",
+            "tab": "General information",
+            "score": 514.0733944954128
+          },
+          "TruthfulQA - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=3 (3)",
+            "tab": "General information",
+            "score": 1.0
+          },
+          "TruthfulQA - # trials": {
+            "description": "min=3, mean=3, max=3, sum=9 (3)",
+            "tab": "General information",
+            "score": 3.0
+          }
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "MS MARCO (TREC) - NDCG@10",
+      "metric_config": {
+        "evaluation_description": "The MS MARCO benchmark's deep learning TREC track for passage retrieval in information retrieval [(https://trec.nist.gov)](https://microsoft.github.io/msmarco/).\n\nNDCG@10: Normalized discounted cumulative gain at 10 in information retrieval.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": -1.0,
+        "details": {
+          "description": "No matching runs",
+          "tab": "Accuracy",
+          "MS MARCO (regular) - RR@10 (Robustness)": {
+            "description": "No matching runs",
+            "tab": "Robustness",
+            "score": null
+          },
+          "MS MARCO (TREC) - NDCG@10 (Robustness)": {
+            "description": "No matching runs",
+            "tab": "Robustness",
+            "score": null
+          },
+          "MS MARCO (regular) - RR@10 (Fairness)": {
+            "description": "No matching runs",
+            "tab": "Fairness",
+            "score": null
+          },
+          "MS MARCO (TREC) - NDCG@10 (Fairness)": {
+            "description": "No matching runs",
+            "tab": "Fairness",
+            "score": null
+          },
+          "MS MARCO (regular) - Denoised inference time (s)": {
+            "description": "No matching runs",
+            "tab": "Efficiency",
+            "score": null
+          },
+          "MS MARCO (TREC) - Denoised inference time (s)": {
+            "description": "No matching runs",
+            "tab": "Efficiency",
+            "score": null
+          },
+          "MS MARCO (regular) - # eval": {
+            "description": "No matching runs",
+            "tab": "General information",
+            "score": null
+          },
+          "MS MARCO (regular) - # train": {
+            "description": "No matching runs",
+            "tab": "General information",
+            "score": null
+          },
+          "MS MARCO (regular) - truncated": {
+            "description": "No matching runs",
+            "tab": "General information",
+            "score": null
+          },
+          "MS MARCO (regular) - # prompt tokens": {
+            "description": "No matching runs",
+            "tab": "General information",
+            "score": null
+          },
+          "MS MARCO (regular) - # output tokens": {
+            "description": "No matching runs",
+            "tab": "General information",
+            "score": null
+          },
+          "MS MARCO (regular) - # trials": {
+            "description": "No matching runs",
+            "tab": "General information",
+            "score": null
+          },
+          "MS MARCO (TREC) - # eval": {
+            "description": "No matching runs",
+            "tab": "General information",
+            "score": null
+          },
+          "MS MARCO (TREC) - # train": {
+            "description": "No matching runs",
+            "tab": "General information",
+            "score": null
+          },
+          "MS MARCO (TREC) - truncated": {
+            "description": "No matching runs",
+            "tab": "General information",
+            "score": null
+          },
+          "MS MARCO (TREC) - # prompt tokens": {
+            "description": "No matching runs",
+            "tab": "General information",
+            "score": null
+          },
+          "MS MARCO (TREC) - # output tokens": {
+            "description": "No matching runs",
+            "tab": "General information",
+            "score": null
+          },
+          "MS MARCO (TREC) - # trials": {
+            "description": "No matching runs",
+            "tab": "General information",
+            "score": null
+          },
+          "MS MARCO (regular) - Stereotypes (race)": {
+            "description": "No matching runs",
+            "tab": "Bias",
+            "score": null
+          },
+          "MS MARCO (regular) - Stereotypes (gender)": {
+            "description": "No matching runs",
+            "tab": "Bias",
+            "score": null
+          },
+          "MS MARCO (regular) - Representation (race)": {
+            "description": "No matching runs",
+            "tab": "Bias",
+            "score": null
+          },
+          "MS MARCO (regular) - Representation (gender)": {
+            "description": "No matching runs",
+            "tab": "Bias",
+            "score": null
+          },
+          "MS MARCO (TREC) - Stereotypes (race)": {
+            "description": "No matching runs",
+            "tab": "Bias",
+            "score": null
+          },
+          "MS MARCO (TREC) - Stereotypes (gender)": {
+            "description": "No matching runs",
+            "tab": "Bias",
+            "score": null
+          },
+          "MS MARCO (TREC) - Representation (race)": {
+            "description": "No matching runs",
+            "tab": "Bias",
+            "score": null
+          },
+          "MS MARCO (TREC) - Representation (gender)": {
+            "description": "No matching runs",
+            "tab": "Bias",
+            "score": null
+          },
+          "MS MARCO (regular) - Toxic fraction": {
+            "description": "No matching runs",
+            "tab": "Toxicity",
+            "score": null
+          },
+          "MS MARCO (TREC) - Toxic fraction": {
+            "description": "No matching runs",
+            "tab": "Toxicity",
+            "score": null
+          }
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "CNN/DailyMail - ROUGE-2",
+      "metric_config": {
+        "evaluation_description": "The CNN/DailyMail benchmark for text summarization ([Hermann et al., 2015](https://papers.nips.cc/paper/2015/hash/afdec7005cc9f14302cd0474fd0f3c96-Abstract.html); [Nallapati et al.,2016](https://aclanthology.org/K16-1028/)).\n\nROUGE-2: Average ROUGE score [(Lin, 2004)](https://aclanthology.org/W04-1013/) based on 2-gram overlap.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.15,
+        "details": {
+          "description": "min=0.133, mean=0.15, max=0.16, sum=0.899 (6)",
+          "tab": "Accuracy",
+          "CNN/DailyMail - Denoised inference time (s)": {
+            "description": "2 matching runs, but no matching metrics",
+            "tab": "Efficiency",
+            "score": null
+          },
+          "CNN/DailyMail - # eval": {
+            "description": "min=466, mean=466, max=466, sum=2796 (6)",
+            "tab": "General information",
+            "score": 466.0
+          },
+          "CNN/DailyMail - # train": {
+            "description": "min=5, mean=5, max=5, sum=30 (6)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "CNN/DailyMail - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (6)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "CNN/DailyMail - # prompt tokens": {
+            "description": "min=1564.648, mean=1578.648, max=1593.648, sum=9471.888 (6)",
+            "tab": "General information",
+            "score": 1578.648068669528
+          },
+          "CNN/DailyMail - # output tokens": {
+            "description": "min=71.758, mean=75.51, max=79.294, sum=453.06 (6)",
+            "tab": "General information",
+            "score": 75.51001430615165
+          },
+          "CNN/DailyMail - # trials": {
+            "description": "min=3, mean=3, max=3, sum=18 (6)",
+            "tab": "General information",
+            "score": 3.0
+          },
+          "CNN/DailyMail - Stereotypes (race)": {
+            "description": "min=0.621, mean=0.63, max=0.646, sum=3.782 (6)",
+            "tab": "Bias",
+            "score": 0.6303974395279242
+          },
+          "CNN/DailyMail - Stereotypes (gender)": {
+            "description": "min=0.39, mean=0.401, max=0.412, sum=2.406 (6)",
+            "tab": "Bias",
+            "score": 0.4010246477666291
+          },
+          "CNN/DailyMail - Representation (race)": {
+            "description": "min=0.281, mean=0.291, max=0.297, sum=1.746 (6)",
+            "tab": "Bias",
+            "score": 0.2910346586068148
+          },
+          "CNN/DailyMail - Representation (gender)": {
+            "description": "min=0.114, mean=0.13, max=0.148, sum=0.782 (6)",
+            "tab": "Bias",
+            "score": 0.1303630037220396
+          },
+          "CNN/DailyMail - Toxic fraction": {
+            "description": "min=0, mean=0, max=0, sum=0 (6)",
+            "tab": "Toxicity",
+            "score": 0.0
+          },
+          "CNN/DailyMail - SummaC": {
+            "description": "min=0.423, mean=0.552, max=0.624, sum=1.656 (3)",
+            "tab": "Summarization metrics",
+            "score": 0.5518853318256234
+          },
+          "CNN/DailyMail - QAFactEval": {
+            "description": "2 matching runs, but no matching metrics",
+            "tab": "Summarization metrics",
+            "score": null
+          },
+          "CNN/DailyMail - BERTScore (F1)": {
+            "description": "min=0.236, mean=0.28, max=0.304, sum=0.841 (3)",
+            "tab": "Summarization metrics",
+            "score": 0.28049037475726807
+          },
+          "CNN/DailyMail - Coverage": {
+            "description": "min=0.846, mean=0.939, max=0.988, sum=5.636 (6)",
+            "tab": "Summarization metrics",
+            "score": 0.9393220183960566
+          },
+          "CNN/DailyMail - Density": {
+            "description": "min=31.874, mean=33.625, max=34.739, sum=201.751 (6)",
+            "tab": "Summarization metrics",
+            "score": 33.625141882714196
+          },
+          "CNN/DailyMail - Compression": {
+            "description": "min=8.884, mean=9.298, max=9.552, sum=55.787 (6)",
+            "tab": "Summarization metrics",
+            "score": 9.29781469578472
+          },
+          "CNN/DailyMail - HumanEval-faithfulness": {
+            "description": "2 matching runs, but no matching metrics",
+            "tab": "Summarization metrics",
+            "score": null
+          },
+          "CNN/DailyMail - HumanEval-relevance": {
+            "description": "2 matching runs, but no matching metrics",
+            "tab": "Summarization metrics",
+            "score": null
+          },
+          "CNN/DailyMail - HumanEval-coherence": {
+            "description": "2 matching runs, but no matching metrics",
+            "tab": "Summarization metrics",
+            "score": null
+          }
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "XSUM - ROUGE-2",
+      "metric_config": {
+        "evaluation_description": "The XSUM benchmark for text summarization of BBC news articles [(Narayan et al., 2018)](https://aclanthology.org/D18-1206/).\n\nROUGE-2: Average ROUGE score [(Lin, 2004)](https://aclanthology.org/W04-1013/) based on 2-gram overlap.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.136,
+        "details": {
+          "description": "min=0.133, mean=0.136, max=0.14, sum=0.813 (6)",
+          "tab": "Accuracy",
+          "XSUM - Denoised inference time (s)": {
+            "description": "2 matching runs, but no matching metrics",
+            "tab": "Efficiency",
+            "score": null
+          },
+          "XSUM - # eval": {
+            "description": "min=518, mean=518, max=518, sum=3108 (6)",
+            "tab": "General information",
+            "score": 518.0
+          },
+          "XSUM - # train": {
+            "description": "min=4.998, mean=4.999, max=5, sum=29.992 (6)",
+            "tab": "General information",
+            "score": 4.998712998712999
+          },
+          "XSUM - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (6)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "XSUM - # prompt tokens": {
+            "description": "min=1472.903, mean=1532.912, max=1566.407, sum=9197.471 (6)",
+            "tab": "General information",
+            "score": 1532.9118404118406
+          },
+          "XSUM - # output tokens": {
+            "description": "min=25.844, mean=26.423, max=26.988, sum=158.537 (6)",
+            "tab": "General information",
+            "score": 26.422779922779924
+          },
+          "XSUM - # trials": {
+            "description": "min=3, mean=3, max=3, sum=18 (6)",
+            "tab": "General information",
+            "score": 3.0
+          },
+          "XSUM - Stereotypes (race)": {
+            "description": "min=0.667, mean=0.667, max=0.667, sum=4 (6)",
+            "tab": "Bias",
+            "score": 0.6666666666666666
+          },
+          "XSUM - Stereotypes (gender)": {
+            "description": "min=0.42, mean=0.439, max=0.456, sum=2.635 (6)",
+            "tab": "Bias",
+            "score": 0.4390946502057613
+          },
+          "XSUM - Representation (race)": {
+            "description": "min=0.532, mean=0.544, max=0.556, sum=3.264 (6)",
+            "tab": "Bias",
+            "score": 0.5439341780805197
+          },
+          "XSUM - Representation (gender)": {
+            "description": "min=0.201, mean=0.206, max=0.21, sum=1.238 (6)",
+            "tab": "Bias",
+            "score": 0.2063342186388344
+          },
+          "XSUM - Toxic fraction": {
+            "description": "min=0, mean=0.001, max=0.002, sum=0.008 (6)",
+            "tab": "Toxicity",
+            "score": 0.001287001287001287
+          },
+          "XSUM - SummaC": {
+            "description": "min=-0.251, mean=-0.241, max=-0.231, sum=-0.723 (3)",
+            "tab": "Summarization metrics",
+            "score": -0.2409771191414105
+          },
+          "XSUM - QAFactEval": {
+            "description": "2 matching runs, but no matching metrics",
+            "tab": "Summarization metrics",
+            "score": null
+          },
+          "XSUM - BERTScore (F1)": {
+            "description": "min=0.442, mean=0.444, max=0.446, sum=1.331 (3)",
+            "tab": "Summarization metrics",
+            "score": 0.44350630738930513
+          },
+          "XSUM - Coverage": {
+            "description": "min=0.799, mean=0.807, max=0.816, sum=4.841 (6)",
+            "tab": "Summarization metrics",
+            "score": 0.8068883614050096
+          },
+          "XSUM - Density": {
+            "description": "min=2.852, mean=3.08, max=3.225, sum=18.481 (6)",
+            "tab": "Summarization metrics",
+            "score": 3.080091964253596
+          },
+          "XSUM - Compression": {
+            "description": "min=16.326, mean=16.97, max=17.573, sum=101.823 (6)",
+            "tab": "Summarization metrics",
+            "score": 16.97049624677277
+          },
+          "XSUM - HumanEval-faithfulness": {
+            "description": "2 matching runs, but no matching metrics",
+            "tab": "Summarization metrics",
+            "score": null
+          },
+          "XSUM - HumanEval-relevance": {
+            "description": "2 matching runs, but no matching metrics",
+            "tab": "Summarization metrics",
+            "score": null
+          },
+          "XSUM - HumanEval-coherence": {
+            "description": "2 matching runs, but no matching metrics",
+            "tab": "Summarization metrics",
+            "score": null
+          }
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "IMDB - EM",
+      "metric_config": {
+        "evaluation_description": "The IMDB benchmark for sentiment analysis in movie review [(Maas et al., 2011)](https://aclanthology.org/P11-1015/).\n\nQuasi-exact match: Fraction of instances that the predicted output matches a correct reference up to light processing.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.959,
+        "details": {
+          "description": "min=0.957, mean=0.959, max=0.961, sum=2.878 (3)",
+          "tab": "Accuracy",
+          "IMDB - ECE (10-bin)": {
+            "description": "min=0.137, mean=0.173, max=0.222, sum=0.519 (3)",
+            "tab": "Calibration",
+            "score": 0.1730084935772459
+          },
+          "IMDB - EM (Robustness)": {
+            "description": "min=0.931, mean=0.932, max=0.934, sum=2.797 (3)",
+            "tab": "Robustness",
+            "score": 0.9323333333333333
+          },
+          "IMDB - EM (Fairness)": {
+            "description": "min=0.948, mean=0.949, max=0.951, sum=2.848 (3)",
+            "tab": "Fairness",
+            "score": 0.9493333333333333
+          },
+          "IMDB - Denoised inference time (s)": {
+            "description": "1 matching runs, but no matching metrics",
+            "tab": "Efficiency",
+            "score": null
+          },
+          "IMDB - # eval": {
+            "description": "min=1000, mean=1000, max=1000, sum=3000 (3)",
+            "tab": "General information",
+            "score": 1000.0
+          },
+          "IMDB - # train": {
+            "description": "min=2.908, mean=4.236, max=4.985, sum=12.708 (3)",
+            "tab": "General information",
+            "score": 4.236000000000001
+          },
+          "IMDB - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (3)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "IMDB - # prompt tokens": {
+            "description": "min=1283.569, mean=1560.056, max=1777.712, sum=4680.167 (3)",
+            "tab": "General information",
+            "score": 1560.0556666666664
+          },
+          "IMDB - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=3 (3)",
+            "tab": "General information",
+            "score": 1.0
+          },
+          "IMDB - # trials": {
+            "description": "min=3, mean=3, max=3, sum=9 (3)",
+            "tab": "General information",
+            "score": 3.0
+          },
+          "IMDB - Stereotypes (race)": {
+            "description": "1 matching runs, but no matching metrics",
+            "tab": "Bias",
+            "score": null
+          },
+          "IMDB - Stereotypes (gender)": {
+            "description": "1 matching runs, but no matching metrics",
+            "tab": "Bias",
+            "score": null
+          },
+          "IMDB - Representation (race)": {
+            "description": "1 matching runs, but no matching metrics",
+            "tab": "Bias",
+            "score": null
+          },
+          "IMDB - Representation (gender)": {
+            "description": "1 matching runs, but no matching metrics",
+            "tab": "Bias",
+            "score": null
+          },
+          "IMDB - Toxic fraction": {
+            "description": "1 matching runs, but no matching metrics",
+            "tab": "Toxicity",
+            "score": null
+          }
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "CivilComments - EM",
+      "metric_config": {
+        "evaluation_description": "The CivilComments benchmark for toxicity detection [(Borkan et al., 2019)](https://arxiv.org/pdf/1903.04561.pdf).\n\nQuasi-exact match: Fraction of instances that the predicted output matches a correct reference up to light processing.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.562,
+        "details": {
+          "description": "min=0.049, mean=0.562, max=0.984, sum=30.331 (54)",
+          "tab": "Accuracy",
+          "CivilComments - ECE (10-bin)": {
+            "description": "min=0.051, mean=0.272, max=0.563, sum=14.71 (54)",
+            "tab": "Calibration",
+            "score": 0.27240452987490027
+          },
+          "CivilComments - EM (Robustness)": {
+            "description": "min=0.035, mean=0.263, max=0.67, sum=14.178 (54)",
+            "tab": "Robustness",
+            "score": 0.26255411827214337
+          },
+          "CivilComments - EM (Fairness)": {
+            "description": "min=0.014, mean=0.432, max=0.912, sum=23.313 (54)",
+            "tab": "Fairness",
+            "score": 0.4317285215923749
+          },
+          "CivilComments - Denoised inference time (s)": {
+            "description": "9 matching runs, but no matching metrics",
+            "tab": "Efficiency",
+            "score": null
+          },
+          "CivilComments - # eval": {
+            "description": "min=74, mean=371.556, max=683, sum=20064 (54)",
+            "tab": "General information",
+            "score": 371.55555555555554
+          },
+          "CivilComments - # train": {
+            "description": "min=5, mean=5, max=5, sum=270 (54)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "CivilComments - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (54)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "CivilComments - # prompt tokens": {
+            "description": "min=362.037, mean=724.782, max=1272.822, sum=39138.207 (54)",
+            "tab": "General information",
+            "score": 724.7816027688522
+          },
+          "CivilComments - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=54 (54)",
+            "tab": "General information",
+            "score": 1.0
+          },
+          "CivilComments - # trials": {
+            "description": "min=3, mean=3, max=3, sum=162 (54)",
+            "tab": "General information",
+            "score": 3.0
+          },
+          "CivilComments - Stereotypes (race)": {
+            "description": "(0)",
+            "tab": "Bias",
+            "score": null
+          },
+          "CivilComments - Stereotypes (gender)": {
+            "description": "(0)",
+            "tab": "Bias",
+            "score": null
+          },
+          "CivilComments - Representation (race)": {
+            "description": "(0)",
+            "tab": "Bias",
+            "score": null
+          },
+          "CivilComments - Representation (gender)": {
+            "description": "(0)",
+            "tab": "Bias",
+            "score": null
+          },
+          "CivilComments - Toxic fraction": {
+            "description": "min=0, mean=0, max=0, sum=0 (54)",
+            "tab": "Toxicity",
+            "score": 0.0
+          }
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "RAFT - EM",
+      "metric_config": {
+        "evaluation_description": "The Real-world annotated few-shot (RAFT) meta-benchmark of 11 real-world text classification tasks [(Alex et al., 2021)](https://datasets-benchmarks-proceedings.neurips.cc/paper/2021/hash/ca46c1b9512a7a8315fa3c5a946e8265-Abstract-round2.html).\n\nQuasi-exact match: Fraction of instances that the predicted output matches a correct reference up to light processing.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.653,
+        "details": {
+          "description": "min=0, mean=0.653, max=0.975, sum=21.55 (33)",
+          "tab": "Accuracy",
+          "RAFT - ECE (10-bin)": {
+            "description": "min=0.072, mean=0.238, max=1, sum=7.863 (33)",
+            "tab": "Calibration",
+            "score": 0.238277000839632
+          },
+          "RAFT - EM (Robustness)": {
+            "description": "min=0, mean=0.564, max=0.975, sum=18.6 (33)",
+            "tab": "Robustness",
+            "score": 0.5636363636363637
+          },
+          "RAFT - EM (Fairness)": {
+            "description": "min=0, mean=0.601, max=0.975, sum=19.825 (33)",
+            "tab": "Fairness",
+            "score": 0.6007575757575758
+          },
+          "RAFT - Denoised inference time (s)": {
+            "description": "11 matching runs, but no matching metrics",
+            "tab": "Efficiency",
+            "score": null
+          },
+          "RAFT - # eval": {
+            "description": "min=40, mean=40, max=40, sum=1320 (33)",
+            "tab": "General information",
+            "score": 40.0
+          },
+          "RAFT - # train": {
+            "description": "min=0, mean=4.56, max=5, sum=150.475 (33)",
+            "tab": "General information",
+            "score": 4.5598484848484855
+          },
+          "RAFT - truncated": {
+            "description": "min=0, mean=0.002, max=0.025, sum=0.075 (33)",
+            "tab": "General information",
+            "score": 0.002272727272727273
+          },
+          "RAFT - # prompt tokens": {
+            "description": "min=262.3, mean=810.769, max=1759.65, sum=26755.375 (33)",
+            "tab": "General information",
+            "score": 810.7689393939394
+          },
+          "RAFT - # output tokens": {
+            "description": "min=0, mean=3.097, max=6.725, sum=102.2 (33)",
+            "tab": "General information",
+            "score": 3.0969696969696976
+          },
+          "RAFT - # trials": {
+            "description": "min=3, mean=3, max=3, sum=99 (33)",
+            "tab": "General information",
+            "score": 3.0
+          },
+          "RAFT - Stereotypes (race)": {
+            "description": "(0)",
+            "tab": "Bias",
+            "score": null
+          },
+          "RAFT - Stereotypes (gender)": {
+            "description": "(0)",
+            "tab": "Bias",
+            "score": null
+          },
+          "RAFT - Representation (race)": {
+            "description": "(0)",
+            "tab": "Bias",
+            "score": null
+          },
+          "RAFT - Representation (gender)": {
+            "description": "(0)",
+            "tab": "Bias",
+            "score": null
+          },
+          "RAFT - Toxic fraction": {
+            "description": "min=0, mean=0, max=0, sum=0 (33)",
+            "tab": "Toxicity",
+            "score": 0.0
+          }
+        }
+      },
+      "generation_config": {}
+    }
+  ]
+}

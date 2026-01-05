@@ -124,6 +124,7 @@ def convert(leaderboard_name, leaderboard_data, source_name, source_type, source
     retrieved_timestamp = str(time.time())
     model_to_results = defaultdict(list)
     model_infos = {}
+    benchmark_infos = {}
 
     tabs_headers = [tab.get('header') for tab in leaderboard_data]
     tabs_rows = [tab.get('rows') for tab in leaderboard_data]
@@ -136,25 +137,29 @@ def convert(leaderboard_name, leaderboard_data, source_name, source_type, source
             model_name = rows[0].get('value')
             if model_name not in model_infos.keys():
                 model_infos[model_name] = extract_model_info(rows, model_name)
+                benchmark_infos[model_name] = {}
 
             for col_id, (header, row) in enumerate(zip(headers[1:], rows[1:])):
                 eval_name = header.get('value')
-                metric_config = MetricConfig(
-                    evaluation_description=header.get('description') or None,
-                    lower_is_better=header.get('lower_is_better') or False,
-                    min_score=0 if mins[col_id] >= 0 else math.floor(mins[col_id]),
-                    max_score=1 if maxs[col_id] <= 1 else math.ceil(maxs[col_id]),
-                    score_type=ScoreType.continuous
-                )
+                eval_name_shorter = eval_name.split()[0] if '-' in eval_name else eval_name
 
-                score = row.get('value')
+                if tab_name.lower() == 'accuracy' or eval_name_shorter not in benchmark_infos[model_name].keys():
+                    # handle a new column in tab other than Accuracy as well
+                    metric_config = MetricConfig(
+                        evaluation_description=header.get('description') or None,
+                        lower_is_better=header.get('lower_is_better') or False,
+                        min_score=0 if mins[col_id] >= 0 else math.floor(mins[col_id]),
+                        max_score=1 if maxs[col_id] <= 1 else math.ceil(maxs[col_id]),
+                        score_type=ScoreType.continuous
+                    )
 
-                generation_config = extract_generation_config_from_run_specs(
-                    row.get('run_spec_names')
-                ) if row.get('run_spec_names') else {}
+                    score = row.get('value')
 
-                model_to_results[model_name].append(
-                    EvaluationResult(
+                    generation_config = extract_generation_config_from_run_specs(
+                        row.get('run_spec_names')
+                    ) if row.get('run_spec_names') else {}
+                
+                    benchmark_infos[model_name][eval_name_shorter] = EvaluationResult(
                         evaluation_name=eval_name,
                         metric_config=metric_config,
                         score_details=ScoreDetails(
@@ -166,14 +171,28 @@ def convert(leaderboard_name, leaderboard_data, source_name, source_type, source
                         ),
                         generation_config=generation_config
                     )
-                )
+                else:
+                    # required unique key for additional details
+                    if eval_name == benchmark_infos[model_name][eval_name_shorter].evaluation_name:
+                        eval_name = f'{eval_name} - {tab_name}'
 
+                    benchmark_infos[model_name][eval_name_shorter].score_details.details[eval_name] = {
+                        "description": row.get('description', None),
+                        "tab": tab_name,
+                        "score": row.get('value')
+                    }
+
+
+    for model_name, results_per_model in benchmark_infos.items():
+        model_to_results[model_name] = []
+        for eval_name_shorter, eval_result in results_per_model.items():
+            model_to_results[model_name].append(eval_result)
 
     for model_name, evaluation_results in model_to_results.items():
         model_info = model_infos.get(model_name)
         evaluation_id=f'{leaderboard_name}/{model_info.id.replace('/', '_')}/{retrieved_timestamp}'
         eval_log = EvaluationLog(
-            schema_version='0.0.1',
+            schema_version='0.1.0',
             evaluation_id=evaluation_id,
             retrieved_timestamp=retrieved_timestamp,
             source_metadata=SourceMetadata(

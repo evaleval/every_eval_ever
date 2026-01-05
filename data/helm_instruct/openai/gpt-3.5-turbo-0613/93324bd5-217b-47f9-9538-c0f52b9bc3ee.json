@@ -1,0 +1,328 @@
+{
+  "schema_version": "0.1.0",
+  "evaluation_id": "helm_instruct/openai_gpt-3.5-turbo-0613/1767656703.32921",
+  "retrieved_timestamp": "1767656703.32921",
+  "source_data": [
+    "https://storage.googleapis.com/crfm-helm-public/instruct/benchmark_output/releases/v1.0.0/groups/instruction_following.json"
+  ],
+  "source_metadata": {
+    "source_name": "helm_instruct",
+    "source_type": "documentation",
+    "source_organization_name": "crfm",
+    "evaluator_relationship": "third_party"
+  },
+  "model_info": {
+    "name": "GPT-3.5 Turbo (0613)",
+    "id": "openai/gpt-3.5-turbo-0613",
+    "developer": "openai",
+    "inference_platform": "unknown"
+  },
+  "evaluation_results": [
+    {
+      "evaluation_name": "Mean win rate",
+      "metric_config": {
+        "evaluation_description": "How many models this model outperform on average (over columns).",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.689,
+        "details": {
+          "description": null,
+          "tab": "Instruction Following"
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "Anthropic RLHF dataset - Helpfulness",
+      "metric_config": {
+        "evaluation_description": "The dialogue datasets released by Anthropic to facilitate research in model helpfulness and harmlessness ([Bai et al., 2022](https://arxiv.org/pdf/2204.05862.pdf); [Ganguli et al., 2022](https://arxiv.org/pdf/2209.07858.pdf)). We only use the first utterance of each dialogue.\n\nHelpfulness: Whether the model appears to do what it is instructed to.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 4.0
+      },
+      "score_details": {
+        "score": 3.625,
+        "details": {
+          "description": "min=2.89, mean=3.625, max=4.6, sum=29.0 (8)",
+          "tab": "Instruction Following",
+          "Anthropic RLHF dataset - Understandability": {
+            "description": "min=4.915, mean=4.974, max=5, sum=39.79 (8)",
+            "tab": "Instruction Following",
+            "score": 4.97375
+          },
+          "Anthropic RLHF dataset - Completeness": {
+            "description": "min=2.755, mean=3.907, max=4.74, sum=31.26 (8)",
+            "tab": "Instruction Following",
+            "score": 3.9074999999999998
+          },
+          "Anthropic RLHF dataset - Conciseness": {
+            "description": "min=3.79, mean=4.191, max=4.67, sum=33.53 (8)",
+            "tab": "Instruction Following",
+            "score": 4.19125
+          },
+          "Anthropic RLHF dataset - Harmlessness": {
+            "description": "min=4.915, mean=4.964, max=5, sum=39.715 (8)",
+            "tab": "Instruction Following",
+            "score": 4.9643749999999995
+          }
+        }
+      },
+      "generation_config": {
+        "subset": [
+          "hh",
+          "hh",
+          "hh",
+          "hh",
+          "red_team",
+          "red_team",
+          "red_team",
+          "red_team"
+        ],
+        "evaluator": [
+          "claude",
+          "gpt4",
+          "mturk",
+          "scale",
+          "claude",
+          "gpt4",
+          "mturk",
+          "scale"
+        ]
+      }
+    },
+    {
+      "evaluation_name": "Best ChatGPT Prompts - Helpfulness",
+      "metric_config": {
+        "evaluation_description": "A list of “best ChatGPT prompts to power your workflow” summarized by [GRIDFITI](https://gridfiti.com/best-chatgpt-prompts/).\n\nHelpfulness: Whether the model appears to do what it is instructed to.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 5.0
+      },
+      "score_details": {
+        "score": 4.313,
+        "details": {
+          "description": "min=3.98, mean=4.313, max=4.737, sum=17.252 (4)",
+          "tab": "Instruction Following",
+          "Best ChatGPT Prompts - Understandability": {
+            "description": "min=4.72, mean=4.895, max=4.99, sum=19.579 (4)",
+            "tab": "Instruction Following",
+            "score": 4.894868421052632
+          },
+          "Best ChatGPT Prompts - Completeness": {
+            "description": "min=4.64, mean=4.774, max=4.92, sum=19.095 (4)",
+            "tab": "Instruction Following",
+            "score": 4.773684210526316
+          },
+          "Best ChatGPT Prompts - Conciseness": {
+            "description": "min=3.75, mean=4.113, max=4.758, sum=16.453 (4)",
+            "tab": "Instruction Following",
+            "score": 4.113223684210526
+          },
+          "Best ChatGPT Prompts - Harmlessness": {
+            "description": "min=4.95, mean=4.986, max=5, sum=19.945 (4)",
+            "tab": "Instruction Following",
+            "score": 4.986184210526316
+          }
+        }
+      },
+      "generation_config": {
+        "path": "src_helm_benchmark_scenarios_best_chatgpt_prompts.yaml",
+        "tags": "",
+        "evaluator": [
+          "claude",
+          "gpt4",
+          "mturk",
+          "scale"
+        ]
+      }
+    },
+    {
+      "evaluation_name": "Koala test dataset - Helpfulness",
+      "metric_config": {
+        "evaluation_description": "The test dataset from the [Koala paper](https://bair.berkeley.edu/blog/2023/04/03/koala/) for evaluating instruction-following models.\n\nHelpfulness: Whether the model appears to do what it is instructed to.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 5.0
+      },
+      "score_details": {
+        "score": 4.165,
+        "details": {
+          "description": "min=3.878, mean=4.165, max=4.427, sum=16.659 (4)",
+          "tab": "Instruction Following",
+          "Koala test dataset - Understandability": {
+            "description": "min=4.775, mean=4.903, max=5, sum=19.614 (4)",
+            "tab": "Instruction Following",
+            "score": 4.903453784426393
+          },
+          "Koala test dataset - Completeness": {
+            "description": "min=4.449, mean=4.569, max=4.837, sum=18.275 (4)",
+            "tab": "Instruction Following",
+            "score": 4.568819348127601
+          },
+          "Koala test dataset - Conciseness": {
+            "description": "min=3.704, mean=3.975, max=4.223, sum=15.899 (4)",
+            "tab": "Instruction Following",
+            "score": 3.9746772835347732
+          },
+          "Koala test dataset - Harmlessness": {
+            "description": "min=4.969, mean=4.987, max=5, sum=19.95 (4)",
+            "tab": "Instruction Following",
+            "score": 4.987383346542501
+          }
+        }
+      },
+      "generation_config": {
+        "evaluator": [
+          "claude",
+          "gpt4",
+          "mturk",
+          "scale"
+        ]
+      }
+    },
+    {
+      "evaluation_name": "Open Assistant - Helpfulness",
+      "metric_config": {
+        "evaluation_description": "LAION’s OpenAssistant Conversations Dataset (OASST1) that consists of 66,497 conversation trees ([Köpf et al., 2023](https://openreview.net/forum?id=VSJotgbPHF)). We only use the initial prompt in each conversation.\n\nHelpfulness: Whether the model appears to do what it is instructed to.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 5.0
+      },
+      "score_details": {
+        "score": 4.201,
+        "details": {
+          "description": "min=3.93, mean=4.201, max=4.52, sum=16.803 (4)",
+          "tab": "Instruction Following",
+          "Open Assistant - Understandability": {
+            "description": "min=4.747, mean=4.918, max=5, sum=19.671 (4)",
+            "tab": "Instruction Following",
+            "score": 4.9177870542156255
+          },
+          "Open Assistant - Completeness": {
+            "description": "min=4.577, mean=4.677, max=4.81, sum=18.708 (4)",
+            "tab": "Instruction Following",
+            "score": 4.676910430839002
+          },
+          "Open Assistant - Conciseness": {
+            "description": "min=3.81, mean=4.118, max=4.495, sum=16.473 (4)",
+            "tab": "Instruction Following",
+            "score": 4.118269944341373
+          },
+          "Open Assistant - Harmlessness": {
+            "description": "min=4.96, mean=4.987, max=5, sum=19.95 (4)",
+            "tab": "Instruction Following",
+            "score": 4.98739898989899
+          }
+        }
+      },
+      "generation_config": {
+        "language": "en",
+        "evaluator": [
+          "claude",
+          "gpt4",
+          "mturk",
+          "scale"
+        ]
+      }
+    },
+    {
+      "evaluation_name": "Self Instruct - Helpfulness",
+      "metric_config": {
+        "evaluation_description": "The manually-curated instructions from the Self-Instruct paper ([Wang et al., 2023](https://aclanthology.org/2023.acl-long.754.pdf)).\n\nHelpfulness: Whether the model appears to do what it is instructed to.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 5.0
+      },
+      "score_details": {
+        "score": 4.27,
+        "details": {
+          "description": "min=3.98, mean=4.27, max=4.565, sum=17.08 (4)",
+          "tab": "Instruction Following",
+          "Self Instruct - Understandability": {
+            "description": "min=4.81, mean=4.91, max=4.99, sum=19.64 (4)",
+            "tab": "Instruction Following",
+            "score": 4.91
+          },
+          "Self Instruct - Completeness": {
+            "description": "min=4.45, mean=4.652, max=4.84, sum=18.61 (4)",
+            "tab": "Instruction Following",
+            "score": 4.6525
+          },
+          "Self Instruct - Conciseness": {
+            "description": "min=3.88, mean=4.253, max=4.705, sum=17.01 (4)",
+            "tab": "Instruction Following",
+            "score": 4.2525
+          },
+          "Self Instruct - Harmlessness": {
+            "description": "min=4.97, mean=4.99, max=5, sum=19.96 (4)",
+            "tab": "Instruction Following",
+            "score": 4.99
+          }
+        }
+      },
+      "generation_config": {
+        "evaluator": [
+          "claude",
+          "gpt4",
+          "mturk",
+          "scale"
+        ]
+      }
+    },
+    {
+      "evaluation_name": "Vicuna - Helpfulness",
+      "metric_config": {
+        "evaluation_description": "The set of prompts used by the [Vicuna](https://lmsys.org/blog/2023-03-30-vicuna/) team to evaluate instruction-following models.\n\nHelpfulness: Whether the model appears to do what it is instructed to.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 5.0
+      },
+      "score_details": {
+        "score": 4.327,
+        "details": {
+          "description": "min=4, mean=4.327, max=4.675, sum=17.306 (4)",
+          "tab": "Instruction Following",
+          "Vicuna - Understandability": {
+            "description": "min=4.775, mean=4.919, max=5, sum=19.675 (4)",
+            "tab": "Instruction Following",
+            "score": 4.91875
+          },
+          "Vicuna - Completeness": {
+            "description": "min=4.75, mean=4.867, max=5, sum=19.469 (4)",
+            "tab": "Instruction Following",
+            "score": 4.8671875
+          },
+          "Vicuna - Conciseness": {
+            "description": "min=3.587, mean=3.883, max=4.275, sum=15.531 (4)",
+            "tab": "Instruction Following",
+            "score": 3.8828125
+          },
+          "Vicuna - Harmlessness": {
+            "description": "min=4.975, mean=4.992, max=5, sum=19.969 (4)",
+            "tab": "Instruction Following",
+            "score": 4.9921875
+          }
+        }
+      },
+      "generation_config": {
+        "category": "all",
+        "evaluator": [
+          "claude",
+          "gpt4",
+          "mturk",
+          "scale"
+        ]
+      }
+    }
+  ]
+}
