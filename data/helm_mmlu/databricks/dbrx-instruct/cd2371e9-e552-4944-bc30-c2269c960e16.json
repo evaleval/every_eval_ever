@@ -1,0 +1,2701 @@
+{
+  "schema_version": "0.1.0",
+  "evaluation_id": "helm_mmlu/databricks_dbrx-instruct/1767657487.397731",
+  "retrieved_timestamp": "1767657487.397731",
+  "source_data": [
+    "https://storage.googleapis.com/crfm-helm-public/mmlu/benchmark_output/releases/v1.13.0/groups/mmlu_subjects.json"
+  ],
+  "source_metadata": {
+    "source_name": "helm_mmlu",
+    "source_type": "documentation",
+    "source_organization_name": "crfm",
+    "evaluator_relationship": "third_party"
+  },
+  "model_info": {
+    "name": "DBRX Instruct",
+    "id": "databricks/dbrx-instruct",
+    "developer": "databricks",
+    "inference_platform": "unknown"
+  },
+  "evaluation_results": [
+    {
+      "evaluation_name": "MMLU All Subjects - EM",
+      "metric_config": {
+        "evaluation_description": "The Massive Multitask Language Understanding (MMLU) benchmark for knowledge-intensive question answering across 57 domains [(Hendrycks et al., 2021)](https://arxiv.org/pdf/2009.03300.pdf).\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.741,
+        "details": {
+          "description": "min=0.34, mean=0.741, max=0.953, sum=84.475 (114)",
+          "tab": "Accuracy",
+          "MMLU All Subjects - Observed inference time (s)": {
+            "description": "min=0.356, mean=0.459, max=1.347, sum=52.272 (114)",
+            "tab": "Efficiency",
+            "score": 0.4585284510595002
+          },
+          "MMLU All Subjects - # eval": {
+            "description": "min=100, mean=246.351, max=1534, sum=28084 (114)",
+            "tab": "General information",
+            "score": 246.35087719298247
+          },
+          "MMLU All Subjects - # train": {
+            "description": "min=5, mean=5, max=5, sum=570 (114)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "MMLU All Subjects - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (114)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "MMLU All Subjects - # prompt tokens": {
+            "description": "min=268.561, mean=607.852, max=2791.073, sum=69295.086 (114)",
+            "tab": "General information",
+            "score": 607.851634217556
+          },
+          "MMLU All Subjects - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=114 (114)",
+            "tab": "General information",
+            "score": 1.0
+          }
+        }
+      },
+      "generation_config": {
+        "subject": [
+          "abstract_algebra",
+          "anatomy",
+          "astronomy",
+          "business_ethics",
+          "clinical_knowledge",
+          "college_biology",
+          "college_chemistry",
+          "college_computer_science",
+          "college_mathematics",
+          "college_medicine",
+          "college_physics",
+          "computer_security",
+          "conceptual_physics",
+          "econometrics",
+          "electrical_engineering",
+          "elementary_mathematics",
+          "formal_logic",
+          "global_facts",
+          "high_school_biology",
+          "high_school_chemistry",
+          "high_school_computer_science",
+          "high_school_european_history",
+          "high_school_geography",
+          "high_school_government_and_politics",
+          "high_school_macroeconomics",
+          "high_school_mathematics",
+          "high_school_microeconomics",
+          "high_school_physics",
+          "high_school_psychology",
+          "high_school_statistics",
+          "high_school_us_history",
+          "high_school_world_history",
+          "human_aging",
+          "human_sexuality",
+          "international_law",
+          "jurisprudence",
+          "logical_fallacies",
+          "machine_learning",
+          "management",
+          "marketing",
+          "medical_genetics",
+          "miscellaneous",
+          "moral_disputes",
+          "moral_scenarios",
+          "nutrition",
+          "philosophy",
+          "prehistory",
+          "professional_accounting",
+          "professional_law",
+          "professional_medicine",
+          "professional_psychology",
+          "public_relations",
+          "security_studies",
+          "sociology",
+          "us_foreign_policy",
+          "virology",
+          "world_religions"
+        ],
+        "method": "multiple_choice_joint",
+        "eval_split": "test",
+        "groups": [
+          "mmlu_abstract_algebra",
+          "mmlu_anatomy",
+          "mmlu_astronomy",
+          "mmlu_business_ethics",
+          "mmlu_clinical_knowledge",
+          "mmlu_college_biology",
+          "mmlu_college_chemistry",
+          "mmlu_college_computer_science",
+          "mmlu_college_mathematics",
+          "mmlu_college_medicine",
+          "mmlu_college_physics",
+          "mmlu_computer_security",
+          "mmlu_conceptual_physics",
+          "mmlu_econometrics",
+          "mmlu_electrical_engineering",
+          "mmlu_elementary_mathematics",
+          "mmlu_formal_logic",
+          "mmlu_global_facts",
+          "mmlu_high_school_biology",
+          "mmlu_high_school_chemistry",
+          "mmlu_high_school_computer_science",
+          "mmlu_high_school_european_history",
+          "mmlu_high_school_geography",
+          "mmlu_high_school_government_and_politics",
+          "mmlu_high_school_macroeconomics",
+          "mmlu_high_school_mathematics",
+          "mmlu_high_school_microeconomics",
+          "mmlu_high_school_physics",
+          "mmlu_high_school_psychology",
+          "mmlu_high_school_statistics",
+          "mmlu_high_school_us_history",
+          "mmlu_high_school_world_history",
+          "mmlu_human_aging",
+          "mmlu_human_sexuality",
+          "mmlu_international_law",
+          "mmlu_jurisprudence",
+          "mmlu_logical_fallacies",
+          "mmlu_machine_learning",
+          "mmlu_management",
+          "mmlu_marketing",
+          "mmlu_medical_genetics",
+          "mmlu_miscellaneous",
+          "mmlu_moral_disputes",
+          "mmlu_moral_scenarios",
+          "mmlu_nutrition",
+          "mmlu_philosophy",
+          "mmlu_prehistory",
+          "mmlu_professional_accounting",
+          "mmlu_professional_law",
+          "mmlu_professional_medicine",
+          "mmlu_professional_psychology",
+          "mmlu_public_relations",
+          "mmlu_security_studies",
+          "mmlu_sociology",
+          "mmlu_us_foreign_policy",
+          "mmlu_virology",
+          "mmlu_world_religions"
+        ]
+      }
+    },
+    {
+      "evaluation_name": "Abstract Algebra - EM",
+      "metric_config": {
+        "evaluation_description": "The abstract algebra subject in the Massive Multitask Language Understanding (MMLU) benchmark.\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.34,
+        "details": {
+          "description": "min=0.34, mean=0.34, max=0.34, sum=0.68 (2)",
+          "tab": "Accuracy",
+          "Abstract Algebra - Observed inference time (s)": {
+            "description": "min=0.432, mean=0.432, max=0.432, sum=0.863 (2)",
+            "tab": "Efficiency",
+            "score": 0.4316913342475891
+          },
+          "Abstract Algebra - # eval": {
+            "description": "min=100, mean=100, max=100, sum=200 (2)",
+            "tab": "General information",
+            "score": 100.0
+          },
+          "Abstract Algebra - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Abstract Algebra - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Abstract Algebra - # prompt tokens": {
+            "description": "min=366.44, mean=366.44, max=366.44, sum=732.88 (2)",
+            "tab": "General information",
+            "score": 366.44
+          },
+          "Abstract Algebra - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          }
+        }
+      },
+      "generation_config": {
+        "subject": "abstract_algebra",
+        "method": "multiple_choice_joint",
+        "eval_split": "test",
+        "groups": "mmlu_abstract_algebra"
+      }
+    },
+    {
+      "evaluation_name": "Anatomy - EM",
+      "metric_config": {
+        "evaluation_description": "The anatomy subject in the Massive Multitask Language Understanding (MMLU) benchmark.\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.667,
+        "details": {
+          "description": "min=0.667, mean=0.667, max=0.667, sum=1.333 (2)",
+          "tab": "Accuracy",
+          "Anatomy - Observed inference time (s)": {
+            "description": "min=0.385, mean=0.385, max=0.385, sum=0.771 (2)",
+            "tab": "Efficiency",
+            "score": 0.38546188672383624
+          },
+          "Anatomy - # eval": {
+            "description": "min=135, mean=135, max=135, sum=270 (2)",
+            "tab": "General information",
+            "score": 135.0
+          },
+          "Anatomy - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Anatomy - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Anatomy - # prompt tokens": {
+            "description": "min=346.978, mean=346.978, max=346.978, sum=693.956 (2)",
+            "tab": "General information",
+            "score": 346.97777777777776
+          },
+          "Anatomy - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          }
+        }
+      },
+      "generation_config": {
+        "subject": "anatomy",
+        "method": "multiple_choice_joint",
+        "eval_split": "test",
+        "groups": "mmlu_anatomy"
+      }
+    },
+    {
+      "evaluation_name": "College Physics - EM",
+      "metric_config": {
+        "evaluation_description": "The college physics subject in the Massive Multitask Language Understanding (MMLU) benchmark.\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.539,
+        "details": {
+          "description": "min=0.539, mean=0.539, max=0.539, sum=1.078 (2)",
+          "tab": "Accuracy",
+          "College Chemistry - Observed inference time (s)": {
+            "description": "min=0.395, mean=0.395, max=0.395, sum=0.789 (2)",
+            "tab": "Efficiency",
+            "score": 0.39454248666763303
+          },
+          "College Biology - Observed inference time (s)": {
+            "description": "min=0.391, mean=0.391, max=0.391, sum=0.781 (2)",
+            "tab": "Efficiency",
+            "score": 0.3906625145011478
+          },
+          "College Computer Science - Observed inference time (s)": {
+            "description": "min=0.439, mean=0.439, max=0.439, sum=0.877 (2)",
+            "tab": "Efficiency",
+            "score": 0.438518271446228
+          },
+          "College Mathematics - Observed inference time (s)": {
+            "description": "min=0.396, mean=0.396, max=0.396, sum=0.792 (2)",
+            "tab": "Efficiency",
+            "score": 0.3961342000961304
+          },
+          "College Medicine - Observed inference time (s)": {
+            "description": "min=0.392, mean=0.392, max=0.392, sum=0.784 (2)",
+            "tab": "Efficiency",
+            "score": 0.39187397708782573
+          },
+          "College Physics - Observed inference time (s)": {
+            "description": "min=0.406, mean=0.406, max=0.406, sum=0.813 (2)",
+            "tab": "Efficiency",
+            "score": 0.4062807746962005
+          },
+          "College Chemistry - # eval": {
+            "description": "min=100, mean=100, max=100, sum=200 (2)",
+            "tab": "General information",
+            "score": 100.0
+          },
+          "College Chemistry - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "College Chemistry - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "College Chemistry - # prompt tokens": {
+            "description": "min=542.4, mean=542.4, max=542.4, sum=1084.8 (2)",
+            "tab": "General information",
+            "score": 542.4
+          },
+          "College Chemistry - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          },
+          "College Biology - # eval": {
+            "description": "min=144, mean=144, max=144, sum=288 (2)",
+            "tab": "General information",
+            "score": 144.0
+          },
+          "College Biology - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "College Biology - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "College Biology - # prompt tokens": {
+            "description": "min=466.917, mean=466.917, max=466.917, sum=933.833 (2)",
+            "tab": "General information",
+            "score": 466.9166666666667
+          },
+          "College Biology - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          },
+          "College Computer Science - # eval": {
+            "description": "min=100, mean=100, max=100, sum=200 (2)",
+            "tab": "General information",
+            "score": 100.0
+          },
+          "College Computer Science - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "College Computer Science - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "College Computer Science - # prompt tokens": {
+            "description": "min=821.39, mean=821.39, max=821.39, sum=1642.78 (2)",
+            "tab": "General information",
+            "score": 821.39
+          },
+          "College Computer Science - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          },
+          "College Mathematics - # eval": {
+            "description": "min=100, mean=100, max=100, sum=200 (2)",
+            "tab": "General information",
+            "score": 100.0
+          },
+          "College Mathematics - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "College Mathematics - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "College Mathematics - # prompt tokens": {
+            "description": "min=587.52, mean=587.52, max=587.52, sum=1175.04 (2)",
+            "tab": "General information",
+            "score": 587.52
+          },
+          "College Mathematics - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          },
+          "College Medicine - # eval": {
+            "description": "min=173, mean=173, max=173, sum=346 (2)",
+            "tab": "General information",
+            "score": 173.0
+          },
+          "College Medicine - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "College Medicine - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "College Medicine - # prompt tokens": {
+            "description": "min=495.728, mean=495.728, max=495.728, sum=991.457 (2)",
+            "tab": "General information",
+            "score": 495.728323699422
+          },
+          "College Medicine - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          },
+          "College Physics - # eval": {
+            "description": "min=102, mean=102, max=102, sum=204 (2)",
+            "tab": "General information",
+            "score": 102.0
+          },
+          "College Physics - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "College Physics - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "College Physics - # prompt tokens": {
+            "description": "min=496.608, mean=496.608, max=496.608, sum=993.216 (2)",
+            "tab": "General information",
+            "score": 496.6078431372549
+          },
+          "College Physics - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          }
+        }
+      },
+      "generation_config": {
+        "subject": "college_physics",
+        "method": "multiple_choice_joint",
+        "eval_split": "test",
+        "groups": "mmlu_college_physics"
+      }
+    },
+    {
+      "evaluation_name": "Computer Security - EM",
+      "metric_config": {
+        "evaluation_description": "The computer security subject in the Massive Multitask Language Understanding (MMLU) benchmark.\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.83,
+        "details": {
+          "description": "min=0.83, mean=0.83, max=0.83, sum=1.66 (2)",
+          "tab": "Accuracy",
+          "Computer Security - Observed inference time (s)": {
+            "description": "min=0.415, mean=0.415, max=0.415, sum=0.83 (2)",
+            "tab": "Efficiency",
+            "score": 0.4148012113571167
+          },
+          "Computer Security - # eval": {
+            "description": "min=100, mean=100, max=100, sum=200 (2)",
+            "tab": "General information",
+            "score": 100.0
+          },
+          "Computer Security - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Computer Security - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Computer Security - # prompt tokens": {
+            "description": "min=371.54, mean=371.54, max=371.54, sum=743.08 (2)",
+            "tab": "General information",
+            "score": 371.54
+          },
+          "Computer Security - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          }
+        }
+      },
+      "generation_config": {
+        "subject": "computer_security",
+        "method": "multiple_choice_joint",
+        "eval_split": "test",
+        "groups": "mmlu_computer_security"
+      }
+    },
+    {
+      "evaluation_name": "Econometrics - EM",
+      "metric_config": {
+        "evaluation_description": "The econometrics subject in the Massive Multitask Language Understanding (MMLU) benchmark.\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.605,
+        "details": {
+          "description": "min=0.605, mean=0.605, max=0.605, sum=1.211 (2)",
+          "tab": "Accuracy",
+          "Econometrics - Observed inference time (s)": {
+            "description": "min=0.431, mean=0.431, max=0.431, sum=0.863 (2)",
+            "tab": "Efficiency",
+            "score": 0.43133983904855294
+          },
+          "Econometrics - # eval": {
+            "description": "min=114, mean=114, max=114, sum=228 (2)",
+            "tab": "General information",
+            "score": 114.0
+          },
+          "Econometrics - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Econometrics - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Econometrics - # prompt tokens": {
+            "description": "min=607.43, mean=607.43, max=607.43, sum=1214.86 (2)",
+            "tab": "General information",
+            "score": 607.4298245614035
+          },
+          "Econometrics - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          }
+        }
+      },
+      "generation_config": {
+        "subject": "econometrics",
+        "method": "multiple_choice_joint",
+        "eval_split": "test",
+        "groups": "mmlu_econometrics"
+      }
+    },
+    {
+      "evaluation_name": "Global Facts - EM",
+      "metric_config": {
+        "evaluation_description": "The global facts subject in the Massive Multitask Language Understanding (MMLU) benchmark.\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.46,
+        "details": {
+          "description": "min=0.46, mean=0.46, max=0.46, sum=0.92 (2)",
+          "tab": "Accuracy",
+          "Global Facts - Observed inference time (s)": {
+            "description": "min=0.429, mean=0.429, max=0.429, sum=0.857 (2)",
+            "tab": "Efficiency",
+            "score": 0.4286450815200806
+          },
+          "Global Facts - # eval": {
+            "description": "min=100, mean=100, max=100, sum=200 (2)",
+            "tab": "General information",
+            "score": 100.0
+          },
+          "Global Facts - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Global Facts - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Global Facts - # prompt tokens": {
+            "description": "min=392.71, mean=392.71, max=392.71, sum=785.42 (2)",
+            "tab": "General information",
+            "score": 392.71
+          },
+          "Global Facts - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          }
+        }
+      },
+      "generation_config": {
+        "subject": "global_facts",
+        "method": "multiple_choice_joint",
+        "eval_split": "test",
+        "groups": "mmlu_global_facts"
+      }
+    },
+    {
+      "evaluation_name": "Jurisprudence - EM",
+      "metric_config": {
+        "evaluation_description": "The jurisprudence subject in the Massive Multitask Language Understanding (MMLU) benchmark.\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.843,
+        "details": {
+          "description": "min=0.843, mean=0.843, max=0.843, sum=1.685 (2)",
+          "tab": "Accuracy",
+          "Jurisprudence - Observed inference time (s)": {
+            "description": "min=0.436, mean=0.436, max=0.436, sum=0.873 (2)",
+            "tab": "Efficiency",
+            "score": 0.43625413488458703
+          },
+          "Jurisprudence - # eval": {
+            "description": "min=108, mean=108, max=108, sum=216 (2)",
+            "tab": "General information",
+            "score": 108.0
+          },
+          "Jurisprudence - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Jurisprudence - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Jurisprudence - # prompt tokens": {
+            "description": "min=387.639, mean=387.639, max=387.639, sum=775.278 (2)",
+            "tab": "General information",
+            "score": 387.6388888888889
+          },
+          "Jurisprudence - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          }
+        }
+      },
+      "generation_config": {
+        "subject": "jurisprudence",
+        "method": "multiple_choice_joint",
+        "eval_split": "test",
+        "groups": "mmlu_jurisprudence"
+      }
+    },
+    {
+      "evaluation_name": "Philosophy - EM",
+      "metric_config": {
+        "evaluation_description": "The philosophy subject in the Massive Multitask Language Understanding (MMLU) benchmark.\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.804,
+        "details": {
+          "description": "min=0.804, mean=0.804, max=0.804, sum=1.608 (2)",
+          "tab": "Accuracy",
+          "Philosophy - Observed inference time (s)": {
+            "description": "min=0.408, mean=0.408, max=0.408, sum=0.816 (2)",
+            "tab": "Efficiency",
+            "score": 0.4079643100787589
+          },
+          "Philosophy - # eval": {
+            "description": "min=311, mean=311, max=311, sum=622 (2)",
+            "tab": "General information",
+            "score": 311.0
+          },
+          "Philosophy - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Philosophy - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Philosophy - # prompt tokens": {
+            "description": "min=322.084, mean=322.084, max=322.084, sum=644.167 (2)",
+            "tab": "General information",
+            "score": 322.08360128617363
+          },
+          "Philosophy - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          }
+        }
+      },
+      "generation_config": {
+        "subject": "philosophy",
+        "method": "multiple_choice_joint",
+        "eval_split": "test",
+        "groups": "mmlu_philosophy"
+      }
+    },
+    {
+      "evaluation_name": "Professional Psychology - EM",
+      "metric_config": {
+        "evaluation_description": "The professional psychology subject in the Massive Multitask Language Understanding (MMLU) benchmark.\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.801,
+        "details": {
+          "description": "min=0.801, mean=0.801, max=0.801, sum=1.601 (2)",
+          "tab": "Accuracy",
+          "Professional Medicine - Observed inference time (s)": {
+            "description": "min=0.47, mean=0.47, max=0.47, sum=0.94 (2)",
+            "tab": "Efficiency",
+            "score": 0.4699658164206673
+          },
+          "Professional Accounting - Observed inference time (s)": {
+            "description": "min=0.395, mean=0.395, max=0.395, sum=0.791 (2)",
+            "tab": "Efficiency",
+            "score": 0.39532034532398197
+          },
+          "Professional Law - Observed inference time (s)": {
+            "description": "min=0.556, mean=0.556, max=0.556, sum=1.113 (2)",
+            "tab": "Efficiency",
+            "score": 0.5564531824579451
+          },
+          "Professional Psychology - Observed inference time (s)": {
+            "description": "min=0.388, mean=0.388, max=0.388, sum=0.776 (2)",
+            "tab": "Efficiency",
+            "score": 0.3879917279567594
+          },
+          "Professional Medicine - # eval": {
+            "description": "min=272, mean=272, max=272, sum=544 (2)",
+            "tab": "General information",
+            "score": 272.0
+          },
+          "Professional Medicine - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Professional Medicine - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Professional Medicine - # prompt tokens": {
+            "description": "min=1087.585, mean=1087.585, max=1087.585, sum=2175.169 (2)",
+            "tab": "General information",
+            "score": 1087.5845588235295
+          },
+          "Professional Medicine - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          },
+          "Professional Accounting - # eval": {
+            "description": "min=282, mean=282, max=282, sum=564 (2)",
+            "tab": "General information",
+            "score": 282.0
+          },
+          "Professional Accounting - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Professional Accounting - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Professional Accounting - # prompt tokens": {
+            "description": "min=651.592, mean=651.592, max=651.592, sum=1303.184 (2)",
+            "tab": "General information",
+            "score": 651.5921985815603
+          },
+          "Professional Accounting - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          },
+          "Professional Law - # eval": {
+            "description": "min=1534, mean=1534, max=1534, sum=3068 (2)",
+            "tab": "General information",
+            "score": 1534.0
+          },
+          "Professional Law - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Professional Law - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Professional Law - # prompt tokens": {
+            "description": "min=1630.787, mean=1630.787, max=1630.787, sum=3261.574 (2)",
+            "tab": "General information",
+            "score": 1630.7868318122555
+          },
+          "Professional Law - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          },
+          "Professional Psychology - # eval": {
+            "description": "min=612, mean=612, max=612, sum=1224 (2)",
+            "tab": "General information",
+            "score": 612.0
+          },
+          "Professional Psychology - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Professional Psychology - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Professional Psychology - # prompt tokens": {
+            "description": "min=568.114, mean=568.114, max=568.114, sum=1136.229 (2)",
+            "tab": "General information",
+            "score": 568.1143790849674
+          },
+          "Professional Psychology - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          }
+        }
+      },
+      "generation_config": {
+        "subject": "professional_psychology",
+        "method": "multiple_choice_joint",
+        "eval_split": "test",
+        "groups": "mmlu_professional_psychology"
+      }
+    },
+    {
+      "evaluation_name": "Us Foreign Policy - EM",
+      "metric_config": {
+        "evaluation_description": "The us foreign policy subject in the Massive Multitask Language Understanding (MMLU) benchmark.\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.93,
+        "details": {
+          "description": "min=0.93, mean=0.93, max=0.93, sum=1.86 (2)",
+          "tab": "Accuracy",
+          "Us Foreign Policy - Observed inference time (s)": {
+            "description": "min=0.39, mean=0.39, max=0.39, sum=0.78 (2)",
+            "tab": "Efficiency",
+            "score": 0.3899818444252014
+          },
+          "Us Foreign Policy - # eval": {
+            "description": "min=100, mean=100, max=100, sum=200 (2)",
+            "tab": "General information",
+            "score": 100.0
+          },
+          "Us Foreign Policy - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Us Foreign Policy - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Us Foreign Policy - # prompt tokens": {
+            "description": "min=415.79, mean=415.79, max=415.79, sum=831.58 (2)",
+            "tab": "General information",
+            "score": 415.79
+          },
+          "Us Foreign Policy - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          }
+        }
+      },
+      "generation_config": {
+        "subject": "us_foreign_policy",
+        "method": "multiple_choice_joint",
+        "eval_split": "test",
+        "groups": "mmlu_us_foreign_policy"
+      }
+    },
+    {
+      "evaluation_name": "Astronomy - EM",
+      "metric_config": {
+        "evaluation_description": "The astronomy subject in the Massive Multitask Language Understanding (MMLU) benchmark.\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.836,
+        "details": {
+          "description": "min=0.836, mean=0.836, max=0.836, sum=1.671 (2)",
+          "tab": "Accuracy",
+          "Astronomy - Observed inference time (s)": {
+            "description": "min=0.428, mean=0.428, max=0.428, sum=0.857 (2)",
+            "tab": "Efficiency",
+            "score": 0.42830287625915126
+          },
+          "Astronomy - # eval": {
+            "description": "min=152, mean=152, max=152, sum=304 (2)",
+            "tab": "General information",
+            "score": 152.0
+          },
+          "Astronomy - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Astronomy - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Astronomy - # prompt tokens": {
+            "description": "min=572.691, mean=572.691, max=572.691, sum=1145.382 (2)",
+            "tab": "General information",
+            "score": 572.6907894736842
+          },
+          "Astronomy - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          }
+        }
+      },
+      "generation_config": {
+        "subject": "astronomy",
+        "method": "multiple_choice_joint",
+        "eval_split": "test",
+        "groups": "mmlu_astronomy"
+      }
+    },
+    {
+      "evaluation_name": "Business Ethics - EM",
+      "metric_config": {
+        "evaluation_description": "The business ethics subject in the Massive Multitask Language Understanding (MMLU) benchmark.\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.78,
+        "details": {
+          "description": "min=0.78, mean=0.78, max=0.78, sum=1.56 (2)",
+          "tab": "Accuracy",
+          "Business Ethics - Observed inference time (s)": {
+            "description": "min=0.446, mean=0.446, max=0.446, sum=0.891 (2)",
+            "tab": "Efficiency",
+            "score": 0.44572278976440427
+          },
+          "Business Ethics - # eval": {
+            "description": "min=100, mean=100, max=100, sum=200 (2)",
+            "tab": "General information",
+            "score": 100.0
+          },
+          "Business Ethics - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Business Ethics - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Business Ethics - # prompt tokens": {
+            "description": "min=562.52, mean=562.52, max=562.52, sum=1125.04 (2)",
+            "tab": "General information",
+            "score": 562.52
+          },
+          "Business Ethics - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          }
+        }
+      },
+      "generation_config": {
+        "subject": "business_ethics",
+        "method": "multiple_choice_joint",
+        "eval_split": "test",
+        "groups": "mmlu_business_ethics"
+      }
+    },
+    {
+      "evaluation_name": "Clinical Knowledge - EM",
+      "metric_config": {
+        "evaluation_description": "The clinical knowledge subject in the Massive Multitask Language Understanding (MMLU) benchmark.\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.789,
+        "details": {
+          "description": "min=0.789, mean=0.789, max=0.789, sum=1.577 (2)",
+          "tab": "Accuracy",
+          "Clinical Knowledge - Observed inference time (s)": {
+            "description": "min=0.404, mean=0.404, max=0.404, sum=0.807 (2)",
+            "tab": "Efficiency",
+            "score": 0.4037102978184538
+          },
+          "Clinical Knowledge - # eval": {
+            "description": "min=265, mean=265, max=265, sum=530 (2)",
+            "tab": "General information",
+            "score": 265.0
+          },
+          "Clinical Knowledge - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Clinical Knowledge - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Clinical Knowledge - # prompt tokens": {
+            "description": "min=390.947, mean=390.947, max=390.947, sum=781.894 (2)",
+            "tab": "General information",
+            "score": 390.94716981132075
+          },
+          "Clinical Knowledge - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          }
+        }
+      },
+      "generation_config": {
+        "subject": "clinical_knowledge",
+        "method": "multiple_choice_joint",
+        "eval_split": "test",
+        "groups": "mmlu_clinical_knowledge"
+      }
+    },
+    {
+      "evaluation_name": "Conceptual Physics - EM",
+      "metric_config": {
+        "evaluation_description": "The conceptual physics subject in the Massive Multitask Language Understanding (MMLU) benchmark.\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.74,
+        "details": {
+          "description": "min=0.74, mean=0.74, max=0.74, sum=1.481 (2)",
+          "tab": "Accuracy",
+          "Conceptual Physics - Observed inference time (s)": {
+            "description": "min=0.379, mean=0.379, max=0.379, sum=0.758 (2)",
+            "tab": "Efficiency",
+            "score": 0.3791612523667356
+          },
+          "Conceptual Physics - # eval": {
+            "description": "min=235, mean=235, max=235, sum=470 (2)",
+            "tab": "General information",
+            "score": 235.0
+          },
+          "Conceptual Physics - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Conceptual Physics - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Conceptual Physics - # prompt tokens": {
+            "description": "min=297.838, mean=297.838, max=297.838, sum=595.677 (2)",
+            "tab": "General information",
+            "score": 297.83829787234043
+          },
+          "Conceptual Physics - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          }
+        }
+      },
+      "generation_config": {
+        "subject": "conceptual_physics",
+        "method": "multiple_choice_joint",
+        "eval_split": "test",
+        "groups": "mmlu_conceptual_physics"
+      }
+    },
+    {
+      "evaluation_name": "Electrical Engineering - EM",
+      "metric_config": {
+        "evaluation_description": "The electrical engineering subject in the Massive Multitask Language Understanding (MMLU) benchmark.\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.71,
+        "details": {
+          "description": "min=0.71, mean=0.71, max=0.71, sum=1.421 (2)",
+          "tab": "Accuracy",
+          "Electrical Engineering - Observed inference time (s)": {
+            "description": "min=0.384, mean=0.384, max=0.384, sum=0.767 (2)",
+            "tab": "Efficiency",
+            "score": 0.3837302882095863
+          },
+          "Electrical Engineering - # eval": {
+            "description": "min=145, mean=145, max=145, sum=290 (2)",
+            "tab": "General information",
+            "score": 145.0
+          },
+          "Electrical Engineering - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Electrical Engineering - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Electrical Engineering - # prompt tokens": {
+            "description": "min=433.641, mean=433.641, max=433.641, sum=867.283 (2)",
+            "tab": "General information",
+            "score": 433.6413793103448
+          },
+          "Electrical Engineering - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          }
+        }
+      },
+      "generation_config": {
+        "subject": "electrical_engineering",
+        "method": "multiple_choice_joint",
+        "eval_split": "test",
+        "groups": "mmlu_electrical_engineering"
+      }
+    },
+    {
+      "evaluation_name": "Elementary Mathematics - EM",
+      "metric_config": {
+        "evaluation_description": "The elementary mathematics subject in the Massive Multitask Language Understanding (MMLU) benchmark.\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.563,
+        "details": {
+          "description": "min=0.563, mean=0.563, max=0.563, sum=1.127 (2)",
+          "tab": "Accuracy",
+          "Elementary Mathematics - Observed inference time (s)": {
+            "description": "min=0.392, mean=0.392, max=0.392, sum=0.783 (2)",
+            "tab": "Efficiency",
+            "score": 0.3916708092210154
+          },
+          "Elementary Mathematics - # eval": {
+            "description": "min=378, mean=378, max=378, sum=756 (2)",
+            "tab": "General information",
+            "score": 378.0
+          },
+          "Elementary Mathematics - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Elementary Mathematics - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Elementary Mathematics - # prompt tokens": {
+            "description": "min=524.862, mean=524.862, max=524.862, sum=1049.725 (2)",
+            "tab": "General information",
+            "score": 524.8624338624338
+          },
+          "Elementary Mathematics - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          }
+        }
+      },
+      "generation_config": {
+        "subject": "elementary_mathematics",
+        "method": "multiple_choice_joint",
+        "eval_split": "test",
+        "groups": "mmlu_elementary_mathematics"
+      }
+    },
+    {
+      "evaluation_name": "Formal Logic - EM",
+      "metric_config": {
+        "evaluation_description": "The formal logic subject in the Massive Multitask Language Understanding (MMLU) benchmark.\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.563,
+        "details": {
+          "description": "min=0.563, mean=0.563, max=0.563, sum=1.127 (2)",
+          "tab": "Accuracy",
+          "Formal Logic - Observed inference time (s)": {
+            "description": "min=0.419, mean=0.419, max=0.419, sum=0.837 (2)",
+            "tab": "Efficiency",
+            "score": 0.41872944339873297
+          },
+          "Formal Logic - # eval": {
+            "description": "min=126, mean=126, max=126, sum=252 (2)",
+            "tab": "General information",
+            "score": 126.0
+          },
+          "Formal Logic - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Formal Logic - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Formal Logic - # prompt tokens": {
+            "description": "min=599.762, mean=599.762, max=599.762, sum=1199.524 (2)",
+            "tab": "General information",
+            "score": 599.7619047619048
+          },
+          "Formal Logic - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          }
+        }
+      },
+      "generation_config": {
+        "subject": "formal_logic",
+        "method": "multiple_choice_joint",
+        "eval_split": "test",
+        "groups": "mmlu_formal_logic"
+      }
+    },
+    {
+      "evaluation_name": "High School World History - EM",
+      "metric_config": {
+        "evaluation_description": "The high school world history subject in the Massive Multitask Language Understanding (MMLU) benchmark.\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.903,
+        "details": {
+          "description": "min=0.903, mean=0.903, max=0.903, sum=1.806 (2)",
+          "tab": "Accuracy",
+          "High School Biology - Observed inference time (s)": {
+            "description": "min=0.387, mean=0.387, max=0.387, sum=0.775 (2)",
+            "tab": "Efficiency",
+            "score": 0.3873311073549332
+          },
+          "High School Chemistry - Observed inference time (s)": {
+            "description": "min=0.356, mean=0.356, max=0.356, sum=0.712 (2)",
+            "tab": "Efficiency",
+            "score": 0.356056117071894
+          },
+          "High School Computer Science - Observed inference time (s)": {
+            "description": "min=0.416, mean=0.416, max=0.416, sum=0.832 (2)",
+            "tab": "Efficiency",
+            "score": 0.4159617280960083
+          },
+          "High School European History - Observed inference time (s)": {
+            "description": "min=0.784, mean=0.784, max=0.784, sum=1.569 (2)",
+            "tab": "Efficiency",
+            "score": 0.7843083367203221
+          },
+          "High School Geography - Observed inference time (s)": {
+            "description": "min=0.573, mean=0.573, max=0.573, sum=1.146 (2)",
+            "tab": "Efficiency",
+            "score": 0.573177902385442
+          },
+          "High School Government And Politics - Observed inference time (s)": {
+            "description": "min=0.522, mean=0.522, max=0.522, sum=1.043 (2)",
+            "tab": "Efficiency",
+            "score": 0.5217143093366079
+          },
+          "High School Macroeconomics - Observed inference time (s)": {
+            "description": "min=1.013, mean=1.013, max=1.013, sum=2.025 (2)",
+            "tab": "Efficiency",
+            "score": 1.0127322582098155
+          },
+          "High School Mathematics - Observed inference time (s)": {
+            "description": "min=1.347, mean=1.347, max=1.347, sum=2.694 (2)",
+            "tab": "Efficiency",
+            "score": 1.346758367397167
+          },
+          "High School Microeconomics - Observed inference time (s)": {
+            "description": "min=0.405, mean=0.405, max=0.405, sum=0.81 (2)",
+            "tab": "Efficiency",
+            "score": 0.40513940819171296
+          },
+          "High School Physics - Observed inference time (s)": {
+            "description": "min=0.457, mean=0.457, max=0.457, sum=0.915 (2)",
+            "tab": "Efficiency",
+            "score": 0.45727316433230775
+          },
+          "High School Psychology - Observed inference time (s)": {
+            "description": "min=0.427, mean=0.427, max=0.427, sum=0.855 (2)",
+            "tab": "Efficiency",
+            "score": 0.42725621625917765
+          },
+          "High School Statistics - Observed inference time (s)": {
+            "description": "min=0.465, mean=0.465, max=0.465, sum=0.93 (2)",
+            "tab": "Efficiency",
+            "score": 0.4648557923458241
+          },
+          "High School US History - Observed inference time (s)": {
+            "description": "min=0.701, mean=0.701, max=0.701, sum=1.401 (2)",
+            "tab": "Efficiency",
+            "score": 0.7005175001481
+          },
+          "High School World History - Observed inference time (s)": {
+            "description": "min=0.543, mean=0.543, max=0.543, sum=1.085 (2)",
+            "tab": "Efficiency",
+            "score": 0.5426257642512583
+          },
+          "High School Biology - # eval": {
+            "description": "min=310, mean=310, max=310, sum=620 (2)",
+            "tab": "General information",
+            "score": 310.0
+          },
+          "High School Biology - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "High School Biology - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "High School Biology - # prompt tokens": {
+            "description": "min=506.677, mean=506.677, max=506.677, sum=1013.355 (2)",
+            "tab": "General information",
+            "score": 506.6774193548387
+          },
+          "High School Biology - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          },
+          "High School Chemistry - # eval": {
+            "description": "min=203, mean=203, max=203, sum=406 (2)",
+            "tab": "General information",
+            "score": 203.0
+          },
+          "High School Chemistry - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "High School Chemistry - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "High School Chemistry - # prompt tokens": {
+            "description": "min=489.714, mean=489.714, max=489.714, sum=979.429 (2)",
+            "tab": "General information",
+            "score": 489.7142857142857
+          },
+          "High School Chemistry - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          },
+          "High School Computer Science - # eval": {
+            "description": "min=100, mean=100, max=100, sum=200 (2)",
+            "tab": "General information",
+            "score": 100.0
+          },
+          "High School Computer Science - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "High School Computer Science - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "High School Computer Science - # prompt tokens": {
+            "description": "min=860.78, mean=860.78, max=860.78, sum=1721.56 (2)",
+            "tab": "General information",
+            "score": 860.78
+          },
+          "High School Computer Science - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          },
+          "High School European History - # eval": {
+            "description": "min=165, mean=165, max=165, sum=330 (2)",
+            "tab": "General information",
+            "score": 165.0
+          },
+          "High School European History - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "High School European History - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "High School European History - # prompt tokens": {
+            "description": "min=2791.073, mean=2791.073, max=2791.073, sum=5582.145 (2)",
+            "tab": "General information",
+            "score": 2791.072727272727
+          },
+          "High School European History - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          },
+          "High School Geography - # eval": {
+            "description": "min=198, mean=198, max=198, sum=396 (2)",
+            "tab": "General information",
+            "score": 198.0
+          },
+          "High School Geography - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "High School Geography - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "High School Geography - # prompt tokens": {
+            "description": "min=365.045, mean=365.045, max=365.045, sum=730.091 (2)",
+            "tab": "General information",
+            "score": 365.04545454545456
+          },
+          "High School Geography - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          },
+          "High School Government And Politics - # eval": {
+            "description": "min=193, mean=193, max=193, sum=386 (2)",
+            "tab": "General information",
+            "score": 193.0
+          },
+          "High School Government And Politics - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "High School Government And Politics - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "High School Government And Politics - # prompt tokens": {
+            "description": "min=458.824, mean=458.824, max=458.824, sum=917.648 (2)",
+            "tab": "General information",
+            "score": 458.8238341968912
+          },
+          "High School Government And Politics - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          },
+          "High School Macroeconomics - # eval": {
+            "description": "min=390, mean=390, max=390, sum=780 (2)",
+            "tab": "General information",
+            "score": 390.0
+          },
+          "High School Macroeconomics - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "High School Macroeconomics - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "High School Macroeconomics - # prompt tokens": {
+            "description": "min=364.562, mean=364.562, max=364.562, sum=729.123 (2)",
+            "tab": "General information",
+            "score": 364.5615384615385
+          },
+          "High School Macroeconomics - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          },
+          "High School Mathematics - # eval": {
+            "description": "min=270, mean=270, max=270, sum=540 (2)",
+            "tab": "General information",
+            "score": 270.0
+          },
+          "High School Mathematics - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "High School Mathematics - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "High School Mathematics - # prompt tokens": {
+            "description": "min=525.374, mean=525.374, max=525.374, sum=1050.748 (2)",
+            "tab": "General information",
+            "score": 525.3740740740741
+          },
+          "High School Mathematics - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          },
+          "High School Microeconomics - # eval": {
+            "description": "min=238, mean=238, max=238, sum=476 (2)",
+            "tab": "General information",
+            "score": 238.0
+          },
+          "High School Microeconomics - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "High School Microeconomics - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "High School Microeconomics - # prompt tokens": {
+            "description": "min=392.025, mean=392.025, max=392.025, sum=784.05 (2)",
+            "tab": "General information",
+            "score": 392.02521008403363
+          },
+          "High School Microeconomics - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          },
+          "High School Physics - # eval": {
+            "description": "min=151, mean=151, max=151, sum=302 (2)",
+            "tab": "General information",
+            "score": 151.0
+          },
+          "High School Physics - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "High School Physics - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "High School Physics - # prompt tokens": {
+            "description": "min=553.464, mean=553.464, max=553.464, sum=1106.927 (2)",
+            "tab": "General information",
+            "score": 553.4635761589404
+          },
+          "High School Physics - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          },
+          "High School Psychology - # eval": {
+            "description": "min=545, mean=545, max=545, sum=1090 (2)",
+            "tab": "General information",
+            "score": 545.0
+          },
+          "High School Psychology - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "High School Psychology - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "High School Psychology - # prompt tokens": {
+            "description": "min=488.246, mean=488.246, max=488.246, sum=976.492 (2)",
+            "tab": "General information",
+            "score": 488.24587155963303
+          },
+          "High School Psychology - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          },
+          "High School Statistics - # eval": {
+            "description": "min=216, mean=216, max=216, sum=432 (2)",
+            "tab": "General information",
+            "score": 216.0
+          },
+          "High School Statistics - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "High School Statistics - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "High School Statistics - # prompt tokens": {
+            "description": "min=788.699, mean=788.699, max=788.699, sum=1577.398 (2)",
+            "tab": "General information",
+            "score": 788.699074074074
+          },
+          "High School Statistics - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          },
+          "High School US History - # eval": {
+            "description": "min=204, mean=204, max=204, sum=408 (2)",
+            "tab": "General information",
+            "score": 204.0
+          },
+          "High School US History - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "High School US History - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "High School US History - # prompt tokens": {
+            "description": "min=2210.809, mean=2210.809, max=2210.809, sum=4421.618 (2)",
+            "tab": "General information",
+            "score": 2210.8088235294117
+          },
+          "High School US History - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          },
+          "High School World History - # eval": {
+            "description": "min=237, mean=237, max=237, sum=474 (2)",
+            "tab": "General information",
+            "score": 237.0
+          },
+          "High School World History - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "High School World History - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "High School World History - # prompt tokens": {
+            "description": "min=1421.27, mean=1421.27, max=1421.27, sum=2842.54 (2)",
+            "tab": "General information",
+            "score": 1421.2700421940929
+          },
+          "High School World History - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          }
+        }
+      },
+      "generation_config": {
+        "subject": "high_school_world_history",
+        "method": "multiple_choice_joint",
+        "eval_split": "test",
+        "groups": "mmlu_high_school_world_history"
+      }
+    },
+    {
+      "evaluation_name": "Human Sexuality - EM",
+      "metric_config": {
+        "evaluation_description": "The human sexuality subject in the Massive Multitask Language Understanding (MMLU) benchmark.\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.878,
+        "details": {
+          "description": "min=0.878, mean=0.878, max=0.878, sum=1.756 (2)",
+          "tab": "Accuracy",
+          "Human Aging - Observed inference time (s)": {
+            "description": "min=0.409, mean=0.409, max=0.409, sum=0.819 (2)",
+            "tab": "Efficiency",
+            "score": 0.4093097753054358
+          },
+          "Human Sexuality - Observed inference time (s)": {
+            "description": "min=0.41, mean=0.41, max=0.41, sum=0.819 (2)",
+            "tab": "Efficiency",
+            "score": 0.40955095072738995
+          },
+          "Human Aging - # eval": {
+            "description": "min=223, mean=223, max=223, sum=446 (2)",
+            "tab": "General information",
+            "score": 223.0
+          },
+          "Human Aging - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Human Aging - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Human Aging - # prompt tokens": {
+            "description": "min=312.906, mean=312.906, max=312.906, sum=625.812 (2)",
+            "tab": "General information",
+            "score": 312.90582959641256
+          },
+          "Human Aging - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          },
+          "Human Sexuality - # eval": {
+            "description": "min=131, mean=131, max=131, sum=262 (2)",
+            "tab": "General information",
+            "score": 131.0
+          },
+          "Human Sexuality - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Human Sexuality - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Human Sexuality - # prompt tokens": {
+            "description": "min=334.183, mean=334.183, max=334.183, sum=668.366 (2)",
+            "tab": "General information",
+            "score": 334.1832061068702
+          },
+          "Human Sexuality - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          }
+        }
+      },
+      "generation_config": {
+        "subject": "human_sexuality",
+        "method": "multiple_choice_joint",
+        "eval_split": "test",
+        "groups": "mmlu_human_sexuality"
+      }
+    },
+    {
+      "evaluation_name": "International Law - EM",
+      "metric_config": {
+        "evaluation_description": "The international law subject in the Massive Multitask Language Understanding (MMLU) benchmark.\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.884,
+        "details": {
+          "description": "min=0.884, mean=0.884, max=0.884, sum=1.769 (2)",
+          "tab": "Accuracy",
+          "International Law - Observed inference time (s)": {
+            "description": "min=0.435, mean=0.435, max=0.435, sum=0.871 (2)",
+            "tab": "Efficiency",
+            "score": 0.43540735284159005
+          },
+          "International Law - # eval": {
+            "description": "min=121, mean=121, max=121, sum=242 (2)",
+            "tab": "General information",
+            "score": 121.0
+          },
+          "International Law - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "International Law - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "International Law - # prompt tokens": {
+            "description": "min=632.851, mean=632.851, max=632.851, sum=1265.702 (2)",
+            "tab": "General information",
+            "score": 632.8512396694215
+          },
+          "International Law - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          }
+        }
+      },
+      "generation_config": {
+        "subject": "international_law",
+        "method": "multiple_choice_joint",
+        "eval_split": "test",
+        "groups": "mmlu_international_law"
+      }
+    },
+    {
+      "evaluation_name": "Logical Fallacies - EM",
+      "metric_config": {
+        "evaluation_description": "The logical fallacies subject in the Massive Multitask Language Understanding (MMLU) benchmark.\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.847,
+        "details": {
+          "description": "min=0.847, mean=0.847, max=0.847, sum=1.693 (2)",
+          "tab": "Accuracy",
+          "Logical Fallacies - Observed inference time (s)": {
+            "description": "min=0.418, mean=0.418, max=0.418, sum=0.836 (2)",
+            "tab": "Efficiency",
+            "score": 0.4178658789652257
+          },
+          "Logical Fallacies - # eval": {
+            "description": "min=163, mean=163, max=163, sum=326 (2)",
+            "tab": "General information",
+            "score": 163.0
+          },
+          "Logical Fallacies - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Logical Fallacies - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Logical Fallacies - # prompt tokens": {
+            "description": "min=442.595, mean=442.595, max=442.595, sum=885.19 (2)",
+            "tab": "General information",
+            "score": 442.5950920245399
+          },
+          "Logical Fallacies - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          }
+        }
+      },
+      "generation_config": {
+        "subject": "logical_fallacies",
+        "method": "multiple_choice_joint",
+        "eval_split": "test",
+        "groups": "mmlu_logical_fallacies"
+      }
+    },
+    {
+      "evaluation_name": "Machine Learning - EM",
+      "metric_config": {
+        "evaluation_description": "The machine learning subject in the Massive Multitask Language Understanding (MMLU) benchmark.\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.625,
+        "details": {
+          "description": "min=0.625, mean=0.625, max=0.625, sum=1.25 (2)",
+          "tab": "Accuracy",
+          "Machine Learning - Observed inference time (s)": {
+            "description": "min=0.442, mean=0.442, max=0.442, sum=0.884 (2)",
+            "tab": "Efficiency",
+            "score": 0.442230761051178
+          },
+          "Machine Learning - # eval": {
+            "description": "min=112, mean=112, max=112, sum=224 (2)",
+            "tab": "General information",
+            "score": 112.0
+          },
+          "Machine Learning - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Machine Learning - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Machine Learning - # prompt tokens": {
+            "description": "min=661.054, mean=661.054, max=661.054, sum=1322.107 (2)",
+            "tab": "General information",
+            "score": 661.0535714285714
+          },
+          "Machine Learning - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          }
+        }
+      },
+      "generation_config": {
+        "subject": "machine_learning",
+        "method": "multiple_choice_joint",
+        "eval_split": "test",
+        "groups": "mmlu_machine_learning"
+      }
+    },
+    {
+      "evaluation_name": "Management - EM",
+      "metric_config": {
+        "evaluation_description": "The management subject in the Massive Multitask Language Understanding (MMLU) benchmark.\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.854,
+        "details": {
+          "description": "min=0.854, mean=0.854, max=0.854, sum=1.709 (2)",
+          "tab": "Accuracy",
+          "Management - Observed inference time (s)": {
+            "description": "min=0.42, mean=0.42, max=0.42, sum=0.84 (2)",
+            "tab": "Efficiency",
+            "score": 0.42014194460748466
+          },
+          "Management - # eval": {
+            "description": "min=103, mean=103, max=103, sum=206 (2)",
+            "tab": "General information",
+            "score": 103.0
+          },
+          "Management - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Management - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Management - # prompt tokens": {
+            "description": "min=276.796, mean=276.796, max=276.796, sum=553.592 (2)",
+            "tab": "General information",
+            "score": 276.79611650485435
+          },
+          "Management - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          }
+        }
+      },
+      "generation_config": {
+        "subject": "management",
+        "method": "multiple_choice_joint",
+        "eval_split": "test",
+        "groups": "mmlu_management"
+      }
+    },
+    {
+      "evaluation_name": "Marketing - EM",
+      "metric_config": {
+        "evaluation_description": "The marketing subject in the Massive Multitask Language Understanding (MMLU) benchmark.\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.94,
+        "details": {
+          "description": "min=0.94, mean=0.94, max=0.94, sum=1.88 (2)",
+          "tab": "Accuracy",
+          "Marketing - Observed inference time (s)": {
+            "description": "min=0.425, mean=0.425, max=0.425, sum=0.85 (2)",
+            "tab": "Efficiency",
+            "score": 0.4250037354281825
+          },
+          "Marketing - # eval": {
+            "description": "min=234, mean=234, max=234, sum=468 (2)",
+            "tab": "General information",
+            "score": 234.0
+          },
+          "Marketing - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Marketing - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Marketing - # prompt tokens": {
+            "description": "min=397.218, mean=397.218, max=397.218, sum=794.436 (2)",
+            "tab": "General information",
+            "score": 397.21794871794873
+          },
+          "Marketing - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          }
+        }
+      },
+      "generation_config": {
+        "subject": "marketing",
+        "method": "multiple_choice_joint",
+        "eval_split": "test",
+        "groups": "mmlu_marketing"
+      }
+    },
+    {
+      "evaluation_name": "Medical Genetics - EM",
+      "metric_config": {
+        "evaluation_description": "The medical genetics subject in the Massive Multitask Language Understanding (MMLU) benchmark.\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.85,
+        "details": {
+          "description": "min=0.85, mean=0.85, max=0.85, sum=1.7 (2)",
+          "tab": "Accuracy",
+          "Medical Genetics - Observed inference time (s)": {
+            "description": "min=0.423, mean=0.423, max=0.423, sum=0.846 (2)",
+            "tab": "Efficiency",
+            "score": 0.4227530717849731
+          },
+          "Medical Genetics - # eval": {
+            "description": "min=100, mean=100, max=100, sum=200 (2)",
+            "tab": "General information",
+            "score": 100.0
+          },
+          "Medical Genetics - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Medical Genetics - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Medical Genetics - # prompt tokens": {
+            "description": "min=334, mean=334, max=334, sum=668 (2)",
+            "tab": "General information",
+            "score": 334.0
+          },
+          "Medical Genetics - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          }
+        }
+      },
+      "generation_config": {
+        "subject": "medical_genetics",
+        "method": "multiple_choice_joint",
+        "eval_split": "test",
+        "groups": "mmlu_medical_genetics"
+      }
+    },
+    {
+      "evaluation_name": "Miscellaneous - EM",
+      "metric_config": {
+        "evaluation_description": "The miscellaneous subject in the Massive Multitask Language Understanding (MMLU) benchmark.\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.911,
+        "details": {
+          "description": "min=0.911, mean=0.911, max=0.911, sum=1.821 (2)",
+          "tab": "Accuracy",
+          "Miscellaneous - Observed inference time (s)": {
+            "description": "min=0.367, mean=0.367, max=0.367, sum=0.734 (2)",
+            "tab": "Efficiency",
+            "score": 0.3670404892162649
+          },
+          "Miscellaneous - # eval": {
+            "description": "min=783, mean=783, max=783, sum=1566 (2)",
+            "tab": "General information",
+            "score": 783.0
+          },
+          "Miscellaneous - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Miscellaneous - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Miscellaneous - # prompt tokens": {
+            "description": "min=292.925, mean=292.925, max=292.925, sum=585.849 (2)",
+            "tab": "General information",
+            "score": 292.92464878671774
+          },
+          "Miscellaneous - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          }
+        }
+      },
+      "generation_config": {
+        "subject": "miscellaneous",
+        "method": "multiple_choice_joint",
+        "eval_split": "test",
+        "groups": "mmlu_miscellaneous"
+      }
+    },
+    {
+      "evaluation_name": "Moral Scenarios - EM",
+      "metric_config": {
+        "evaluation_description": "The moral scenarios subject in the Massive Multitask Language Understanding (MMLU) benchmark.\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.465,
+        "details": {
+          "description": "min=0.465, mean=0.465, max=0.465, sum=0.93 (2)",
+          "tab": "Accuracy",
+          "Moral Disputes - Observed inference time (s)": {
+            "description": "min=0.383, mean=0.383, max=0.383, sum=0.766 (2)",
+            "tab": "Efficiency",
+            "score": 0.3832114066691757
+          },
+          "Moral Scenarios - Observed inference time (s)": {
+            "description": "min=0.4, mean=0.4, max=0.4, sum=0.801 (2)",
+            "tab": "Efficiency",
+            "score": 0.400396443478888
+          },
+          "Moral Disputes - # eval": {
+            "description": "min=346, mean=346, max=346, sum=692 (2)",
+            "tab": "General information",
+            "score": 346.0
+          },
+          "Moral Disputes - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Moral Disputes - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Moral Disputes - # prompt tokens": {
+            "description": "min=469.145, mean=469.145, max=469.145, sum=938.289 (2)",
+            "tab": "General information",
+            "score": 469.1445086705202
+          },
+          "Moral Disputes - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          },
+          "Moral Scenarios - # eval": {
+            "description": "min=895, mean=895, max=895, sum=1790 (2)",
+            "tab": "General information",
+            "score": 895.0
+          },
+          "Moral Scenarios - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Moral Scenarios - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Moral Scenarios - # prompt tokens": {
+            "description": "min=649.455, mean=649.455, max=649.455, sum=1298.909 (2)",
+            "tab": "General information",
+            "score": 649.454748603352
+          },
+          "Moral Scenarios - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          }
+        }
+      },
+      "generation_config": {
+        "subject": "moral_scenarios",
+        "method": "multiple_choice_joint",
+        "eval_split": "test",
+        "groups": "mmlu_moral_scenarios"
+      }
+    },
+    {
+      "evaluation_name": "Nutrition - EM",
+      "metric_config": {
+        "evaluation_description": "The nutrition subject in the Massive Multitask Language Understanding (MMLU) benchmark.\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.814,
+        "details": {
+          "description": "min=0.814, mean=0.814, max=0.814, sum=1.627 (2)",
+          "tab": "Accuracy",
+          "Nutrition - Observed inference time (s)": {
+            "description": "min=0.397, mean=0.397, max=0.397, sum=0.795 (2)",
+            "tab": "Efficiency",
+            "score": 0.39725586947272806
+          },
+          "Nutrition - # eval": {
+            "description": "min=306, mean=306, max=306, sum=612 (2)",
+            "tab": "General information",
+            "score": 306.0
+          },
+          "Nutrition - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Nutrition - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Nutrition - # prompt tokens": {
+            "description": "min=579.817, mean=579.817, max=579.817, sum=1159.634 (2)",
+            "tab": "General information",
+            "score": 579.8169934640523
+          },
+          "Nutrition - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          }
+        }
+      },
+      "generation_config": {
+        "subject": "nutrition",
+        "method": "multiple_choice_joint",
+        "eval_split": "test",
+        "groups": "mmlu_nutrition"
+      }
+    },
+    {
+      "evaluation_name": "Prehistory - EM",
+      "metric_config": {
+        "evaluation_description": "The prehistory subject in the Massive Multitask Language Understanding (MMLU) benchmark.\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.84,
+        "details": {
+          "description": "min=0.84, mean=0.84, max=0.84, sum=1.679 (2)",
+          "tab": "Accuracy",
+          "Prehistory - Observed inference time (s)": {
+            "description": "min=0.381, mean=0.381, max=0.381, sum=0.763 (2)",
+            "tab": "Efficiency",
+            "score": 0.3814176806697139
+          },
+          "Prehistory - # eval": {
+            "description": "min=324, mean=324, max=324, sum=648 (2)",
+            "tab": "General information",
+            "score": 324.0
+          },
+          "Prehistory - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Prehistory - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Prehistory - # prompt tokens": {
+            "description": "min=507.559, mean=507.559, max=507.559, sum=1015.117 (2)",
+            "tab": "General information",
+            "score": 507.55864197530866
+          },
+          "Prehistory - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          }
+        }
+      },
+      "generation_config": {
+        "subject": "prehistory",
+        "method": "multiple_choice_joint",
+        "eval_split": "test",
+        "groups": "mmlu_prehistory"
+      }
+    },
+    {
+      "evaluation_name": "Public Relations - EM",
+      "metric_config": {
+        "evaluation_description": "The public relations subject in the Massive Multitask Language Understanding (MMLU) benchmark.\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.691,
+        "details": {
+          "description": "min=0.691, mean=0.691, max=0.691, sum=1.382 (2)",
+          "tab": "Accuracy",
+          "Public Relations - Observed inference time (s)": {
+            "description": "min=0.391, mean=0.391, max=0.391, sum=0.782 (2)",
+            "tab": "Efficiency",
+            "score": 0.3911652868444269
+          },
+          "Public Relations - # eval": {
+            "description": "min=110, mean=110, max=110, sum=220 (2)",
+            "tab": "General information",
+            "score": 110.0
+          },
+          "Public Relations - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Public Relations - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Public Relations - # prompt tokens": {
+            "description": "min=398.318, mean=398.318, max=398.318, sum=796.636 (2)",
+            "tab": "General information",
+            "score": 398.3181818181818
+          },
+          "Public Relations - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          }
+        }
+      },
+      "generation_config": {
+        "subject": "public_relations",
+        "method": "multiple_choice_joint",
+        "eval_split": "test",
+        "groups": "mmlu_public_relations"
+      }
+    },
+    {
+      "evaluation_name": "Security Studies - EM",
+      "metric_config": {
+        "evaluation_description": "The security studies subject in the Massive Multitask Language Understanding (MMLU) benchmark.\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.804,
+        "details": {
+          "description": "min=0.804, mean=0.804, max=0.804, sum=1.608 (2)",
+          "tab": "Accuracy",
+          "Security Studies - Observed inference time (s)": {
+            "description": "min=0.464, mean=0.464, max=0.464, sum=0.928 (2)",
+            "tab": "Efficiency",
+            "score": 0.46417581013270787
+          },
+          "Security Studies - # eval": {
+            "description": "min=245, mean=245, max=245, sum=490 (2)",
+            "tab": "General information",
+            "score": 245.0
+          },
+          "Security Studies - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Security Studies - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Security Studies - # prompt tokens": {
+            "description": "min=1157.473, mean=1157.473, max=1157.473, sum=2314.947 (2)",
+            "tab": "General information",
+            "score": 1157.4734693877551
+          },
+          "Security Studies - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          }
+        }
+      },
+      "generation_config": {
+        "subject": "security_studies",
+        "method": "multiple_choice_joint",
+        "eval_split": "test",
+        "groups": "mmlu_security_studies"
+      }
+    },
+    {
+      "evaluation_name": "Sociology - EM",
+      "metric_config": {
+        "evaluation_description": "The sociology subject in the Massive Multitask Language Understanding (MMLU) benchmark.\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.896,
+        "details": {
+          "description": "min=0.896, mean=0.896, max=0.896, sum=1.791 (2)",
+          "tab": "Accuracy",
+          "Sociology - Observed inference time (s)": {
+            "description": "min=0.401, mean=0.401, max=0.401, sum=0.801 (2)",
+            "tab": "Efficiency",
+            "score": 0.4007088568673205
+          },
+          "Sociology - # eval": {
+            "description": "min=201, mean=201, max=201, sum=402 (2)",
+            "tab": "General information",
+            "score": 201.0
+          },
+          "Sociology - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Sociology - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Sociology - # prompt tokens": {
+            "description": "min=438.522, mean=438.522, max=438.522, sum=877.045 (2)",
+            "tab": "General information",
+            "score": 438.5223880597015
+          },
+          "Sociology - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          }
+        }
+      },
+      "generation_config": {
+        "subject": "sociology",
+        "method": "multiple_choice_joint",
+        "eval_split": "test",
+        "groups": "mmlu_sociology"
+      }
+    },
+    {
+      "evaluation_name": "Virology - EM",
+      "metric_config": {
+        "evaluation_description": "The virology subject in the Massive Multitask Language Understanding (MMLU) benchmark.\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.566,
+        "details": {
+          "description": "min=0.566, mean=0.566, max=0.566, sum=1.133 (2)",
+          "tab": "Accuracy",
+          "Virology - Observed inference time (s)": {
+            "description": "min=0.386, mean=0.386, max=0.386, sum=0.771 (2)",
+            "tab": "Efficiency",
+            "score": 0.38554139022367545
+          },
+          "Virology - # eval": {
+            "description": "min=166, mean=166, max=166, sum=332 (2)",
+            "tab": "General information",
+            "score": 166.0
+          },
+          "Virology - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Virology - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Virology - # prompt tokens": {
+            "description": "min=336.09, mean=336.09, max=336.09, sum=672.181 (2)",
+            "tab": "General information",
+            "score": 336.0903614457831
+          },
+          "Virology - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          }
+        }
+      },
+      "generation_config": {
+        "subject": "virology",
+        "method": "multiple_choice_joint",
+        "eval_split": "test",
+        "groups": "mmlu_virology"
+      }
+    },
+    {
+      "evaluation_name": "World Religions - EM",
+      "metric_config": {
+        "evaluation_description": "The world religions subject in the Massive Multitask Language Understanding (MMLU) benchmark.\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.871,
+        "details": {
+          "description": "min=0.871, mean=0.871, max=0.871, sum=1.743 (2)",
+          "tab": "Accuracy",
+          "World Religions - Observed inference time (s)": {
+            "description": "min=0.382, mean=0.382, max=0.382, sum=0.765 (2)",
+            "tab": "Efficiency",
+            "score": 0.3823263380262587
+          },
+          "World Religions - # eval": {
+            "description": "min=171, mean=171, max=171, sum=342 (2)",
+            "tab": "General information",
+            "score": 171.0
+          },
+          "World Religions - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "World Religions - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "World Religions - # prompt tokens": {
+            "description": "min=268.561, mean=268.561, max=268.561, sum=537.123 (2)",
+            "tab": "General information",
+            "score": 268.56140350877195
+          },
+          "World Religions - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=2 (2)",
+            "tab": "General information",
+            "score": 1.0
+          }
+        }
+      },
+      "generation_config": {
+        "subject": "world_religions",
+        "method": "multiple_choice_joint",
+        "eval_split": "test",
+        "groups": "mmlu_world_religions"
+      }
+    },
+    {
+      "evaluation_name": "Mean win rate",
+      "metric_config": {
+        "evaluation_description": "How many models this model outperforms on average (over columns).",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.537,
+        "details": {
+          "description": null,
+          "tab": "Efficiency"
+        }
+      },
+      "generation_config": {}
+    }
+  ]
+}

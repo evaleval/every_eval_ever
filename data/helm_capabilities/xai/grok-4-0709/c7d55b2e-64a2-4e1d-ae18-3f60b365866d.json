@@ -1,0 +1,295 @@
+{
+  "schema_version": "0.1.0",
+  "evaluation_id": "helm_capabilities/xai_grok-4-0709/1767657480.2939079",
+  "retrieved_timestamp": "1767657480.2939079",
+  "source_data": [
+    "https://storage.googleapis.com/crfm-helm-public/capabilities/benchmark_output/releases/v1.12.0/groups/core_scenarios.json"
+  ],
+  "source_metadata": {
+    "source_name": "helm_capabilities",
+    "source_type": "documentation",
+    "source_organization_name": "crfm",
+    "evaluator_relationship": "third_party"
+  },
+  "model_info": {
+    "name": "Grok 4 (0709)",
+    "id": "xai/grok-4-0709",
+    "developer": "xai",
+    "inference_platform": "unknown"
+  },
+  "evaluation_results": [
+    {
+      "evaluation_name": "Mean score",
+      "metric_config": {
+        "evaluation_description": "The mean of the scores from all columns.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.785,
+        "details": {
+          "description": null,
+          "tab": "Accuracy",
+          "Mean score - Efficiency": {
+            "description": null,
+            "tab": "Efficiency",
+            "score": 128.04182146459848
+          }
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "MMLU-Pro - COT correct",
+      "metric_config": {
+        "evaluation_description": "MMLU-Pro\n\nCOT correct: Fraction of correct answers after chain of thought",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.851,
+        "details": {
+          "description": "min=0.851, mean=0.851, max=0.851, sum=0.851 (1)",
+          "tab": "Accuracy",
+          "MMLU-Pro - Observed inference time (s)": {
+            "description": "min=93.583, mean=93.583, max=93.583, sum=93.583 (1)",
+            "tab": "Efficiency",
+            "score": 93.58286614966393
+          },
+          "MMLU-Pro - # eval": {
+            "description": "min=1000, mean=1000, max=1000, sum=1000 (1)",
+            "tab": "General information",
+            "score": 1000.0
+          },
+          "MMLU-Pro - # train": {
+            "description": "min=0, mean=0, max=0, sum=0 (1)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "MMLU-Pro - truncated": {
+            "description": "min=0.013, mean=0.013, max=0.013, sum=0.013 (1)",
+            "tab": "General information",
+            "score": 0.013
+          },
+          "MMLU-Pro - # prompt tokens": {
+            "description": "min=244.237, mean=244.237, max=244.237, sum=244.237 (1)",
+            "tab": "General information",
+            "score": 244.237
+          },
+          "MMLU-Pro - # output tokens": {
+            "description": "min=4.789, mean=4.789, max=4.789, sum=4.789 (1)",
+            "tab": "General information",
+            "score": 4.789
+          }
+        }
+      },
+      "generation_config": {
+        "subset": "all",
+        "use_chain_of_thought": "true",
+        "use_few_shot": "false"
+      }
+    },
+    {
+      "evaluation_name": "GPQA - COT correct",
+      "metric_config": {
+        "evaluation_description": "GPQA\n\nCOT correct: Fraction of correct answers after chain of thought",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.726,
+        "details": {
+          "description": "min=0.726, mean=0.726, max=0.726, sum=0.726 (1)",
+          "tab": "Accuracy",
+          "GPQA - Observed inference time (s)": {
+            "description": "min=223.967, mean=223.967, max=223.967, sum=223.967 (1)",
+            "tab": "Efficiency",
+            "score": 223.96746500778625
+          },
+          "GPQA - # eval": {
+            "description": "min=446, mean=446, max=446, sum=446 (1)",
+            "tab": "General information",
+            "score": 446.0
+          },
+          "GPQA - # train": {
+            "description": "min=0, mean=0, max=0, sum=0 (1)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "GPQA - truncated": {
+            "description": "min=0.02, mean=0.02, max=0.02, sum=0.02 (1)",
+            "tab": "General information",
+            "score": 0.020179372197309416
+          },
+          "GPQA - # prompt tokens": {
+            "description": "min=254.007, mean=254.007, max=254.007, sum=254.007 (1)",
+            "tab": "General information",
+            "score": 254.0067264573991
+          },
+          "GPQA - # output tokens": {
+            "description": "min=5.841, mean=5.841, max=5.841, sum=5.841 (1)",
+            "tab": "General information",
+            "score": 5.8408071748878925
+          }
+        }
+      },
+      "generation_config": {
+        "subset": "gpqa_main",
+        "use_chain_of_thought": "true",
+        "use_few_shot": "false"
+      }
+    },
+    {
+      "evaluation_name": "IFEval - IFEval Strict Acc",
+      "metric_config": {
+        "evaluation_description": "IFEval\n\nIFEval strict accuracy: Fraction of instructions in the instance that are correctly followed.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.949,
+        "details": {
+          "description": "min=0.949, mean=0.949, max=0.949, sum=0.949 (1)",
+          "tab": "Accuracy",
+          "IFEval - Observed inference time (s)": {
+            "description": "min=31.966, mean=31.966, max=31.966, sum=31.966 (1)",
+            "tab": "Efficiency",
+            "score": 31.966069252786266
+          },
+          "IFEval - # eval": {
+            "description": "min=541, mean=541, max=541, sum=541 (1)",
+            "tab": "General information",
+            "score": 541.0
+          },
+          "IFEval - # train": {
+            "description": "min=0, mean=0, max=0, sum=0 (1)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "IFEval - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (1)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "IFEval - # prompt tokens": {
+            "description": "min=45.192, mean=45.192, max=45.192, sum=45.192 (1)",
+            "tab": "General information",
+            "score": 45.19223659889094
+          },
+          "IFEval - # output tokens": {
+            "description": "min=376.298, mean=376.298, max=376.298, sum=376.298 (1)",
+            "tab": "General information",
+            "score": 376.29759704251387
+          }
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "WildBench - WB Score",
+      "metric_config": {
+        "evaluation_description": "WildBench\n\nWildBench Score: Score of the AI output judged by GPT-4o, rescaled to be between 0 and 1.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.797,
+        "details": {
+          "description": "min=0.797, mean=0.797, max=0.797, sum=0.797 (1)",
+          "tab": "Accuracy",
+          "WildBench - Observed inference time (s)": {
+            "description": "min=115.441, mean=115.441, max=115.441, sum=115.441 (1)",
+            "tab": "Efficiency",
+            "score": 115.44128810715675
+          },
+          "WildBench - # eval": {
+            "description": "min=1000, mean=1000, max=1000, sum=1000 (1)",
+            "tab": "General information",
+            "score": 1000.0
+          },
+          "WildBench - # train": {
+            "description": "min=0, mean=0, max=0, sum=0 (1)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "WildBench - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (1)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "WildBench - # prompt tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (1)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "WildBench - # output tokens": {
+            "description": "min=1553.96, mean=1553.96, max=1553.96, sum=1553.96 (1)",
+            "tab": "General information",
+            "score": 1553.96
+          }
+        }
+      },
+      "generation_config": {
+        "subset": "v2"
+      }
+    },
+    {
+      "evaluation_name": "Omni-MATH - Acc",
+      "metric_config": {
+        "evaluation_description": "Omni-MATH\n\nOmni-MATH Accuracy: Accuracy of the AI output judged by GPT-4.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.603,
+        "details": {
+          "description": "min=0.603, mean=0.603, max=0.603, sum=0.603 (1)",
+          "tab": "Accuracy",
+          "Omni-MATH - Observed inference time (s)": {
+            "description": "min=175.251, mean=175.251, max=175.251, sum=175.251 (1)",
+            "tab": "Efficiency",
+            "score": 175.2514188055992
+          },
+          "Omni-MATH - # eval": {
+            "description": "min=1000, mean=1000, max=1000, sum=1000 (1)",
+            "tab": "General information",
+            "score": 1000.0
+          },
+          "Omni-MATH - # train": {
+            "description": "min=0, mean=0, max=0, sum=0 (1)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Omni-MATH - truncated": {
+            "description": "min=0.001, mean=0.001, max=0.001, sum=0.001 (1)",
+            "tab": "General information",
+            "score": 0.001
+          },
+          "Omni-MATH - # prompt tokens": {
+            "description": "min=104.089, mean=104.089, max=104.089, sum=104.089 (1)",
+            "tab": "General information",
+            "score": 104.089
+          },
+          "Omni-MATH - # output tokens": {
+            "description": "min=104.419, mean=104.419, max=104.419, sum=104.419 (1)",
+            "tab": "General information",
+            "score": 104.419
+          }
+        }
+      },
+      "generation_config": {}
+    }
+  ]
+}
