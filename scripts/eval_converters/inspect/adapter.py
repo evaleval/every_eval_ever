@@ -219,7 +219,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
                 )
             )
 
-        evaluation_id = f'{eval_spec.dataset.name}/{model_path.replace('/', '_')}/{retrieved_unix_timestamp}'
+        evaluation_id = f'{source_data.dataset_name}/{model_path.replace('/', '_')}/{retrieved_unix_timestamp}'
 
         return EvaluationLog(
             schema_version=SCHEMA_VERSION,
