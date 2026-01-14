@@ -129,7 +129,11 @@ class BaseEvaluationAdapter(ABC):
             raise AdapterError(f"Failed to load file {file_path}: {str(e)}")
         
     @abstractmethod
-    def transform_from_directory(self, dir_path: Union[str, Path]) -> Union[EvaluationLog, List[EvaluationLog]]:
+    def transform_from_directory(
+        self, 
+        dir_path: Union[str, Path],
+        metadata_args: Dict[str, Any] = None    
+    ) -> Union[EvaluationLog, List[EvaluationLog]]:
         """
         Load and transform evaluation data from all files in a directory.
         
