@@ -8,12 +8,19 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
-    "jsonschema>=4.25.1",
+    "crfm-helm>=0.5.11",
+    "huggingface-hub>=0.36.0",
+    "inspect-ai>=0.3.160",
+    "jsonschema>=4.26.0",
     "pydantic>=2.12.5",
+    "pytest>=9.0.2",
     "requests>=2.32.5",
 ]
 
 [dependency-groups]
 dev = [
+    "datamodel-code-generator>=0.43.1",
     "pre-commit>=4.3.0",
+    "pytest>=8.4.1",
+    "ruff>=0.12.2",
 ]
