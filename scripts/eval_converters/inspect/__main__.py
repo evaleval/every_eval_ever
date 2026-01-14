@@ -4,7 +4,7 @@ import json
 import uuid
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from scripts.eval_converters.inspect.adapter import InspectAIAdapter
 from eval_types import (
@@ -39,14 +39,29 @@ class InspectEvalLogConverter:
         InspectAI generates log file for an evaluation.
         '''
         self.log_path = Path(log_path)
+        self.is_log_path_directory = self.log_path.is_dir()
         
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
     def convert_to_unified_schema(self, metadata_args: Dict[str, Any] = None) -> EvaluationLog:
-        return InspectAIAdapter().transform_from_file(self.log_path, metadata_args=metadata_args)
+        if self.is_log_path_directory:
+            return InspectAIAdapter().transform_from_directory(
+                self.log_path, 
+                metadata_args=metadata_args
+            )
+        else:
+            return InspectAIAdapter().transform_from_file(
+                self.log_path, 
+                metadata_args=metadata_args
+            )
 
-    def save_to_file(self, unified_eval_log: EvaluationLog, output_filedir: str, output_filepath: str) -> bool:
+    def save_to_file(
+        self, 
+        unified_eval_log: EvaluationLog, 
+        output_filedir: str, 
+        output_filepath: str
+    ) -> bool:
         try:
             json_str = unified_eval_log.model_dump_json(indent=2, exclude_none=True)
 
@@ -60,6 +75,20 @@ class InspectEvalLogConverter:
         except Exception as e:
             print(f"Problem with saving unified eval log to file: {e}")
             raise e
+
+def save_evaluation_log(
+    unified_output: EvaluationLog, 
+    inspect_converter: InspectEvalLogConverter
+) -> bool:
+    try:
+        model_developer, model_name = unified_output.model_info.id.split('/')
+        filedir = f'{unified_output.source_data.dataset_name}/{model_developer}/{model_name}'
+        filename = f'{str(uuid.uuid4())}.json'
+        inspect_converter.save_to_file(unified_output, filedir, filename)
+        return True
+    except Exception as e:
+        print(f'Failed to save eval log {unified_output.evaluation_id} to file.\n{str(e)}')
+        return False
 
 
 if __name__ == '__main__':
@@ -77,11 +106,12 @@ if __name__ == '__main__':
         'evaluator_relationship': EvaluatorRelationship(args.evaluator_relationship)
     }
 
-    unified_output: EvaluationLog = inspect_converter.convert_to_unified_schema(metadata_args)
+    unified_output: EvaluationLog | List[EvaluationLog] = inspect_converter.convert_to_unified_schema(metadata_args)
     if unified_output:
-        model_developer, model_name = unified_output.model_info.id.split('/')
-        filedir = f'{unified_output.source_data.dataset_name}/{model_developer}/{model_name}'
-        filename = f'{str(uuid.uuid4())}.json'
-        inspect_converter.save_to_file(unified_output, filedir, filename)
+        if isinstance(unified_output, List):
+            for single_unified_output in unified_output:
+                save_evaluation_log(single_unified_output, inspect_converter)
+        else:
+            save_evaluation_log(unified_output, inspect_converter)
     else:
         print("Missing unified schema result!")
