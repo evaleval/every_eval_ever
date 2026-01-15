@@ -292,15 +292,10 @@ if __name__ == "__main__":
     }
 
     # Process single model
-    data_path = "/Users/random/every_eval_ever/data/formatted"
+    data_path = "formatted.json"
     all_models = []
     with open(data_path, "r") as f:
         all_models = json.load(f)
 
     process_models(all_models)
-    # process_models([example_model])
-
-    # Or load from a JSON file containing a list of models:
-    # with open('models_data.json', 'r') as f:
-    #     models_list = json.load(f)
-    # process_models(models_list)
+    
