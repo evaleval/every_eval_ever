@@ -1,0 +1,1482 @@
+{
+  "schema_version": "0.1.0",
+  "evaluation_id": "helm_classic/openai_curie-6.7B/1768090731.5328572",
+  "retrieved_timestamp": "1768090731.5328572",
+  "source_data": [
+    "https://storage.googleapis.com/crfm-helm-public/benchmark_output/releases/v0.4.0/groups/core_scenarios.json"
+  ],
+  "source_metadata": {
+    "source_name": "helm_classic",
+    "source_type": "documentation",
+    "source_organization_name": "crfm",
+    "evaluator_relationship": "third_party"
+  },
+  "model_info": {
+    "name": "curie 6.7B",
+    "id": "openai/curie-6.7B",
+    "developer": "openai",
+    "inference_platform": "unknown"
+  },
+  "evaluation_results": [
+    {
+      "evaluation_name": "Mean win rate",
+      "metric_config": {
+        "evaluation_description": "How many models this model outperform on average (over columns).",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.247,
+        "details": {
+          "description": null,
+          "tab": "Accuracy",
+          "Mean win rate - Calibration": {
+            "description": null,
+            "tab": "Calibration",
+            "score": 0.6031752149929763
+          },
+          "Mean win rate - Robustness": {
+            "description": null,
+            "tab": "Robustness",
+            "score": 0.23139443056017028
+          },
+          "Mean win rate - Fairness": {
+            "description": null,
+            "tab": "Fairness",
+            "score": 0.23055057660174458
+          },
+          "Mean win rate - Efficiency": {
+            "description": null,
+            "tab": "Efficiency",
+            "score": 0.8951315789473684
+          },
+          "Mean win rate - General information": {
+            "description": null,
+            "tab": "General information",
+            "score": null
+          },
+          "Mean win rate - Bias": {
+            "description": null,
+            "tab": "Bias",
+            "score": 0.36598228279277495
+          },
+          "Mean win rate - Toxicity": {
+            "description": null,
+            "tab": "Toxicity",
+            "score": 0.4175808759142092
+          },
+          "Mean win rate - Summarization metrics": {
+            "description": null,
+            "tab": "Summarization metrics",
+            "score": 0.32471804511278196
+          }
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "MMLU - EM",
+      "metric_config": {
+        "evaluation_description": "The Massive Multitask Language Understanding (MMLU) benchmark for knowledge-intensive question answering across 57 domains [(Hendrycks et al., 2021)](https://openreview.net/forum?id=d7KBjmI3GmQ).\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.243,
+        "details": {
+          "description": "min=0.19, mean=0.243, max=0.29, sum=3.642 (15)",
+          "tab": "Accuracy",
+          "MMLU - ECE (10-bin)": {
+            "description": "min=0.069, mean=0.138, max=0.238, sum=2.071 (15)",
+            "tab": "Calibration",
+            "score": 0.1380385889615569
+          },
+          "MMLU - EM (Robustness)": {
+            "description": "min=0.1, mean=0.19, max=0.263, sum=2.854 (15)",
+            "tab": "Robustness",
+            "score": 0.1902923976608187
+          },
+          "MMLU - EM (Fairness)": {
+            "description": "min=0.15, mean=0.218, max=0.281, sum=3.266 (15)",
+            "tab": "Fairness",
+            "score": 0.21771929824561406
+          },
+          "MMLU - Denoised inference time (s)": {
+            "description": "min=0.091, mean=0.092, max=0.095, sum=1.387 (15)",
+            "tab": "Efficiency",
+            "score": 0.09245237979714913
+          },
+          "MMLU - # eval": {
+            "description": "min=100, mean=102.8, max=114, sum=1542 (15)",
+            "tab": "General information",
+            "score": 102.8
+          },
+          "MMLU - # train": {
+            "description": "min=5, mean=5, max=5, sum=75 (15)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "MMLU - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (15)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "MMLU - # prompt tokens": {
+            "description": "min=371.38, mean=472.274, max=624.07, sum=7084.111 (15)",
+            "tab": "General information",
+            "score": 472.2740350877193
+          },
+          "MMLU - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=15 (15)",
+            "tab": "General information",
+            "score": 1.0
+          },
+          "MMLU - # trials": {
+            "description": "min=3, mean=3, max=3, sum=45 (15)",
+            "tab": "General information",
+            "score": 3.0
+          }
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "BoolQ - EM",
+      "metric_config": {
+        "evaluation_description": "The BoolQ benchmark for binary (yes/no) question answering [(Clark et al., 2019)](https://aclanthology.org/N19-1300/).\n\nQuasi-exact match: Fraction of instances that the predicted output matches a correct reference up to light processing.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.656,
+        "details": {
+          "description": "min=0.597, mean=0.656, max=0.704, sum=1.969 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+          "tab": "Accuracy",
+          "BoolQ - ECE (10-bin)": {
+            "description": "min=0.051, mean=0.079, max=0.115, sum=0.236 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Calibration",
+            "score": 0.07881150352718548
+          },
+          "BoolQ - EM (Robustness)": {
+            "description": "min=0.484, mean=0.545, max=0.599, sum=1.635 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Robustness",
+            "score": 0.545
+          },
+          "BoolQ - EM (Fairness)": {
+            "description": "min=0.535, mean=0.594, max=0.631, sum=1.782 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Fairness",
+            "score": 0.594
+          },
+          "BoolQ - Denoised inference time (s)": {
+            "description": "min=0.096, mean=0.1, max=0.104, sum=0.3 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Efficiency",
+            "score": 0.09988102712673615
+          },
+          "BoolQ - # eval": {
+            "description": "min=1000, mean=1000, max=1000, sum=3000 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "General information",
+            "score": 1000.0
+          },
+          "BoolQ - # train": {
+            "description": "min=5, mean=5, max=5, sum=15 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "BoolQ - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "BoolQ - # prompt tokens": {
+            "description": "min=660.073, mean=908.406, max=1242.073, sum=2725.219 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "General information",
+            "score": 908.4063333333334
+          },
+          "BoolQ - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=3 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "General information",
+            "score": 1.0
+          },
+          "BoolQ - # trials": {
+            "description": "min=3, mean=3, max=3, sum=9 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "General information",
+            "score": 3.0
+          },
+          "BoolQ - Stereotypes (race)": {
+            "description": "(0)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Bias",
+            "score": null
+          },
+          "BoolQ - Stereotypes (gender)": {
+            "description": "(0)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Bias",
+            "score": null
+          },
+          "BoolQ - Representation (race)": {
+            "description": "(0)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Bias",
+            "score": null
+          },
+          "BoolQ - Representation (gender)": {
+            "description": "(0)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Bias",
+            "score": null
+          },
+          "BoolQ - Toxic fraction": {
+            "description": "min=0, mean=0, max=0, sum=0 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Toxicity",
+            "score": 0.0
+          }
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "NarrativeQA - F1",
+      "metric_config": {
+        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Kočiský et al., 2017)](https://aclanthology.org/Q18-1023/).\n\nF1: Average F1 score in terms of word overlap between the model output and correct reference.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.604,
+        "details": {
+          "description": "min=0.588, mean=0.604, max=0.632, sum=1.813 (3)",
+          "tab": "Accuracy",
+          "NarrativeQA - ECE (10-bin)": {
+            "description": "min=0.031, mean=0.045, max=0.056, sum=0.135 (3)",
+            "tab": "Calibration",
+            "score": 0.044936394093581626
+          },
+          "NarrativeQA - F1 (Robustness)": {
+            "description": "min=0.352, mean=0.367, max=0.39, sum=1.1 (3)",
+            "tab": "Robustness",
+            "score": 0.36665112128820915
+          },
+          "NarrativeQA - F1 (Fairness)": {
+            "description": "min=0.453, mean=0.482, max=0.515, sum=1.445 (3)",
+            "tab": "Fairness",
+            "score": 0.48150959406800437
+          },
+          "NarrativeQA - Denoised inference time (s)": {
+            "description": "min=0.14, mean=0.152, max=0.166, sum=0.455 (3)",
+            "tab": "Efficiency",
+            "score": 0.15159477332746474
+          },
+          "NarrativeQA - # eval": {
+            "description": "min=355, mean=355, max=355, sum=1065 (3)",
+            "tab": "General information",
+            "score": 355.0
+          },
+          "NarrativeQA - # train": {
+            "description": "min=1.051, mean=1.647, max=2.085, sum=4.941 (3)",
+            "tab": "General information",
+            "score": 1.6469483568075116
+          },
+          "NarrativeQA - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (3)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "NarrativeQA - # prompt tokens": {
+            "description": "min=1601.955, mean=1652.377, max=1705.003, sum=4957.132 (3)",
+            "tab": "General information",
+            "score": 1652.3774647887324
+          },
+          "NarrativeQA - # output tokens": {
+            "description": "min=4.775, mean=6.607, max=8.732, sum=19.82 (3)",
+            "tab": "General information",
+            "score": 6.606572769953051
+          },
+          "NarrativeQA - # trials": {
+            "description": "min=3, mean=3, max=3, sum=9 (3)",
+            "tab": "General information",
+            "score": 3.0
+          },
+          "NarrativeQA - Stereotypes (race)": {
+            "description": "(0)",
+            "tab": "Bias",
+            "score": null
+          },
+          "NarrativeQA - Stereotypes (gender)": {
+            "description": "min=0.431, mean=0.455, max=0.5, sum=1.364 (3)",
+            "tab": "Bias",
+            "score": 0.45462962962962966
+          },
+          "NarrativeQA - Representation (race)": {
+            "description": "min=0.667, mean=0.667, max=0.667, sum=1.333 (2)",
+            "tab": "Bias",
+            "score": 0.6666666666666667
+          },
+          "NarrativeQA - Representation (gender)": {
+            "description": "min=0.209, mean=0.229, max=0.267, sum=0.688 (3)",
+            "tab": "Bias",
+            "score": 0.2292955082742317
+          },
+          "NarrativeQA - Toxic fraction": {
+            "description": "min=0.017, mean=0.017, max=0.017, sum=0.051 (3)",
+            "tab": "Toxicity",
+            "score": 0.016901408450704224
+          }
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "NaturalQuestions (open-book) - F1",
+      "metric_config": {
+        "evaluation_description": "The NaturalQuestions [(Kwiatkowski et al., 2019)](https://aclanthology.org/Q19-1026/) benchmark for question answering based on naturally-occurring queries through Google Search. The input includes the Wikipedia page with the answer.\n\nF1: Average F1 score in terms of word overlap between the model output and correct reference.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.552,
+        "details": {
+          "description": "min=0.521, mean=0.552, max=0.568, sum=1.655 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+          "tab": "Accuracy",
+          "NaturalQuestions (closed-book) - ECE (10-bin)": {
+            "description": "min=0.014, mean=0.017, max=0.022, sum=0.052 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Calibration",
+            "score": 0.01724854000741595
+          },
+          "NaturalQuestions (open-book) - ECE (10-bin)": {
+            "description": "min=0.123, mean=0.134, max=0.149, sum=0.403 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Calibration",
+            "score": 0.13427394452181574
+          },
+          "NaturalQuestions (closed-book) - F1 (Robustness)": {
+            "description": "min=0.118, mean=0.126, max=0.133, sum=0.379 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Robustness",
+            "score": 0.1262678947150161
+          },
+          "NaturalQuestions (open-book) - F1 (Robustness)": {
+            "description": "min=0.28, mean=0.338, max=0.381, sum=1.015 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Robustness",
+            "score": 0.33838638278361
+          },
+          "NaturalQuestions (closed-book) - F1 (Fairness)": {
+            "description": "min=0.139, mean=0.147, max=0.151, sum=0.44 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Fairness",
+            "score": 0.14670404179376148
+          },
+          "NaturalQuestions (open-book) - F1 (Fairness)": {
+            "description": "min=0.446, mean=0.479, max=0.506, sum=1.436 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Fairness",
+            "score": 0.47851717891712475
+          },
+          "NaturalQuestions (closed-book) - Denoised inference time (s)": {
+            "description": "min=0.116, mean=0.122, max=0.128, sum=0.367 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Efficiency",
+            "score": 0.12234622395833335
+          },
+          "NaturalQuestions (open-book) - Denoised inference time (s)": {
+            "description": "min=0.166, mean=0.189, max=0.21, sum=0.566 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Efficiency",
+            "score": 0.18882224978298598
+          },
+          "NaturalQuestions (closed-book) - # eval": {
+            "description": "min=1000, mean=1000, max=1000, sum=3000 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "General information",
+            "score": 1000.0
+          },
+          "NaturalQuestions (closed-book) - # train": {
+            "description": "min=5, mean=5, max=5, sum=15 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "NaturalQuestions (closed-book) - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "NaturalQuestions (closed-book) - # prompt tokens": {
+            "description": "min=110.254, mean=112.254, max=116.254, sum=336.762 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "General information",
+            "score": 112.254
+          },
+          "NaturalQuestions (closed-book) - # output tokens": {
+            "description": "min=5.376, mean=6.313, max=7.104, sum=18.94 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "General information",
+            "score": 6.3133333333333335
+          },
+          "NaturalQuestions (closed-book) - # trials": {
+            "description": "min=3, mean=3, max=3, sum=9 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "General information",
+            "score": 3.0
+          },
+          "NaturalQuestions (open-book) - # eval": {
+            "description": "min=1000, mean=1000, max=1000, sum=3000 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "General information",
+            "score": 1000.0
+          },
+          "NaturalQuestions (open-book) - # train": {
+            "description": "min=4.647, mean=4.691, max=4.724, sum=14.074 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "General information",
+            "score": 4.691333333333334
+          },
+          "NaturalQuestions (open-book) - truncated": {
+            "description": "min=0.036, mean=0.036, max=0.036, sum=0.108 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "General information",
+            "score": 0.036
+          },
+          "NaturalQuestions (open-book) - # prompt tokens": {
+            "description": "min=1231.212, mean=1419.574, max=1523.257, sum=4258.721 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "General information",
+            "score": 1419.5736666666664
+          },
+          "NaturalQuestions (open-book) - # output tokens": {
+            "description": "min=9.89, mean=12.581, max=15.337, sum=37.742 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "General information",
+            "score": 12.580666666666668
+          },
+          "NaturalQuestions (open-book) - # trials": {
+            "description": "min=3, mean=3, max=3, sum=9 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "General information",
+            "score": 3.0
+          },
+          "NaturalQuestions (closed-book) - Stereotypes (race)": {
+            "description": "(0)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Bias",
+            "score": null
+          },
+          "NaturalQuestions (closed-book) - Stereotypes (gender)": {
+            "description": "min=0.5, mean=0.5, max=0.5, sum=1 (2)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Bias",
+            "score": 0.5
+          },
+          "NaturalQuestions (closed-book) - Representation (race)": {
+            "description": "min=0.291, mean=0.415, max=0.509, sum=1.245 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Bias",
+            "score": 0.4150858887700994
+          },
+          "NaturalQuestions (closed-book) - Representation (gender)": {
+            "description": "min=0.119, mean=0.203, max=0.25, sum=0.608 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Bias",
+            "score": 0.20272601794340928
+          },
+          "NaturalQuestions (open-book) - Stereotypes (race)": {
+            "description": "min=0.667, mean=0.667, max=0.667, sum=0.667 (1)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Bias",
+            "score": 0.6666666666666667
+          },
+          "NaturalQuestions (open-book) - Stereotypes (gender)": {
+            "description": "min=0.407, mean=0.469, max=0.5, sum=1.407 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Bias",
+            "score": 0.469047619047619
+          },
+          "NaturalQuestions (open-book) - Representation (race)": {
+            "description": "min=0.441, mean=0.453, max=0.467, sum=1.359 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Bias",
+            "score": 0.4528357579590976
+          },
+          "NaturalQuestions (open-book) - Representation (gender)": {
+            "description": "min=0.361, mean=0.379, max=0.397, sum=1.136 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Bias",
+            "score": 0.3786428074398272
+          },
+          "NaturalQuestions (closed-book) - Toxic fraction": {
+            "description": "min=0, mean=0, max=0, sum=0 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Toxicity",
+            "score": 0.0
+          },
+          "NaturalQuestions (open-book) - Toxic fraction": {
+            "description": "min=0.001, mean=0.002, max=0.003, sum=0.005 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Toxicity",
+            "score": 0.0016666666666666668
+          }
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "QuAC - F1",
+      "metric_config": {
+        "evaluation_description": "The QuAC benchmark for question answering in the context of dialogues [(Choi et al., 2018)](https://aclanthology.org/D18-1241/).\n\nF1: Average F1 score in terms of word overlap between the model output and correct reference.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.321,
+        "details": {
+          "description": "min=0.312, mean=0.321, max=0.335, sum=0.963 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+          "tab": "Accuracy",
+          "QuAC - ECE (10-bin)": {
+            "description": "min=0.033, mean=0.043, max=0.055, sum=0.129 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Calibration",
+            "score": 0.04303687950629059
+          },
+          "QuAC - F1 (Robustness)": {
+            "description": "min=0.164, mean=0.171, max=0.178, sum=0.513 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Robustness",
+            "score": 0.1711623480279509
+          },
+          "QuAC - F1 (Fairness)": {
+            "description": "min=0.241, mean=0.243, max=0.245, sum=0.728 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Fairness",
+            "score": 0.24255939370982219
+          },
+          "QuAC - Denoised inference time (s)": {
+            "description": "min=0.31, mean=0.323, max=0.34, sum=0.968 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Efficiency",
+            "score": 0.32252038281250045
+          },
+          "QuAC - # eval": {
+            "description": "min=1000, mean=1000, max=1000, sum=3000 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "General information",
+            "score": 1000.0
+          },
+          "QuAC - # train": {
+            "description": "min=0.845, mean=0.944, max=1.086, sum=2.833 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "General information",
+            "score": 0.9443333333333334
+          },
+          "QuAC - truncated": {
+            "description": "min=0.016, mean=0.016, max=0.016, sum=0.048 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "General information",
+            "score": 0.016
+          },
+          "QuAC - # prompt tokens": {
+            "description": "min=1625.523, mean=1644.831, max=1670.605, sum=4934.492 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "General information",
+            "score": 1644.8306666666667
+          },
+          "QuAC - # output tokens": {
+            "description": "min=29.104, mean=31.034, max=33.548, sum=93.102 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "General information",
+            "score": 31.034000000000002
+          },
+          "QuAC - # trials": {
+            "description": "min=3, mean=3, max=3, sum=9 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "General information",
+            "score": 3.0
+          },
+          "QuAC - Stereotypes (race)": {
+            "description": "min=0.633, mean=0.645, max=0.667, sum=1.936 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Bias",
+            "score": 0.6454545454545455
+          },
+          "QuAC - Stereotypes (gender)": {
+            "description": "min=0.426, mean=0.439, max=0.452, sum=1.317 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Bias",
+            "score": 0.4390862600512319
+          },
+          "QuAC - Representation (race)": {
+            "description": "min=0.2, mean=0.246, max=0.271, sum=0.738 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Bias",
+            "score": 0.24599483204134365
+          },
+          "QuAC - Representation (gender)": {
+            "description": "min=0.226, mean=0.231, max=0.234, sum=0.693 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Bias",
+            "score": 0.23109052551695608
+          },
+          "QuAC - Toxic fraction": {
+            "description": "min=0.002, mean=0.003, max=0.003, sum=0.008 (3)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Toxicity",
+            "score": 0.0026666666666666666
+          }
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "HellaSwag - EM",
+      "metric_config": {
+        "evaluation_description": "The HellaSwag benchmark for commonsense reasoning in question answering [(Zellers et al., 2019)](https://aclanthology.org/P19-1472/).\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.682,
+        "details": {
+          "description": "min=0.682, mean=0.682, max=0.682, sum=0.682 (1)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+          "tab": "Accuracy",
+          "HellaSwag - ECE (10-bin)": {
+            "description": "min=0.25, mean=0.25, max=0.25, sum=0.25 (1)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Calibration",
+            "score": 0.24965148877506194
+          },
+          "HellaSwag - EM (Robustness)": {
+            "description": "min=0.632, mean=0.632, max=0.632, sum=0.632 (1)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Robustness",
+            "score": 0.632
+          },
+          "HellaSwag - EM (Fairness)": {
+            "description": "min=0.522, mean=0.522, max=0.522, sum=0.522 (1)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Fairness",
+            "score": 0.522
+          },
+          "HellaSwag - Denoised inference time (s)": {
+            "description": "min=0.084, mean=0.084, max=0.084, sum=0.084 (1)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Efficiency",
+            "score": 0.08380637499999992
+          },
+          "HellaSwag - # eval": {
+            "description": "min=1000, mean=1000, max=1000, sum=1000 (1)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "General information",
+            "score": 1000.0
+          },
+          "HellaSwag - # train": {
+            "description": "min=0, mean=0, max=0, sum=0 (1)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "HellaSwag - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (1)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "HellaSwag - # prompt tokens": {
+            "description": "min=87.888, mean=87.888, max=87.888, sum=87.888 (1)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "General information",
+            "score": 87.888
+          },
+          "HellaSwag - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (1)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "HellaSwag - # trials": {
+            "description": "min=1, mean=1, max=1, sum=1 (1)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "General information",
+            "score": 1.0
+          }
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "OpenbookQA - EM",
+      "metric_config": {
+        "evaluation_description": "The OpenbookQA benchmark for commonsense-intensive open book question answering [(Mihaylov et al., 2018)](https://aclanthology.org/D18-1260/).\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.502,
+        "details": {
+          "description": "min=0.502, mean=0.502, max=0.502, sum=0.502 (1)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+          "tab": "Accuracy",
+          "OpenbookQA - ECE (10-bin)": {
+            "description": "min=0.26, mean=0.26, max=0.26, sum=0.26 (1)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Calibration",
+            "score": 0.25956257561884827
+          },
+          "OpenbookQA - EM (Robustness)": {
+            "description": "min=0.396, mean=0.396, max=0.396, sum=0.396 (1)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Robustness",
+            "score": 0.396
+          },
+          "OpenbookQA - EM (Fairness)": {
+            "description": "min=0.43, mean=0.43, max=0.43, sum=0.43 (1)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Fairness",
+            "score": 0.43
+          },
+          "OpenbookQA - Denoised inference time (s)": {
+            "description": "min=0.079, mean=0.079, max=0.079, sum=0.079 (1)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "Efficiency",
+            "score": 0.07928820312499986
+          },
+          "OpenbookQA - # eval": {
+            "description": "min=500, mean=500, max=500, sum=500 (1)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "General information",
+            "score": 500.0
+          },
+          "OpenbookQA - # train": {
+            "description": "min=0, mean=0, max=0, sum=0 (1)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "OpenbookQA - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (1)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "OpenbookQA - # prompt tokens": {
+            "description": "min=5.27, mean=5.27, max=5.27, sum=5.27 (1)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "General information",
+            "score": 5.27
+          },
+          "OpenbookQA - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (1)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "OpenbookQA - # trials": {
+            "description": "min=1, mean=1, max=1, sum=1 (1)\n⚠ Brown et al. perform an analysis of the contamination for GPT-3 and its known derivatives. For these datasets, they find that 1% - 6% of the datasets' test instances are contaminated based on N-gram overlap, and model performance does not substantially change for these datasets. See Table C.1 on page 45 of https://arxiv.org/pdf/2005.14165.pdf.",
+            "tab": "General information",
+            "score": 1.0
+          }
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "TruthfulQA - EM",
+      "metric_config": {
+        "evaluation_description": "The TruthfulQA benchmarking for measuring model truthfulness and commonsense knowledge in question answering [(Lin et al., 2022)](https://aclanthology.org/2022.acl-long.229/).\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.232,
+        "details": {
+          "description": "min=0.222, mean=0.232, max=0.251, sum=0.696 (3)",
+          "tab": "Accuracy",
+          "TruthfulQA - ECE (10-bin)": {
+            "description": "min=0.05, mean=0.062, max=0.072, sum=0.186 (3)",
+            "tab": "Calibration",
+            "score": 0.06204978796421436
+          },
+          "TruthfulQA - EM (Robustness)": {
+            "description": "min=0.167, mean=0.186, max=0.214, sum=0.557 (3)",
+            "tab": "Robustness",
+            "score": 0.1855249745158002
+          },
+          "TruthfulQA - EM (Fairness)": {
+            "description": "min=0.165, mean=0.186, max=0.216, sum=0.558 (3)",
+            "tab": "Fairness",
+            "score": 0.18603465851172274
+          },
+          "TruthfulQA - Denoised inference time (s)": {
+            "description": "min=0.093, mean=0.094, max=0.094, sum=0.281 (3)",
+            "tab": "Efficiency",
+            "score": 0.09360438168960249
+          },
+          "TruthfulQA - # eval": {
+            "description": "min=654, mean=654, max=654, sum=1962 (3)",
+            "tab": "General information",
+            "score": 654.0
+          },
+          "TruthfulQA - # train": {
+            "description": "min=5, mean=5, max=5, sum=15 (3)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "TruthfulQA - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (3)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "TruthfulQA - # prompt tokens": {
+            "description": "min=501.121, mean=511.121, max=529.121, sum=1533.362 (3)",
+            "tab": "General information",
+            "score": 511.12079510703364
+          },
+          "TruthfulQA - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=3 (3)",
+            "tab": "General information",
+            "score": 1.0
+          },
+          "TruthfulQA - # trials": {
+            "description": "min=3, mean=3, max=3, sum=9 (3)",
+            "tab": "General information",
+            "score": 3.0
+          }
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "MS MARCO (TREC) - NDCG@10",
+      "metric_config": {
+        "evaluation_description": "The MS MARCO benchmark's deep learning TREC track for passage retrieval in information retrieval [(https://trec.nist.gov)](https://microsoft.github.io/msmarco/).\n\nNDCG@10: Normalized discounted cumulative gain at 10 in information retrieval.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.3,
+        "details": {
+          "description": "min=0.279, mean=0.3, max=0.31, sum=0.899 (3)",
+          "tab": "Accuracy",
+          "MS MARCO (regular) - RR@10 (Robustness)": {
+            "description": "min=0.086, mean=0.11, max=0.14, sum=0.33 (3)",
+            "tab": "Robustness",
+            "score": 0.10991481481481481
+          },
+          "MS MARCO (TREC) - NDCG@10 (Robustness)": {
+            "description": "min=0.25, mean=0.253, max=0.254, sum=0.759 (3)",
+            "tab": "Robustness",
+            "score": 0.25287196320995325
+          },
+          "MS MARCO (regular) - RR@10 (Fairness)": {
+            "description": "min=0.119, mean=0.14, max=0.167, sum=0.42 (3)",
+            "tab": "Fairness",
+            "score": 0.14012791005291
+          },
+          "MS MARCO (TREC) - NDCG@10 (Fairness)": {
+            "description": "min=0.266, mean=0.284, max=0.295, sum=0.852 (3)",
+            "tab": "Fairness",
+            "score": 0.2838824123845733
+          },
+          "MS MARCO (regular) - Denoised inference time (s)": {
+            "description": "min=0.094, mean=0.094, max=0.095, sum=0.283 (3)",
+            "tab": "Efficiency",
+            "score": 0.09442029557291665
+          },
+          "MS MARCO (TREC) - Denoised inference time (s)": {
+            "description": "min=0.094, mean=0.095, max=0.097, sum=0.286 (3)",
+            "tab": "Efficiency",
+            "score": 0.09531934350775194
+          },
+          "MS MARCO (regular) - # eval": {
+            "description": "min=1000, mean=1000, max=1000, sum=3000 (3)",
+            "tab": "General information",
+            "score": 1000.0
+          },
+          "MS MARCO (regular) - # train": {
+            "description": "min=2, mean=2, max=2, sum=6 (3)",
+            "tab": "General information",
+            "score": 2.0
+          },
+          "MS MARCO (regular) - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (3)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "MS MARCO (regular) - # prompt tokens": {
+            "description": "min=495.232, mean=532.565, max=577.232, sum=1597.696 (3)",
+            "tab": "General information",
+            "score": 532.5653333333333
+          },
+          "MS MARCO (regular) - # output tokens": {
+            "description": "min=1.035, mean=1.112, max=1.183, sum=3.336 (3)",
+            "tab": "General information",
+            "score": 1.112
+          },
+          "MS MARCO (regular) - # trials": {
+            "description": "min=3, mean=3, max=3, sum=9 (3)",
+            "tab": "General information",
+            "score": 3.0
+          },
+          "MS MARCO (TREC) - # eval": {
+            "description": "min=43, mean=43, max=43, sum=129 (3)",
+            "tab": "General information",
+            "score": 43.0
+          },
+          "MS MARCO (TREC) - # train": {
+            "description": "min=2, mean=2, max=2, sum=6 (3)",
+            "tab": "General information",
+            "score": 2.0
+          },
+          "MS MARCO (TREC) - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (3)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "MS MARCO (TREC) - # prompt tokens": {
+            "description": "min=478.488, mean=515.822, max=560.488, sum=1547.465 (3)",
+            "tab": "General information",
+            "score": 515.8217054263565
+          },
+          "MS MARCO (TREC) - # output tokens": {
+            "description": "min=1.093, mean=1.248, max=1.488, sum=3.744 (3)",
+            "tab": "General information",
+            "score": 1.248062015503876
+          },
+          "MS MARCO (TREC) - # trials": {
+            "description": "min=3, mean=3, max=3, sum=9 (3)",
+            "tab": "General information",
+            "score": 3.0
+          },
+          "MS MARCO (regular) - Stereotypes (race)": {
+            "description": "1 matching runs, but no matching metrics",
+            "tab": "Bias",
+            "score": null
+          },
+          "MS MARCO (regular) - Stereotypes (gender)": {
+            "description": "1 matching runs, but no matching metrics",
+            "tab": "Bias",
+            "score": null
+          },
+          "MS MARCO (regular) - Representation (race)": {
+            "description": "1 matching runs, but no matching metrics",
+            "tab": "Bias",
+            "score": null
+          },
+          "MS MARCO (regular) - Representation (gender)": {
+            "description": "1 matching runs, but no matching metrics",
+            "tab": "Bias",
+            "score": null
+          },
+          "MS MARCO (TREC) - Stereotypes (race)": {
+            "description": "1 matching runs, but no matching metrics",
+            "tab": "Bias",
+            "score": null
+          },
+          "MS MARCO (TREC) - Stereotypes (gender)": {
+            "description": "1 matching runs, but no matching metrics",
+            "tab": "Bias",
+            "score": null
+          },
+          "MS MARCO (TREC) - Representation (race)": {
+            "description": "1 matching runs, but no matching metrics",
+            "tab": "Bias",
+            "score": null
+          },
+          "MS MARCO (TREC) - Representation (gender)": {
+            "description": "1 matching runs, but no matching metrics",
+            "tab": "Bias",
+            "score": null
+          },
+          "MS MARCO (regular) - Toxic fraction": {
+            "description": "1 matching runs, but no matching metrics",
+            "tab": "Toxicity",
+            "score": null
+          },
+          "MS MARCO (TREC) - Toxic fraction": {
+            "description": "1 matching runs, but no matching metrics",
+            "tab": "Toxicity",
+            "score": null
+          }
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "CNN/DailyMail - ROUGE-2",
+      "metric_config": {
+        "evaluation_description": "The CNN/DailyMail benchmark for text summarization ([Hermann et al., 2015](https://papers.nips.cc/paper/2015/hash/afdec7005cc9f14302cd0474fd0f3c96-Abstract.html); [Nallapati et al.,2016](https://aclanthology.org/K16-1028/)).\n\nROUGE-2: Average ROUGE score [(Lin, 2004)](https://aclanthology.org/W04-1013/) based on 2-gram overlap.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.113,
+        "details": {
+          "description": "min=0.038, mean=0.113, max=0.141, sum=0.789 (7)",
+          "tab": "Accuracy",
+          "CNN/DailyMail - Denoised inference time (s)": {
+            "description": "min=0.559, mean=0.623, max=0.691, sum=4.363 (7)",
+            "tab": "Efficiency",
+            "score": 0.6232588631080115
+          },
+          "CNN/DailyMail - # eval": {
+            "description": "min=466, mean=466, max=466, sum=3262 (7)",
+            "tab": "General information",
+            "score": 466.0
+          },
+          "CNN/DailyMail - # train": {
+            "description": "min=0, mean=4.286, max=5, sum=30 (7)",
+            "tab": "General information",
+            "score": 4.285714285714286
+          },
+          "CNN/DailyMail - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (7)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "CNN/DailyMail - # prompt tokens": {
+            "description": "min=583.586, mean=1411.872, max=1567.586, sum=9883.101 (7)",
+            "tab": "General information",
+            "score": 1411.8715511955854
+          },
+          "CNN/DailyMail - # output tokens": {
+            "description": "min=65.127, mean=74.606, max=84.073, sum=522.245 (7)",
+            "tab": "General information",
+            "score": 74.60637645616187
+          },
+          "CNN/DailyMail - # trials": {
+            "description": "min=1, mean=2.714, max=3, sum=19 (7)",
+            "tab": "General information",
+            "score": 2.7142857142857144
+          },
+          "CNN/DailyMail - Stereotypes (race)": {
+            "description": "min=0.619, mean=0.642, max=0.667, sum=4.492 (7)",
+            "tab": "Bias",
+            "score": 0.6416796928441896
+          },
+          "CNN/DailyMail - Stereotypes (gender)": {
+            "description": "min=0.383, mean=0.409, max=0.43, sum=2.86 (7)",
+            "tab": "Bias",
+            "score": 0.40861926379951435
+          },
+          "CNN/DailyMail - Representation (race)": {
+            "description": "min=0.238, mean=0.295, max=0.417, sum=2.068 (7)",
+            "tab": "Bias",
+            "score": 0.29545894187058713
+          },
+          "CNN/DailyMail - Representation (gender)": {
+            "description": "min=0.109, mean=0.129, max=0.144, sum=0.9 (7)",
+            "tab": "Bias",
+            "score": 0.12851266312443646
+          },
+          "CNN/DailyMail - Toxic fraction": {
+            "description": "min=0, mean=0.001, max=0.002, sum=0.004 (7)",
+            "tab": "Toxicity",
+            "score": 0.0006131207847946045
+          },
+          "CNN/DailyMail - SummaC": {
+            "description": "min=-0.108, mean=0.354, max=0.557, sum=1.415 (4)",
+            "tab": "Summarization metrics",
+            "score": 0.3538436304603978
+          },
+          "CNN/DailyMail - QAFactEval": {
+            "description": "min=1.248, mean=4.204, max=4.78, sum=29.431 (7)",
+            "tab": "Summarization metrics",
+            "score": 4.20445410382703
+          },
+          "CNN/DailyMail - BERTScore (F1)": {
+            "description": "min=-0.343, mean=0.089, max=0.264, sum=0.355 (4)",
+            "tab": "Summarization metrics",
+            "score": 0.08867060792677807
+          },
+          "CNN/DailyMail - Coverage": {
+            "description": "min=0.425, mean=0.89, max=0.973, sum=6.231 (7)",
+            "tab": "Summarization metrics",
+            "score": 0.8901263761958778
+          },
+          "CNN/DailyMail - Density": {
+            "description": "min=11.471, mean=23.472, max=34.455, sum=164.303 (7)",
+            "tab": "Summarization metrics",
+            "score": 23.471817181725523
+          },
+          "CNN/DailyMail - Compression": {
+            "description": "min=5.037, mean=9.495, max=12.229, sum=66.463 (7)",
+            "tab": "Summarization metrics",
+            "score": 9.494670330829432
+          },
+          "CNN/DailyMail - HumanEval-faithfulness": {
+            "description": "min=0.287, mean=0.287, max=0.287, sum=0.287 (1)",
+            "tab": "Summarization metrics",
+            "score": 0.2866666666666666
+          },
+          "CNN/DailyMail - HumanEval-relevance": {
+            "description": "min=1.933, mean=1.933, max=1.933, sum=1.933 (1)",
+            "tab": "Summarization metrics",
+            "score": 1.9333333333333333
+          },
+          "CNN/DailyMail - HumanEval-coherence": {
+            "description": "min=1.767, mean=1.767, max=1.767, sum=1.767 (1)",
+            "tab": "Summarization metrics",
+            "score": 1.7666666666666666
+          }
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "XSUM - ROUGE-2",
+      "metric_config": {
+        "evaluation_description": "The XSUM benchmark for text summarization of BBC news articles [(Narayan et al., 2018)](https://aclanthology.org/D18-1206/).\n\nROUGE-2: Average ROUGE score [(Lin, 2004)](https://aclanthology.org/W04-1013/) based on 2-gram overlap.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.091,
+        "details": {
+          "description": "min=0.035, mean=0.091, max=0.104, sum=0.636 (7)",
+          "tab": "Accuracy",
+          "XSUM - Denoised inference time (s)": {
+            "description": "min=0.274, mean=0.294, max=0.41, sum=2.059 (7)",
+            "tab": "Efficiency",
+            "score": 0.29416145294688817
+          },
+          "XSUM - # eval": {
+            "description": "min=518, mean=518, max=518, sum=3626 (7)",
+            "tab": "General information",
+            "score": 518.0
+          },
+          "XSUM - # train": {
+            "description": "min=0, mean=4.285, max=5, sum=29.992 (7)",
+            "tab": "General information",
+            "score": 4.284611141753999
+          },
+          "XSUM - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (7)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "XSUM - # prompt tokens": {
+            "description": "min=388.402, mean=1350.13, max=1538.921, sum=9450.911 (7)",
+            "tab": "General information",
+            "score": 1350.1301709873137
+          },
+          "XSUM - # output tokens": {
+            "description": "min=24.405, mean=27.757, max=46.521, sum=194.297 (7)",
+            "tab": "General information",
+            "score": 27.75675675675676
+          },
+          "XSUM - # trials": {
+            "description": "min=1, mean=2.714, max=3, sum=19 (7)",
+            "tab": "General information",
+            "score": 2.7142857142857144
+          },
+          "XSUM - Stereotypes (race)": {
+            "description": "min=0.667, mean=0.667, max=0.667, sum=3.333 (5)",
+            "tab": "Bias",
+            "score": 0.6666666666666667
+          },
+          "XSUM - Stereotypes (gender)": {
+            "description": "min=0.409, mean=0.449, max=0.488, sum=3.143 (7)",
+            "tab": "Bias",
+            "score": 0.44897893078382667
+          },
+          "XSUM - Representation (race)": {
+            "description": "min=0.446, mean=0.599, max=0.667, sum=4.196 (7)",
+            "tab": "Bias",
+            "score": 0.5994124922696351
+          },
+          "XSUM - Representation (gender)": {
+            "description": "min=0.169, mean=0.205, max=0.268, sum=1.435 (7)",
+            "tab": "Bias",
+            "score": 0.20496360887910145
+          },
+          "XSUM - Toxic fraction": {
+            "description": "min=0, mean=0.001, max=0.002, sum=0.004 (7)",
+            "tab": "Toxicity",
+            "score": 0.0005515719801434088
+          },
+          "XSUM - SummaC": {
+            "description": "min=-0.237, mean=-0.143, max=0.073, sum=-0.574 (4)",
+            "tab": "Summarization metrics",
+            "score": -0.14346265436541167
+          },
+          "XSUM - QAFactEval": {
+            "description": "min=2.914, mean=3.922, max=4.204, sum=27.454 (7)",
+            "tab": "Summarization metrics",
+            "score": 3.9220091164391953
+          },
+          "XSUM - BERTScore (F1)": {
+            "description": "min=0.091, mean=0.313, max=0.388, sum=1.251 (4)",
+            "tab": "Summarization metrics",
+            "score": 0.312644368874429
+          },
+          "XSUM - Coverage": {
+            "description": "min=0.795, mean=0.815, max=0.823, sum=5.707 (7)",
+            "tab": "Summarization metrics",
+            "score": 0.8152742026902194
+          },
+          "XSUM - Density": {
+            "description": "min=2.849, mean=5.57, max=19.82, sum=38.989 (7)",
+            "tab": "Summarization metrics",
+            "score": 5.569907111767537
+          },
+          "XSUM - Compression": {
+            "description": "min=10.146, mean=17.018, max=18.474, sum=119.123 (7)",
+            "tab": "Summarization metrics",
+            "score": 17.01754099745573
+          },
+          "XSUM - HumanEval-faithfulness": {
+            "description": "min=0.773, mean=0.924, max=1, sum=2.773 (3)",
+            "tab": "Summarization metrics",
+            "score": 0.9244444444444445
+          },
+          "XSUM - HumanEval-relevance": {
+            "description": "min=3.387, mean=3.573, max=3.667, sum=10.72 (3)",
+            "tab": "Summarization metrics",
+            "score": 3.573333333333333
+          },
+          "XSUM - HumanEval-coherence": {
+            "description": "min=3.163, mean=4.166, max=4.667, sum=12.497 (3)",
+            "tab": "Summarization metrics",
+            "score": 4.165555555555556
+          }
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "IMDB - EM",
+      "metric_config": {
+        "evaluation_description": "The IMDB benchmark for sentiment analysis in movie review [(Maas et al., 2011)](https://aclanthology.org/P11-1015/).\n\nQuasi-exact match: Fraction of instances that the predicted output matches a correct reference up to light processing.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.889,
+        "details": {
+          "description": "min=0.831, mean=0.889, max=0.939, sum=2.668 (3)",
+          "tab": "Accuracy",
+          "IMDB - ECE (10-bin)": {
+            "description": "min=0.231, mean=0.259, max=0.285, sum=0.776 (3)",
+            "tab": "Calibration",
+            "score": 0.25871248887630766
+          },
+          "IMDB - EM (Robustness)": {
+            "description": "min=0.716, mean=0.803, max=0.892, sum=2.41 (3)",
+            "tab": "Robustness",
+            "score": 0.8033333333333333
+          },
+          "IMDB - EM (Fairness)": {
+            "description": "min=0.792, mean=0.86, max=0.922, sum=2.581 (3)",
+            "tab": "Fairness",
+            "score": 0.8603333333333333
+          },
+          "IMDB - Denoised inference time (s)": {
+            "description": "min=0.105, mean=0.11, max=0.115, sum=0.331 (3)",
+            "tab": "Efficiency",
+            "score": 0.11035393728298622
+          },
+          "IMDB - # eval": {
+            "description": "min=1000, mean=1000, max=1000, sum=3000 (3)",
+            "tab": "General information",
+            "score": 1000.0
+          },
+          "IMDB - # train": {
+            "description": "min=2.916, mean=4.242, max=4.986, sum=12.726 (3)",
+            "tab": "General information",
+            "score": 4.242
+          },
+          "IMDB - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (3)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "IMDB - # prompt tokens": {
+            "description": "min=1277.729, mean=1553.363, max=1768.607, sum=4660.089 (3)",
+            "tab": "General information",
+            "score": 1553.363
+          },
+          "IMDB - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=3 (3)",
+            "tab": "General information",
+            "score": 1.0
+          },
+          "IMDB - # trials": {
+            "description": "min=3, mean=3, max=3, sum=9 (3)",
+            "tab": "General information",
+            "score": 3.0
+          },
+          "IMDB - Stereotypes (race)": {
+            "description": "1 matching runs, but no matching metrics",
+            "tab": "Bias",
+            "score": null
+          },
+          "IMDB - Stereotypes (gender)": {
+            "description": "1 matching runs, but no matching metrics",
+            "tab": "Bias",
+            "score": null
+          },
+          "IMDB - Representation (race)": {
+            "description": "1 matching runs, but no matching metrics",
+            "tab": "Bias",
+            "score": null
+          },
+          "IMDB - Representation (gender)": {
+            "description": "1 matching runs, but no matching metrics",
+            "tab": "Bias",
+            "score": null
+          },
+          "IMDB - Toxic fraction": {
+            "description": "1 matching runs, but no matching metrics",
+            "tab": "Toxicity",
+            "score": null
+          }
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "CivilComments - EM",
+      "metric_config": {
+        "evaluation_description": "The CivilComments benchmark for toxicity detection [(Borkan et al., 2019)](https://arxiv.org/pdf/1903.04561.pdf).\n\nQuasi-exact match: Fraction of instances that the predicted output matches a correct reference up to light processing.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.539,
+        "details": {
+          "description": "min=0.012, mean=0.539, max=1, sum=29.083 (54)",
+          "tab": "Accuracy",
+          "CivilComments - ECE (10-bin)": {
+            "description": "min=0.042, mean=0.293, max=0.601, sum=15.826 (54)",
+            "tab": "Calibration",
+            "score": 0.29307434802498333
+          },
+          "CivilComments - EM (Robustness)": {
+            "description": "min=0.002, mean=0.347, max=1, sum=18.748 (54)",
+            "tab": "Robustness",
+            "score": 0.3471901723680723
+          },
+          "CivilComments - EM (Fairness)": {
+            "description": "min=0, mean=0.412, max=1, sum=22.222 (54)",
+            "tab": "Fairness",
+            "score": 0.41152337126555366
+          },
+          "CivilComments - Denoised inference time (s)": {
+            "description": "min=0.09, mean=0.097, max=0.105, sum=5.259 (54)",
+            "tab": "Efficiency",
+            "score": 0.09739228545773865
+          },
+          "CivilComments - # eval": {
+            "description": "min=74, mean=371.556, max=683, sum=20064 (54)",
+            "tab": "General information",
+            "score": 371.55555555555554
+          },
+          "CivilComments - # train": {
+            "description": "min=5, mean=5, max=5, sum=270 (54)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "CivilComments - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (54)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "CivilComments - # prompt tokens": {
+            "description": "min=356.537, mean=722.635, max=1267.519, sum=39022.317 (54)",
+            "tab": "General information",
+            "score": 722.6354931173206
+          },
+          "CivilComments - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=54 (54)",
+            "tab": "General information",
+            "score": 1.0
+          },
+          "CivilComments - # trials": {
+            "description": "min=3, mean=3, max=3, sum=162 (54)",
+            "tab": "General information",
+            "score": 3.0
+          },
+          "CivilComments - Stereotypes (race)": {
+            "description": "(0)",
+            "tab": "Bias",
+            "score": null
+          },
+          "CivilComments - Stereotypes (gender)": {
+            "description": "(0)",
+            "tab": "Bias",
+            "score": null
+          },
+          "CivilComments - Representation (race)": {
+            "description": "(0)",
+            "tab": "Bias",
+            "score": null
+          },
+          "CivilComments - Representation (gender)": {
+            "description": "(0)",
+            "tab": "Bias",
+            "score": null
+          },
+          "CivilComments - Toxic fraction": {
+            "description": "min=0, mean=0, max=0, sum=0 (54)",
+            "tab": "Toxicity",
+            "score": 0.0
+          }
+        }
+      },
+      "generation_config": {}
+    },
+    {
+      "evaluation_name": "RAFT - EM",
+      "metric_config": {
+        "evaluation_description": "The Real-world annotated few-shot (RAFT) meta-benchmark of 11 real-world text classification tasks [(Alex et al., 2021)](https://datasets-benchmarks-proceedings.neurips.cc/paper/2021/hash/ca46c1b9512a7a8315fa3c5a946e8265-Abstract-round2.html).\n\nQuasi-exact match: Fraction of instances that the predicted output matches a correct reference up to light processing.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.49,
+        "details": {
+          "description": "min=0, mean=0.49, max=0.975, sum=16.175 (33)",
+          "tab": "Accuracy",
+          "RAFT - ECE (10-bin)": {
+            "description": "min=0.054, mean=0.319, max=0.977, sum=10.54 (33)",
+            "tab": "Calibration",
+            "score": 0.31939577693629423
+          },
+          "RAFT - EM (Robustness)": {
+            "description": "min=0, mean=0.413, max=0.975, sum=13.625 (33)",
+            "tab": "Robustness",
+            "score": 0.4128787878787879
+          },
+          "RAFT - EM (Fairness)": {
+            "description": "min=0, mean=0.473, max=0.975, sum=15.625 (33)",
+            "tab": "Fairness",
+            "score": 0.4734848484848485
+          },
+          "RAFT - Denoised inference time (s)": {
+            "description": "min=0.094, mean=0.112, max=0.139, sum=3.696 (33)",
+            "tab": "Efficiency",
+            "score": 0.11198840159406566
+          },
+          "RAFT - # eval": {
+            "description": "min=40, mean=40, max=40, sum=1320 (33)",
+            "tab": "General information",
+            "score": 40.0
+          },
+          "RAFT - # train": {
+            "description": "min=0, mean=4.556, max=5, sum=150.35 (33)",
+            "tab": "General information",
+            "score": 4.556060606060607
+          },
+          "RAFT - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (33)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "RAFT - # prompt tokens": {
+            "description": "min=257.35, mean=812.938, max=1773.675, sum=26826.95 (33)",
+            "tab": "General information",
+            "score": 812.937878787879
+          },
+          "RAFT - # output tokens": {
+            "description": "min=0.025, mean=2.867, max=6.375, sum=94.6 (33)",
+            "tab": "General information",
+            "score": 2.8666666666666667
+          },
+          "RAFT - # trials": {
+            "description": "min=3, mean=3, max=3, sum=99 (33)",
+            "tab": "General information",
+            "score": 3.0
+          },
+          "RAFT - Stereotypes (race)": {
+            "description": "(0)",
+            "tab": "Bias",
+            "score": null
+          },
+          "RAFT - Stereotypes (gender)": {
+            "description": "(0)",
+            "tab": "Bias",
+            "score": null
+          },
+          "RAFT - Representation (race)": {
+            "description": "(0)",
+            "tab": "Bias",
+            "score": null
+          },
+          "RAFT - Representation (gender)": {
+            "description": "(0)",
+            "tab": "Bias",
+            "score": null
+          },
+          "RAFT - Toxic fraction": {
+            "description": "min=0, mean=0, max=0, sum=0 (33)",
+            "tab": "Toxicity",
+            "score": 0.0
+          }
+        }
+      },
+      "generation_config": {}
+    }
+  ]
+}
