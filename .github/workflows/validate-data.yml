@@ -33,5 +33,8 @@ jobs:
           # Disable cache because there are no requirements lockfiles
           enable-cache: false
 
+      - name: Check for duplicate entries
+        run: uv run python scripts/check_duplicate_entries.py data
+
       - name: Validate data
         run: uv run pre-commit run --all-files
