@@ -16,13 +16,14 @@ import math
 import time
 from argparse import ArgumentParser
 from collections import defaultdict
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 from eval_types import (
     EvaluationLog,
     EvaluationResult,
     EvaluatorRelationship,
     MetricConfig,
+    ModelInfo,
     ScoreDetails,
     ScoreType,
 )
@@ -94,7 +95,7 @@ def extract_generation_config(run_specs: List[str]) -> Dict[str, Any]:
     return dict(generation_config)
 
 
-def extract_model_info_from_row(row: List[Dict[str, Any]], model_name: str):
+def extract_model_info_from_row(row: List[Dict[str, Any]], model_name: str) -> Tuple[ModelInfo, str]:
     """Extract model metadata from leaderboard row."""
     run_spec_names = next(
         (cell["run_spec_names"] for cell in row if "run_spec_names" in cell),
@@ -156,7 +157,7 @@ def convert(
     """Convert HELM leaderboard data into unified evaluation logs."""
     retrieved_timestamp = str(time.time())
 
-    model_infos: Dict[str, Any] = {}
+    model_infos: Dict[str, ModelInfo] = {}
     model_ids: Dict[str, str] = {}
     model_results: Dict[str, Dict[str, EvaluationResult]] = defaultdict(dict)
 
