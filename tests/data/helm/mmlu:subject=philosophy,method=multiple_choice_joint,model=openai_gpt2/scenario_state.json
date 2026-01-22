@@ -1,0 +1,844 @@
+{
+  "adapter_spec": {
+    "method": "multiple_choice_joint",
+    "global_prefix": "",
+    "global_suffix": "",
+    "instructions": "The following are multiple choice questions (with answers) about philosophy.\n",
+    "input_prefix": "Question: ",
+    "input_suffix": "\n",
+    "reference_prefix": "A. ",
+    "reference_suffix": "\n",
+    "chain_of_thought_prefix": "",
+    "chain_of_thought_suffix": "\n",
+    "output_prefix": "Answer: ",
+    "output_suffix": "\n",
+    "instance_prefix": "\n",
+    "substitutions": [],
+    "max_train_instances": 5,
+    "max_eval_instances": 10,
+    "num_outputs": 5,
+    "num_train_trials": 1,
+    "num_trials": 1,
+    "sample_train": true,
+    "model_deployment": "huggingface/gpt2",
+    "model": "openai/gpt2",
+    "temperature": 0.0,
+    "max_tokens": 1,
+    "stop_sequences": [
+      "\n"
+    ],
+    "multi_label": false
+  },
+  "request_states": [
+    {
+      "instance": {
+        "input": {
+          "text": "What does the notion of \u201cmeaning in life\u201d refer to?"
+        },
+        "references": [
+          {
+            "output": {
+              "text": "external meaning"
+            },
+            "tags": []
+          },
+          {
+            "output": {
+              "text": "god's plan"
+            },
+            "tags": []
+          },
+          {
+            "output": {
+              "text": "internalmeaning"
+            },
+            "tags": [
+              "correct"
+            ]
+          },
+          {
+            "output": {
+              "text": "meaning in an afterlife"
+            },
+            "tags": []
+          }
+        ],
+        "split": "test",
+        "id": "id147"
+      },
+      "train_trial_index": 0,
+      "output_mapping": {
+        "A": "external meaning",
+        "B": "god's plan",
+        "C": "internalmeaning",
+        "D": "meaning in an afterlife"
+      },
+      "request": {
+        "model_deployment": "huggingface/gpt2",
+        "model": "openai/gpt2",
+        "embedding": false,
+        "prompt": "The following are multiple choice questions (with answers) about philosophy.\n\nQuestion: The study of reality in the broadest sense, an inquiry into the elemental nature of the universe and the things in it, is known as _____.\nA. metaphysics\nB. epistemology\nC. quantum physics\nD. axiology\nAnswer: A\n\nQuestion: According to Moore\u2019s \u201cideal utilitarianism,\u201d the right action is the one that brings about the greatest amount of:\nA. pleasure.\nB. happiness.\nC. good.\nD. virtue.\nAnswer: C\n\nQuestion: Psychological egoism is:\nA. an ethical theory about how we ought to behave.\nB. a generalization concerning the way people tend to behave.\nC. a claim about human nature and the ways people are capable of behaving.\nD. none of the above.\nAnswer: C\n\nQuestion: Before Tolstoy's Christian conversion, what was his perspective on the meaning of life?\nA. optimist\nB. satisfied\nC. nominally religious\nD. pessimist\nAnswer: D\n\nQuestion: According to d'Holbach, people always act according to _____.\nA. free choices\nB. dictates of the soul\nC. necessary natural laws\nD. undetermined will\nAnswer: C\n\nQuestion: What does the notion of \u201cmeaning in life\u201d refer to?\nA. external meaning\nB. god's plan\nC. internalmeaning\nD. meaning in an afterlife\nAnswer:",
+        "temperature": 0.0,
+        "num_completions": 1,
+        "top_k_per_token": 5,
+        "max_tokens": 1,
+        "stop_sequences": [],
+        "echo_prompt": false,
+        "top_p": 1,
+        "presence_penalty": 0,
+        "frequency_penalty": 0
+      },
+      "result": {
+        "success": true,
+        "embedding": [],
+        "completions": [
+          {
+            "text": " D",
+            "logprob": 0.0,
+            "tokens": [
+              {
+                "text": " D",
+                "logprob": 0.0
+              }
+            ]
+          }
+        ],
+        "cached": false,
+        "request_time": 0.6803672313690186,
+        "request_datetime": 1762354922
+      },
+      "num_train_instances": 5,
+      "prompt_truncated": false,
+      "num_conditioning_tokens": 0
+    },
+    {
+      "instance": {
+        "input": {
+          "text": "In Plato's idealism, the unchanging Ideas or \"Forms\" in terms of which sensible objects both exist and are known must transcend (that is, exist beyond) the changing realm of appearances; because if Forms changed, then:"
+        },
+        "references": [
+          {
+            "output": {
+              "text": "the only things in the sensible world that we could ever experience would be concepts."
+            },
+            "tags": []
+          },
+          {
+            "output": {
+              "text": "the sensible realm (in contrast to the intelligible realm) would consist only of copies of real things."
+            },
+            "tags": []
+          },
+          {
+            "output": {
+              "text": "nothing in the experienced world could be or be identified as one determinate thing or another."
+            },
+            "tags": [
+              "correct"
+            ]
+          },
+          {
+            "output": {
+              "text": "the sensible world would consist of unchanging Forms."
+            },
+            "tags": []
+          }
+        ],
+        "split": "valid",
+        "id": "id11"
+      },
+      "train_trial_index": 0,
+      "output_mapping": {
+        "A": "the only things in the sensible world that we could ever experience would be concepts.",
+        "B": "the sensible realm (in contrast to the intelligible realm) would consist only of copies of real things.",
+        "C": "nothing in the experienced world could be or be identified as one determinate thing or another.",
+        "D": "the sensible world would consist of unchanging Forms."
+      },
+      "request": {
+        "model_deployment": "huggingface/gpt2",
+        "model": "openai/gpt2",
+        "embedding": false,
+        "prompt": "The following are multiple choice questions (with answers) about philosophy.\n\nQuestion: The study of reality in the broadest sense, an inquiry into the elemental nature of the universe and the things in it, is known as _____.\nA. metaphysics\nB. epistemology\nC. quantum physics\nD. axiology\nAnswer: A\n\nQuestion: According to Moore\u2019s \u201cideal utilitarianism,\u201d the right action is the one that brings about the greatest amount of:\nA. pleasure.\nB. happiness.\nC. good.\nD. virtue.\nAnswer: C\n\nQuestion: Psychological egoism is:\nA. an ethical theory about how we ought to behave.\nB. a generalization concerning the way people tend to behave.\nC. a claim about human nature and the ways people are capable of behaving.\nD. none of the above.\nAnswer: C\n\nQuestion: Before Tolstoy's Christian conversion, what was his perspective on the meaning of life?\nA. optimist\nB. satisfied\nC. nominally religious\nD. pessimist\nAnswer: D\n\nQuestion: According to d'Holbach, people always act according to _____.\nA. free choices\nB. dictates of the soul\nC. necessary natural laws\nD. undetermined will\nAnswer: C\n\nQuestion: In Plato's idealism, the unchanging Ideas or \"Forms\" in terms of which sensible objects both exist and are known must transcend (that is, exist beyond) the changing realm of appearances; because if Forms changed, then:\nA. the only things in the sensible world that we could ever experience would be concepts.\nB. the sensible realm (in contrast to the intelligible realm) would consist only of copies of real things.\nC. nothing in the experienced world could be or be identified as one determinate thing or another.\nD. the sensible world would consist of unchanging Forms.\nAnswer:",
+        "temperature": 0.0,
+        "num_completions": 1,
+        "top_k_per_token": 5,
+        "max_tokens": 1,
+        "stop_sequences": [],
+        "echo_prompt": false,
+        "top_p": 1,
+        "presence_penalty": 0,
+        "frequency_penalty": 0
+      },
+      "result": {
+        "success": true,
+        "embedding": [],
+        "completions": [
+          {
+            "text": " D",
+            "logprob": 0.0,
+            "tokens": [
+              {
+                "text": " D",
+                "logprob": 0.0
+              }
+            ]
+          }
+        ],
+        "cached": false,
+        "request_time": 0.6785750389099121,
+        "request_datetime": 1762354922
+      },
+      "num_train_instances": 5,
+      "prompt_truncated": false,
+      "num_conditioning_tokens": 0
+    },
+    {
+      "instance": {
+        "input": {
+          "text": "Aristotle says  that what makes things be what they are--their essence--does not exist apart from individ-uals that exist in the world.  So if all the members of a species were destroyed, then their essence or form:"
+        },
+        "references": [
+          {
+            "output": {
+              "text": "would likewise be destroyed."
+            },
+            "tags": [
+              "correct"
+            ]
+          },
+          {
+            "output": {
+              "text": "would be destroyed only if there were no one around to remember the species."
+            },
+            "tags": []
+          },
+          {
+            "output": {
+              "text": "would continue existing (as with Plato's Forms) in some other realm of being."
+            },
+            "tags": []
+          },
+          {
+            "output": {
+              "text": "would not be destroyed because there was no essence or form originally to be destroyed; there are only individuals, not universal essences or natures of things."
+            },
+            "tags": []
+          }
+        ],
+        "split": "test",
+        "id": "id65"
+      },
+      "train_trial_index": 0,
+      "output_mapping": {
+        "A": "would likewise be destroyed.",
+        "B": "would be destroyed only if there were no one around to remember the species.",
+        "C": "would continue existing (as with Plato's Forms) in some other realm of being.",
+        "D": "would not be destroyed because there was no essence or form originally to be destroyed; there are only individuals, not universal essences or natures of things."
+      },
+      "request": {
+        "model_deployment": "huggingface/gpt2",
+        "model": "openai/gpt2",
+        "embedding": false,
+        "prompt": "The following are multiple choice questions (with answers) about philosophy.\n\nQuestion: The study of reality in the broadest sense, an inquiry into the elemental nature of the universe and the things in it, is known as _____.\nA. metaphysics\nB. epistemology\nC. quantum physics\nD. axiology\nAnswer: A\n\nQuestion: According to Moore\u2019s \u201cideal utilitarianism,\u201d the right action is the one that brings about the greatest amount of:\nA. pleasure.\nB. happiness.\nC. good.\nD. virtue.\nAnswer: C\n\nQuestion: Psychological egoism is:\nA. an ethical theory about how we ought to behave.\nB. a generalization concerning the way people tend to behave.\nC. a claim about human nature and the ways people are capable of behaving.\nD. none of the above.\nAnswer: C\n\nQuestion: Before Tolstoy's Christian conversion, what was his perspective on the meaning of life?\nA. optimist\nB. satisfied\nC. nominally religious\nD. pessimist\nAnswer: D\n\nQuestion: According to d'Holbach, people always act according to _____.\nA. free choices\nB. dictates of the soul\nC. necessary natural laws\nD. undetermined will\nAnswer: C\n\nQuestion: Aristotle says  that what makes things be what they are--their essence--does not exist apart from individ-uals that exist in the world.  So if all the members of a species were destroyed, then their essence or form:\nA. would likewise be destroyed.\nB. would be destroyed only if there were no one around to remember the species.\nC. would continue existing (as with Plato's Forms) in some other realm of being.\nD. would not be destroyed because there was no essence or form originally to be destroyed; there are only individuals, not universal essences or natures of things.\nAnswer:",
+        "temperature": 0.0,
+        "num_completions": 1,
+        "top_k_per_token": 5,
+        "max_tokens": 1,
+        "stop_sequences": [],
+        "echo_prompt": false,
+        "top_p": 1,
+        "presence_penalty": 0,
+        "frequency_penalty": 0
+      },
+      "result": {
+        "success": true,
+        "embedding": [],
+        "completions": [
+          {
+            "text": " D",
+            "logprob": 0.0,
+            "tokens": [
+              {
+                "text": " D",
+                "logprob": 0.0
+              }
+            ]
+          }
+        ],
+        "cached": false,
+        "request_time": 0.6800699234008789,
+        "request_datetime": 1762354922
+      },
+      "num_train_instances": 5,
+      "prompt_truncated": false,
+      "num_conditioning_tokens": 0
+    },
+    {
+      "instance": {
+        "input": {
+          "text": "Aesthetic values have to do with _______"
+        },
+        "references": [
+          {
+            "output": {
+              "text": "the moral value of works of art and other objects that could be judged beautiful"
+            },
+            "tags": []
+          },
+          {
+            "output": {
+              "text": "good and bad works of art and other objects that could be judged beautiful"
+            },
+            "tags": [
+              "correct"
+            ]
+          },
+          {
+            "output": {
+              "text": "the moral values of artists and critics"
+            },
+            "tags": []
+          },
+          {
+            "output": {
+              "text": "pragmatic decisions regarding the display of art"
+            },
+            "tags": []
+          }
+        ],
+        "split": "test",
+        "id": "id344"
+      },
+      "train_trial_index": 0,
+      "output_mapping": {
+        "A": "the moral value of works of art and other objects that could be judged beautiful",
+        "B": "good and bad works of art and other objects that could be judged beautiful",
+        "C": "the moral values of artists and critics",
+        "D": "pragmatic decisions regarding the display of art"
+      },
+      "request": {
+        "model_deployment": "huggingface/gpt2",
+        "model": "openai/gpt2",
+        "embedding": false,
+        "prompt": "The following are multiple choice questions (with answers) about philosophy.\n\nQuestion: The study of reality in the broadest sense, an inquiry into the elemental nature of the universe and the things in it, is known as _____.\nA. metaphysics\nB. epistemology\nC. quantum physics\nD. axiology\nAnswer: A\n\nQuestion: According to Moore\u2019s \u201cideal utilitarianism,\u201d the right action is the one that brings about the greatest amount of:\nA. pleasure.\nB. happiness.\nC. good.\nD. virtue.\nAnswer: C\n\nQuestion: Psychological egoism is:\nA. an ethical theory about how we ought to behave.\nB. a generalization concerning the way people tend to behave.\nC. a claim about human nature and the ways people are capable of behaving.\nD. none of the above.\nAnswer: C\n\nQuestion: Before Tolstoy's Christian conversion, what was his perspective on the meaning of life?\nA. optimist\nB. satisfied\nC. nominally religious\nD. pessimist\nAnswer: D\n\nQuestion: According to d'Holbach, people always act according to _____.\nA. free choices\nB. dictates of the soul\nC. necessary natural laws\nD. undetermined will\nAnswer: C\n\nQuestion: Aesthetic values have to do with _______\nA. the moral value of works of art and other objects that could be judged beautiful\nB. good and bad works of art and other objects that could be judged beautiful\nC. the moral values of artists and critics\nD. pragmatic decisions regarding the display of art\nAnswer:",
+        "temperature": 0.0,
+        "num_completions": 1,
+        "top_k_per_token": 5,
+        "max_tokens": 1,
+        "stop_sequences": [],
+        "echo_prompt": false,
+        "top_p": 1,
+        "presence_penalty": 0,
+        "frequency_penalty": 0
+      },
+      "result": {
+        "success": true,
+        "embedding": [],
+        "completions": [
+          {
+            "text": " D",
+            "logprob": 0.0,
+            "tokens": [
+              {
+                "text": " D",
+                "logprob": 0.0
+              }
+            ]
+          }
+        ],
+        "cached": false,
+        "request_time": 0.6793179512023926,
+        "request_datetime": 1762354922
+      },
+      "num_train_instances": 5,
+      "prompt_truncated": false,
+      "num_conditioning_tokens": 0
+    },
+    {
+      "instance": {
+        "input": {
+          "text": "According to Moore, we are thinking about good whenever we think about:"
+        },
+        "references": [
+          {
+            "output": {
+              "text": "pleasure."
+            },
+            "tags": []
+          },
+          {
+            "output": {
+              "text": "things that we desire."
+            },
+            "tags": []
+          },
+          {
+            "output": {
+              "text": "intrinsic value."
+            },
+            "tags": [
+              "correct"
+            ]
+          },
+          {
+            "output": {
+              "text": "none of the above."
+            },
+            "tags": []
+          }
+        ],
+        "split": "test",
+        "id": "id59"
+      },
+      "train_trial_index": 0,
+      "output_mapping": {
+        "A": "pleasure.",
+        "B": "things that we desire.",
+        "C": "intrinsic value.",
+        "D": "none of the above."
+      },
+      "request": {
+        "model_deployment": "huggingface/gpt2",
+        "model": "openai/gpt2",
+        "embedding": false,
+        "prompt": "The following are multiple choice questions (with answers) about philosophy.\n\nQuestion: The study of reality in the broadest sense, an inquiry into the elemental nature of the universe and the things in it, is known as _____.\nA. metaphysics\nB. epistemology\nC. quantum physics\nD. axiology\nAnswer: A\n\nQuestion: According to Moore\u2019s \u201cideal utilitarianism,\u201d the right action is the one that brings about the greatest amount of:\nA. pleasure.\nB. happiness.\nC. good.\nD. virtue.\nAnswer: C\n\nQuestion: Psychological egoism is:\nA. an ethical theory about how we ought to behave.\nB. a generalization concerning the way people tend to behave.\nC. a claim about human nature and the ways people are capable of behaving.\nD. none of the above.\nAnswer: C\n\nQuestion: Before Tolstoy's Christian conversion, what was his perspective on the meaning of life?\nA. optimist\nB. satisfied\nC. nominally religious\nD. pessimist\nAnswer: D\n\nQuestion: According to d'Holbach, people always act according to _____.\nA. free choices\nB. dictates of the soul\nC. necessary natural laws\nD. undetermined will\nAnswer: C\n\nQuestion: According to Moore, we are thinking about good whenever we think about:\nA. pleasure.\nB. things that we desire.\nC. intrinsic value.\nD. none of the above.\nAnswer:",
+        "temperature": 0.0,
+        "num_completions": 1,
+        "top_k_per_token": 5,
+        "max_tokens": 1,
+        "stop_sequences": [],
+        "echo_prompt": false,
+        "top_p": 1,
+        "presence_penalty": 0,
+        "frequency_penalty": 0
+      },
+      "result": {
+        "success": true,
+        "embedding": [],
+        "completions": [
+          {
+            "text": " D",
+            "logprob": 0.0,
+            "tokens": [
+              {
+                "text": " D",
+                "logprob": 0.0
+              }
+            ]
+          }
+        ],
+        "cached": false,
+        "request_time": 0.10651206970214844,
+        "request_datetime": 1762354922
+      },
+      "num_train_instances": 5,
+      "prompt_truncated": false,
+      "num_conditioning_tokens": 0
+    },
+    {
+      "instance": {
+        "input": {
+          "text": "Craig argues that the series of events in time cannot be actually infinite, so we know that _____."
+        },
+        "references": [
+          {
+            "output": {
+              "text": "the universe is finite in the past and began to exist"
+            },
+            "tags": [
+              "correct"
+            ]
+          },
+          {
+            "output": {
+              "text": "the universe is infinite in the past"
+            },
+            "tags": []
+          },
+          {
+            "output": {
+              "text": "the universe never is uncaused"
+            },
+            "tags": []
+          },
+          {
+            "output": {
+              "text": "the universe exists only in the mind"
+            },
+            "tags": []
+          }
+        ],
+        "split": "test",
+        "id": "id291"
+      },
+      "train_trial_index": 0,
+      "output_mapping": {
+        "A": "the universe is finite in the past and began to exist",
+        "B": "the universe is infinite in the past",
+        "C": "the universe never is uncaused",
+        "D": "the universe exists only in the mind"
+      },
+      "request": {
+        "model_deployment": "huggingface/gpt2",
+        "model": "openai/gpt2",
+        "embedding": false,
+        "prompt": "The following are multiple choice questions (with answers) about philosophy.\n\nQuestion: The study of reality in the broadest sense, an inquiry into the elemental nature of the universe and the things in it, is known as _____.\nA. metaphysics\nB. epistemology\nC. quantum physics\nD. axiology\nAnswer: A\n\nQuestion: According to Moore\u2019s \u201cideal utilitarianism,\u201d the right action is the one that brings about the greatest amount of:\nA. pleasure.\nB. happiness.\nC. good.\nD. virtue.\nAnswer: C\n\nQuestion: Psychological egoism is:\nA. an ethical theory about how we ought to behave.\nB. a generalization concerning the way people tend to behave.\nC. a claim about human nature and the ways people are capable of behaving.\nD. none of the above.\nAnswer: C\n\nQuestion: Before Tolstoy's Christian conversion, what was his perspective on the meaning of life?\nA. optimist\nB. satisfied\nC. nominally religious\nD. pessimist\nAnswer: D\n\nQuestion: According to d'Holbach, people always act according to _____.\nA. free choices\nB. dictates of the soul\nC. necessary natural laws\nD. undetermined will\nAnswer: C\n\nQuestion: Craig argues that the series of events in time cannot be actually infinite, so we know that _____.\nA. the universe is finite in the past and began to exist\nB. the universe is infinite in the past\nC. the universe never is uncaused\nD. the universe exists only in the mind\nAnswer:",
+        "temperature": 0.0,
+        "num_completions": 1,
+        "top_k_per_token": 5,
+        "max_tokens": 1,
+        "stop_sequences": [],
+        "echo_prompt": false,
+        "top_p": 1,
+        "presence_penalty": 0,
+        "frequency_penalty": 0
+      },
+      "result": {
+        "success": true,
+        "embedding": [],
+        "completions": [
+          {
+            "text": " D",
+            "logprob": 0.0,
+            "tokens": [
+              {
+                "text": " D",
+                "logprob": 0.0
+              }
+            ]
+          }
+        ],
+        "cached": false,
+        "request_time": 0.11817407608032227,
+        "request_datetime": 1762354922
+      },
+      "num_train_instances": 5,
+      "prompt_truncated": false,
+      "num_conditioning_tokens": 0
+    },
+    {
+      "instance": {
+        "input": {
+          "text": "Baier claims that ethical skepticism is often due to:"
+        },
+        "references": [
+          {
+            "output": {
+              "text": "confused metaphysical theories."
+            },
+            "tags": []
+          },
+          {
+            "output": {
+              "text": "confused epistemological theories."
+            },
+            "tags": [
+              "correct"
+            ]
+          },
+          {
+            "output": {
+              "text": "confused religious views."
+            },
+            "tags": []
+          },
+          {
+            "output": {
+              "text": "confused scientific theories."
+            },
+            "tags": []
+          }
+        ],
+        "split": "test",
+        "id": "id131"
+      },
+      "train_trial_index": 0,
+      "output_mapping": {
+        "A": "confused metaphysical theories.",
+        "B": "confused epistemological theories.",
+        "C": "confused religious views.",
+        "D": "confused scientific theories."
+      },
+      "request": {
+        "model_deployment": "huggingface/gpt2",
+        "model": "openai/gpt2",
+        "embedding": false,
+        "prompt": "The following are multiple choice questions (with answers) about philosophy.\n\nQuestion: The study of reality in the broadest sense, an inquiry into the elemental nature of the universe and the things in it, is known as _____.\nA. metaphysics\nB. epistemology\nC. quantum physics\nD. axiology\nAnswer: A\n\nQuestion: According to Moore\u2019s \u201cideal utilitarianism,\u201d the right action is the one that brings about the greatest amount of:\nA. pleasure.\nB. happiness.\nC. good.\nD. virtue.\nAnswer: C\n\nQuestion: Psychological egoism is:\nA. an ethical theory about how we ought to behave.\nB. a generalization concerning the way people tend to behave.\nC. a claim about human nature and the ways people are capable of behaving.\nD. none of the above.\nAnswer: C\n\nQuestion: Before Tolstoy's Christian conversion, what was his perspective on the meaning of life?\nA. optimist\nB. satisfied\nC. nominally religious\nD. pessimist\nAnswer: D\n\nQuestion: According to d'Holbach, people always act according to _____.\nA. free choices\nB. dictates of the soul\nC. necessary natural laws\nD. undetermined will\nAnswer: C\n\nQuestion: Baier claims that ethical skepticism is often due to:\nA. confused metaphysical theories.\nB. confused epistemological theories.\nC. confused religious views.\nD. confused scientific theories.\nAnswer:",
+        "temperature": 0.0,
+        "num_completions": 1,
+        "top_k_per_token": 5,
+        "max_tokens": 1,
+        "stop_sequences": [],
+        "echo_prompt": false,
+        "top_p": 1,
+        "presence_penalty": 0,
+        "frequency_penalty": 0
+      },
+      "result": {
+        "success": true,
+        "embedding": [],
+        "completions": [
+          {
+            "text": " D",
+            "logprob": 0.0,
+            "tokens": [
+              {
+                "text": " D",
+                "logprob": 0.0
+              }
+            ]
+          }
+        ],
+        "cached": false,
+        "request_time": 0.11505007743835449,
+        "request_datetime": 1762354922
+      },
+      "num_train_instances": 5,
+      "prompt_truncated": false,
+      "num_conditioning_tokens": 0
+    },
+    {
+      "instance": {
+        "input": {
+          "text": "Mill says that the ultimate end of utilitarianism is an existence as free of pain as possible and as rich as possible in _____."
+        },
+        "references": [
+          {
+            "output": {
+              "text": "lower pleasures"
+            },
+            "tags": []
+          },
+          {
+            "output": {
+              "text": "spiritual attainment"
+            },
+            "tags": []
+          },
+          {
+            "output": {
+              "text": "social achievement"
+            },
+            "tags": []
+          },
+          {
+            "output": {
+              "text": "enjoyments"
+            },
+            "tags": [
+              "correct"
+            ]
+          }
+        ],
+        "split": "test",
+        "id": "id222"
+      },
+      "train_trial_index": 0,
+      "output_mapping": {
+        "A": "lower pleasures",
+        "B": "spiritual attainment",
+        "C": "social achievement",
+        "D": "enjoyments"
+      },
+      "request": {
+        "model_deployment": "huggingface/gpt2",
+        "model": "openai/gpt2",
+        "embedding": false,
+        "prompt": "The following are multiple choice questions (with answers) about philosophy.\n\nQuestion: The study of reality in the broadest sense, an inquiry into the elemental nature of the universe and the things in it, is known as _____.\nA. metaphysics\nB. epistemology\nC. quantum physics\nD. axiology\nAnswer: A\n\nQuestion: According to Moore\u2019s \u201cideal utilitarianism,\u201d the right action is the one that brings about the greatest amount of:\nA. pleasure.\nB. happiness.\nC. good.\nD. virtue.\nAnswer: C\n\nQuestion: Psychological egoism is:\nA. an ethical theory about how we ought to behave.\nB. a generalization concerning the way people tend to behave.\nC. a claim about human nature and the ways people are capable of behaving.\nD. none of the above.\nAnswer: C\n\nQuestion: Before Tolstoy's Christian conversion, what was his perspective on the meaning of life?\nA. optimist\nB. satisfied\nC. nominally religious\nD. pessimist\nAnswer: D\n\nQuestion: According to d'Holbach, people always act according to _____.\nA. free choices\nB. dictates of the soul\nC. necessary natural laws\nD. undetermined will\nAnswer: C\n\nQuestion: Mill says that the ultimate end of utilitarianism is an existence as free of pain as possible and as rich as possible in _____.\nA. lower pleasures\nB. spiritual attainment\nC. social achievement\nD. enjoyments\nAnswer:",
+        "temperature": 0.0,
+        "num_completions": 1,
+        "top_k_per_token": 5,
+        "max_tokens": 1,
+        "stop_sequences": [],
+        "echo_prompt": false,
+        "top_p": 1,
+        "presence_penalty": 0,
+        "frequency_penalty": 0
+      },
+      "result": {
+        "success": true,
+        "embedding": [],
+        "completions": [
+          {
+            "text": " D",
+            "logprob": 0.0,
+            "tokens": [
+              {
+                "text": " D",
+                "logprob": 0.0
+              }
+            ]
+          }
+        ],
+        "cached": false,
+        "request_time": 0.11363410949707031,
+        "request_datetime": 1762354922
+      },
+      "num_train_instances": 5,
+      "prompt_truncated": false,
+      "num_conditioning_tokens": 0
+    },
+    {
+      "instance": {
+        "input": {
+          "text": "Philo says the analogy that Cleanthes uses to make his case is _____."
+        },
+        "references": [
+          {
+            "output": {
+              "text": "too complicated"
+            },
+            "tags": []
+          },
+          {
+            "output": {
+              "text": "weak"
+            },
+            "tags": [
+              "correct"
+            ]
+          },
+          {
+            "output": {
+              "text": "strong"
+            },
+            "tags": []
+          },
+          {
+            "output": {
+              "text": "not based on a legitimate method of reasoning"
+            },
+            "tags": []
+          }
+        ],
+        "split": "test",
+        "id": "id259"
+      },
+      "train_trial_index": 0,
+      "output_mapping": {
+        "A": "too complicated",
+        "B": "weak",
+        "C": "strong",
+        "D": "not based on a legitimate method of reasoning"
+      },
+      "request": {
+        "model_deployment": "huggingface/gpt2",
+        "model": "openai/gpt2",
+        "embedding": false,
+        "prompt": "The following are multiple choice questions (with answers) about philosophy.\n\nQuestion: The study of reality in the broadest sense, an inquiry into the elemental nature of the universe and the things in it, is known as _____.\nA. metaphysics\nB. epistemology\nC. quantum physics\nD. axiology\nAnswer: A\n\nQuestion: According to Moore\u2019s \u201cideal utilitarianism,\u201d the right action is the one that brings about the greatest amount of:\nA. pleasure.\nB. happiness.\nC. good.\nD. virtue.\nAnswer: C\n\nQuestion: Psychological egoism is:\nA. an ethical theory about how we ought to behave.\nB. a generalization concerning the way people tend to behave.\nC. a claim about human nature and the ways people are capable of behaving.\nD. none of the above.\nAnswer: C\n\nQuestion: Before Tolstoy's Christian conversion, what was his perspective on the meaning of life?\nA. optimist\nB. satisfied\nC. nominally religious\nD. pessimist\nAnswer: D\n\nQuestion: According to d'Holbach, people always act according to _____.\nA. free choices\nB. dictates of the soul\nC. necessary natural laws\nD. undetermined will\nAnswer: C\n\nQuestion: Philo says the analogy that Cleanthes uses to make his case is _____.\nA. too complicated\nB. weak\nC. strong\nD. not based on a legitimate method of reasoning\nAnswer:",
+        "temperature": 0.0,
+        "num_completions": 1,
+        "top_k_per_token": 5,
+        "max_tokens": 1,
+        "stop_sequences": [],
+        "echo_prompt": false,
+        "top_p": 1,
+        "presence_penalty": 0,
+        "frequency_penalty": 0
+      },
+      "result": {
+        "success": true,
+        "embedding": [],
+        "completions": [
+          {
+            "text": " D",
+            "logprob": 0.0,
+            "tokens": [
+              {
+                "text": " D",
+                "logprob": 0.0
+              }
+            ]
+          }
+        ],
+        "cached": false,
+        "request_time": 0.0825653076171875,
+        "request_datetime": 1762354922
+      },
+      "num_train_instances": 5,
+      "prompt_truncated": false,
+      "num_conditioning_tokens": 0
+    },
+    {
+      "instance": {
+        "input": {
+          "text": "Baggini accuses pessimists of mixing up the two senses of _____."
+        },
+        "references": [
+          {
+            "output": {
+              "text": "philosophy"
+            },
+            "tags": []
+          },
+          {
+            "output": {
+              "text": "religion"
+            },
+            "tags": []
+          },
+          {
+            "output": {
+              "text": "meaning"
+            },
+            "tags": [
+              "correct"
+            ]
+          },
+          {
+            "output": {
+              "text": "time"
+            },
+            "tags": []
+          }
+        ],
+        "split": "test",
+        "id": "id105"
+      },
+      "train_trial_index": 0,
+      "output_mapping": {
+        "A": "philosophy",
+        "B": "religion",
+        "C": "meaning",
+        "D": "time"
+      },
+      "request": {
+        "model_deployment": "huggingface/gpt2",
+        "model": "openai/gpt2",
+        "embedding": false,
+        "prompt": "The following are multiple choice questions (with answers) about philosophy.\n\nQuestion: The study of reality in the broadest sense, an inquiry into the elemental nature of the universe and the things in it, is known as _____.\nA. metaphysics\nB. epistemology\nC. quantum physics\nD. axiology\nAnswer: A\n\nQuestion: According to Moore\u2019s \u201cideal utilitarianism,\u201d the right action is the one that brings about the greatest amount of:\nA. pleasure.\nB. happiness.\nC. good.\nD. virtue.\nAnswer: C\n\nQuestion: Psychological egoism is:\nA. an ethical theory about how we ought to behave.\nB. a generalization concerning the way people tend to behave.\nC. a claim about human nature and the ways people are capable of behaving.\nD. none of the above.\nAnswer: C\n\nQuestion: Before Tolstoy's Christian conversion, what was his perspective on the meaning of life?\nA. optimist\nB. satisfied\nC. nominally religious\nD. pessimist\nAnswer: D\n\nQuestion: According to d'Holbach, people always act according to _____.\nA. free choices\nB. dictates of the soul\nC. necessary natural laws\nD. undetermined will\nAnswer: C\n\nQuestion: Baggini accuses pessimists of mixing up the two senses of _____.\nA. philosophy\nB. religion\nC. meaning\nD. time\nAnswer:",
+        "temperature": 0.0,
+        "num_completions": 1,
+        "top_k_per_token": 5,
+        "max_tokens": 1,
+        "stop_sequences": [],
+        "echo_prompt": false,
+        "top_p": 1,
+        "presence_penalty": 0,
+        "frequency_penalty": 0
+      },
+      "result": {
+        "success": true,
+        "embedding": [],
+        "completions": [
+          {
+            "text": " D",
+            "logprob": 0.0,
+            "tokens": [
+              {
+                "text": " D",
+                "logprob": 0.0
+              }
+            ]
+          }
+        ],
+        "cached": false,
+        "request_time": 0.07625007629394531,
+        "request_datetime": 1762354922
+      },
+      "num_train_instances": 5,
+      "prompt_truncated": false,
+      "num_conditioning_tokens": 0
+    }
+  ]
+}
