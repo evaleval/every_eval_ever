@@ -318,18 +318,21 @@
                                 "available_tools": {
                                     "type": "array",
                                     "description": "List of all available tools with their configurations",
-                                    "properties": {
-                                        "name": {
-                                            "type": "str",
-                                            "description": "e.g. bash, calculator, ..."
-                                        },
-                                        "description": {
-                                            "type": "str"
-                                        },
-                                        "parameters": {
-                                            "type": "object",
-                                            "description": "Tool config",
-                                            "additionalProperties": true
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "name": {
+                                                "type": "str",
+                                                "description": "e.g. bash, calculator, ..."
+                                            },
+                                            "description": {
+                                                "type": "str"
+                                            },
+                                            "parameters": {
+                                                "type": "object",
+                                                "description": "Tool config",
+                                                "additionalProperties": true
+                                            }
                                         }
                                     }
                                 },
@@ -337,9 +340,11 @@
                                     "type": "array",
                                     "description": "Array of evaluation plan steps",
                                     "items": {
-                                        "type": "object",
-                                        "description": "Single evaluation plan step consisted of solver name and parameters",
-                                        "items": {
+                                        "solver": {
+                                            "type": "str",
+                                            "description": "Name of solver e.g. system_message, react."
+                                        },
+                                        "parameters": {
                                             "type": "object",
                                             "description": "Parameters for solver e.g. max_iterations",
                                             "additionalProperties": true
