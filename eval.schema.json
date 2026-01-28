@@ -315,6 +315,10 @@
                                     "type": "boolean",
                                     "description": "Whether reasoning orchain-of-thought was used to generate results"
                                 },
+                                "input_prompt": {
+                                    "type": "string",
+                                    "description": "Input prompt template for task (should contain agentic info if needed)."
+                                },
                                 "available_tools": {
                                     "type": "array",
                                     "description": "List of all available tools with their configurations",
@@ -337,16 +341,29 @@
                                     }
                                 },
                                 "eval_plan": {
-                                    "type": "array",
-                                    "description": "Array of evaluation plan steps",
-                                    "items": {
-                                        "solver": {
-                                            "type": "str",
-                                            "description": "Name of solver e.g. system_message, react."
+                                    "type": "object",
+                                    "properties": {
+                                        "name": {
+                                            "type": "string"
                                         },
-                                        "parameters": {
+                                        "steps": {
+                                            "type": "array",
+                                            "description": "Array of evaluation plan steps",
+                                            "items": {
+                                                "solver": {
+                                                    "type": "str",
+                                                    "description": "Name of solver e.g. system_message, react."
+                                                },
+                                                "parameters": {
+                                                    "type": "object",
+                                                    "description": "Parameters for solver e.g. max_iterations",
+                                                    "additionalProperties": true
+                                                }
+                                            }
+                                        },
+                                        "config": {
                                             "type": "object",
-                                            "description": "Parameters for solver e.g. max_iterations",
+                                            "description": "Additional config for eval plan",
                                             "additionalProperties": true
                                         }
                                     }
@@ -401,6 +418,15 @@
                                             "description": "Config file name/path e.g. compose.yaml. TODO or full config? Not sure based on the Inspect docs"
                                         }
                                     }
+                                },
+                                "max_attempts": {
+                                    "type": "integer",
+                                    "description": "Maximum number of submission attempts (default 1).",
+                                    "default": 1
+                                },
+                                "incorrect_attempt_feedback": {
+                                    "type": "string",
+                                    "description": "Feedback from the model after incorrect attempt."
                                 }
                             },
                             "additionalProperties": true
