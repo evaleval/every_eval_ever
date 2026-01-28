@@ -315,7 +315,7 @@
                                     "type": "boolean",
                                     "description": "Whether reasoning orchain-of-thought was used to generate results"
                                 },
-                                "input_prompt": {
+                                "prompt_template": {
                                     "type": "string",
                                     "description": "Input prompt template for task (should contain agentic info if needed)."
                                 },
@@ -383,26 +383,6 @@
                                         "token_limit": {
                                             "type": "int",
                                             "description": "Token limit for evaluation."
-                                        }
-                                    }
-                                },
-                                "model_output": {
-                                    "type": "object",
-                                    "properties": {
-                                        "stop_reason": {
-                                            "type": "str",
-                                            "description": "One of end_turn, tool_use, max_tokens."
-                                        },
-                                        "usage": {
-                                            "type": "object",
-                                            "properties": {
-                                                "input_tokens": {
-                                                    "type": "int"
-                                                },
-                                                "output_tokens": {
-                                                    "type": "int"
-                                                }
-                                            }
                                         }
                                     }
                                 },
