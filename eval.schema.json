@@ -319,29 +319,41 @@
                                     "type": "string",
                                     "description": "Input prompt template for task (should contain agentic info if needed)."
                                 },
-                                "available_tools": {
-                                    "type": "array",
-                                    "description": "List of all available tools with their configurations",
-                                    "items": {
-                                        "type": "object",
-                                        "properties": {
-                                            "name": {
-                                                "type": "str",
-                                                "description": "e.g. bash, calculator, ..."
-                                            },
-                                            "description": {
-                                                "type": "str"
-                                            },
-                                            "parameters": {
+                                "agentic_eval_config": {
+                                    "type": "object",
+                                    "description": "General configuration for agentic evaluations.",
+                                    "properties": {
+                                        "available_tools": {
+                                            "type": "array",
+                                            "description": "List of all available tools with their configurations",
+                                            "items": {
                                                 "type": "object",
-                                                "description": "Tool config",
-                                                "additionalProperties": true
+                                                "properties": {
+                                                    "name": {
+                                                        "type": "str",
+                                                        "description": "e.g. bash, calculator, ..."
+                                                    },
+                                                    "description": {
+                                                        "type": "str"
+                                                    },
+                                                    "parameters": {
+                                                        "type": "object",
+                                                        "description": "Tool config",
+                                                        "additionalProperties": true
+                                                    }
+                                                }
                                             }
+                                        },
+                                        "additional_details": {
+                                            "type": "object",
+                                            "description": "Additional agentic config.",
+                                            "additionalProperties": true
                                         }
                                     }
                                 },
                                 "eval_plan": {
                                     "type": "object",
+                                    "description": "Plan (solvers) used in evaluation. Solvers are crucial parts of Inspect evaluations which can serve a wide variety of purposes like providing system prompts, prompt engineering, model generation or multi-turn dialog.",
                                     "properties": {
                                         "name": {
                                             "type": "string"
