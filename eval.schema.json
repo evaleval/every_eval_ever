@@ -29,56 +29,6 @@
             "type": "string",
             "description": "Timestamp for when this record was created - using Unix Epoch time format"
         },
-        "source_data": {
-            "description": "Source of dataset used for evaluation. Three options supported: URL array, HuggingFace dataset, or generic source object.",
-            "oneOf": [
-                {
-                    "type": "array",
-                    "description": "URLs for the source of the evaluation data",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                {
-                    "type": "object",
-                    "description": "Details about HuggingFace dataset used for evaluation",
-                    "required": [
-                        "dataset_name"
-                    ],
-                    "properties": {
-                        "dataset_name": {
-                            "type": "string",
-                            "description": "Name of the source dataset"
-                        },
-                        "hf_repo": {
-                            "type": "string",
-                            "description": "HuggingFace repository identifier"
-                        },
-                        "hf_split": {
-                            "type": "string",
-                            "description": "One of train, val or test."
-                        },
-                        "samples_number": {
-                            "type": "integer",
-                            "description": "Number of samples in the dataset"
-                        },
-                        "sample_ids": {
-                            "type": "array",
-                            "description": "Array of sample ids used for evaluation",
-                            "items": {
-                                "type": ["integer", "string"]
-                            }
-                        },
-                        "additional_details": {
-                            "type": "object",
-                            "description": "Additional dataset info parameters",
-                            "additionalProperties": true
-                        }
-                    }
-                },
-               
-            ]
-        },
         "source_metadata": {
             "type": "object",
             "description": "Metadata about the source of the leaderboard data",
@@ -125,49 +75,7 @@
             }
         },
         "model_info": {
-            "type": "object",
-            "description": "Complete model specification including basic information, technical configuration and inference settings",
-            "required": [
-                "name",
-                "id"
-            ],
-            "properties": {
-                "name": {
-                    "type": "string",
-                    "description": "Model name provided by evaluation source"
-                },
-                "id": {
-                    "type": "string",
-                    "description": "Model name in HuggingFace format (e.g. meta-llama/Llama-3.1-8B-Instruct for models available on HuggingFace or openai/azure/gpt-4o-mini-2024-07-18 for closed API models)"
-                },
-                "developer": {
-                    "type": "string",
-                    "description": "Name of organization that provides the model (e.g. 'OpenAI')"
-                },
-                "inference_platform": {
-                    "type": "string",
-                    "description": "Name of inference platform which provides an access to models by API to run the evaluations or provides models weights to run them locally (e.g. HuggingFace, Bedrock, Together AI)"
-                },
-                "inference_engine": {
-                    "type": "object",
-                    "description": "Name of inference engine which provides an access to optimized models to use them for local evaluations (e.g. vLLM, Ollama).",
-                    "properties": {
-                        "name": {
-                            "type": "string",
-                            "description": "Name of the inference engine"
-                        },
-                        "version": {
-                            "type": "string",
-                            "description": "Version of the inference engine"
-                        }
-                    }
-                },
-                "additional_details": {
-                    "type": "object",
-                    "description": "Additional model configuration parameters",
-                    "additionalProperties": true
-                }
-            }
+            "$ref": "#/$defs/model_info"
         },
         "evaluation_results": {
             "type": "array",
@@ -202,13 +110,15 @@
                                         "const": "url"
                                     },
                                     "url": {
-                                        "type": "string",
-                                        "description": "URL for the source of the evaluation data"
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "minItems": 1,
+                                        "description": "URL(s) for the source of the evaluation data"
                                     },
                                     "additional_details": {
-                                        "type": "object",
-                                        "description": "Additional source info parameters",
-                                        "additionalProperties": true
+                                        "$ref": "#/$defs/additional_properties_object"
                                     }
                                 }
                             },
@@ -245,9 +155,7 @@
                                         }
                                     },
                                     "additional_details": {
-                                        "type": "object",
-                                        "description": "Additional dataset info parameters",
-                                        "additionalProperties": true
+                                        "$ref": "#/$defs/additional_properties_object"
                                     }
                                 }
                             },
@@ -263,9 +171,7 @@
                                         "description": "Name of the source dataset"
                                     },
                                     "additional_details": {
-                                        "type": "object",
-                                        "description": "Additional source info parameters",
-                                        "additionalProperties": true
+                                        "$ref": "#/$defs/additional_properties_object"
                                     }
                                 }
                             }
@@ -328,14 +234,14 @@
                             "llm_scoring": {
                                 "type": "object",
                                 "description": "Configuration when LLM is used as scorer/judge",
+                                "additionalProperties": true,
                                 "required": [
-                                    "judge_model",
+                                    "model_info",
                                     "input_prompt"
                                 ],
                                 "properties": {
-                                    "judge_model": {
-                                        "type": "string",
-                                        "description": "Model used as judge (e.g. 'gpt-4')"
+                                    "model_info": {
+                                        "$ref": "#/$defs/model_info"
                                     },
                                     "input_prompt": {
                                         "type": "string",
@@ -347,6 +253,9 @@
                                     "expert_baseline": {
                                         "type": "number",
                                         "description": "Expert/human baseline score for comparison"
+                                    },
+                                    "additional_details": {
+                                        "$ref": "#/$defs/additional_properties_object"
                                     }
                                 }
                             }
@@ -391,13 +300,7 @@
                                 "description": "The score for the evaluation"
                             },
                             "details": {
-                                "type": "object",
-                                "description": "Any additional details about the score",
-                                "additionalProperties": true
-                            },
-                            "max_tokens": {
-                                "type": "integer",
-                                "description": "Maximum tokens used for generation in this evaluation"
+                                "$ref": "#/$defs/additional_properties_object"
                             },
                             "confidence_interval": {
                                 "type": "object",
@@ -475,24 +378,20 @@
                                                 "type": "object",
                                                 "properties": {
                                                     "name": {
-                                                        "type": "str",
+                                                        "type": "string",
                                                         "description": "e.g. bash, calculator, ..."
                                                     },
                                                     "description": {
-                                                        "type": "str"
+                                                        "type": "string"
                                                     },
                                                     "parameters": {
-                                                        "type": "object",
-                                                        "description": "Tool config",
-                                                        "additionalProperties": true
+                                                        "$ref": "#/$defs/additional_properties_object"
                                                     }
                                                 }
                                             }
                                         },
                                         "additional_details": {
-                                            "type": "object",
-                                            "description": "Additional agentic config.",
-                                            "additionalProperties": true
+                                            "$ref": "#/$defs/additional_properties_object"
                                         }
                                     }
                                 },
@@ -508,20 +407,16 @@
                                             "description": "Array of evaluation plan steps",
                                             "items": {
                                                 "solver": {
-                                                    "type": "str",
+                                                    "type": "string",
                                                     "description": "Name of solver e.g. system_message, react."
                                                 },
                                                 "parameters": {
-                                                    "type": "object",
-                                                    "description": "Parameters for solver e.g. max_iterations",
-                                                    "additionalProperties": true
+                                                    "$ref": "#/$defs/additional_properties_object"
                                                 }
                                             }
                                         },
                                         "config": {
-                                            "type": "object",
-                                            "description": "Additional config for eval plan",
-                                            "additionalProperties": true
+                                            "$ref": "#/$defs/additional_properties_object"
                                         }
                                     }
                                 },
@@ -547,11 +442,11 @@
                                     "type": "object",
                                     "properties": {
                                         "type": {
-                                            "type": "str",
+                                            "type": "string",
                                             "description": "Type of sandbox e.g. docker"
                                         },
                                         "config": {
-                                            "type": "str",
+                                            "type": "string",
                                             "description": "Config file name/path e.g. compose.yaml. TODO or full config? Not sure based on the Inspect docs"
                                         }
                                     }
@@ -607,5 +502,55 @@
                 }
             }
         }   
+    },
+    "$defs": {
+        "additional_properties_object": {
+            "type": "object",
+            "description": "Additional parameters (key-value object)",
+            "additionalProperties": true
+        },
+        "model_info": {
+            "type": "object",
+            "description": "Complete model specification including basic information, technical configuration and inference settings",
+            "required": [
+                "name",
+                "id"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Model name provided by evaluation source"
+                },
+                "id": {
+                    "type": "string",
+                    "description": "Model name in HuggingFace format (e.g. meta-llama/Llama-3.1-8B-Instruct for models available on HuggingFace or openai/azure/gpt-4o-mini-2024-07-18 for closed API models)"
+                },
+                "developer": {
+                    "type": "string",
+                    "description": "Name of organization that provides the model (e.g. 'OpenAI')"
+                },
+                "inference_platform": {
+                    "type": "string",
+                    "description": "Name of inference platform which provides an access to models by API to run the evaluations or provides models weights to run them locally (e.g. HuggingFace, Bedrock, Together AI)"
+                },
+                "inference_engine": {
+                    "type": "object",
+                    "description": "Name of inference engine which provides an access to optimized models to use them for local evaluations (e.g. vLLM, Ollama).",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "Name of the inference engine"
+                        },
+                        "version": {
+                            "type": "string",
+                            "description": "Version of the inference engine"
+                        }
+                    }
+                },
+                "additional_details": {
+                    "$ref": "#/$defs/additional_properties_object"
+                }
+            }
+        }
     }
 }
