@@ -29,6 +29,56 @@
             "type": "string",
             "description": "Timestamp for when this record was created - using Unix Epoch time format"
         },
+        "source_data": {
+            "description": "Source of dataset used for evaluation. Three options supported: URL array, HuggingFace dataset, or generic source object.",
+            "oneOf": [
+                {
+                    "type": "array",
+                    "description": "URLs for the source of the evaluation data",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                {
+                    "type": "object",
+                    "description": "Details about HuggingFace dataset used for evaluation",
+                    "required": [
+                        "dataset_name"
+                    ],
+                    "properties": {
+                        "dataset_name": {
+                            "type": "string",
+                            "description": "Name of the source dataset"
+                        },
+                        "hf_repo": {
+                            "type": "string",
+                            "description": "HuggingFace repository identifier"
+                        },
+                        "hf_split": {
+                            "type": "string",
+                            "description": "One of train, val or test."
+                        },
+                        "samples_number": {
+                            "type": "integer",
+                            "description": "Number of samples in the dataset"
+                        },
+                        "sample_ids": {
+                            "type": "array",
+                            "description": "Array of sample ids used for evaluation",
+                            "items": {
+                                "type": ["integer", "string"]
+                            }
+                        },
+                        "additional_details": {
+                            "type": "object",
+                            "description": "Additional dataset info parameters",
+                            "additionalProperties": true
+                        }
+                    }
+                },
+               
+            ]
+        },
         "source_metadata": {
             "type": "object",
             "description": "Metadata about the source of the leaderboard data",
@@ -141,23 +191,32 @@
                             {
                                 "type": "object",
                                 "description": "URL source for the evaluation data",
-                                "required": ["source_type", "url"],
-                                "additionalProperties": false,
+                                "required": ["dataset_name", "source_type", "url"],
+                                "additionalProperties": true,
                                 "properties": {
+                                    "dataset_name": {
+                                        "type": "string",
+                                        "description": "Name of the source dataset"
+                                    },
                                     "source_type": {
                                         "const": "url"
                                     },
                                     "url": {
                                         "type": "string",
                                         "description": "URL for the source of the evaluation data"
+                                    },
+                                    "additional_details": {
+                                        "type": "object",
+                                        "description": "Additional source info parameters",
+                                        "additionalProperties": true
                                     }
                                 }
                             },
                             {
                                 "type": "object",
                                 "description": "Details about HuggingFace dataset used for evaluation",
-                                "required": ["source_type", "dataset_name"],
-                                "additionalProperties": false,
+                                "required": ["dataset_name", "source_type"],
+                                "additionalProperties": true,
                                 "properties": {
                                     "source_type": {
                                         "const": "hf_dataset"
@@ -194,16 +253,19 @@
                             },
                             {
                                 "type": "object",
-                                "description": "Private or custom dataset",
-                                "required": ["source_type"],
-                                "additionalProperties": false,
+                                "description": "Generic source data when neither URL array nor HuggingFace dataset applies",
+                                "required": [
+                                    "dataset_name"
+                                ],
                                 "properties": {
-                                    "source_type": {
-                                        "const": "private"
-                                    },
-                                    "name": {
+                                    "dataset_name": {
                                         "type": "string",
-                                        "description": "Optional name for the dataset"
+                                        "description": "Name of the source dataset"
+                                    },
+                                    "additional_details": {
+                                        "type": "object",
+                                        "description": "Additional source info parameters",
+                                        "additionalProperties": true
                                     }
                                 }
                             }
@@ -236,25 +298,7 @@
                                     "continuous",
                                     "levels"
                                 ]
-                            },
-                            "confidence_interval": {
-                                "type": "object",
-                                "description": "Confidence interval for the score",
-                                "properties": {
-                                    "lower": {
-                                        "type": "number",
-                                        "description": "Lower bound of the confidence interval"
-                                    },
-                                    "upper": {
-                                        "type": "number",
-                                        "description": "Upper bound of the confidence interval"
-                                    },
-                                    "method": {
-                                        "type": "string",
-                                        "description": "How it was computed (e.g. bootstrap, holdout)"
-                                    }
-                                }
-                            },
+                            },    
                             "level_names": {
                                 "type": "array",
                                 "description": "Names of the score levels",
@@ -280,6 +324,31 @@
                             "max_score": {
                                 "type": "number",
                                 "description": "Maximum possible score for continuous metric"
+                            },
+                            "llm_scoring": {
+                                "type": "object",
+                                "description": "Configuration when LLM is used as scorer/judge",
+                                "required": [
+                                    "judge_model",
+                                    "input_prompt"
+                                ],
+                                "properties": {
+                                    "judge_model": {
+                                        "type": "string",
+                                        "description": "Model used as judge (e.g. 'gpt-4')"
+                                    },
+                                    "input_prompt": {
+                                        "type": "string",
+                                        "description": "Prompt template used for judging"
+                                    },
+                                    "temperature": {
+                                        "type": "number"
+                                    },
+                                    "expert_baseline": {
+                                        "type": "number",
+                                        "description": "Expert/human baseline score for comparison"
+                                    }
+                                }
                             }
                         },
                         "if": {
@@ -325,13 +394,32 @@
                                 "type": "object",
                                 "description": "Any additional details about the score",
                                 "additionalProperties": true
+                            },
+                            "max_tokens": {
+                                "type": "integer",
+                                "description": "Maximum tokens used for generation in this evaluation"
+                            },
+                            "confidence_interval": {
+                                "type": "object",
+                                "description": "Confidence interval for the score",
+                                "properties": {
+                                    "lower": {
+                                        "type": "number",
+                                        "description": "Lower bound of the confidence interval"
+                                    },
+                                    "upper": {
+                                        "type": "number",
+                                        "description": "Upper bound of the confidence interval"
+                                    },
+                                    "method": {
+                                        "type": "string",
+                                        "description": "How it was computed (e.g. bootstrap, holdout)"
+                                    }
+                                }
                             }
                         }
                     },
-                    "detailed_evaluation_results_url": {
-                        "type": "string",
-                        "description": "Link to detailed evaluation data"
-                    },
+                    
                     "generation_config": {
                         "type": "object",
                         "generation_args": {
