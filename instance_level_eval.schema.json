@@ -12,7 +12,7 @@
         "interaction_type",
         "input",
         "answer_attribution",
-        "metrics"
+        "evaluation"
     ],
     "additionalProperties": true,
     "properties": {
@@ -48,7 +48,7 @@
         "input": {
             "type": "object",
             "description": "Input data for the evaluation sample",
-            "required": ["raw", "formatted", "reference"],
+            "required": ["raw", "reference"],
             "properties": {
                 "raw": {
                     "type": "string",
@@ -74,6 +74,7 @@
         "output": {
             "type": ["object", "null"],
             "description": "Output data - only used for single_turn interactions, null for multi_turn/agentic",
+            "required": ["raw"],
             "properties": {
                 "raw": {
                     "type": "string",
@@ -107,7 +108,7 @@
                     },
                     "reasoning_trace": {
                         "type": ["string", "null"],
-                        "description": "Reasoning tokens for that particular turn if applicable"
+                        "description": "Reasoning trace for that particular turn if applicable"
                     },
                     "tool_calls": {
                         "type": ["array", "null"],
@@ -170,10 +171,10 @@
                 }
             }
         },
-        "metrics": {
+        "evaluation": {
             "type": "object",
-            "description": "Instance-level metrics and performance data",
-            "required": ["score", "is_correct", "input_tokens", "output_tokens"],
+            "description": "Evaluation results and scoring data",
+            "required": ["score", "is_correct"],
             "properties": {
                 "score": {
                     "type": ["number", "boolean"],
@@ -192,23 +193,67 @@
                     "type": "integer",
                     "minimum": 0,
                     "description": "Count of tool calls across all turns in interactions"
-                },
+                }
+            }
+        },
+        "token_usage": {
+            "type": ["object", "null"],
+            "description": "Token usage for the model completion",
+            "required": ["input_tokens", "output_tokens", "total_tokens"],
+            "properties": {
                 "input_tokens": {
                     "type": "integer",
                     "minimum": 0,
-                    "description": "Number of input tokens"
+                    "description": "Total input tokens used"
                 },
                 "output_tokens": {
                     "type": "integer",
                     "minimum": 0,
-                    "description": "Number of tokens generated"
+                    "description": "Total output tokens used"
                 },
-                "misc_performance_metric": {
-                    "type": "object",
-                    "description": "Additional performance metrics (e.g. time for generation, latency, TTFT)",
-                    "additionalProperties": true
+                "total_tokens": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Total tokens used"
+                },
+                "input_tokens_cache_write": {
+                    "type": ["integer", "null"],
+                    "minimum": 0,
+                    "description": "Number of tokens written to the cache"
+                },
+                "input_tokens_cache_read": {
+                    "type": ["integer", "null"],
+                    "minimum": 0,
+                    "description": "Number of tokens retrieved from the cache"
+                },
+                "reasoning_tokens": {
+                    "type": ["integer", "null"],
+                    "minimum": 0,
+                    "description": "Number of tokens used for reasoning"
                 }
             }
+        },
+        "performance": {
+            "type": ["object", "null"],
+            "description": "Performance and latency metrics",
+            "properties": {
+                "latency_ms": {
+                    "type": ["number", "null"],
+                    "minimum": 0,
+                    "description": "Total latency in milliseconds"
+                },
+                "time_to_first_token_ms": {
+                    "type": ["number", "null"],
+                    "minimum": 0,
+                    "description": "Time to first token in milliseconds"
+                },
+                "generation_time_ms": {
+                    "type": ["number", "null"],
+                    "minimum": 0,
+                    "description": "Time for generation in milliseconds"
+                }
+            },
+            "additionalProperties": true
         },
         "error": {
             "type": ["string", "null"],
