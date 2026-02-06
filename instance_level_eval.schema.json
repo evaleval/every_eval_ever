@@ -1,0 +1,318 @@
+{   "$schema": "http://json-schema.org/draft-07/schema#",
+    "version": "instance_level_eval_0.2.0",
+    "type": "object",
+    "description": "Schema for storing instance-level evaluation data for LLM evaluations, supporting single-turn, multi-turn, and agentic interactions",
+    "required": [
+        "schema_version",
+        "evaluation_id",
+        "model_id",
+        "evaluation_name",
+        "sample_id",
+        "interaction_type",
+        "input",
+        "answer_attribution",
+        "evaluation"
+    ],
+    "additionalProperties": true,
+    "properties": {
+        "schema_version": {
+            "type": "string",
+            "description": "Version of the schema used for this instance data"
+        },
+        "evaluation_id": {
+            "type": "string",
+            "description": "Foreign key linking to the aggregate evaluation JSON. Must match the evaluation_id in the aggregate file."
+        },
+        "model_id": {
+            "type": "string",
+            "description": "Identifier of the model in HuggingFace format (e.g. meta-llama/Llama-3.2-1B-Instruct)"
+        },
+        "evaluation_name": {
+            "type": "string",
+            "description": "The specific eval name, ideally unique (e.g. GSM8K, mmlu_physics)"
+        },
+        "sample_id": {
+            "type": "string",
+            "description": "Question/sample identifier from the original dataset (e.g. gsm8k_0001)"
+        },
+        "sample_hash": {
+            "type": "string",
+            "description": "Hash of (input.raw + input.reference) to ensure comparison is between the same sample across models, in case sample_id is not consistent"
+        },
+        "interaction_type": {
+            "type": "string",
+            "enum": ["single_turn", "multi_turn", "agentic"],
+            "description": "Type of interaction: single_turn for simple Q&A, multi_turn for conversations, agentic for tool-using agents"
+        },
+        "input": {
+            "type": "object",
+            "description": "Input data for the evaluation sample",
+            "required": ["raw", "reference"],
+            "properties": {
+                "raw": {
+                    "type": "string",
+                    "description": "The raw input as defined in the eval"
+                },
+                "formatted": {
+                    "type": "string",
+                    "description": "Includes chat template, CoT and all relevant modifications - basically the un-tokenized version of what the model sees"
+                },
+                "reference": {
+                    "type": "string",
+                    "description": "Ground truth or reference answer for comparison/scoring"
+                },
+                "choices": {
+                    "type": "array",
+                    "description": "Optional list of choices for multiple-choice questions",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "output": {
+            "type": ["object", "null"],
+            "description": "Output data - only used for single_turn interactions, null for multi_turn/agentic",
+            "required": ["raw"],
+            "properties": {
+                "raw": {
+                    "type": "string",
+                    "description": "Complete model response"
+                },
+                "reasoning_trace": {
+                    "type": ["string", "null"],
+                    "description": "Reasoning trace of the model if applicable (e.g. chain-of-thought tokens)"
+                }
+            }
+        },
+        "interactions": {
+            "type": ["array", "null"],
+            "description": "List of interactions - used for multi_turn and agentic, null for single_turn",
+            "items": {
+                "type": "object",
+                "required": ["turn_idx", "role"],
+                "properties": {
+                    "turn_idx": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": "Index starting from 0 indicating the position in the conversation"
+                    },
+                    "role": {
+                        "type": "string",
+                        "description": "Role of the speaker (e.g. user, assistant, system, tool)"
+                    },
+                    "content": {
+                        "type": ["string", "null"],
+                        "description": "The actual raw text for that particular turn (can be null if empty)"
+                    },
+                    "reasoning_trace": {
+                        "type": ["string", "null"],
+                        "description": "Reasoning trace for that particular turn if applicable"
+                    },
+                    "tool_calls": {
+                        "type": ["array", "null"],
+                        "description": "List of tool invocations for this turn, if applicable",
+                        "items": {
+                            "type": "object",
+                            "required": ["id", "name"],
+                            "properties": {
+                                "id": {
+                                    "type": "string",
+                                    "description": "Unique identifier for the tool call"
+                                },
+                                "name": {
+                                    "type": "string",
+                                    "description": "Name of tool/function"
+                                },
+                                "arguments": {
+                                    "type": "object",
+                                    "description": "Arguments used to call the tool",
+                                    "additionalProperties": true
+                                }
+                            }
+                        }
+                    },
+                    "tool_call_id": {
+                        "type": "string",
+                        "description": "Reference to the tool call ID this turn is responding to (for tool role responses)"
+                    }
+                }
+            }
+        },
+        "answer_attribution": {
+            "type": "array",
+            "description": "Information about how the answer was extracted from the model output",
+            "items": {
+                "type": "object",
+                "required": ["turn_idx", "source", "extracted_value", "extraction_method", "is_terminal"],
+                "properties": {
+                    "turn_idx": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": "Turn index in interactions. 0 for single_turn"
+                    },
+                    "source": {
+                        "type": "string",
+                        "description": "Source of the extracted value (e.g. 'output.raw' or 'interactions[turn_idx].content')"
+                    },
+                    "extracted_value": {
+                        "type": "string",
+                        "description": "Value that was extracted"
+                    },
+                    "extraction_method": {
+                        "type": "string",
+                        "description": "Method used to extract the value (e.g. regex, exact_match, llm_judge, custom)"
+                    },
+                    "is_terminal": {
+                        "type": "boolean",
+                        "description": "Whether this is the final answer (false if intermediate outputs are used to build up to a final answer)"
+                    }
+                }
+            }
+        },
+        "evaluation": {
+            "type": "object",
+            "description": "Evaluation results and scoring data",
+            "required": ["score", "is_correct"],
+            "properties": {
+                "score": {
+                    "type": ["number", "boolean"],
+                    "description": "Instance-level score"
+                },
+                "is_correct": {
+                    "type": "boolean",
+                    "description": "Whether the final answer is correct"
+                },
+                "num_turns": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Number of turns in the interaction"
+                },
+                "tool_calls_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Count of tool calls across all turns in interactions"
+                }
+            }
+        },
+        "token_usage": {
+            "type": ["object", "null"],
+            "description": "Token usage for the model completion",
+            "required": ["input_tokens", "output_tokens", "total_tokens"],
+            "properties": {
+                "input_tokens": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Total input tokens used"
+                },
+                "output_tokens": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Total output tokens used"
+                },
+                "total_tokens": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Total tokens used"
+                },
+                "input_tokens_cache_write": {
+                    "type": ["integer", "null"],
+                    "minimum": 0,
+                    "description": "Number of tokens written to the cache"
+                },
+                "input_tokens_cache_read": {
+                    "type": ["integer", "null"],
+                    "minimum": 0,
+                    "description": "Number of tokens retrieved from the cache"
+                },
+                "reasoning_tokens": {
+                    "type": ["integer", "null"],
+                    "minimum": 0,
+                    "description": "Number of tokens used for reasoning"
+                }
+            }
+        },
+        "performance": {
+            "type": ["object", "null"],
+            "description": "Performance and latency metrics",
+            "properties": {
+                "latency_ms": {
+                    "type": ["number", "null"],
+                    "minimum": 0,
+                    "description": "Total latency in milliseconds"
+                },
+                "time_to_first_token_ms": {
+                    "type": ["number", "null"],
+                    "minimum": 0,
+                    "description": "Time to first token in milliseconds"
+                },
+                "generation_time_ms": {
+                    "type": ["number", "null"],
+                    "minimum": 0,
+                    "description": "Time for generation in milliseconds"
+                }
+            },
+            "additionalProperties": true
+        },
+        "error": {
+            "type": ["string", "null"],
+            "description": "Information about any error that occurred (e.g. timeout, refusal, API error)"
+        },
+        "metadata": {
+            "type": "object",
+            "description": "Optional metadata about the sample (e.g. subject, difficulty, tags)",
+            "additionalProperties": true
+        }
+    },
+    "allOf": [
+        {
+            "if": {
+                "properties": {
+                    "interaction_type": {
+                        "const": "single_turn"
+                    }
+                }
+            },
+            "then": {
+                "required": ["output"],
+                "properties": {
+                    "output": {
+                        "type": "object",
+                        "not": {
+                            "type": "null"
+                        }
+                    },
+                    "interactions": {
+                        "type": "null"
+                    }
+                }
+            }
+        },
+        {
+            "if": {
+                "properties": {
+                    "interaction_type": {
+                        "enum": ["multi_turn", "agentic"]
+                    }
+                }
+            },
+            "then": {
+                "required": ["interactions"],
+                "properties": {
+                    "output": {
+                        "type": "null"
+                    },
+                    "interactions": {
+                        "type": "array",
+                        "not": {
+                            "type": "null"
+                        }
+                    },
+                    "metrics": {
+                        "required": ["num_turns"]
+                    }
+                }
+            }
+        }
+    ]
+}

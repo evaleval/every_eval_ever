@@ -104,35 +104,37 @@ Each evaluation (e.g., `livecodebenchpro`, `hfopenllm_v2`) has its own directory
 
 ## Detailed Example
 
-```
+```json
 {
-  "schema_version": "0.1.0",
-  "evaluation_id": "hfopenllm_v2/Qwen_Qwen2.5-Math-72B-Instruct/1762652579.847774", # {eval_name}/{model_id}/{retrieved_timestamp}
-  "retrieved_timestamp": "1762652579.847775",  # UNIX timestamp
-  "source_data": [
-    "https://open-llm-leaderboard-open-llm-leaderboard.hf.space/api/leaderboard/formatted"
-  ],
-  "source_metadata": { # This information will be repeated in every model file
+  "schema_version": "0.2.0",
+  "evaluation_id": "hfopenllm_v2/meta-llama_Llama-3.1-8B/1762652580.351093",
+  "retrieved_timestamp": "1762652580.351093",
+  "source_metadata": {
     "source_name": "HF Open LLM v2",
-    "source_type": "documentation" # This can be documentation OR evaluation_run
+    "source_type": "documentation",
     "source_organization_name": "Hugging Face",
     "evaluator_relationship": "third_party"
   },
   "model_info": {
-    "name": "Qwen/Qwen2.5-Math-72B-Instruct",
-    "developer": "Qwen",
+    "name": "meta-llama/Llama-3.1-8B",
+    "developer": "meta-llama",
     "inference_platform": "unknown",
-    "id": "Qwen/Qwen2.5-Math-72B-Instruct",
-    "additional_details": { # Optional details about the model
-        "precision": "bfloat16",
-        "architecture": "Qwen2ForCausalLM",
-        "params_billions": 72.706
+    "id": "meta-llama/Llama-3.1-8B",
+    "additional_details": {
+      "precision": "float16",
+      "architecture": "LlamaForCausalLM",
+      "params_billions": 8.03
     }
   },
   "evaluation_results": [
     {
       "evaluation_name": "IFEval",
-      "metric_config": { # This information will be repeated in every model file
+      "source_data": {
+        "dataset_name": "IFEval",
+        "source_type": "hf_dataset",
+        "hf_repo": "google/IFEval"
+      },
+      "metric_config": {
         "evaluation_description": "Accuracy on IFEval",
         "lower_is_better": false,
         "score_type": "continuous",
@@ -140,10 +142,27 @@ Each evaluation (e.g., `livecodebenchpro`, `hfopenllm_v2`) has its own directory
         "max_score": 1
       },
       "score_details": {
-        "score": 0.4003466358151926
+        "score": 0.12459828809780273
+      }
+    },
+    {
+      "evaluation_name": "BBH",
+      "source_data": {
+        "dataset_name": "BBH",
+        "source_type": "hf_dataset",
+        "hf_repo": "lukaemon/bbh"
+      },
+      "metric_config": {
+        "evaluation_description": "Accuracy on BBH",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0,
+        "max_score": 1
+      },
+      "score_details": {
+        "score": 0.46595905446007296
       }
     }
-...
   ]
 }
 ```
