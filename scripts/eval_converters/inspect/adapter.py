@@ -31,8 +31,10 @@ from eval_types import (
     GenerationArgs,
     GenerationConfig,
     HashAlgorithm,
+    JudgeConfig,
     MetricConfig,
     ModelInfo,
+    LlmScoring,
     Sandbox,
     ScoreType,
     ScoreDetails,
@@ -102,6 +104,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         self,
         scorer_name: str,
         metric_info: EvalMetric,
+        llm_grader: LlmScoring,
         stderr_value: float,
         source_data: SourceDataHF,
         evaluation_timestamp: str,
@@ -122,6 +125,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
                 score_type=ScoreType.continuous,
                 min_score=0,
                 max_score=1,
+                llm_scoring=llm_grader
             ),
             score_details=ScoreDetails(
                 score=metric_info.value,
@@ -138,8 +142,33 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         timestamp: str
     ) -> List[EvaluationResult]:
         results: List[EvaluationResult] = []
-        
+        llm_graders = {
+            scorer.name: LlmScoring(
+                judges=[JudgeConfig(
+                    model_info = extract_model_info_from_model_path(
+                        scorer.options.grader_model.model
+                    )
+                )],
+                input_prompt=scorer.options.grader_template
+            )
+            for scorer in scores
+            if scorer.options
+        }
+
         for scorer in scores:
+            llm_grader = None
+            if scorer.params and scorer.params.grader_model:
+                llm_grader = LlmScoring(
+                    judges=[
+                        JudgeConfig(
+                            model_info=extract_model_info_from_model_path(
+                                scorer.params.grader_model.name
+                            )
+                        )
+                    ],
+                    input_prompt=scorer.params.grader_template
+                )
+            
             stderr_metric = [
                 metric_info
                 for _, metric_info in scorer.metrics.items()
@@ -155,6 +184,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
                     self._build_evaluation_result(
                         scorer_name=scorer.scorer,
                         metric_info=metric_info,
+                        llm_grader=llm_grader,
                         stderr_value=stderr_value,
                         source_data=source_data,
                         evaluation_timestamp=timestamp,
@@ -323,7 +353,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
 
         evaluation_results = (
             self.extract_evaluation_results(
-                results.scores, 
+                results.scores if results else [],
                 source_data,
                 generation_config,
                 evaluation_unix_timestamp

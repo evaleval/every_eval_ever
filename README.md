@@ -194,3 +194,4 @@ uv run datamodel-codegen --input eval.schema.json --output eval_types.py --class
 and
 ```bash
 uv run datamodel-codegen --input instance_level_eval.schema.json --output instance_level_types.py --class-name InstanceLevelEvaluationLog --output-model-type pydantic_v2.BaseModel --input-file-type jsonschema
+```
