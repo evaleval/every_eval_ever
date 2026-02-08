@@ -15,12 +15,15 @@ from inspect_ai.log import (
     read_eval_log_sample,
     read_eval_log_sample_summaries,
 )
+from inspect_ai.log import EvalPlan as InspectEvalPlan
 from math import isfinite
 from pathlib import Path
 from typing import Any, Dict, List, Tuple, Union
 from urllib.parse import urlparse
 
 from eval_types import (
+    AgenticEvalConfig,
+    AvailableTool,
     ConfidenceInterval,
     DetailedEvaluationResults,
     EvalLimits,
@@ -79,7 +82,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
     def supported_library(self) -> SupportedLibrary:
         return SupportedLibrary.INSPECT_AI
 
-    def confidence_interval(
+    def _calculate_confidence_interval(
         self, 
         estimate, 
         stderr, 
@@ -110,7 +113,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         evaluation_timestamp: str,
         generation_config: Dict[str, Any],
     ) -> EvaluationResult:
-        conf_interval = self.confidence_interval(
+        conf_interval = self._calculate_confidence_interval(
             metric_info.value,
             stderr_value
         )
@@ -134,7 +137,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
             generation_config=generation_config,
         )
 
-    def extract_evaluation_results(
+    def _extract_evaluation_results(
         self,
         scores: List[EvalScore],
         source_data: SourceDataHF,
@@ -142,18 +145,6 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         timestamp: str
     ) -> List[EvaluationResult]:
         results: List[EvaluationResult] = []
-        llm_graders = {
-            scorer.name: LlmScoring(
-                judges=[JudgeConfig(
-                    model_info = extract_model_info_from_model_path(
-                        scorer.options.grader_model.model
-                    )
-                )],
-                input_prompt=scorer.options.grader_template
-            )
-            for scorer in scores
-            if scorer.options
-        }
 
         for scorer in scores:
             llm_grader = None
@@ -194,7 +185,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
 
         return results
     
-    def extract_source_data(
+    def _extract_source_data(
         self,
         dataset: EvalDataset
     ) -> SourceDataHF:
@@ -205,7 +196,41 @@ class InspectAIAdapter(BaseEvaluationAdapter):
             sample_ids=dataset.sample_ids
         )
 
-    def extract_generation_config(
+    def _safe_get(self, obj: Any, field: str):
+        cur = obj
+        
+        if cur is None:
+            return None
+        
+        if isinstance(cur, dict):
+            cur = cur.get(field)
+        else:
+            cur = getattr(cur, field, None)
+
+        return cur
+
+    def _extract_available_tools(
+        self,
+        eval_plan: InspectEvalPlan
+    ) -> List[AvailableTool]:
+        all_tools: List[AvailableTool] = []
+
+        for step in eval_plan.steps:
+            if step.name == "use_tools":
+                tools = step.params.get("tools") or []
+                for tool in tools:
+                    description = self._safe_get(tool, 'description')
+                    all_tools.append(
+                        AvailableTool(
+                            name=tool.name,
+                            description=description,
+                            parameters=tool.params
+                        )
+                    )
+
+        return all_tools
+
+    def _extract_generation_config(
         self,
         eval_log: EvalLog
     ) -> GenerationConfig:
@@ -236,6 +261,10 @@ class InspectAIAdapter(BaseEvaluationAdapter):
             else False
         )
 
+        available_tools: List[AvailableTool] = self._extract_available_tools(
+            eval_log.plan
+        )
+
         generation_args = GenerationArgs(
             temperature=eval_config.temperature,
             top_p=eval_config.top_p,
@@ -243,7 +272,9 @@ class InspectAIAdapter(BaseEvaluationAdapter):
             max_tokens=eval_config.max_tokens,
             reasoning=reasoning,
             prompt_template=None,
-            agentic_eval_config=None,
+            agentic_eval_config=AgenticEvalConfig(
+                available_tools=available_tools
+            ),
             eval_plan=eval_plan,
             eval_limits=eval_limits,
             sandbox=Sandbox(
@@ -324,7 +355,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
             evaluator_relationship=metadata_args.get('evaluator_relationship')
         )
 
-        source_data = self.extract_source_data(
+        source_data = self._extract_source_data(
             eval_spec.dataset
         )
 
@@ -349,10 +380,10 @@ class InspectAIAdapter(BaseEvaluationAdapter):
             for gen_config, value in vars(eval_spec.model_generate_config).items() if value is not None
         }
 
-        generation_config = self.extract_generation_config(raw_eval_log)
+        generation_config = self._extract_generation_config(raw_eval_log)
 
         evaluation_results = (
-            self.extract_evaluation_results(
+            self._extract_evaluation_results(
                 results.scores if results else [],
                 source_data,
                 generation_config,

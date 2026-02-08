@@ -1,3 +1,4 @@
+import json
 from inspect_ai.model import (
     ChatMessage,
     ChatMessageAssistant,
@@ -8,6 +9,7 @@ from inspect_ai.model import (
 from inspect_ai.log import (
     EvalSample
 )
+from pathlib import Path
 from typing import List, Optional, Tuple
 
 from instance_level_types import (
@@ -24,7 +26,7 @@ from instance_level_types import (
 )
 
 from scripts.eval_converters import SCHEMA_VERSION
-from scripts.eval_converters.inspect.utils import save_to_file, sha256_string
+from scripts.eval_converters.inspect.utils import sha256_string
 
 
 class InspectInstanceLevelDataAdapter:
@@ -85,12 +87,27 @@ class InspectInstanceLevelDataAdapter:
             tool_call_id=tool_call_id
         )
 
+    def _save_jsonl(
+        self,
+        items: list[InstanceLevelEvaluationLog]
+    ):
+        path = Path(self.path)
+
+        with path.open("w", encoding="utf-8") as f:
+            for item in items:
+                json_line = json.dumps(
+                    item.model_dump(mode="json"),
+                    ensure_ascii=False
+                )
+                f.write(json_line + "\n")
+
     def convert_instance_level_logs(
         self, 
         evaluation_name: str,
         model_id: str,
         samples: List[EvalSample]
-    ) -> InstanceLevelEvaluationLog:
+    ) -> str:
+        instance_level_logs: List[InstanceLevelEvaluationLog] = []
         for sample in samples:
             sample_input = Input(
                 raw=sample.input,
@@ -165,6 +182,8 @@ class InspectInstanceLevelDataAdapter:
                 metadata={'stop_reason': sample.output.stop_reason}
             )
 
-            save_to_file(self.path, instance_level_log)
+            instance_level_logs.append(instance_level_log)
+
+        self._save_jsonl(instance_level_logs)
 
         return self.path
