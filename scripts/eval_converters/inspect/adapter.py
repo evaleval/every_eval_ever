@@ -1,6 +1,7 @@
 import os
 
 from inspect_ai.log import (
+    EvalDataset,
     EvalLog,
     EvalMetric,
     EvalResults,
@@ -14,20 +15,28 @@ from inspect_ai.log import (
     read_eval_log_sample,
     read_eval_log_sample_summaries,
 )
-
+from math import isfinite
 from pathlib import Path
 from typing import Any, Dict, List, Tuple, Union
 from urllib.parse import urlparse
 
 from eval_types import (
-    DetailedEvaluationResultsPerSample,
+    ConfidenceInterval,
+    DetailedEvaluationResults,
+    EvalLimits,
+    EvalPlan,
     EvaluationLog,
     EvaluationResult,
+    Format,
+    GenerationArgs,
+    GenerationConfig,
+    HashAlgorithm,
     MetricConfig,
     ModelInfo,
+    Sandbox,
     ScoreType,
     ScoreDetails,
-    SourceData,
+    SourceDataHF,
     SourceMetadata,
     SourceType
 )
@@ -39,8 +48,16 @@ from scripts.eval_converters.common.adapter import (
 )
 
 from scripts.eval_converters.common.error import AdapterError
-from scripts.eval_converters.common.utils import convert_timestamp_to_unix_format
-from scripts.eval_converters.inspect.utils import extract_model_info_from_model_path
+from scripts.eval_converters.common.utils import (
+    convert_timestamp_to_unix_format, 
+    get_current_unix_timestamp
+)
+from scripts.eval_converters.inspect.instance_level_adapter import (
+    InspectInstanceLevelDataAdapter
+)
+from scripts.eval_converters.inspect.utils import (
+    extract_model_info_from_model_path, sha256_file
+)
 from scripts.eval_converters import SCHEMA_VERSION
 
 class InspectAIAdapter(BaseEvaluationAdapter):
@@ -53,22 +70,51 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         return AdapterMetadata(
 			name="InspectAdapter",
 			version="0.0.1",
-			description="Adapter for transforming HELM evaluation outputs to unified schema format"
+			description="Adapter for transforming Inspect evaluation outputs to unified schema format"
 		)
 
     @property
     def supported_library(self) -> SupportedLibrary:
         return SupportedLibrary.INSPECT_AI
 
+    def confidence_interval(
+        self, 
+        estimate, 
+        stderr, 
+        z=1.96
+    ) -> ConfidenceInterval:
+        if stderr is None or not isfinite(stderr):
+            return None
+
+        margin = z * stderr
+        lower = estimate - margin
+        upper = estimate + margin
+
+        lower = max(0.0, lower)
+        upper = min(1.0, upper)
+
+        return ConfidenceInterval(
+            lower=lower,
+            upper=upper
+        )
+
     def _build_evaluation_result(
         self,
         scorer_name: str,
         metric_info: EvalMetric,
+        stderr_value: float,
+        source_data: SourceDataHF,
         evaluation_timestamp: str,
         generation_config: Dict[str, Any],
     ) -> EvaluationResult:
+        conf_interval = self.confidence_interval(
+            metric_info.value,
+            stderr_value
+        )
+
         return EvaluationResult(
             evaluation_name=scorer_name,
+            source_data=source_data,
             evaluation_timestamp=evaluation_timestamp,
             metric_config=MetricConfig(
                 evaluation_description=metric_info.name,
@@ -78,7 +124,8 @@ class InspectAIAdapter(BaseEvaluationAdapter):
                 max_score=1,
             ),
             score_details=ScoreDetails(
-                score=metric_info.value
+                score=metric_info.value,
+                confidence_interval=conf_interval
             ),
             generation_config=generation_config,
         )
@@ -86,12 +133,20 @@ class InspectAIAdapter(BaseEvaluationAdapter):
     def extract_evaluation_results(
         self,
         scores: List[EvalScore],
+        source_data: SourceDataHF,
         generation_config: Dict[str, Any],
         timestamp: str
     ) -> List[EvaluationResult]:
         results: List[EvaluationResult] = []
-
+        
         for scorer in scores:
+            stderr_metric = [
+                metric_info
+                for _, metric_info in scorer.metrics.items()
+                if metric_info.name == "stderr"
+            ]
+            stderr_value = stderr_metric[0].value if stderr_metric else 0.0
+
             for _, metric_info in scorer.metrics.items():
                 if metric_info.name == "stderr":
                     continue
@@ -100,12 +155,82 @@ class InspectAIAdapter(BaseEvaluationAdapter):
                     self._build_evaluation_result(
                         scorer_name=scorer.scorer,
                         metric_info=metric_info,
+                        stderr_value=stderr_value,
+                        source_data=source_data,
                         evaluation_timestamp=timestamp,
                         generation_config=generation_config,
                     )
                 )
 
         return results
+    
+    def extract_source_data(
+        self,
+        dataset: EvalDataset
+    ) -> SourceDataHF:
+        return SourceDataHF( # TODO add hf_split
+            dataset_name=dataset.name.split('/')[-1],
+            hf_repo=dataset.location,
+            samples_number=dataset.samples,
+            sample_ids=dataset.sample_ids
+        )
+
+    def extract_generation_config(
+        self,
+        eval_log: EvalLog
+    ) -> GenerationConfig:
+        eval_config = eval_log.eval_spec.model_generate_config
+        eval_generation_config = {
+            gen_config: str(value) 
+            for gen_config, value in vars(eval_config).items() if value is not None
+        }
+        eval_sandbox = eval_log.eval_spec.task_args.get("sandbox")
+        sandbox_type, sandbox_config = (eval_sandbox + [None, None])[:2]
+
+        eval_plan = EvalPlan(
+            name=eval_log.eval_plan.name,
+            steps=eval_log.eval_plan.steps,
+            config=eval_log.eval_plan.config,
+        )
+        eval_limits = EvalLimits(
+            time_limit=eval_log.eval_spec.config.time_limit,
+            message_limit=eval_log.eval_spec.config.message_limit,
+            token_limit=eval_log.eval_spec.config.token_limit
+        )
+
+        max_attempts = eval_log.eval_spec.task_args.get("max_attempts") or eval_config.max_retries
+
+        reasoning = (
+            True 
+            if eval_config.reasoning_effort and eval_config.reasoning_effort.lower() != 'none'
+            else False
+        )
+
+        generation_args = GenerationArgs(
+            temperature=eval_config.temperature,
+            top_p=eval_config.top_p,
+            top_k=eval_config.top_k,
+            max_tokens=eval_config.max_tokens,
+            reasoning=reasoning,
+            prompt_template=None,
+            agentic_eval_config=None,
+            eval_plan=eval_plan,
+            eval_limits=eval_limits,
+            sandbox=Sandbox(
+                type=sandbox_type,
+                config=sandbox_config
+            ),
+            max_attempts=max_attempts,
+        )
+
+        additional_details = ', '.join(
+            f"{k}={v}" for k, v in eval_generation_config.items()
+        )
+
+        return GenerationConfig(
+            generation_args=generation_args,
+            additional_details=additional_details or None
+        )
 
     def transform_from_directory(
         self,
@@ -127,15 +252,19 @@ class InspectAIAdapter(BaseEvaluationAdapter):
     def transform_from_file(
         self, 
         file_path: Union[str, Path], 
-        metadata_args: Dict[str, Any] = None
-    ) -> Union[EvaluationLog, List[EvaluationLog]]:
+        metadata_args: Dict[str, Any] = None,
+        header_only: bool = False
+    ) -> Union[
+        EvaluationLog,
+        List[EvaluationLog]
+    ]:
         if not os.path.exists(file_path):
             raise FileNotFoundError(f'File path {file_path} does not exists!')
         
         try:
             file_path = Path(file_path) if isinstance(file_path, str) else file_path
             eval_data: Tuple[EvalLog, List[EvalSampleSummary], EvalSample | None] = (
-                self._load_file(file_path)
+                self._load_file(file_path, header_only=header_only)
             )
             return self.transform(eval_data, metadata_args)
         except AdapterError as e:
@@ -152,15 +281,9 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         eval_spec: EvalSpec = raw_eval_log.eval
         eval_stats: EvalStats = raw_eval_log.stats
 
-        retrieved_timestamp = eval_stats.started_at or eval_spec.created
-        retrieved_unix_timestamp = convert_timestamp_to_unix_format(retrieved_timestamp)
-        
-        source_data = SourceData(
-            dataset_name=eval_spec.dataset.name.split('/')[-1],
-            hf_repo=eval_spec.dataset.location,
-            samples_number=eval_spec.dataset.samples,
-            sample_ids=eval_spec.dataset.sample_ids
-        )
+        evaluation_timestamp = eval_stats.started_at or eval_spec.created
+        evaluation_unix_timestamp = convert_timestamp_to_unix_format(evaluation_timestamp)
+        retrieved_unix_timestamp = get_current_unix_timestamp()
 
         source_metadata = SourceMetadata(
             source_name='inspect_ai',
@@ -171,9 +294,13 @@ class InspectAIAdapter(BaseEvaluationAdapter):
             evaluator_relationship=metadata_args.get('evaluator_relationship')
         )
 
-        model_path = eval_spec.model
-        self._check_if_model_is_on_huggingface(model_path)
+        source_data = self.extract_source_data(
+            eval_spec.dataset
+        )
 
+        model_path = eval_spec.model
+
+        single_sample = raw_eval_log.samples[0] if raw_eval_log.samples else single_sample
         if single_sample:
             detailed_model_name = single_sample.output.model
             model_path_parts = model_path.split('/')
@@ -192,57 +319,64 @@ class InspectAIAdapter(BaseEvaluationAdapter):
             for gen_config, value in vars(eval_spec.model_generate_config).items() if value is not None
         }
 
+        generation_config = self.extract_generation_config(raw_eval_log)
+
         evaluation_results = (
             self.extract_evaluation_results(
                 results.scores, 
+                source_data,
                 generation_config,
-                retrieved_unix_timestamp
+                evaluation_unix_timestamp
             )
             if results and results.scores
             else []
         )
 
-        detailed_evaluation_results_per_samples = []
-        for sample_summary in sample_summaries:
-            if sample_summary.scores:
-                response = sample_summary.scores.get('choice').answer
-            else:
-                response = sample_summary.output.choices[0].message.content
+        evaluation_id = f'{source_data.dataset_name}/{model_path.replace('/', '_')}/{evaluation_unix_timestamp}'
 
-            detailed_evaluation_results_per_samples.append(
-                DetailedEvaluationResultsPerSample(
-                    sample_id=str(sample_summary.id),
-                    input=sample_summary.input,
-                    ground_truth=sample_summary.target,
-                    response=response,
-                    choices=sample_summary.choices
-                )
-            )
+        instance_level_adapter = InspectInstanceLevelDataAdapter(evaluation_id, Format.jsonl)
+        instance_level_log_path = instance_level_adapter.convert_instance_level_logs(
+            eval_spec.dataset.name,
+            model_info.id, 
+            raw_eval_log.samples
+        )
 
-        evaluation_id = f'{source_data.dataset_name}/{model_path.replace('/', '_')}/{retrieved_unix_timestamp}'
+        detailed_evaluation_results = DetailedEvaluationResults(
+            format=Format.jsonl,
+            file_path=instance_level_log_path,
+            hash_algorithm=HashAlgorithm.sha256,
+            checksum=sha256_file(instance_level_log_path),
+            total_rows=len(eval_spec.dataset.sample_ids)
+        )
 
         return EvaluationLog(
             schema_version=SCHEMA_VERSION,
             evaluation_id=evaluation_id,
+            evaluation_timestamp=evaluation_unix_timestamp,
             retrieved_timestamp=retrieved_unix_timestamp,
-            source_data=source_data,
             source_metadata=source_metadata,
             model_info=model_info,
             evaluation_results=evaluation_results,
-            detailed_evaluation_results_per_samples=detailed_evaluation_results_per_samples
+            detailed_evaluation_results=detailed_evaluation_results
         )
     
-    def _load_file(self, file_path) -> Tuple[EvalLog, List[EvalSampleSummary], EvalSample | None]:
-        log = read_eval_log(file_path, header_only=True)
-        summaries = read_eval_log_sample_summaries(file_path)
-        first_sample = (
-            read_eval_log_sample(
-                file_path,
-                summaries[0].id,
-                summaries[0].epoch
+    def _load_file(
+        self, file_path, header_only=False
+    ) -> Tuple[EvalLog, List[EvalSampleSummary], EvalSample | None]:
+        log = read_eval_log(file_path, header_only=header_only)
+        if header_only:
+            summaries = read_eval_log_sample_summaries(file_path)
+            first_sample = (
+                read_eval_log_sample(
+                    file_path,
+                    summaries[0].id,
+                    summaries[0].epoch
+                )
+                if summaries
+                else None
             )
-            if summaries
-            else None
-        )
+        else:
+            summaries = []
+            first_sample = None
 
         return log, summaries, first_sample

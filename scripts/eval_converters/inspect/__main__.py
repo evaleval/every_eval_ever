@@ -4,13 +4,14 @@ import json
 import uuid
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple, Union
 
 from scripts.eval_converters.inspect.adapter import InspectAIAdapter
 from eval_types import (
     EvaluatorRelationship,
     EvaluationLog
 )
+from instance_level_types import InstanceLevelEvaluationLog
 
 def parse_args():
     parser = ArgumentParser()
@@ -44,7 +45,12 @@ class InspectEvalLogConverter:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-    def convert_to_unified_schema(self, metadata_args: Dict[str, Any] = None) -> EvaluationLog:
+    def convert_to_unified_schema(
+        self, metadata_args: Dict[str, Any] = None
+    ) -> Union[
+        Tuple[EvaluationLog, InstanceLevelEvaluationLog],
+        List[Tuple[EvaluationLog, InstanceLevelEvaluationLog]]
+    ]:
         if self.is_log_path_directory:
             return InspectAIAdapter().transform_from_directory(
                 self.log_path, 
@@ -63,7 +69,7 @@ class InspectEvalLogConverter:
         output_filepath: str
     ) -> bool:
         try:
-            json_str = unified_eval_log.model_dump_json(indent=2, exclude_none=True)
+            json_str = unified_eval_log.model_dump_json(indent=4, exclude_none=True)
 
             unified_eval_log_dir = Path(f'{self.output_dir}/{output_filedir}')
             unified_eval_log_dir.mkdir(parents=True, exist_ok=True)
@@ -77,7 +83,8 @@ class InspectEvalLogConverter:
             raise e
 
 def save_evaluation_log(
-    unified_output: EvaluationLog, 
+    unified_output: EvaluationLog,
+    instance_level_output: InstanceLevelEvaluationLog,
     inspect_converter: InspectEvalLogConverter
 ) -> bool:
     try:
@@ -106,12 +113,22 @@ if __name__ == '__main__':
         'evaluator_relationship': EvaluatorRelationship(args.evaluator_relationship)
     }
 
-    unified_output: EvaluationLog | List[EvaluationLog] = inspect_converter.convert_to_unified_schema(metadata_args)
+    unified_output = inspect_converter.convert_to_unified_schema(metadata_args)
+    
     if unified_output:
         if isinstance(unified_output, List):
-            for single_unified_output in unified_output:
-                save_evaluation_log(single_unified_output, inspect_converter)
+            for single_unified_output, instance_level_output in unified_output:
+                save_evaluation_log(
+                    single_unified_output,
+                    instance_level_output,
+                    inspect_converter
+                )
         else:
-            save_evaluation_log(unified_output, inspect_converter)
+            single_unified_output, instance_level_output = unified_output
+            save_evaluation_log(
+                single_unified_output,
+                instance_level_output,
+                inspect_converter
+            )
     else:
         print("Missing unified schema result!")

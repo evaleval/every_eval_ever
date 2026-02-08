@@ -6,6 +6,9 @@ def convert_timestamp_to_unix_format(timestamp: str):
     dt = datetime.fromisoformat(timestamp)
     return str(dt.timestamp())
 
+def get_current_unix_timestamp():
+    return str(datetime.now().timestamp())
+
 def get_model_organization_info(model_base_name: str) -> Dict:
     """
     Searches the Hugging Face Hub for a model based on its base name 

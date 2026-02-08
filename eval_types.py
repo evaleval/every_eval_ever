@@ -200,6 +200,9 @@ class SourceDataHf(BaseModel):
 
 
 class SourceDataPrivate(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
     dataset_name: str = Field(..., description='Name of the source dataset')
     source_type: Literal['other']
     additional_details: AdditionalPropertiesObject | None = None
