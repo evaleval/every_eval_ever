@@ -34,7 +34,7 @@ class InspectInstanceLevelDataAdapter:
         self.evaluation_id = evaulation_id
         self.format = format
         self.hash_algorithm = hash_algorithm
-        self.path = f'{evaulation_id}.{format}'
+        self.path = f'instance_level_data/{evaulation_id}.{format}'
 
     def get_token_usage(self, usage: Optional[ModelUsage]):
         return TokenUsage(
@@ -72,7 +72,7 @@ class InspectInstanceLevelDataAdapter:
                     name=tool_call.function,
                     arguments=tool_call.arguments
                 )
-                for tool_call in message.tool_calls
+                for tool_call in message.tool_calls or []
             ]
             
         if isinstance(message, ChatMessageUser) or isinstance(message, ChatMessageTool):
@@ -87,7 +87,7 @@ class InspectInstanceLevelDataAdapter:
             tool_call_id=tool_call_id
         )
 
-    def _save_jsonl(
+    def _save_json(
         self,
         items: list[InstanceLevelEvaluationLog]
     ):
@@ -184,6 +184,6 @@ class InspectInstanceLevelDataAdapter:
 
             instance_level_logs.append(instance_level_log)
 
-        self._save_jsonl(instance_level_logs)
+        self._save_json(instance_level_logs)
 
         return self.path

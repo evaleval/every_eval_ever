@@ -84,12 +84,11 @@ class InspectEvalLogConverter:
 
 def save_evaluation_log(
     unified_output: EvaluationLog,
-    instance_level_output: InstanceLevelEvaluationLog,
     inspect_converter: InspectEvalLogConverter
 ) -> bool:
     try:
         model_developer, model_name = unified_output.model_info.id.split('/')
-        filedir = f'{unified_output.source_data.dataset_name}/{model_developer}/{model_name}'
+        filedir = f'{unified_output.evaluation_results[0].source_data.dataset_name}/{model_developer}/{model_name}'
         filename = f'{str(uuid.uuid4())}.json'
         inspect_converter.save_to_file(unified_output, filedir, filename)
         return True
@@ -117,17 +116,14 @@ if __name__ == '__main__':
     
     if unified_output:
         if isinstance(unified_output, List):
-            for single_unified_output, instance_level_output in unified_output:
+            for single_unified_output in unified_output:
                 save_evaluation_log(
                     single_unified_output,
-                    instance_level_output,
                     inspect_converter
                 )
         else:
-            single_unified_output, instance_level_output = unified_output
             save_evaluation_log(
-                single_unified_output,
-                instance_level_output,
+                unified_output,
                 inspect_converter
             )
     else:

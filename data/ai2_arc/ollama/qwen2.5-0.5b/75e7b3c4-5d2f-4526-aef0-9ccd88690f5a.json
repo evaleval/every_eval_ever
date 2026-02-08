@@ -1,0 +1,79 @@
+{
+    "schema_version": "0.2.0",
+    "evaluation_id": "ai2_arc/ollama_qwen2.5:0.5b/1761001924.0",
+    "evaluation_timestamp": "1761001924.0",
+    "retrieved_timestamp": "1770570009.016365",
+    "source_metadata": {
+        "source_name": "inspect_ai",
+        "source_type": "evaluation_run",
+        "source_organization_name": "unknown",
+        "evaluator_relationship": "third_party"
+    },
+    "model_info": {
+        "name": "ollama/qwen2.5:0.5b",
+        "id": "ollama/qwen2.5-0.5b",
+        "developer": "ollama",
+        "inference_engine": {
+            "name": "ollama"
+        }
+    },
+    "evaluation_results": [
+        {
+            "evaluation_name": "choice",
+            "source_data": {
+                "source_type": "hf_dataset",
+                "dataset_name": "ai2_arc",
+                "hf_repo": "allenai/ai2_arc",
+                "samples_number": 2376,
+                "sample_ids": [
+                    1,
+                    2,
+                    3
+                ]
+            },
+            "evaluation_timestamp": "1761001924.0",
+            "metric_config": {
+                "evaluation_description": "accuracy",
+                "lower_is_better": false,
+                "score_type": "continuous",
+                "min_score": 0.0,
+                "max_score": 1.0
+            },
+            "score_details": {
+                "score": 0.3333333333333333,
+                "confidence_interval": {
+                    "lower": 0.0,
+                    "upper": 0.9866666666666668
+                }
+            },
+            "generation_config": {
+                "generation_args": {
+                    "reasoning": false,
+                    "agentic_eval_config": {
+                        "available_tools": []
+                    },
+                    "eval_plan": {
+                        "name": "plan",
+                        "steps": [
+                            {
+                                "solver": "multiple_choice",
+                                "params": {},
+                                "params_passed": {}
+                            }
+                        ],
+                        "config": {}
+                    },
+                    "eval_limits": {},
+                    "sandbox": {}
+                }
+            }
+        }
+    ],
+    "detailed_evaluation_results": {
+        "format": "jsonl",
+        "file_path": "instance_level_data/ai2_arc_ollama_qwen2.5:0.5b_2e4e64ca-5622-42d3-9ef1-0f4e4475cdf7.Format.jsonl",
+        "hash_algorithm": "sha256",
+        "checksum": "4ea0c8f2821192cf8cf6643822a710fcf380d588b7696617900d91516addb21f",
+        "total_rows": 3
+    }
+}

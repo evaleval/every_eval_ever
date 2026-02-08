@@ -1,4 +1,5 @@
 import os
+import uuid
 
 from inspect_ai.log import (
     EvalDataset,
@@ -190,6 +191,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         dataset: EvalDataset
     ) -> SourceDataHF:
         return SourceDataHF( # TODO add hf_split
+            source_type='hf_dataset',
             dataset_name=dataset.name.split('/')[-1],
             hf_repo=dataset.location,
             samples_number=dataset.samples,
@@ -216,44 +218,47 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         all_tools: List[AvailableTool] = []
 
         for step in eval_plan.steps:
-            if step.name == "use_tools":
-                tools = step.params.get("tools") or []
-                for tool in tools:
-                    description = self._safe_get(tool, 'description')
-                    all_tools.append(
-                        AvailableTool(
-                            name=tool.name,
-                            description=description,
-                            parameters=tool.params
+            if step.solver == "use_tools":
+                lists_of_tools = step.params.get("tools") or []
+                for tools in lists_of_tools:
+                    for tool in tools:
+                        description = self._safe_get(tool, 'description')
+                        all_tools.append(
+                            AvailableTool(
+                                name=self._safe_get(tool, 'name'),
+                                description=description,
+                                parameters=self._safe_get(tool, 'params'),
+                            )
                         )
-                    )
 
         return all_tools
 
     def _extract_generation_config(
         self,
-        eval_log: EvalLog
+        spec: EvalSpec,
+        plan: InspectEvalPlan
     ) -> GenerationConfig:
-        eval_config = eval_log.eval_spec.model_generate_config
+        eval_config = spec.model_generate_config
         eval_generation_config = {
             gen_config: str(value) 
             for gen_config, value in vars(eval_config).items() if value is not None
         }
-        eval_sandbox = eval_log.eval_spec.task_args.get("sandbox")
-        sandbox_type, sandbox_config = (eval_sandbox + [None, None])[:2]
+        eval_sandbox = spec.task_args.get("sandbox")
+        sandbox_type, sandbox_config = ((eval_sandbox or []) + [None, None])[:2]
 
         eval_plan = EvalPlan(
-            name=eval_log.eval_plan.name,
-            steps=eval_log.eval_plan.steps,
-            config=eval_log.eval_plan.config,
-        )
-        eval_limits = EvalLimits(
-            time_limit=eval_log.eval_spec.config.time_limit,
-            message_limit=eval_log.eval_spec.config.message_limit,
-            token_limit=eval_log.eval_spec.config.token_limit
+            name=plan.name,
+            steps=plan.steps,
+            config=plan.config.model_dump(),
         )
 
-        max_attempts = eval_log.eval_spec.task_args.get("max_attempts") or eval_config.max_retries
+        eval_limits = EvalLimits(
+            time_limit=spec.config.time_limit,
+            message_limit=spec.config.message_limit,
+            token_limit=spec.config.token_limit
+        )
+
+        max_attempts = spec.task_args.get("max_attempts") or eval_config.max_retries
 
         reasoning = (
             True 
@@ -262,7 +267,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         )
 
         available_tools: List[AvailableTool] = self._extract_available_tools(
-            eval_log.plan
+            plan
         )
 
         generation_args = GenerationArgs(
@@ -380,7 +385,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
             for gen_config, value in vars(eval_spec.model_generate_config).items() if value is not None
         }
 
-        generation_config = self._extract_generation_config(raw_eval_log)
+        generation_config = self._extract_generation_config(eval_spec, raw_eval_log.plan)
 
         evaluation_results = (
             self._extract_evaluation_results(
@@ -395,7 +400,13 @@ class InspectAIAdapter(BaseEvaluationAdapter):
 
         evaluation_id = f'{source_data.dataset_name}/{model_path.replace('/', '_')}/{evaluation_unix_timestamp}'
 
-        instance_level_adapter = InspectInstanceLevelDataAdapter(evaluation_id, Format.jsonl)
+        detailed_results_id = f'{source_data.dataset_name}_{model_path.replace('/', '_')}_{uuid.uuid4()}'
+
+        instance_level_adapter = InspectInstanceLevelDataAdapter(
+            detailed_results_id, 
+            Format.jsonl,
+            HashAlgorithm.sha256
+        )
         instance_level_log_path = instance_level_adapter.convert_instance_level_logs(
             eval_spec.dataset.name,
             model_info.id, 
