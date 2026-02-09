@@ -2,7 +2,7 @@
     "schema_version": "0.2.0",
     "evaluation_id": "GAIA/openai_azure_gpt-4.1-mini-2025-04-14/1770463617.0",
     "evaluation_timestamp": "1770463617.0",
-    "retrieved_timestamp": "1770604882.740682",
+    "retrieved_timestamp": "1770664002.589254",
     "source_metadata": {
         "source_name": "inspect_ai",
         "source_type": "evaluation_run",
@@ -52,7 +52,50 @@
                     "reasoning": false,
                     "agentic_eval_config": {
                         "available_tools": [
-                            {}
+                            {
+                                "name": "bash",
+                                "parameters": {
+                                    "timeout": 180
+                                }
+                            },
+                            {
+                                "name": "python",
+                                "parameters": {
+                                    "timeout": 180
+                                }
+                            },
+                            {
+                                "name": "web_browser_go",
+                                "parameters": {}
+                            },
+                            {
+                                "name": "web_browser_click",
+                                "parameters": {}
+                            },
+                            {
+                                "name": "web_browser_type_submit",
+                                "parameters": {}
+                            },
+                            {
+                                "name": "web_browser_type",
+                                "parameters": {}
+                            },
+                            {
+                                "name": "web_browser_scroll",
+                                "parameters": {}
+                            },
+                            {
+                                "name": "web_browser_back",
+                                "parameters": {}
+                            },
+                            {
+                                "name": "web_browser_forward",
+                                "parameters": {}
+                            },
+                            {
+                                "name": "web_browser_refresh",
+                                "parameters": {}
+                            }
                         ]
                     },
                     "eval_plan": {

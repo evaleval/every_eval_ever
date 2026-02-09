@@ -227,21 +227,21 @@ class InspectAIAdapter(BaseEvaluationAdapter):
     ) -> List[AvailableTool]:
         """Extracts and flattens tools from the evaluation plan steps."""
         
-        tool_steps = [
+        tools_in_plan_steps = [
             step.params.get("tools", []) 
             for step in eval_plan.steps 
             if step.solver == "use_tools"
         ]
-
+        
         return [
             AvailableTool(
                 name=self._safe_get(tool, 'name'),
                 description=self._safe_get(tool, 'description'),
                 parameters=self._safe_get(tool, 'params'),
             )
-            for tool_list in tool_steps
-            if isinstance(tool_list, list)
-            for tool in tool_list
+            for tool_list in tools_in_plan_steps
+            if isinstance(tool_list, list) and tool_list
+            for tool in tool_list[0]
         ]
     
     def _extract_prompt_template(
