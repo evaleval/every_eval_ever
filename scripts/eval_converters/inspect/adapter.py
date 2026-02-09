@@ -23,6 +23,7 @@ from typing import Any, Dict, List, Tuple, Union
 from urllib.parse import urlparse
 
 from eval_types import (
+    AdditionalPropertiesObject,
     AgenticEvalConfig,
     AvailableTool,
     ConfidenceInterval,
@@ -42,7 +43,7 @@ from eval_types import (
     Sandbox,
     ScoreType,
     ScoreDetails,
-    SourceDataHF,
+    SourceDataHf,
     SourceMetadata,
     SourceType
 )
@@ -110,7 +111,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         metric_info: EvalMetric,
         llm_grader: LlmScoring,
         stderr_value: float,
-        source_data: SourceDataHF,
+        source_data: SourceDataHf,
         evaluation_timestamp: str,
         generation_config: Dict[str, Any],
     ) -> EvaluationResult:
@@ -141,7 +142,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
     def _extract_evaluation_results(
         self,
         scores: List[EvalScore],
-        source_data: SourceDataHF,
+        source_data: SourceDataHf,
         generation_config: Dict[str, Any],
         timestamp: str
     ) -> List[EvaluationResult]:
@@ -149,16 +150,16 @@ class InspectAIAdapter(BaseEvaluationAdapter):
 
         for scorer in scores:
             llm_grader = None
-            if scorer.params and scorer.params.grader_model:
+            if scorer.params and scorer.params.get("grader_model"):
                 llm_grader = LlmScoring(
                     judges=[
                         JudgeConfig(
                             model_info=extract_model_info_from_model_path(
-                                scorer.params.grader_model.name
+                                self._safe_get(scorer.params.get("grader_model"), "model")
                             )
                         )
                     ],
-                    input_prompt=scorer.params.grader_template
+                    input_prompt=self._safe_get(scorer.params, "grader_template")
                 )
             
             stderr_metric = [
@@ -188,14 +189,23 @@ class InspectAIAdapter(BaseEvaluationAdapter):
     
     def _extract_source_data(
         self,
-        dataset: EvalDataset
-    ) -> SourceDataHF:
-        return SourceDataHF( # TODO add hf_split
+        dataset: EvalDataset,
+        task_name: str
+    ) -> SourceDataHf:
+        dataset_name = (
+            dataset.name.split('/')[-1]
+            if dataset.name 
+            else task_name.split('/')[-1]
+        )
+        return SourceDataHf( # TODO add hf_split
             source_type='hf_dataset',
-            dataset_name=dataset.name.split('/')[-1],
+            dataset_name=dataset_name,
             hf_repo=dataset.location,
             samples_number=dataset.samples,
-            sample_ids=dataset.sample_ids
+            sample_ids=dataset.sample_ids,
+            additional_details=AdditionalPropertiesObject(
+                shuffled = dataset.shuffled
+            )
         )
 
     def _safe_get(self, obj: Any, field: str):
@@ -212,44 +222,55 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         return cur
 
     def _extract_available_tools(
-        self,
+        self, 
         eval_plan: InspectEvalPlan
     ) -> List[AvailableTool]:
-        all_tools: List[AvailableTool] = []
+        """Extracts and flattens tools from the evaluation plan steps."""
+        
+        tool_steps = [
+            step.params.get("tools", []) 
+            for step in eval_plan.steps 
+            if step.solver == "use_tools"
+        ]
 
-        for step in eval_plan.steps:
-            if step.solver == "use_tools":
-                lists_of_tools = step.params.get("tools") or []
-                for tools in lists_of_tools:
-                    for tool in tools:
-                        description = self._safe_get(tool, 'description')
-                        all_tools.append(
-                            AvailableTool(
-                                name=self._safe_get(tool, 'name'),
-                                description=description,
-                                parameters=self._safe_get(tool, 'params'),
-                            )
-                        )
-
-        return all_tools
+        return [
+            AvailableTool(
+                name=self._safe_get(tool, 'name'),
+                description=self._safe_get(tool, 'description'),
+                parameters=self._safe_get(tool, 'params'),
+            )
+            for tool_list in tool_steps
+            if isinstance(tool_list, list)
+            for tool in tool_list
+        ]
+    
+    def _extract_prompt_template(
+        self,
+        plan: InspectEvalPlan
+    ) -> str | None:
+        for step in plan.steps:
+            if step.solver == "prompt_template":
+                return self._safe_get(step.params, "template")
+        
+        return None
 
     def _extract_generation_config(
         self,
         spec: EvalSpec,
-        plan: InspectEvalPlan
+        inspect_plan: InspectEvalPlan
     ) -> GenerationConfig:
         eval_config = spec.model_generate_config
         eval_generation_config = {
             gen_config: str(value) 
             for gen_config, value in vars(eval_config).items() if value is not None
         }
-        eval_sandbox = spec.task_args.get("sandbox")
+        eval_sandbox = spec.task_args.get("sandbox", None)
         sandbox_type, sandbox_config = ((eval_sandbox or []) + [None, None])[:2]
 
         eval_plan = EvalPlan(
-            name=plan.name,
-            steps=plan.steps,
-            config=plan.config.model_dump(),
+            name=inspect_plan.name,
+            steps=inspect_plan.steps,
+            config=inspect_plan.config.model_dump(),
         )
 
         eval_limits = EvalLimits(
@@ -258,7 +279,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
             token_limit=spec.config.token_limit
         )
 
-        max_attempts = spec.task_args.get("max_attempts") or eval_config.max_retries
+        max_attempts = spec.task_args.get("max_attempts") or eval_config.max_retries # TODO not sure if max_attempts == max_retries in this case
 
         reasoning = (
             True 
@@ -267,7 +288,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         )
 
         available_tools: List[AvailableTool] = self._extract_available_tools(
-            plan
+            inspect_plan
         )
 
         generation_args = GenerationArgs(
@@ -276,7 +297,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
             top_k=eval_config.top_k,
             max_tokens=eval_config.max_tokens,
             reasoning=reasoning,
-            prompt_template=None,
+            prompt_template=self._extract_prompt_template(inspect_plan),
             agentic_eval_config=AgenticEvalConfig(
                 available_tools=available_tools
             ),
@@ -289,10 +310,10 @@ class InspectAIAdapter(BaseEvaluationAdapter):
             max_attempts=max_attempts,
         )
 
-        additional_details = ', '.join(
-            f"{k}={v}" for k, v in eval_generation_config.items()
+        additional_details = AdditionalPropertiesObject.model_validate(
+            eval_generation_config
         )
-
+        
         return GenerationConfig(
             generation_args=generation_args,
             additional_details=additional_details or None
@@ -351,6 +372,9 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         evaluation_unix_timestamp = convert_timestamp_to_unix_format(evaluation_timestamp)
         retrieved_unix_timestamp = get_current_unix_timestamp()
 
+        if not evaluation_unix_timestamp:
+            evaluation_unix_timestamp = retrieved_unix_timestamp
+
         source_metadata = SourceMetadata(
             source_name='inspect_ai',
             source_type=SourceType.evaluation_run,
@@ -361,7 +385,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         )
 
         source_data = self._extract_source_data(
-            eval_spec.dataset
+            eval_spec.dataset, eval_spec.task
         )
 
         model_path = eval_spec.model
@@ -378,14 +402,9 @@ class InspectAIAdapter(BaseEvaluationAdapter):
 
         model_info: ModelInfo = extract_model_info_from_model_path(model_path)
         
-        results: EvalResults = raw_eval_log.results
-
-        generation_config = {
-            gen_config: value 
-            for gen_config, value in vars(eval_spec.model_generate_config).items() if value is not None
-        }
-
         generation_config = self._extract_generation_config(eval_spec, raw_eval_log.plan)
+
+        results: EvalResults | None = raw_eval_log.results
 
         evaluation_results = (
             self._extract_evaluation_results(
@@ -400,26 +419,24 @@ class InspectAIAdapter(BaseEvaluationAdapter):
 
         evaluation_id = f'{source_data.dataset_name}/{model_path.replace('/', '_')}/{evaluation_unix_timestamp}'
 
-        detailed_results_id = f'{source_data.dataset_name}_{model_path.replace('/', '_')}_{uuid.uuid4()}'
+        detailed_results_id = f'{source_data.dataset_name}_{model_path.replace('/', '_')}_{int(float(evaluation_unix_timestamp))}'
 
-        instance_level_adapter = InspectInstanceLevelDataAdapter(
-            detailed_results_id, 
-            Format.jsonl,
-            HashAlgorithm.sha256
-        )
-        instance_level_log_path = instance_level_adapter.convert_instance_level_logs(
-            eval_spec.dataset.name,
-            model_info.id, 
-            raw_eval_log.samples
-        )
+        if raw_eval_log.samples:
+            instance_level_log_path, instance_level_rows_number = InspectInstanceLevelDataAdapter(
+                detailed_results_id, Format.jsonl.value, HashAlgorithm.sha256.value
+            ).convert_instance_level_logs(
+                eval_spec.dataset.name, model_info.id, raw_eval_log.samples
+            )
 
-        detailed_evaluation_results = DetailedEvaluationResults(
-            format=Format.jsonl,
-            file_path=instance_level_log_path,
-            hash_algorithm=HashAlgorithm.sha256,
-            checksum=sha256_file(instance_level_log_path),
-            total_rows=len(eval_spec.dataset.sample_ids)
-        )
+            detailed_evaluation_results = DetailedEvaluationResults(
+                format=Format.jsonl,
+                file_path=instance_level_log_path,
+                hash_algorithm=HashAlgorithm.sha256.value,
+                checksum=sha256_file(instance_level_log_path),
+                total_rows=instance_level_rows_number
+            )
+        else:
+            detailed_evaluation_results = None
 
         return EvaluationLog(
             schema_version=SCHEMA_VERSION,

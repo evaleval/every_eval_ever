@@ -261,16 +261,17 @@ def extract_model_info_from_model_path(model_path: str) -> ModelInfo:
     To add a new provider/engine, you only need to update the MODEL_HANDLER_MAP 
     and create a corresponding Handler class.
     """
-    handler_class = None
-    for prefix in PROVIDER_PREFIXES:
-        model_provider = model_path.split('/')[0]
-        if model_provider.lower() == prefix:
-            handler_class = MODEL_HANDLER_MAP[prefix]
-            break
+
+    provider_candidate = model_path.split('/')[0].lower()
+    handler_class = MODEL_HANDLER_MAP.get(provider_candidate, None)
 
     if handler_class:
-        handler = handler_class(model_path)
-        return handler.handle()
+        try:
+            handler = handler_class(model_path)
+            return handler.handle()
+        except Exception as e:
+            print(f"Handler failed for {model_path}: {e}. Fallback into unknown model developer.")
+            pass
 
     # Fallback
     return ModelInfo(

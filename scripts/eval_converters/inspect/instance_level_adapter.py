@@ -10,7 +10,7 @@ from inspect_ai.log import (
     EvalSample
 )
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Any, List, Tuple
 
 from instance_level_types import (
     AnswerAttributionItem,
@@ -36,7 +36,22 @@ class InspectInstanceLevelDataAdapter:
         self.hash_algorithm = hash_algorithm
         self.path = f'instance_level_data/{evaulation_id}.{format}'
 
-    def get_token_usage(self, usage: Optional[ModelUsage]):
+    def _parse_content_with_reasoning(
+        self,
+        content: List[Any]
+    ) -> Tuple[str, str]:
+        response = None
+        reasoning_trace = None
+        for part in content:
+            if part.type and part.type == "reasoning":
+                reasoning_trace = part.reasoning # or part.summary
+            elif part.type and part.type == "text":
+                response = part.text
+        
+        return response, reasoning_trace
+
+
+    def _get_token_usage(self, usage: ModelUsage | None):
         return TokenUsage(
             input_tokens=usage.input_tokens,
             output_tokens=usage.output_tokens,
@@ -46,7 +61,7 @@ class InspectInstanceLevelDataAdapter:
             reasoning_tokens=usage.reasoning_tokens,
         ) if usage else None
 
-    def handle_chat_messages(
+    def _handle_chat_messages(
         self,
         turn_idx: int,
         message: ChatMessage
@@ -55,12 +70,7 @@ class InspectInstanceLevelDataAdapter:
         content = message.content
         reasoning = None
         if isinstance(content, List):
-            for c in content:
-                type = c.type
-                if type == 'reasoning':
-                    reasoning = c.reasoning
-                
-            content = str(content)
+            content, reasoning = self._parse_content_with_reasoning(content)
         
         tool_calls: List[ToolCall] = []
         tool_call_id = None
@@ -106,8 +116,9 @@ class InspectInstanceLevelDataAdapter:
         evaluation_name: str,
         model_id: str,
         samples: List[EvalSample]
-    ) -> str:
+    ) -> Tuple[str, int]:
         instance_level_logs: List[InstanceLevelEvaluationLog] = []
+
         for sample in samples:
             sample_input = Input(
                 raw=sample.input,
@@ -115,28 +126,35 @@ class InspectInstanceLevelDataAdapter:
                 choices=sample.choices
             )
 
+            reasoning_trace = None
+            message = sample.output.choices[0].message
+            content = message.content
+
+            if isinstance(content, list):
+                response, reasoning_trace = self._parse_content_with_reasoning(content)
+            else:
+                response = content
+
             if sample.scores:
-                # TODO What about multiple scores?
+                # TODO Consider multiple scores
                 for scorer_name, score in sample.scores.items():
                     response = score.answer
-            else:
-                response = sample.output.choices[0].message.content
 
             sample_output = Output(
                 raw=response,
-                reasoning_trace=None # TODO
+                reasoning_trace=reasoning_trace
             )
 
             interactions = []
             for message_idx, message in enumerate(sample.messages):
                 interactions.append(
-                    self.handle_chat_messages(
+                    self._handle_chat_messages(
                         message_idx,
                         message
                     )
                 )
 
-            if len(interactions) == 1:
+            if len(interactions) <= 2:
                 interaction_type = InteractionType.single_turn
             else:
                 if any(interaction.role.lower() == 'tool' for interaction in interactions):
@@ -156,12 +174,15 @@ class InspectInstanceLevelDataAdapter:
 
             answer_attribution: List[AnswerAttributionItem] = []
 
-            token_usage = self.get_token_usage(sample.output.usage)
+            token_usage = self._get_token_usage(sample.output.usage)
 
-            performance = Performance(
-                latency_ms=int((sample.total_time - sample.working_time) * 1000),
-                generation_time_ms=int(sample.working_time * 1000)
-            )
+            if sample.total_time and sample.working_time:
+                performance = Performance(
+                    latency_ms=int((sample.total_time - sample.working_time) * 1000),
+                    generation_time_ms=int(sample.working_time * 1000)
+                )
+            else:
+                performance = None
 
             instance_level_log = InstanceLevelEvaluationLog(
                 schema_version=SCHEMA_VERSION,
@@ -179,11 +200,14 @@ class InspectInstanceLevelDataAdapter:
                 token_usage=token_usage,
                 performance=performance,
                 error=f'{sample.error.message}\n{sample.error.traceback}' if sample.error else None,
-                metadata={'stop_reason': sample.output.stop_reason}
+                metadata={
+                    'stop_reason': sample.output.stop_reason,
+                    'epoch': sample.epoch
+                }
             )
 
             instance_level_logs.append(instance_level_log)
 
         self._save_json(instance_level_logs)
 
-        return self.path
+        return self.path, len(instance_level_logs)

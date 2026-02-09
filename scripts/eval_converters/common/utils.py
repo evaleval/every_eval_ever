@@ -2,11 +2,11 @@ from datetime import datetime
 from huggingface_hub import HfApi
 from typing import Dict
 
-def convert_timestamp_to_unix_format(timestamp: str):
+def convert_timestamp_to_unix_format(timestamp: str) -> str:
     dt = datetime.fromisoformat(timestamp)
     return str(dt.timestamp())
 
-def get_current_unix_timestamp():
+def get_current_unix_timestamp() -> str:
     return str(datetime.now().timestamp())
 
 def get_model_organization_info(model_base_name: str) -> Dict:

@@ -65,7 +65,6 @@ class Interaction(BaseModel):
     tool_calls: list[ToolCall] | None = Field(
         None, description='List of tool invocations for this turn, if applicable'
     )
-
     tool_call_id: str | list[str] | None = Field(
         None,
         description='Reference to the tool call ID this turn is responding to (for tool role responses)',
