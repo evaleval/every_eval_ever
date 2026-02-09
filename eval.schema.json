@@ -45,8 +45,8 @@
                 "source_type": {
                     "type": "string",
                     "enum": [
-                "documentation",
-                "evaluation_run"
+                        "documentation",
+                        "evaluation_run"
                     ],
                     "description": "Whether the data comes from a direct evaluation run or from documentation"
                 },
@@ -97,88 +97,13 @@
                         "description": "Source of dataset for this evaluation: URL, HuggingFace dataset, or private/custom dataset.",
                         "oneOf": [
                             {
-                                "type": "object",
-                                "description": "URL source for the evaluation data",
-                                "required": ["dataset_name", "source_type", "url"],
-                                "additionalProperties": true,
-                                "properties": {
-                                    "dataset_name": {
-                                        "type": "string",
-                                        "description": "Name of the source dataset"
-                                    },
-                                    "source_type": {
-                                        "const": "url"
-                                    },
-                                    "url": {
-                                        "type": "array",
-                                        "items": {
-                                            "type": "string"
-                                        },
-                                        "minItems": 1,
-                                        "description": "URL(s) for the source of the evaluation data"
-                                    },
-                                    "additional_details": {
-                                        "$ref": "#/$defs/additional_properties_object"
-                                    }
-                                }
+                                "$ref": "#/$defs/source_data_url"
                             },
                             {
-                                "type": "object",
-                                "description": "Details about HuggingFace dataset used for evaluation",
-                                "required": ["dataset_name", "source_type"],
-                                "additionalProperties": true,
-                                "properties": {
-                                    "source_type": {
-                                        "const": "hf_dataset"
-                                    },
-                                    "dataset_name": {
-                                        "type": "string",
-                                        "description": "Name of the source dataset"
-                                    },
-                                    "hf_repo": {
-                                        "type": "string",
-                                        "description": "HuggingFace repository identifier"
-                                    },
-                                    "hf_split": {
-                                        "type": "string",
-                                        "description": "One of train, val or test."
-                                    },
-                                    "samples_number": {
-                                        "type": "integer",
-                                        "description": "Number of samples in the dataset"
-                                    },
-                                    "sample_ids": {
-                                        "type": "array",
-                                        "description": "Array of sample ids used for evaluation",
-                                        "items": {
-                                            "type": ["integer", "string"]
-                                        }
-                                    },
-                                    "additional_details": {
-                                        "$ref": "#/$defs/additional_properties_object"
-                                    }
-                                }
+                                "$ref": "#/$defs/source_data_hf"
                             },
                             {
-                                "type": "object",
-                                "description": "Generic source data when neither URL array nor HuggingFace dataset applies",
-                                "additionalProperties": true,
-                                "required": [
-                                    "dataset_name",
-                                    "source_type"
-                                ],
-                                "properties": {
-                                    "dataset_name": {
-                                        "type": "string",
-                                        "description": "Name of the source dataset"
-                                    },
-                                    "source_type": {
-                                        "const": "other"
-                                    },
-                                    "additional_details": {
-                                        "$ref": "#/$defs/additional_properties_object"
-                                    }
-                                }
+                                "$ref": "#/$defs/source_data_private"
                             }
                         ]
                     },
@@ -209,7 +134,7 @@
                                     "continuous",
                                     "levels"
                                 ]
-                            },    
+                            },
                             "level_names": {
                                 "type": "array",
                                 "description": "Names of the score levels",
@@ -259,7 +184,12 @@
                                     },
                                     "aggregation_method": {
                                         "type": "string",
-                                        "enum": ["majority_vote", "average", "weighted_average", "median"],
+                                        "enum": [
+                                            "majority_vote",
+                                            "average",
+                                            "weighted_average",
+                                            "median"
+                                        ],
                                         "description": "How to aggregate scores when multiple judges"
                                     },
                                     "expert_baseline": {
@@ -334,150 +264,150 @@
                             }
                         }
                     },
-                    
                     "generation_config": {
                         "type": "object",
-                        "generation_args": {
-                            "type": "object",
-                            "description": "Parameters used to generate results - properties may vary by model type",
-                            "properties": {
-                                "temperature": {
-                                    "type": [
-                                        "null",
-                                        "number"
-                                    ],
-                                    "description": "Sampling temperature"
-                                },
-                                "top_p": {
-                                    "type": [
-                                        "null",
-                                        "number"
-                                    ],
-                                    "description": "Nucleus sampling parameter"
-                                },
-                                "top_k": {
-                                    "type": [
-                                        "null",
-                                        "number"
-                                    ],
-                                    "description": "Top-k sampling parameter"
-                                },
-                                "max_tokens": {
-                                    "type": "integer",
-                                    "minimum": 1,
-                                    "description": "Maximum number of tokens to generate"
-                                },
-                                "execution_command": {
-                                    "type": "string",
-                                    "description": "Command used to run the model to generate results"
-                                },
-                                "reasoning": {
-                                    "type": "boolean",
-                                    "description": "Whether reasoning orchain-of-thought was used to generate results"
-                                },
-                                "prompt_template": {
-                                    "type": "string",
-                                    "description": "Input prompt template for task (should contain agentic info if needed)."
-                                },
-                                "agentic_eval_config": {
-                                    "type": "object",
-                                    "description": "General configuration for agentic evaluations.",
-                                    "properties": {
-                                        "available_tools": {
-                                            "type": "array",
-                                            "description": "List of all available tools with their configurations",
-                                            "items": {
-                                                "type": "object",
-                                                "properties": {
-                                                    "name": {
+                        "properties": {
+                            "generation_args": {
+                                "type": "object",
+                                "description": "Parameters used to generate results - properties may vary by model type",
+                                "properties": {
+                                    "temperature": {
+                                        "type": [
+                                            "null",
+                                            "number"
+                                        ],
+                                        "description": "Sampling temperature"
+                                    },
+                                    "top_p": {
+                                        "type": [
+                                            "null",
+                                            "number"
+                                        ],
+                                        "description": "Nucleus sampling parameter"
+                                    },
+                                    "top_k": {
+                                        "type": [
+                                            "null",
+                                            "number"
+                                        ],
+                                        "description": "Top-k sampling parameter"
+                                    },
+                                    "max_tokens": {
+                                        "type": "integer",
+                                        "minimum": 1,
+                                        "description": "Maximum number of tokens to generate"
+                                    },
+                                    "execution_command": {
+                                        "type": "string",
+                                        "description": "Command used to run the model to generate results"
+                                    },
+                                    "reasoning": {
+                                        "type": "boolean",
+                                        "description": "Whether reasoning orchain-of-thought was used to generate results"
+                                    },
+                                    "prompt_template": {
+                                        "type": "string",
+                                        "description": "Input prompt template for task (should contain agentic info if needed)."
+                                    },
+                                    "agentic_eval_config": {
+                                        "type": "object",
+                                        "description": "General configuration for agentic evaluations.",
+                                        "properties": {
+                                            "available_tools": {
+                                                "type": "array",
+                                                "description": "List of all available tools with their configurations",
+                                                "items": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "name": {
+                                                            "type": "string",
+                                                            "description": "e.g. bash, calculator, ..."
+                                                        },
+                                                        "description": {
+                                                            "type": "string"
+                                                        },
+                                                        "parameters": {
+                                                            "$ref": "#/$defs/additional_properties_object"
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            "additional_details": {
+                                                "$ref": "#/$defs/additional_properties_object"
+                                            }
+                                        }
+                                    },
+                                    "eval_plan": {
+                                        "type": "object",
+                                        "description": "Plan (solvers) used in evaluation. Solvers are crucial parts of Inspect evaluations which can serve a wide variety of purposes like providing system prompts, prompt engineering, model generation or multi-turn dialog.",
+                                        "properties": {
+                                            "name": {
+                                                "type": "string"
+                                            },
+                                            "steps": {
+                                                "type": "array",
+                                                "description": "Array of evaluation plan steps",
+                                                "items": {
+                                                    "solver": {
                                                         "type": "string",
-                                                        "description": "e.g. bash, calculator, ..."
-                                                    },
-                                                    "description": {
-                                                        "type": "string"
+                                                        "description": "Name of solver e.g. system_message, react."
                                                     },
                                                     "parameters": {
                                                         "$ref": "#/$defs/additional_properties_object"
                                                     }
                                                 }
+                                            },
+                                            "config": {
+                                                "$ref": "#/$defs/additional_properties_object"
                                             }
-                                        },
-                                        "additional_details": {
-                                            "$ref": "#/$defs/additional_properties_object"
                                         }
-                                    }
-                                },
-                                "eval_plan": {
-                                    "type": "object",
-                                    "description": "Plan (solvers) used in evaluation. Solvers are crucial parts of Inspect evaluations which can serve a wide variety of purposes like providing system prompts, prompt engineering, model generation or multi-turn dialog.",
-                                    "properties": {
-                                        "name": {
-                                            "type": "string"
-                                        },
-                                        "steps": {
-                                            "type": "array",
-                                            "description": "Array of evaluation plan steps",
-                                            "items": {
-                                                "solver": {
-                                                    "type": "string",
-                                                    "description": "Name of solver e.g. system_message, react."
-                                                },
-                                                "parameters": {
-                                                    "$ref": "#/$defs/additional_properties_object"
-                                                }
+                                    },
+                                    "eval_limits": {
+                                        "type": "object",
+                                        "description": "Listed evaluation limits like time limit, message limit, token limit.",
+                                        "properties": {
+                                            "time_limit": {
+                                                "type": "int",
+                                                "description": "Time limit for evaluation."
+                                            },
+                                            "message_limit": {
+                                                "type": "int",
+                                                "description": "Message limit for evaluation."
+                                            },
+                                            "token_limit": {
+                                                "type": "int",
+                                                "description": "Token limit for evaluation."
                                             }
-                                        },
-                                        "config": {
-                                            "$ref": "#/$defs/additional_properties_object"
                                         }
+                                    },
+                                    "sandbox": {
+                                        "type": "object",
+                                        "properties": {
+                                            "type": {
+                                                "type": "string",
+                                                "description": "Type of sandbox e.g. docker"
+                                            },
+                                            "config": {
+                                                "type": "string",
+                                                "description": "Config file name/path e.g. compose.yaml. TODO or full config? Not sure based on the Inspect docs"
+                                            }
+                                        }
+                                    },
+                                    "max_attempts": {
+                                        "type": "integer",
+                                        "description": "Maximum number of submission attempts (default 1).",
+                                        "default": 1
+                                    },
+                                    "incorrect_attempt_feedback": {
+                                        "type": "string",
+                                        "description": "Feedback from the model after incorrect attempt."
                                     }
                                 },
-                                "eval_limits": {
-                                    "type": "object",
-                                    "description": "Listed evaluation limits like time limit, message limit, token limit.",
-                                    "properties": {
-                                        "time_limit": {
-                                            "type": "int",
-                                            "description": "Time limit for evaluation."
-                                        },
-                                        "message_limit": {
-                                            "type": "int",
-                                            "description": "Message limit for evaluation."
-                                        },
-                                        "token_limit": {
-                                            "type": "int",
-                                            "description": "Token limit for evaluation."
-                                        }
-                                    }
-                                },
-                                "sandbox": {
-                                    "type": "object",
-                                    "properties": {
-                                        "type": {
-                                            "type": "string",
-                                            "description": "Type of sandbox e.g. docker"
-                                        },
-                                        "config": {
-                                            "type": "string",
-                                            "description": "Config file name/path e.g. compose.yaml. TODO or full config? Not sure based on the Inspect docs"
-                                        }
-                                    }
-                                },
-                                "max_attempts": {
-                                    "type": "integer",
-                                    "description": "Maximum number of submission attempts (default 1).",
-                                    "default": 1
-                                },
-                                "incorrect_attempt_feedback": {
-                                    "type": "string",
-                                    "description": "Feedback from the model after incorrect attempt."
-                                }
+                                "additionalProperties": true
                             },
-                            "additionalProperties": true
-                        },
-                        "additional_details": {
-                            "type": "string",
-                            "description": "Additional details about how the results for this metric were generated."
+                            "additional_details": {
+                                "$ref": "#/$defs/additional_properties_object"
+                            }
                         }
                     }
                 }
@@ -501,9 +431,11 @@
                 "hash_algorithm": {
                     "type": "string",
                     "description": "Hash algorithm used for checksum and sample_hash in instance-level data",
-                    "enum": ["sha256", "md5"]
+                    "enum": [
+                        "sha256",
+                        "md5"
+                    ]
                 },
-
                 "checksum": {
                     "type": "string",
                     "description": "Checksum value of the file"
@@ -513,7 +445,7 @@
                     "description": "Total number of rows in the detailed evaluation results file"
                 }
             }
-        }   
+        }
     },
     "$defs": {
         "additional_properties_object": {
@@ -524,7 +456,9 @@
         "judge_config": {
             "type": "object",
             "description": "Configuration for a single LLM judge/juror",
-            "required": ["model_info"],
+            "required": [
+                "model_info"
+            ],
             "properties": {
                 "model_info": {
                     "$ref": "#/$defs/model_info"
@@ -575,6 +509,99 @@
                             "description": "Version of the inference engine"
                         }
                     }
+                },
+                "additional_details": {
+                    "$ref": "#/$defs/additional_properties_object"
+                }
+            }
+        },
+        "source_data_url": {
+            "type": "object",
+            "description": "URL source for the evaluation data",
+            "required": [
+                "dataset_name",
+                "source_type",
+                "url"
+            ],
+            "additionalProperties": true,
+            "properties": {
+                "dataset_name": {
+                    "type": "string",
+                    "description": "Name of the source dataset"
+                },
+                "source_type": {
+                    "const": "url"
+                },
+                "url": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "minItems": 1,
+                    "description": "URL(s) for the source of the evaluation data"
+                },
+                "additional_details": {
+                    "$ref": "#/$defs/additional_properties_object"
+                }
+            }
+        },
+        "source_data_hf": {
+            "type": "object",
+            "description": "Details about HuggingFace dataset used for evaluation",
+            "required": [
+                "dataset_name",
+                "source_type"
+            ],
+            "additionalProperties": true,
+            "properties": {
+                "dataset_name": {
+                    "type": "string",
+                    "description": "Name of the source dataset"
+                },
+                "source_type": {
+                    "const": "hf_dataset"
+                },
+                "hf_repo": {
+                    "type": "string",
+                    "description": "HuggingFace repository identifier"
+                },
+                "hf_split": {
+                    "type": "string",
+                    "description": "One of train, val or test."
+                },
+                "samples_number": {
+                    "type": "integer",
+                    "description": "Number of samples in the dataset"
+                },
+                "sample_ids": {
+                    "type": "array",
+                    "description": "Array of sample ids used for evaluation",
+                    "items": {
+                        "type": [
+                            "integer",
+                            "string"
+                        ]
+                    }
+                },
+                "additional_details": {
+                    "$ref": "#/$defs/additional_properties_object"
+                }
+            }
+        },
+        "source_data_private": {
+            "type": "object",
+            "description": "Generic source data when neither URL array nor HuggingFace dataset applies",
+            "required": [
+                "dataset_name",
+                "source_type"
+            ],
+            "properties": {
+                "dataset_name": {
+                    "type": "string",
+                    "description": "Name of the source dataset"
+                },
+                "source_type": {
+                    "const": "other"
                 },
                 "additional_details": {
                     "$ref": "#/$defs/additional_properties_object"

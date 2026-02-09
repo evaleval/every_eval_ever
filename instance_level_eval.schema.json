@@ -32,7 +32,7 @@
             "description": "The specific eval name, ideally unique (e.g. GSM8K, mmlu_physics)"
         },
         "sample_id": {
-            "type": "string",
+            "type": ["integer", "string"],
             "description": "Question/sample identifier from the original dataset (e.g. gsm8k_0001)"
         },
         "sample_hash": {
@@ -133,8 +133,19 @@
                         }
                     },
                     "tool_call_id": {
-                        "type": "string",
-                        "description": "Reference to the tool call ID this turn is responding to (for tool role responses)"
+                        "oneOf": [
+                            {
+                                "type": "string",
+                                "description": "Reference to the tool call ID this turn is responding to (for tool role responses)"
+                            },
+                            {
+                                "type": "array",
+                                "description": "Reference to the tool call ID(s) this message has the content payload for.",
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        ]
                     }
                 }
             }
