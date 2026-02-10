@@ -26,7 +26,6 @@ from eval_types import (
     AdditionalPropertiesObject,
     AgenticEvalConfig,
     AvailableTool,
-    ConfidenceInterval,
     DetailedEvaluationResults,
     EvalLimits,
     EvalPlan,
@@ -45,7 +44,9 @@ from eval_types import (
     ScoreDetails,
     SourceDataHf,
     SourceMetadata,
-    SourceType
+    SourceType,
+    StandardError,
+    Uncertainty
 )
 
 from scripts.eval_converters.common.adapter import (
@@ -84,25 +85,18 @@ class InspectAIAdapter(BaseEvaluationAdapter):
     def supported_library(self) -> SupportedLibrary:
         return SupportedLibrary.INSPECT_AI
 
-    def _calculate_confidence_interval(
-        self, 
-        estimate, 
-        stderr, 
-        z=1.96
-    ) -> ConfidenceInterval:
-        if stderr is None or not isfinite(stderr):
-            return None
-
-        margin = z * stderr
-        lower = estimate - margin
-        upper = estimate + margin
-
-        lower = max(0.0, lower)
-        upper = min(1.0, upper)
-
-        return ConfidenceInterval(
-            lower=lower,
-            upper=upper
+    def _extract_uncertainty(
+        self,
+        stderr_value: float,
+        stddev_value: float,
+        num_samples: int
+    ) -> Uncertainty:
+        return Uncertainty(
+            standard_error=StandardError(
+                value=stderr_value
+            ) if stderr_value else None,
+            standard_deviation=stddev_value,
+            num_samples=num_samples
         )
 
     def _build_evaluation_result(
@@ -113,13 +107,10 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         source_data: SourceDataHf,
         evaluation_timestamp: str,
         generation_config: Dict[str, Any],
-        stderr_value: float = 0.0
+        stderr_value: float | None = None,
+        stddev_value: float | None = None,
+        num_samples: int = 0
     ) -> EvaluationResult:
-        conf_interval = self._calculate_confidence_interval(
-            metric_info.value,
-            stderr_value
-        )
-
         return EvaluationResult(
             evaluation_name=scorer_name,
             source_data=source_data,
@@ -134,7 +125,11 @@ class InspectAIAdapter(BaseEvaluationAdapter):
             ),
             score_details=ScoreDetails(
                 score=metric_info.value,
-                confidence_interval=conf_interval
+                uncertainty=self._extract_uncertainty(
+                    stderr_value,
+                    stddev_value,
+                    num_samples
+                )
             ),
             generation_config=generation_config,
         )
@@ -144,6 +139,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         scores: List[EvalScore],
         source_data: SourceDataHf,
         generation_config: Dict[str, Any],
+        num_samples: int,
         timestamp: str
     ) -> List[EvaluationResult]:
         results: List[EvaluationResult] = []
@@ -162,12 +158,15 @@ class InspectAIAdapter(BaseEvaluationAdapter):
                     input_prompt=self._safe_get(scorer.params, "grader_template")
                 )
             
-            stderr_metric = [
-                metric_info
-                for _, metric_info in scorer.metrics.items()
-                if metric_info.name == "stderr"
-            ]
-            stderr_value = stderr_metric[0].value if stderr_metric else 0.0
+            stderr_value = next(
+                (m.value for m in scorer.metrics.values() if m.name == "stderr"),
+                None,
+            )
+
+            stddev_value = next(
+                (m.value for m in scorer.metrics.values() if m.name in {"std", "stddev"}),
+                None,
+            )
 
             for _, metric_info in scorer.metrics.items():
                 if metric_info.name == "stderr":
@@ -183,7 +182,9 @@ class InspectAIAdapter(BaseEvaluationAdapter):
                         source_data=source_data,
                         evaluation_timestamp=timestamp,
                         generation_config=generation_config,
-                        stderr_value=stderr_value
+                        stderr_value=stderr_value,
+                        stddev_value=stddev_value,
+                        num_samples=num_samples
                     )
                 )
 
@@ -392,6 +393,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
 
         model_path = eval_spec.model
 
+        num_samples = len(raw_eval_log.samples) if raw_eval_log.samples else 0
         single_sample = raw_eval_log.samples[0] if raw_eval_log.samples else single_sample
 
         if single_sample:
@@ -418,6 +420,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
                 results.scores if results else [],
                 source_data,
                 generation_config,
+                num_samples,
                 evaluation_unix_timestamp
             )
             if results and results.scores
