@@ -13,7 +13,6 @@ import time
 from typing import List
 
 from eval_types import (
-    AdditionalPropertiesObject,
     EvaluationLog,
     EvaluationResult,
     EvaluatorRelationship,
@@ -21,6 +20,7 @@ from eval_types import (
     ScoreDetails,
     ScoreType,
     SourceDataUrl,
+    Uncertainty,
 )
 
 import sys
@@ -67,10 +67,10 @@ def make_eval_result(
     stddev: float | None = None,
 ) -> EvaluationResult:
     """Create an EvaluationResult with hardcoded source_data for global-mmlu-lite."""
-    details = None
+    uncertainty = None
     if confidence_interval is not None or stddev is not None:
-        details = AdditionalPropertiesObject(
-            **{k: v for k, v in [("confidence_interval", confidence_interval), ("stddev", stddev)] if v is not None}
+        uncertainty = Uncertainty(
+            standard_deviation=stddev,
         )
     return EvaluationResult(
         evaluation_name=name,
@@ -84,7 +84,7 @@ def make_eval_result(
         ),
         score_details=ScoreDetails(
             score=round(score, 4) if score is not None else -1,
-            details=details,
+            uncertainty=uncertainty,
         ),
     )
 
