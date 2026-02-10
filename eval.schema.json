@@ -232,6 +232,7 @@
                         }
                     },
                     "score_details": {
+                        "type" : "object",
                         "description": "The score for the evaluation and related details",
                         "required": [
                             "score"
@@ -244,21 +245,61 @@
                             "details": {
                                 "$ref": "#/$defs/additional_properties_object"
                             },
-                            "confidence_interval": {
+                            "uncertainty": {
                                 "type": "object",
-                                "description": "Confidence interval for the score",
+                                "description": "Quantification of uncertainty around the reported score",
                                 "properties": {
-                                    "lower": {
-                                        "type": "number",
-                                        "description": "Lower bound of the confidence interval"
+                                    "standard_error": {
+                                        "type": "object",
+                                        "description": "Standard error of the score estimate (SE_mean = standard_deviation / sqrt(num_samples))",
+                                        "properties": {
+                                            "value": {
+                                                "type": "number",
+                                                "description": "The standard error value"
+                                            },
+                                            "method": {
+                                                "type": "string",
+                                                "description": "How the standard error was computed (e.g. 'analytic', 'bootstrap', 'jackknife')"
+                                            }
+                                        },
+                                        "required": ["value"]
                                     },
-                                    "upper": {
-                                        "type": "number",
-                                        "description": "Upper bound of the confidence interval"
+                                    "confidence_interval": {
+                                        "type": "object",
+                                        "description": "Lower and upper bounds for the metric at a given confidence level.",
+                                        "properties": {
+                                            "lower": {
+                                                "type": "number",
+                                                "description": "Lower bound of the confidence interval"
+                                            },
+                                            "upper": {
+                                                "type": "number",
+                                                "description": "Upper bound of the confidence interval"
+                                            },
+                                            "confidence_level": {
+                                                "type": "number",
+                                                "description": "Confidence level (e.g. 0.95 for a 95% confidence interval)",
+                                                "minimum": 0,
+                                                "maximum": 1
+                                            },
+                                            "method": {
+                                                "type": "string",
+                                                "description": "How the confidence interval was computed"
+                                            }
+                                        },
+                                        "required": ["lower", "upper", "confidence_level"]
                                     },
-                                    "method": {
-                                        "type": "string",
-                                        "description": "How it was computed (e.g. bootstrap, holdout)"
+                                    "standard_deviation": {
+                                        "type": "number",
+                                        "description": "Standard deviation of the per-sample scores"
+                                    },
+                                    "num_samples": {
+                                        "type": "integer",
+                                        "description": "Number of samples used to compute the uncertainty estimates"
+                                    },
+                                    "num_bootstrap_samples": {
+                                        "type": "integer",
+                                        "description": "Number of bootstrap resamples used, if bootstrap method was applied"
                                     }
                                 }
                             }
@@ -367,15 +408,15 @@
                                         "description": "Listed evaluation limits like time limit, message limit, token limit.",
                                         "properties": {
                                             "time_limit": {
-                                                "type": "int",
+                                                "type": "integer",
                                                 "description": "Time limit for evaluation."
                                             },
                                             "message_limit": {
-                                                "type": "int",
+                                                "type": "integer",
                                                 "description": "Message limit for evaluation."
                                             },
                                             "token_limit": {
-                                                "type": "int",
+                                                "type": "integer",
                                                 "description": "Token limit for evaluation."
                                             }
                                         }
