@@ -1,0 +1,132 @@
+{
+  "schema_version": "0.2.0",
+  "evaluation_id": "hfopenllm_v2/Solshine_Brimful-merged-replete/1770682486.623709",
+  "retrieved_timestamp": "1770682486.623709",
+  "source_metadata": {
+    "source_name": "HF Open LLM v2",
+    "source_type": "documentation",
+    "source_organization_name": "Hugging Face",
+    "evaluator_relationship": "third_party"
+  },
+  "model_info": {
+    "name": "Brimful-merged-replete",
+    "id": "Solshine/Brimful-merged-replete",
+    "developer": "Solshine",
+    "inference_platform": "unknown",
+    "additional_details": {
+      "precision": "float16",
+      "architecture": "Qwen2ForCausalLM",
+      "params_billions": 12.277
+    }
+  },
+  "evaluation_results": [
+    {
+      "evaluation_name": "IFEval",
+      "source_data": {
+        "dataset_name": "IFEval",
+        "source_type": "hf_dataset",
+        "hf_repo": "google/IFEval"
+      },
+      "metric_config": {
+        "evaluation_description": "Accuracy on IFEval",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.1761
+      }
+    },
+    {
+      "evaluation_name": "BBH",
+      "source_data": {
+        "dataset_name": "BBH",
+        "source_type": "hf_dataset",
+        "hf_repo": "SaylorTwift/bbh"
+      },
+      "metric_config": {
+        "evaluation_description": "Accuracy on BBH",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.2883
+      }
+    },
+    {
+      "evaluation_name": "MATH Level 5",
+      "source_data": {
+        "dataset_name": "MATH Level 5",
+        "source_type": "hf_dataset",
+        "hf_repo": "DigitalLearningGmbH/MATH-lighteval"
+      },
+      "metric_config": {
+        "evaluation_description": "Exact Match on MATH Level 5",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.003
+      }
+    },
+    {
+      "evaluation_name": "GPQA",
+      "source_data": {
+        "dataset_name": "GPQA",
+        "source_type": "hf_dataset",
+        "hf_repo": "Idavidrein/gpqa"
+      },
+      "metric_config": {
+        "evaluation_description": "Accuracy on GPQA",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.2576
+      }
+    },
+    {
+      "evaluation_name": "MUSR",
+      "source_data": {
+        "dataset_name": "MUSR",
+        "source_type": "hf_dataset",
+        "hf_repo": "TAUR-Lab/MuSR"
+      },
+      "metric_config": {
+        "evaluation_description": "Accuracy on MUSR",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.3421
+      }
+    },
+    {
+      "evaluation_name": "MMLU-PRO",
+      "source_data": {
+        "dataset_name": "MMLU-PRO",
+        "source_type": "hf_dataset",
+        "hf_repo": "TIGER-Lab/MMLU-Pro"
+      },
+      "metric_config": {
+        "evaluation_description": "Accuracy on MMLU-PRO",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.1085
+      }
+    }
+  ]
+}
