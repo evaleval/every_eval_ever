@@ -30,11 +30,12 @@ from scripts.eval_converters.inspect.utils import sha256_string
 
 
 class InspectInstanceLevelDataAdapter:
-    def __init__(self, evaulation_id: str, format: str, hash_algorithm: str):
+    def __init__(self, evaulation_id: str, format: str, hash_algorithm: str, evaluation_dir: str):
         self.evaluation_id = evaulation_id
         self.format = format
         self.hash_algorithm = hash_algorithm
-        self.path = f'instance_level_data/{evaulation_id}.{format}'
+        self.evaluation_dir = evaluation_dir
+        self.path = f'{evaluation_dir}/{evaulation_id}.{format}'
 
     def _parse_content_with_reasoning(
         self,
@@ -101,6 +102,8 @@ class InspectInstanceLevelDataAdapter:
         self,
         items: list[InstanceLevelEvaluationLog]
     ):
+        eval_dir_path = Path(self.evaluation_dir)
+        eval_dir_path.mkdir(parents=True, exist_ok=True)
         path = Path(self.path)
 
         with path.open("w", encoding="utf-8") as f:
@@ -110,6 +113,8 @@ class InspectInstanceLevelDataAdapter:
                     ensure_ascii=False
                 )
                 f.write(json_line + "\n")
+        
+        print(f'Instance-level eval log was successfully saved to {self.path} path.')
 
     def convert_instance_level_logs(
         self, 
@@ -138,7 +143,10 @@ class InspectInstanceLevelDataAdapter:
             if sample.scores:
                 # TODO Consider multiple scores
                 for scorer_name, score in sample.scores.items():
-                    response = score.answer
+                    if score.answer:
+                        response = score.answer
+                    elif score.explanation:
+                        response = score.explanation
 
             sample_output = Output(
                 raw=response,
@@ -154,14 +162,13 @@ class InspectInstanceLevelDataAdapter:
                     )
                 )
 
-            if len(interactions) <= 2:
+            if any(interaction.role.lower() == 'tool' for interaction in interactions):
+                interaction_type = InteractionType.agentic
+            elif len(interactions) <= 3:
                 interaction_type = InteractionType.single_turn
             else:
-                if any(interaction.role.lower() == 'tool' for interaction in interactions):
-                    interaction_type = InteractionType.agentic
-                else:
-                    interaction_type = InteractionType.multi_turn
-
+                interaction_type = InteractionType.multi_turn
+                
             evaluation = Evaluation(
                 score=1.0 if sample_input.reference == response else 0.0,
                 is_correct=sample_input.reference == response,

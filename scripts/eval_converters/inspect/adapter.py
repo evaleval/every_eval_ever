@@ -110,10 +110,10 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         scorer_name: str,
         metric_info: EvalMetric,
         llm_grader: LlmScoring,
-        stderr_value: float,
         source_data: SourceDataHf,
         evaluation_timestamp: str,
         generation_config: Dict[str, Any],
+        stderr_value: float = 0.0
     ) -> EvaluationResult:
         conf_interval = self._calculate_confidence_interval(
             metric_info.value,
@@ -173,15 +173,17 @@ class InspectAIAdapter(BaseEvaluationAdapter):
                 if metric_info.name == "stderr":
                     continue
 
+                scorer_name = scorer.name or scorer.scorer
+                
                 results.append(
                     self._build_evaluation_result(
-                        scorer_name=scorer.scorer,
+                        scorer_name=scorer_name,
                         metric_info=metric_info,
                         llm_grader=llm_grader,
-                        stderr_value=stderr_value,
                         source_data=source_data,
                         evaluation_timestamp=timestamp,
                         generation_config=generation_config,
+                        stderr_value=stderr_value
                     )
                 )
 
@@ -391,14 +393,19 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         model_path = eval_spec.model
 
         single_sample = raw_eval_log.samples[0] if raw_eval_log.samples else single_sample
+
         if single_sample:
             detailed_model_name = single_sample.output.model
-            model_path_parts = model_path.split('/')
 
-            if model_path_parts[-1] in detailed_model_name:
-                model_path_parts[-1] = detailed_model_name
+            if "/" in model_path:
+                prefix, rest = model_path.split("/", 1)
 
-            model_path = '/'.join(model_path_parts)
+                if rest != detailed_model_name:
+                    model_path = f"{prefix}/{detailed_model_name}"
+                else:
+                    model_path = f"{prefix}/{rest}"
+            else:
+                model_path = detailed_model_name
 
         model_info: ModelInfo = extract_model_info_from_model_path(model_path)
         
@@ -418,14 +425,19 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         )
 
         evaluation_id = f'{source_data.dataset_name}/{model_path.replace('/', '_')}/{evaluation_unix_timestamp}'
-
-        detailed_results_id = f'{source_data.dataset_name}_{model_path.replace('/', '_')}_{int(float(evaluation_unix_timestamp))}'
+        
+        model_dev, model_name = model_info.id.split('/')
+        parent_eval_output_dir = metadata_args.get('parent_eval_output_dir')
+        evaluation_dir = f'{parent_eval_output_dir}/{source_data.dataset_name}/{model_dev}/{model_name}'
+        detailed_results_id = f'{metadata_args.get('file_uuid')}_samples'
+        
+        evaluation_name = eval_spec.dataset.name or eval_spec.task
 
         if raw_eval_log.samples:
             instance_level_log_path, instance_level_rows_number = InspectInstanceLevelDataAdapter(
-                detailed_results_id, Format.jsonl.value, HashAlgorithm.sha256.value
+                detailed_results_id, Format.jsonl.value, HashAlgorithm.sha256.value, evaluation_dir
             ).convert_instance_level_logs(
-                eval_spec.dataset.name, model_info.id, raw_eval_log.samples
+                evaluation_name, model_info.id, raw_eval_log.samples
             )
 
             detailed_evaluation_results = DetailedEvaluationResults(
