@@ -13,6 +13,7 @@ import time
 from typing import List
 
 from eval_types import (
+    ConfidenceInterval,
     EvaluationLog,
     EvaluationResult,
     EvaluatorRelationship,
@@ -69,7 +70,15 @@ def make_eval_result(
     """Create an EvaluationResult with hardcoded source_data for global-mmlu-lite."""
     uncertainty = None
     if confidence_interval is not None or stddev is not None:
+        ci = None
+        if confidence_interval is not None and score is not None and score >= 0:
+            ci = ConfidenceInterval(
+                lower=round(-confidence_interval, 4),
+                upper=round(confidence_interval, 4),
+                method="unknown",
+            )
         uncertainty = Uncertainty(
+            confidence_interval=ci,
             standard_deviation=stddev,
         )
     return EvaluationResult(
@@ -130,7 +139,6 @@ def fetch_global_mmlu_lite(retrieved_timestamp: str) -> int:
                 numeric_result = result_data.get("numericResult") or result_data.get("numericResultNullable", {})
                 score_value = numeric_result.get("value")
 
-                # Extract confidence interval if available
                 if numeric_result.get("hasConfidenceInterval"):
                     confidence_interval = numeric_result.get("confidenceInterval")
 
