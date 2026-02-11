@@ -171,9 +171,9 @@ def fetch_global_mmlu_lite(retrieved_timestamp: str) -> int:
             evaluation_id=evaluation_id,
             retrieved_timestamp=retrieved_timestamp,
             source_metadata=make_source_metadata(
-                source_name="Global MMLU Lite",
-                organization_name="Cohere Labs",
-                organization_url="https://cohere.com",
+                source_name="Global MMLU Lite Leaderboard",
+                organization_name="kaggle",
+                organization_url="www.kaggle.com",
                 evaluator_relationship=EvaluatorRelationship.third_party,
             ),
             model_info=model_info,
