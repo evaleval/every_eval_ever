@@ -188,10 +188,8 @@ Each evaluation (e.g., `livecodebenchpro`, `hfopenllm_v2`) has its own directory
 
 Run following bash commands to generate pydantic classes for `eval.schema.json` and `instance_level_eval.schema.json` (to easier use in data converter scripts):
 
+uv run datamodel-codegen --input eval.schema.json --output eval_types.py --class-name EvaluationLog --output-model-type pydantic_v2.BaseModel --input-file-type jsonschema --formatters ruff-format ruff-check
+uv run datamodel-codegen --input instance_level_eval.schema.json --output instance_level_types.py --class-name InstanceLevelEvaluationLog --output-model-type pydantic_v2.BaseModel --input-file-type jsonschema --formatters ruff-format ruff-check
+
 ```bash
-uv run datamodel-codegen --input eval.schema.json --output eval_types.py --class-name EvaluationLog --output-model-type pydantic_v2.BaseModel --input-file-type jsonschema
-```
-and
-```bash
-uv run datamodel-codegen --input instance_level_eval.schema.json --output instance_level_types.py --class-name InstanceLevelEvaluationLog --output-model-type pydantic_v2.BaseModel --input-file-type jsonschema
 ```
