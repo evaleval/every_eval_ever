@@ -1,18 +1,18 @@
 from pathlib import Path
 
-from scripts.eval_converters.inspect.adapter import InspectAIAdapter
-from scripts.eval_converters.inspect.utils import extract_model_info_from_model_path
+from eval_converters.inspect.adapter import InspectAIAdapter
+from eval_converters.inspect.utils import extract_model_info_from_model_path
 from eval_types import (
     EvaluationLog, 
     EvaluatorRelationship,
-    SourceData
+    SourceDataHf
 )
 
 def _load_eval(adapter, filepath, metadata_args):
     eval_path = Path(filepath)
     converted_eval = adapter.transform_from_file(eval_path, metadata_args=metadata_args)
     assert isinstance(converted_eval, EvaluationLog)
-    assert isinstance(converted_eval.source_data, SourceData)
+    assert isinstance(converted_eval.source_data, SourceDataHf)
 
     assert converted_eval.source_metadata.source_name == 'inspect_ai'
     assert converted_eval.source_metadata.source_type.value == 'evaluation_run'

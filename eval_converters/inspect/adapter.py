@@ -49,24 +49,24 @@ from eval_types import (
     Uncertainty
 )
 
-from scripts.eval_converters.common.adapter import (
+from eval_converters.common.adapter import (
     AdapterMetadata, 
     BaseEvaluationAdapter, 
     SupportedLibrary
 )
 
-from scripts.eval_converters.common.error import AdapterError
-from scripts.eval_converters.common.utils import (
+from eval_converters.common.error import AdapterError
+from eval_converters.common.utils import (
     convert_timestamp_to_unix_format, 
     get_current_unix_timestamp
 )
-from scripts.eval_converters.inspect.instance_level_adapter import (
+from eval_converters.inspect.instance_level_adapter import (
     InspectInstanceLevelDataAdapter
 )
-from scripts.eval_converters.inspect.utils import (
+from eval_converters.inspect.utils import (
     extract_model_info_from_model_path, sha256_file
 )
-from scripts.eval_converters import SCHEMA_VERSION
+from eval_converters import SCHEMA_VERSION
 
 class InspectAIAdapter(BaseEvaluationAdapter):
     """

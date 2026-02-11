@@ -25,8 +25,8 @@ from eval_types import (
 	SourceType
 )
 
-from scripts.eval_converters.common.adapter import AdapterMetadata, BaseEvaluationAdapter, SupportedLibrary
-from scripts.eval_converters import SCHEMA_VERSION
+from eval_converters.common.adapter import AdapterMetadata, BaseEvaluationAdapter, SupportedLibrary
+from eval_converters import SCHEMA_VERSION
 
 # run this just once in your process to initialize the registry
 register_builtin_configs_from_helm_package()

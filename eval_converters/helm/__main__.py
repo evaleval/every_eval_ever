@@ -6,7 +6,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Union
 
-from scripts.eval_converters.helm.adapter import HELMAdapter
+from eval_converters.helm.adapter import HELMAdapter
 from eval_types import (
     EvaluatorRelationship,
     EvaluationLog

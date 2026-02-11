@@ -9,7 +9,7 @@ from eval_types import (
     InferenceEngine,
     ModelInfo
 )
-from scripts.eval_converters.common.utils import get_model_organization_info
+from eval_converters.common.utils import get_model_organization_info
 
 
 class ModelPathHandler:

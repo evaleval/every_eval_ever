@@ -6,7 +6,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Tuple, Union
 
-from scripts.eval_converters.inspect.adapter import InspectAIAdapter
+from eval_converters.inspect.adapter import InspectAIAdapter
 from eval_types import (
     EvaluatorRelationship,
     EvaluationLog

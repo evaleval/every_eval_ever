@@ -1,5 +1,5 @@
 ## Automatic Evaluation Log Converters
-A collection of scripts to convert evaluation logs from local runs of evaluation benchmarks (e.g., Inspect AI and lm-eval-harness).
+A collection of scripts to convert evaluation logs from local runs from evaluation frameworks (e.g., `Inspect AI` and `lm-eval-harness`). 
 
 ### Installation
 - Install the required dependencies:
@@ -9,18 +9,18 @@ uv sync
 ```
 
 ### Inspect
-Convert eval log from Inspect AI into json format with following command:
+`
+The conversion script from `Inspect AI` to the unified schema can be run using `eval_converters/inspect/__main__.py`.
+
+Using the `--log_path` argument, you can choose one of three ways to specify evaluations to convert:
+- Provide an `Inspect AI` evaluation log with the `.eval` extension (e.g., `2026-02-07T11-26-57+00-00_gaia_4V8zHbbRKpU5Yv2BMoBcjE.eval`)
+- Provide an `Inspect AI` evaluation log with the `.json` extension (e.g., `2026-02-07T11-26-57+00-00_gaia_4V8zHbbRKpU5Yv2BMoBcjE.json`)
+- Provide a directory containing multiple `Inspect AI` evaluation logs
+
+Exact command for converting example evaluation log is:
 
 ```bash
-uv run inspect log convert path_to_eval_file_generated_by_inspect --to json --output-dir inspect_json
-```
-
-Then we can convert Inspect evaluation log into unified schema via `eval_converters/inspect/__main__.py`. Conversion for example data can be generated via below script: 
-
-for example:
-
-```bash
-uv run python3 -m scripts.eval_converters.inspect --log_path tests/data/inspect/2026-02-07T11-26-57+00-00_gaia_4V8zHbbRKpU5Yv2BMoBcjE.json
+uv run python3 -m eval_converters.inspect --log_path tests/data/inspect/2026-02-07T11-26-57+00-00_gaia_4V8zHbbRKpU5Yv2BMoBcjE.json
 ```
 
 
