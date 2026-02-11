@@ -1,7 +1,15 @@
+import hashlib
 import re
-from scripts.eval_converters.common.utils import get_model_organization_info
-from eval_types import ModelInfo
+
+from pathlib import Path
+from pydantic import BaseModel
 from typing import Dict, Type, List
+
+from eval_types import (
+    InferenceEngine,
+    ModelInfo
+)
+from scripts.eval_converters.common.utils import get_model_organization_info
 
 
 class ModelPathHandler:
@@ -204,7 +212,9 @@ class InferenceEngineHandler(ModelPathHandler):
             name=self.model_path,
             id=model_id,
             developer=developer,
-            inference_engine=inference_engine
+            inference_engine=InferenceEngine(
+                name=inference_engine # TODO add version if possible
+            )
         )
 
 # Mapping the provider/engine prefix to the specific Handler class
@@ -251,16 +261,17 @@ def extract_model_info_from_model_path(model_path: str) -> ModelInfo:
     To add a new provider/engine, you only need to update the MODEL_HANDLER_MAP 
     and create a corresponding Handler class.
     """
-    handler_class = None
-    for prefix in PROVIDER_PREFIXES:
-        model_provider = model_path.split('/')[0]
-        if model_provider.lower() == prefix:
-            handler_class = MODEL_HANDLER_MAP[prefix]
-            break
+
+    provider_candidate = model_path.split('/')[0].lower()
+    handler_class = MODEL_HANDLER_MAP.get(provider_candidate, None)
 
     if handler_class:
-        handler = handler_class(model_path)
-        return handler.handle()
+        try:
+            handler = handler_class(model_path)
+            return handler.handle()
+        except Exception as e:
+            print(f"Handler failed for {model_path}: {e}. Fallback into unknown model developer.")
+            pass
 
     # Fallback
     return ModelInfo(
@@ -269,3 +280,22 @@ def extract_model_info_from_model_path(model_path: str) -> ModelInfo:
         developer='unknown', 
         inference_platform='unknown'
     )
+
+def sha256_file(path, chunk_size=8192):
+    sha256 = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(chunk_size), b""):
+            sha256.update(chunk)
+    return sha256.hexdigest()
+
+def sha256_string(text: str, chunk_size=8192):
+    return hashlib.sha256(text.encode('utf-8')).hexdigest()
+
+def save_to_file(path: str, obj: BaseModel) -> bool:
+    json_str = obj.model_dump_json(indent=4, exclude_none=True)
+
+    obj_path = Path(path)
+    obj_path.mkdir(parents=True, exist_ok=True)
+
+    with open(obj_path, 'w') as json_file:
+        json_file.write(json_str)

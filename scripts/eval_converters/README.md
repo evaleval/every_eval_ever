@@ -20,7 +20,7 @@ Then we can convert Inspect evaluation log into unified schema via `eval_convert
 for example:
 
 ```bash
-uv run python3 -m scripts.eval_converters.inspect --log_path tests/data/inspect/data_pubmedqa_gpt4o_mini.json
+uv run python3 -m scripts.eval_converters.inspect --log_path tests/data/inspect/2026-02-07T11-26-57+00-00_gaia_4V8zHbbRKpU5Yv2BMoBcjE.json
 ```
 
 

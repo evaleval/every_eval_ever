@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from enum import Enum
 from huggingface_hub import model_info
 from pathlib import Path
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Tuple, Union
 
 from scripts.eval_converters.common.error import AdapterError, TransformationError
 from eval_types import EvaluationLog
@@ -78,7 +78,10 @@ class BaseEvaluationAdapter(ABC):
     
     def transform(
         self, data: Any, metadata_args: Dict[str, Any]
-    ) -> Union[EvaluationLog, List[EvaluationLog]]:
+    ) -> Union[
+        EvaluationLog,
+        List[EvaluationLog]
+    ]:
         """
         Transform evaluation data to unified schema format.
         
@@ -107,7 +110,10 @@ class BaseEvaluationAdapter(ABC):
             
     def transform_from_file(
         self, file_path: Union[str, Path], metadata_args: Dict[str, Any]
-    ) -> Union[EvaluationLog, List[EvaluationLog]]:
+    ) -> Union[
+        EvaluationLog,
+        List[EvaluationLog]
+    ]:
         """
         Load and transform evaluation data from file.
         
@@ -133,7 +139,10 @@ class BaseEvaluationAdapter(ABC):
         self, 
         dir_path: Union[str, Path],
         metadata_args: Dict[str, Any] = None    
-    ) -> Union[EvaluationLog, List[EvaluationLog]]:
+    ) -> Union[
+        EvaluationLog,
+        List[EvaluationLog]
+    ]:
         """
         Load and transform evaluation data from all files in a directory.
         

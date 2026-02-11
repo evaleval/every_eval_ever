@@ -12,31 +12,73 @@ Usage:
 
 import re
 import time
-from typing import List, Optional
+import uuid
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-from eval_types import EvaluationLog, EvaluationResult, EvaluatorRelationship
+from eval_types import (
+    EvaluationLog,
+    EvaluationResult,
+    EvaluatorRelationship,
+    MetricConfig,
+    ModelInfo,
+    ScoreDetails,
+    ScoreType,
+    SourceDataHf,
+    SourceMetadata,
+)
 
 import sys
-from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils import (
     fetch_csv,
     fetch_json,
     get_developer,
-    make_evaluation_result,
-    make_source_metadata,
-    make_model_info,
-    save_evaluation_log,
+    get_model_id,
+    sanitize_filename,
 )
 
+# Schema version
+SCHEMA_VERSION = "0.2.0"
 
 # Data source URLs
 REWARDBENCH_V1_CSV = "https://huggingface.co/spaces/allenai/reward-bench/resolve/main/leaderboard/final-rbv1-data.csv"
 REWARDBENCH_V2_TREE_API = "https://huggingface.co/api/datasets/allenai/reward-bench-2-results/tree/main/eval-set"
 REWARDBENCH_V2_FILE_BASE = "https://huggingface.co/datasets/allenai/reward-bench-2-results/resolve/main/eval-set"
 
-OUTPUT_DIR = "data/reward-bench"
+OUTPUT_DIR = Path("data/reward-bench")
+
+# RewardBench v1 source data (shared across all v1 evaluation results)
+V1_SOURCE_DATA = SourceDataHf(
+    dataset_name="RewardBench",
+    source_type="hf_dataset",
+    hf_repo="allenai/reward-bench",
+)
+
+# RewardBench v2 source data (shared across all v2 evaluation results)
+V2_SOURCE_DATA = SourceDataHf(
+    dataset_name="RewardBench 2",
+    source_type="hf_dataset",
+    hf_repo="allenai/reward-bench-2-results",
+)
+
+# Source metadata (shared)
+V1_SOURCE_METADATA = SourceMetadata(
+    source_name="RewardBench",
+    source_type="documentation",
+    source_organization_name="Allen Institute for AI",
+    source_organization_url="https://allenai.org",
+    evaluator_relationship=EvaluatorRelationship.third_party,
+)
+
+V2_SOURCE_METADATA = SourceMetadata(
+    source_name="RewardBench 2",
+    source_type="documentation",
+    source_organization_name="Allen Institute for AI",
+    source_organization_url="https://allenai.org",
+    evaluator_relationship=EvaluatorRelationship.third_party,
+)
 
 # RewardBench v1 metrics with descriptions
 V1_METRICS = {
@@ -57,6 +99,53 @@ V2_METRICS = [
     ("Focus", "Focus score - measures response focus"),
     ("Ties", "Ties score - ability to identify tie cases"),
 ]
+
+
+def _make_eval_result(
+    name: str,
+    score: float,
+    description: str,
+    source_data: SourceDataHf,
+) -> EvaluationResult:
+    """Create an EvaluationResult for a continuous 0-1 metric."""
+    return EvaluationResult(
+        evaluation_name=name,
+        source_data=source_data,
+        metric_config=MetricConfig(
+            evaluation_description=description,
+            lower_is_better=False,
+            score_type=ScoreType.continuous,
+            min_score=0.0,
+            max_score=1.0,
+        ),
+        score_details=ScoreDetails(score=round(score, 4)),
+    )
+
+
+def _make_model_info(
+    model_name: str,
+    developer: str,
+    additional_details: Optional[Dict[str, Any]] = None,
+) -> ModelInfo:
+    """Create ModelInfo without setting inference_platform."""
+    model_id = get_model_id(model_name, developer)
+    return ModelInfo(
+        name=model_name,
+        id=model_id,
+        developer=developer,
+        additional_details=additional_details,
+    )
+
+
+def _save_eval_log(eval_log: EvaluationLog, developer: str, model: str) -> Path:
+    """Save an evaluation log to the standard directory structure."""
+    dir_path = OUTPUT_DIR / sanitize_filename(developer) / sanitize_filename(model)
+    dir_path.mkdir(parents=True, exist_ok=True)
+
+    filepath = dir_path / f"{uuid.uuid4()}.json"
+    json_str = eval_log.model_dump_json(indent=2, exclude_none=True)
+    filepath.write_text(json_str)
+    return filepath
 
 
 def extract_model_name_from_html(html_string: str) -> str:
@@ -107,10 +196,11 @@ def fetch_rewardbench_v1(retrieved_timestamp: str) -> int:
             score = parse_score(row.get(metric_name, ""))
             if score is not None:
                 eval_results.append(
-                    make_evaluation_result(
+                    _make_eval_result(
                         name=metric_name,
                         score=score,
                         description=description,
+                        source_data=V1_SOURCE_DATA,
                     )
                 )
 
@@ -118,7 +208,7 @@ def fetch_rewardbench_v1(retrieved_timestamp: str) -> int:
             continue
 
         # Build model info
-        model_info = make_model_info(
+        model_info = _make_model_info(
             model_name=model_name,
             developer=developer,
             additional_details={"model_type": model_type} if model_type else None,
@@ -127,16 +217,10 @@ def fetch_rewardbench_v1(retrieved_timestamp: str) -> int:
         # Build evaluation log
         evaluation_id = f"reward-bench/{model_info.id.replace('/', '_')}/{retrieved_timestamp}"
         eval_log = EvaluationLog(
-            schema_version="0.1.0",
+            schema_version=SCHEMA_VERSION,
             evaluation_id=evaluation_id,
             retrieved_timestamp=retrieved_timestamp,
-            source_data=["https://huggingface.co/spaces/allenai/reward-bench"],
-            source_metadata=make_source_metadata(
-                source_name="RewardBench",
-                organization_name="Allen Institute for AI",
-                organization_url="https://allenai.org",
-                evaluator_relationship=EvaluatorRelationship.third_party,
-            ),
+            source_metadata=V1_SOURCE_METADATA,
             model_info=model_info,
             evaluation_results=eval_results,
         )
@@ -147,7 +231,7 @@ def fetch_rewardbench_v1(retrieved_timestamp: str) -> int:
         else:
             dev, model = "unknown", model_info.id
 
-        filepath = save_evaluation_log(eval_log, OUTPUT_DIR, dev, model)
+        filepath = _save_eval_log(eval_log, dev, model)
         print(f"Saved: {filepath}")
         count += 1
 
@@ -204,10 +288,11 @@ def fetch_rewardbench_v2(retrieved_timestamp: str) -> int:
                         score = float(model_data[metric_name])
                         scores_for_average.append(score)
                         eval_results.append(
-                            make_evaluation_result(
+                            _make_eval_result(
                                 name=metric_name,
                                 score=score,
                                 description=description,
+                                source_data=V2_SOURCE_DATA,
                             )
                         )
                     except (ValueError, TypeError):
@@ -221,15 +306,16 @@ def fetch_rewardbench_v2(retrieved_timestamp: str) -> int:
                 mean_score = sum(scores_for_average) / len(scores_for_average)
                 eval_results.insert(
                     0,
-                    make_evaluation_result(
+                    _make_eval_result(
                         name="Score",
                         score=mean_score,
                         description="Overall RewardBench 2 Score (mean of all metrics)",
+                        source_data=V2_SOURCE_DATA,
                     ),
                 )
 
             # Build model info
-            model_info = make_model_info(
+            model_info = _make_model_info(
                 model_name=model_name,
                 developer=developer,
                 additional_details={"model_type": model_type} if model_type else None,
@@ -238,16 +324,10 @@ def fetch_rewardbench_v2(retrieved_timestamp: str) -> int:
             # Build evaluation log
             evaluation_id = f"reward-bench-2/{model_info.id.replace('/', '_')}/{retrieved_timestamp}"
             eval_log = EvaluationLog(
-                schema_version="0.1.0",
+                schema_version=SCHEMA_VERSION,
                 evaluation_id=evaluation_id,
                 retrieved_timestamp=retrieved_timestamp,
-                source_data=["https://huggingface.co/datasets/allenai/reward-bench-2-results"],
-                source_metadata=make_source_metadata(
-                    source_name="RewardBench 2",
-                    organization_name="Allen Institute for AI",
-                    organization_url="https://allenai.org",
-                    evaluator_relationship=EvaluatorRelationship.third_party,
-                ),
+                source_metadata=V2_SOURCE_METADATA,
                 model_info=model_info,
                 evaluation_results=eval_results,
             )
@@ -258,7 +338,7 @@ def fetch_rewardbench_v2(retrieved_timestamp: str) -> int:
             else:
                 dev, model = "unknown", model_info.id
 
-            filepath = save_evaluation_log(eval_log, OUTPUT_DIR, dev, model)
+            filepath = _save_eval_log(eval_log, dev, model)
             print(f"    Saved: {filepath}")
             count += 1
 
