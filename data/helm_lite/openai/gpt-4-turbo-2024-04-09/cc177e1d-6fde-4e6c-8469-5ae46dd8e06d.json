@@ -1,0 +1,643 @@
+{
+  "schema_version": "0.2.0",
+  "evaluation_id": "helm_lite/openai_gpt-4-turbo-2024-04-09/1770829788.2883599",
+  "retrieved_timestamp": "1770829788.2883599",
+  "source_metadata": {
+    "source_name": "helm_lite",
+    "source_type": "documentation",
+    "source_organization_name": "crfm",
+    "evaluator_relationship": "third_party"
+  },
+  "model_info": {
+    "name": "GPT-4 Turbo 2024-04-09",
+    "id": "openai/gpt-4-turbo-2024-04-09",
+    "developer": "openai",
+    "inference_platform": "unknown"
+  },
+  "evaluation_results": [
+    {
+      "evaluation_name": "Mean win rate",
+      "source_data": {
+        "dataset_name": "helm_lite",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/lite/benchmark_output/releases/v1.13.0/groups/core_scenarios.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "How many models this model outperforms on average (over columns).",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.864,
+        "details": {
+          "tab": "Accuracy",
+          "Mean win rate - Efficiency": {
+            "description": null,
+            "tab": "Efficiency",
+            "score": 0.4568414481897628
+          },
+          "Mean win rate - General information": {
+            "description": null,
+            "tab": "General information",
+            "score": null
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {}
+      }
+    },
+    {
+      "evaluation_name": "NarrativeQA - F1",
+      "source_data": {
+        "dataset_name": "NarrativeQA",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/lite/benchmark_output/releases/v1.13.0/groups/core_scenarios.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "The NarrativeQA benchmark for reading comprehension over narratives [(Kočiský et al., 2017)](https://aclanthology.org/Q18-1023/).\n\nF1: Average F1 score in terms of word overlap between the model output and correct reference.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.761,
+        "details": {
+          "description": "min=0.761, mean=0.761, max=0.761, sum=0.761 (1)",
+          "tab": "Accuracy",
+          "NarrativeQA - Observed inference time (s)": {
+            "description": "min=0.804, mean=0.804, max=0.804, sum=0.804 (1)",
+            "tab": "Efficiency",
+            "score": 0.8043310716118611
+          },
+          "NarrativeQA - # eval": {
+            "description": "min=355, mean=355, max=355, sum=355 (1)",
+            "tab": "General information",
+            "score": 355.0
+          },
+          "NarrativeQA - # train": {
+            "description": "min=5, mean=5, max=5, sum=5 (1)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "NarrativeQA - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (1)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "NarrativeQA - # prompt tokens": {
+            "description": "min=3495.67, mean=3495.67, max=3495.67, sum=3495.67 (1)",
+            "tab": "General information",
+            "score": 3495.6704225352114
+          },
+          "NarrativeQA - # output tokens": {
+            "description": "min=6.037, mean=6.037, max=6.037, sum=6.037 (1)",
+            "tab": "General information",
+            "score": 6.0366197183098596
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {}
+      }
+    },
+    {
+      "evaluation_name": "NaturalQuestions (closed-book) - F1",
+      "source_data": {
+        "dataset_name": "NaturalQuestions (closed-book)",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/lite/benchmark_output/releases/v1.13.0/groups/core_scenarios.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "The NaturalQuestions [(Kwiatkowski et al., 2019)](https://aclanthology.org/Q19-1026/) benchmark for question answering based on naturally-occurring queries through Google Search. The input does not include the Wikipedia page with the answer.\n\nF1: Average F1 score in terms of word overlap between the model output and correct reference.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.482,
+        "details": {
+          "description": "min=0.482, mean=0.482, max=0.482, sum=0.482 (1)",
+          "tab": "Accuracy",
+          "NaturalQuestions (open-book) - Observed inference time (s)": {
+            "description": "min=0.712, mean=0.712, max=0.712, sum=0.712 (1)",
+            "tab": "Efficiency",
+            "score": 0.7120162718296051
+          },
+          "NaturalQuestions (closed-book) - Observed inference time (s)": {
+            "description": "min=0.605, mean=0.605, max=0.605, sum=0.605 (1)",
+            "tab": "Efficiency",
+            "score": 0.6052222681045533
+          },
+          "NaturalQuestions (open-book) - # eval": {
+            "description": "min=1000, mean=1000, max=1000, sum=1000 (1)",
+            "tab": "General information",
+            "score": 1000.0
+          },
+          "NaturalQuestions (open-book) - # train": {
+            "description": "min=5, mean=5, max=5, sum=5 (1)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "NaturalQuestions (open-book) - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (1)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "NaturalQuestions (open-book) - # prompt tokens": {
+            "description": "min=1728.593, mean=1728.593, max=1728.593, sum=1728.593 (1)",
+            "tab": "General information",
+            "score": 1728.593
+          },
+          "NaturalQuestions (open-book) - # output tokens": {
+            "description": "min=5.902, mean=5.902, max=5.902, sum=5.902 (1)",
+            "tab": "General information",
+            "score": 5.902
+          },
+          "NaturalQuestions (closed-book) - # eval": {
+            "description": "min=1000, mean=1000, max=1000, sum=1000 (1)",
+            "tab": "General information",
+            "score": 1000.0
+          },
+          "NaturalQuestions (closed-book) - # train": {
+            "description": "min=5, mean=5, max=5, sum=5 (1)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "NaturalQuestions (closed-book) - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (1)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "NaturalQuestions (closed-book) - # prompt tokens": {
+            "description": "min=139.127, mean=139.127, max=139.127, sum=139.127 (1)",
+            "tab": "General information",
+            "score": 139.127
+          },
+          "NaturalQuestions (closed-book) - # output tokens": {
+            "description": "min=5.263, mean=5.263, max=5.263, sum=5.263 (1)",
+            "tab": "General information",
+            "score": 5.263
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "mode": "closedbook"
+        }
+      }
+    },
+    {
+      "evaluation_name": "OpenbookQA - EM",
+      "source_data": {
+        "dataset_name": "OpenbookQA",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/lite/benchmark_output/releases/v1.13.0/groups/core_scenarios.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "The OpenbookQA benchmark for commonsense-intensive open book question answering [(Mihaylov et al., 2018)](https://aclanthology.org/D18-1260/).\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.97,
+        "details": {
+          "description": "min=0.97, mean=0.97, max=0.97, sum=0.97 (1)",
+          "tab": "Accuracy",
+          "OpenbookQA - Observed inference time (s)": {
+            "description": "min=0.438, mean=0.438, max=0.438, sum=0.438 (1)",
+            "tab": "Efficiency",
+            "score": 0.4376141686439514
+          },
+          "OpenbookQA - # eval": {
+            "description": "min=500, mean=500, max=500, sum=500 (1)",
+            "tab": "General information",
+            "score": 500.0
+          },
+          "OpenbookQA - # train": {
+            "description": "min=5, mean=5, max=5, sum=5 (1)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "OpenbookQA - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (1)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "OpenbookQA - # prompt tokens": {
+            "description": "min=249.782, mean=249.782, max=249.782, sum=249.782 (1)",
+            "tab": "General information",
+            "score": 249.782
+          },
+          "OpenbookQA - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=1 (1)",
+            "tab": "General information",
+            "score": 1.0
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "dataset": "openbookqa",
+          "method": "multiple_choice_joint"
+        }
+      }
+    },
+    {
+      "evaluation_name": "MMLU - EM",
+      "source_data": {
+        "dataset_name": "MMLU",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/lite/benchmark_output/releases/v1.13.0/groups/core_scenarios.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "The Massive Multitask Language Understanding (MMLU) benchmark for knowledge-intensive question answering across 57 domains [(Hendrycks et al., 2021)](https://arxiv.org/pdf/2009.03300.pdf).\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.711,
+        "details": {
+          "description": "min=0.53, mean=0.711, max=0.96, sum=3.555 (5)",
+          "tab": "Accuracy",
+          "MMLU - Observed inference time (s)": {
+            "description": "min=0.53, mean=0.55, max=0.572, sum=2.749 (5)",
+            "tab": "Efficiency",
+            "score": 0.5498773384847139
+          },
+          "MMLU - # eval": {
+            "description": "min=100, mean=102.8, max=114, sum=514 (5)",
+            "tab": "General information",
+            "score": 102.8
+          },
+          "MMLU - # train": {
+            "description": "min=5, mean=5, max=5, sum=25 (5)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "MMLU - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (5)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "MMLU - # prompt tokens": {
+            "description": "min=373.44, mean=467.72, max=614.43, sum=2338.6 (5)",
+            "tab": "General information",
+            "score": 467.71996491228066
+          },
+          "MMLU - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=5 (5)",
+            "tab": "General information",
+            "score": 1.0
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "subject": [
+            "abstract_algebra",
+            "college_chemistry",
+            "computer_security",
+            "econometrics",
+            "us_foreign_policy"
+          ],
+          "method": "multiple_choice_joint"
+        }
+      }
+    },
+    {
+      "evaluation_name": "MATH - Equivalent (CoT)",
+      "source_data": {
+        "dataset_name": "MATH",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/lite/benchmark_output/releases/v1.13.0/groups/core_scenarios.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "The MATH benchmark for measuring mathematical problem solving on competition math problems with chain-of-thought style reasoning [(Hendrycks et al., 2021)](https://arxiv.org/pdf/2103.03874.pdf).\n\nEquivalent (CoT): Fraction of model outputs that are mathematically equivalent to the correct reference when using chain-of-thought prompting.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.833,
+        "details": {
+          "description": "min=0.684, mean=0.833, max=0.97, sum=5.83 (7)",
+          "tab": "Accuracy",
+          "MATH - Observed inference time (s)": {
+            "description": "min=4.92, mean=6.678, max=8.338, sum=46.748 (7)",
+            "tab": "Efficiency",
+            "score": 6.678270916932833
+          },
+          "MATH - # eval": {
+            "description": "min=30, mean=62.429, max=135, sum=437 (7)",
+            "tab": "General information",
+            "score": 62.42857142857143
+          },
+          "MATH - # train": {
+            "description": "min=8, mean=8, max=8, sum=56 (7)",
+            "tab": "General information",
+            "score": 8.0
+          },
+          "MATH - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (7)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "MATH - # prompt tokens": {
+            "description": "min=881.363, mean=1262.911, max=2197.577, sum=8840.376 (7)",
+            "tab": "General information",
+            "score": 1262.9108741840687
+          },
+          "MATH - # output tokens": {
+            "description": "min=135.163, mean=189.561, max=219.316, sum=1326.926 (7)",
+            "tab": "General information",
+            "score": 189.56082409362702
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "subject": [
+            "algebra",
+            "counting_and_probability",
+            "geometry",
+            "intermediate_algebra",
+            "number_theory",
+            "prealgebra",
+            "precalculus"
+          ],
+          "level": "1",
+          "use_official_examples": "False",
+          "use_chain_of_thought": "True"
+        }
+      }
+    },
+    {
+      "evaluation_name": "GSM8K - EM",
+      "source_data": {
+        "dataset_name": "GSM8K",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/lite/benchmark_output/releases/v1.13.0/groups/core_scenarios.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "The grade school math word problems dataset (GSM8K) for testing mathematical reasoning on grade-school math problems [(Cobbe et al., 2021)](https://arxiv.org/pdf/2110.14168.pdf).\n\nExact match (final number): Fraction of instances that the predicted output matches a correct reference exactly, ignoring text preceding the specified indicator.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.824,
+        "details": {
+          "description": "min=0.824, mean=0.824, max=0.824, sum=0.824 (1)",
+          "tab": "Accuracy",
+          "GSM8K - Observed inference time (s)": {
+            "description": "min=6.915, mean=6.915, max=6.915, sum=6.915 (1)",
+            "tab": "Efficiency",
+            "score": 6.91472976398468
+          },
+          "GSM8K - # eval": {
+            "description": "min=1000, mean=1000, max=1000, sum=1000 (1)",
+            "tab": "General information",
+            "score": 1000.0
+          },
+          "GSM8K - # train": {
+            "description": "min=5, mean=5, max=5, sum=5 (1)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "GSM8K - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (1)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "GSM8K - # prompt tokens": {
+            "description": "min=959.035, mean=959.035, max=959.035, sum=959.035 (1)",
+            "tab": "General information",
+            "score": 959.035
+          },
+          "GSM8K - # output tokens": {
+            "description": "min=141.712, mean=141.712, max=141.712, sum=141.712 (1)",
+            "tab": "General information",
+            "score": 141.712
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "stop": "none"
+        }
+      }
+    },
+    {
+      "evaluation_name": "LegalBench - EM",
+      "source_data": {
+        "dataset_name": "LegalBench",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/lite/benchmark_output/releases/v1.13.0/groups/core_scenarios.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "LegalBench is a large collaboratively constructed benchmark of legal reasoning tasks [(Guha et al, 2023)](https://arxiv.org/pdf/2308.11462.pdf).\n\nQuasi-exact match: Fraction of instances that the predicted output matches a correct reference up to light processing.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.727,
+        "details": {
+          "description": "min=0.417, mean=0.727, max=0.947, sum=3.637 (5)",
+          "tab": "Accuracy",
+          "LegalBench - Observed inference time (s)": {
+            "description": "min=0.514, mean=0.608, max=0.803, sum=3.041 (5)",
+            "tab": "Efficiency",
+            "score": 0.6081070231398068
+          },
+          "LegalBench - # eval": {
+            "description": "min=95, mean=409.4, max=1000, sum=2047 (5)",
+            "tab": "General information",
+            "score": 409.4
+          },
+          "LegalBench - # train": {
+            "description": "min=4, mean=4.8, max=5, sum=24 (5)",
+            "tab": "General information",
+            "score": 4.8
+          },
+          "LegalBench - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (5)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "LegalBench - # prompt tokens": {
+            "description": "min=207.442, mean=1524.163, max=6311.388, sum=7620.815 (5)",
+            "tab": "General information",
+            "score": 1524.162971355988
+          },
+          "LegalBench - # output tokens": {
+            "description": "min=1, mean=1.325, max=2.032, sum=6.626 (5)",
+            "tab": "General information",
+            "score": 1.3251168793919403
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "subset": [
+            "abercrombie",
+            "corporate_lobbying",
+            "function_of_decision_section",
+            "international_citizenship_questions",
+            "proa"
+          ]
+        }
+      }
+    },
+    {
+      "evaluation_name": "MedQA - EM",
+      "source_data": {
+        "dataset_name": "MedQA",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/lite/benchmark_output/releases/v1.13.0/groups/core_scenarios.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "MedQA is an open domain question answering dataset composed of questions from professional medical board exams ([Jin et al. 2020](https://arxiv.org/pdf/2009.13081.pdf)).\n\nQuasi-exact match: Fraction of instances that the predicted output matches a correct reference up to light processing.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.783,
+        "details": {
+          "description": "min=0.783, mean=0.783, max=0.783, sum=0.783 (1)",
+          "tab": "Accuracy",
+          "MedQA - Observed inference time (s)": {
+            "description": "min=0.455, mean=0.455, max=0.455, sum=0.455 (1)",
+            "tab": "Efficiency",
+            "score": 0.4549296101329341
+          },
+          "MedQA - # eval": {
+            "description": "min=503, mean=503, max=503, sum=503 (1)",
+            "tab": "General information",
+            "score": 503.0
+          },
+          "MedQA - # train": {
+            "description": "min=5, mean=5, max=5, sum=5 (1)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "MedQA - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (1)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "MedQA - # prompt tokens": {
+            "description": "min=1027.414, mean=1027.414, max=1027.414, sum=1027.414 (1)",
+            "tab": "General information",
+            "score": 1027.4135188866799
+          },
+          "MedQA - # output tokens": {
+            "description": "min=1, mean=1, max=1, sum=1 (1)",
+            "tab": "General information",
+            "score": 1.0
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {}
+      }
+    },
+    {
+      "evaluation_name": "WMT 2014 - BLEU-4",
+      "source_data": {
+        "dataset_name": "WMT 2014",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/lite/benchmark_output/releases/v1.13.0/groups/core_scenarios.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "WMT 2014 is a collection of machine translation datasets [(website)](https://www.statmt.org/wmt14/index.html).\n\nBLEU-4: Average BLEU score [(Papineni et al., 2002)](https://aclanthology.org/P02-1040/) based on 4-gram overlap.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.218,
+        "details": {
+          "description": "min=0.169, mean=0.218, max=0.264, sum=1.088 (5)",
+          "tab": "Accuracy",
+          "WMT 2014 - Observed inference time (s)": {
+            "description": "min=1.131, mean=1.185, max=1.222, sum=5.925 (5)",
+            "tab": "Efficiency",
+            "score": 1.1850423664020953
+          },
+          "WMT 2014 - # eval": {
+            "description": "min=503, mean=568.8, max=832, sum=2844 (5)",
+            "tab": "General information",
+            "score": 568.8
+          },
+          "WMT 2014 - # train": {
+            "description": "min=1, mean=1, max=1, sum=5 (5)",
+            "tab": "General information",
+            "score": 1.0
+          },
+          "WMT 2014 - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (5)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "WMT 2014 - # prompt tokens": {
+            "description": "min=124.901, mean=148.043, max=168.185, sum=740.213 (5)",
+            "tab": "General information",
+            "score": 148.04258583116683
+          },
+          "WMT 2014 - # output tokens": {
+            "description": "min=23.744, mean=25.264, max=25.938, sum=126.322 (5)",
+            "tab": "General information",
+            "score": 25.26444840571953
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "language_pair": [
+            "cs-en",
+            "de-en",
+            "fr-en",
+            "hi-en",
+            "ru-en"
+          ]
+        }
+      }
+    }
+  ]
+}
