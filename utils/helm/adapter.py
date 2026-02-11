@@ -193,9 +193,22 @@ def convert(
                     or "instruct" in leaderboard_name.lower()
                 )
 
+                if full_eval_name.lower().startswith('mean'):
+                    metric_name = None
+                    dataset_name = leaderboard_name
+                    evaluation_name = full_eval_name
+                else:
+                    dataset_name, metric_name = full_eval_name.split(' - ', 1)
+                    evaluation_name = dataset_name
+
+                if metric_name:
+                    evaluation_description = f'{metric_name} on {dataset_name}'
+                else:
+                    evaluation_description = header.get("description")
+
                 if is_new_metric:
                     metric_config = MetricConfig(
-                        evaluation_description=header.get("description"),
+                        evaluation_description=evaluation_description,
                         lower_is_better=header.get("lower_is_better", False),
                         min_score=(
                             0.0 if mins[col_idx] >= 0 else math.floor(mins[col_idx])
@@ -206,13 +219,10 @@ def convert(
                         score_type=ScoreType.continuous,
                     )
 
-                    if full_eval_name.lower().startswith('mean'):
-                        dataset_name = leaderboard_name
-                    else:
-                        dataset_name = full_eval_name.split(' - ')[0]
+                    source_dataset_name = leaderboard_name if leaderboard_name.lower() == 'helm_mmlu' else dataset_name
 
                     source_data = SourceDataUrl(
-                        dataset_name=dataset_name,
+                        dataset_name=source_dataset_name,
                         source_type='url',
                         url=[args.source_data_url]
                     )
@@ -224,7 +234,7 @@ def convert(
                     )
 
                     model_results[model_name][short_name] = EvaluationResult(
-                        evaluation_name=full_eval_name,
+                        evaluation_name=evaluation_name,
                         source_data=source_data,
                         metric_config=metric_config,
                         score_details=ScoreDetails(
