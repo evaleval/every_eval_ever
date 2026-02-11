@@ -4,15 +4,11 @@ from .developer import get_developer, get_model_id
 from .fetch import fetch_json, fetch_csv, FetchError
 from .io import save_evaluation_log, generate_output_path, sanitize_filename
 from .schema import (
-    SCHEMA_VERSION,
     make_metric_config,
     make_evaluation_result,
     make_source_metadata,
     make_model_info,
     make_evaluation_log,
-    make_source_data_url,
-    make_source_data_hf,
-    make_source_data_private,
 )
 
 __all__ = [
@@ -28,13 +24,9 @@ __all__ = [
     "generate_output_path",
     "sanitize_filename",
     # schema.py
-    "SCHEMA_VERSION",
     "make_metric_config",
     "make_evaluation_result",
     "make_source_metadata",
     "make_model_info",
     "make_evaluation_log",
-    "make_source_data_url",
-    "make_source_data_hf",
-    "make_source_data_private",
 ]
