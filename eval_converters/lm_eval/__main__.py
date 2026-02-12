@@ -96,7 +96,7 @@ def main():
         out_file = out_path / file_name
 
         with open(out_file, "w") as f:
-            json.dump(log.model_dump(exclude_none=True), f, indent=2)
+            json.dump(log.model_dump(mode="json", exclude_none=True), f, indent=2)
 
         print(f"  {out_file}")
 
