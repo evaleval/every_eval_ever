@@ -154,13 +154,17 @@ class InspectInstanceLevelDataAdapter:
             )
 
             interactions = []
-            for message_idx, message in enumerate(sample.messages):
+            turn_idx = 0
+            for message in sample.messages:
                 interactions.append(
                     self._handle_chat_messages(
-                        message_idx,
+                        turn_idx,
                         message
                     )
                 )
+
+                if message.role == "assistant":
+                    turn_idx += 1
 
             if any(interaction.role.lower() == 'tool' for interaction in interactions):
                 interaction_type = InteractionType.agentic
