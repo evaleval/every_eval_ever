@@ -176,7 +176,7 @@ class InspectInstanceLevelDataAdapter:
             evaluation = Evaluation(
                 score=1.0 if sample_input.reference == response else 0.0,
                 is_correct=sample_input.reference == response,
-                num_turns=len(interactions),
+                num_turns=turn_idx,
                 tool_calls_count=sum(
                     len(intr.tool_calls) if intr.tool_calls else 0
                     for intr in interactions
