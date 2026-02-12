@@ -22,10 +22,12 @@ from eval_types import (
     EvaluationLog,
     EvaluationResult,
     EvaluatorRelationship,
+    GenerationConfig,
     MetricConfig,
     ModelInfo,
     ScoreDetails,
     ScoreType,
+    SourceDataUrl
 )
 
 import sys
@@ -114,7 +116,7 @@ def extract_model_info_from_row(row: List[Dict[str, Any]], model_name: str) -> T
     else:
         spec = run_spec_names[0]
         args = spec.split(":", 1)[1].split(",")
-
+        
         model_details = next(
             (arg.split("=", 1)[1] for arg in args if arg.startswith("model=")),
             "",
@@ -126,12 +128,14 @@ def extract_model_info_from_row(row: List[Dict[str, Any]], model_name: str) -> T
     if developer == "unknown":
         developer = get_developer(model_name)
 
-    return make_model_info(
+    model_info = make_model_info(
         model_name=model_name,
         developer=developer,
         inference_platform="unknown",
-    ), model_id
+    )
+    model_info.id = model_id
 
+    return model_info
 
 def find_column_ranges(tab_rows: List[List[Dict[str, Any]]]):
     """Determine min/max values for each metric column."""
@@ -152,7 +156,6 @@ def find_column_ranges(tab_rows: List[List[Dict[str, Any]]]):
 def convert(
     leaderboard_name: str,
     leaderboard_data: List[Dict[str, Any]],
-    source_data: List[str],
 ):
     """Convert HELM leaderboard data into unified evaluation logs."""
     retrieved_timestamp = str(time.time())
@@ -172,9 +175,9 @@ def convert(
             model_name = row[0].get("value")
 
             if model_name not in model_infos:
-                model_info, model_id = extract_model_info_from_row(row, model_name)
+                model_info = extract_model_info_from_row(row, model_name)
                 model_infos[model_name] = model_info
-                model_ids[model_name] = model_id
+                model_ids[model_name] = model_info.id
 
             for col_idx, (header, cell) in enumerate(zip(headers[1:], row[1:])):
                 full_eval_name = header.get("value")
@@ -190,9 +193,22 @@ def convert(
                     or "instruct" in leaderboard_name.lower()
                 )
 
+                if full_eval_name.lower().startswith('mean'):
+                    metric_name = None
+                    dataset_name = leaderboard_name
+                    evaluation_name = full_eval_name
+                else:
+                    dataset_name, metric_name = full_eval_name.split(' - ', 1)
+                    evaluation_name = dataset_name
+
+                if metric_name:
+                    evaluation_description = f'{metric_name} on {dataset_name}'
+                else:
+                    evaluation_description = header.get("description")
+
                 if is_new_metric:
                     metric_config = MetricConfig(
-                        evaluation_description=header.get("description"),
+                        evaluation_description=evaluation_description,
                         lower_is_better=header.get("lower_is_better", False),
                         min_score=(
                             0.0 if mins[col_idx] >= 0 else math.floor(mins[col_idx])
@@ -203,6 +219,14 @@ def convert(
                         score_type=ScoreType.continuous,
                     )
 
+                    source_dataset_name = leaderboard_name if leaderboard_name.lower() == 'helm_mmlu' else dataset_name
+
+                    source_data = SourceDataUrl(
+                        dataset_name=source_dataset_name,
+                        source_type='url',
+                        url=[args.source_data_url]
+                    )
+
                     generation_config = (
                         extract_generation_config(cell.get("run_spec_names", []))
                         if cell.get("run_spec_names")
@@ -210,7 +234,8 @@ def convert(
                     )
 
                     model_results[model_name][short_name] = EvaluationResult(
-                        evaluation_name=full_eval_name,
+                        evaluation_name=evaluation_name,
+                        source_data=source_data,
                         metric_config=metric_config,
                         score_details=ScoreDetails(
                             score=round(cell.get("value"), 3)
@@ -221,7 +246,9 @@ def convert(
                                 "tab": tab_name,
                             },
                         ),
-                        generation_config=generation_config,
+                        generation_config=GenerationConfig(
+                            additional_details=generation_config
+                        )
                     )
                 else:
                     # Add extra score details under the same metric
@@ -232,12 +259,16 @@ def convert(
                         else f"{full_eval_name} - {tab_name}"
                     )
 
-                    existing.score_details.details[detail_key] = {
-                        "description": cell.get("description"),
-                        "tab": tab_name,
-                        "score": cell.get("value"),
-                    }
-
+                    setattr(
+                        existing.score_details.details,
+                        detail_key,
+                        {
+                            "description": cell.get("description"),
+                            "tab": tab_name,
+                            "score": cell.get("value"),
+                        }
+                    )
+                
     # Save evaluation logs
     for model_name, results_by_metric in model_results.items():
         model_info = model_infos[model_name]
@@ -250,7 +281,7 @@ def convert(
         )
 
         eval_log = EvaluationLog(
-            schema_version="0.1.0",
+            schema_version="0.2.0",
             evaluation_id=evaluation_id,
             retrieved_timestamp=retrieved_timestamp,
             source_metadata=make_source_metadata(
@@ -259,7 +290,6 @@ def convert(
                 evaluator_relationship=EvaluatorRelationship.third_party,
             ),
             model_info=model_info,
-            source_data=source_data,
             evaluation_results=list(results_by_metric.values()),
         )
 
@@ -287,15 +317,13 @@ if __name__ == "__main__":
     args = parse_args()
 
     leaderboard_name = args.leaderboard_name.lower()
-    source_data = [args.source_data_url]
 
     print(f"Fetching {leaderboard_name} data from {args.source_data_url}")
-    leaderboard_data = fetch_json(source_data[0])
+    leaderboard_data = fetch_json(args.source_data_url)
 
     convert(
         leaderboard_name=leaderboard_name,
-        leaderboard_data=leaderboard_data,
-        source_data=source_data,
+        leaderboard_data=leaderboard_data
     )
 
     print("Done!")

@@ -1,0 +1,3021 @@
+{
+  "schema_version": "0.2.0",
+  "evaluation_id": "helm_mmlu/cohere_command-r/1770835937.459157",
+  "retrieved_timestamp": "1770835937.459157",
+  "source_metadata": {
+    "source_name": "helm_mmlu",
+    "source_type": "documentation",
+    "source_organization_name": "crfm",
+    "evaluator_relationship": "third_party"
+  },
+  "model_info": {
+    "name": "Command R",
+    "id": "cohere/command-r",
+    "developer": "cohere",
+    "inference_platform": "unknown"
+  },
+  "evaluation_results": [
+    {
+      "evaluation_name": "MMLU All Subjects",
+      "source_data": {
+        "dataset_name": "helm_mmlu",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/mmlu/benchmark_output/releases/v1.13.0/groups/mmlu_subjects.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "EM on MMLU All Subjects",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.652,
+        "details": {
+          "description": "min=0.326, mean=0.652, max=0.891, sum=74.329 (114)",
+          "tab": "Accuracy",
+          "MMLU All Subjects - Observed inference time (s)": {
+            "description": "min=0.145, mean=0.176, max=0.289, sum=20.061 (114)",
+            "tab": "Efficiency",
+            "score": 0.17597788408479575
+          },
+          "MMLU All Subjects - # eval": {
+            "description": "min=100, mean=246.351, max=1534, sum=28084 (114)",
+            "tab": "General information",
+            "score": 246.35087719298247
+          },
+          "MMLU All Subjects - # train": {
+            "description": "min=5, mean=5, max=5, sum=570 (114)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "MMLU All Subjects - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (114)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "MMLU All Subjects - # prompt tokens": {
+            "description": "min=277.047, mean=648.571, max=2823.042, sum=73937.062 (114)",
+            "tab": "General information",
+            "score": 648.5707227335503
+          },
+          "MMLU All Subjects - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (114)",
+            "tab": "General information",
+            "score": 0.0
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "subject": [
+            "abstract_algebra",
+            "anatomy",
+            "astronomy",
+            "business_ethics",
+            "clinical_knowledge",
+            "college_biology",
+            "college_chemistry",
+            "college_computer_science",
+            "college_mathematics",
+            "college_medicine",
+            "college_physics",
+            "computer_security",
+            "conceptual_physics",
+            "econometrics",
+            "electrical_engineering",
+            "elementary_mathematics",
+            "formal_logic",
+            "global_facts",
+            "high_school_biology",
+            "high_school_chemistry",
+            "high_school_computer_science",
+            "high_school_european_history",
+            "high_school_geography",
+            "high_school_government_and_politics",
+            "high_school_macroeconomics",
+            "high_school_mathematics",
+            "high_school_microeconomics",
+            "high_school_physics",
+            "high_school_psychology",
+            "high_school_statistics",
+            "high_school_us_history",
+            "high_school_world_history",
+            "human_aging",
+            "human_sexuality",
+            "international_law",
+            "jurisprudence",
+            "logical_fallacies",
+            "machine_learning",
+            "management",
+            "marketing",
+            "medical_genetics",
+            "miscellaneous",
+            "moral_disputes",
+            "moral_scenarios",
+            "nutrition",
+            "philosophy",
+            "prehistory",
+            "professional_accounting",
+            "professional_law",
+            "professional_medicine",
+            "professional_psychology",
+            "public_relations",
+            "security_studies",
+            "sociology",
+            "us_foreign_policy",
+            "virology",
+            "world_religions"
+          ],
+          "method": "multiple_choice_joint",
+          "eval_split": "test",
+          "groups": [
+            "mmlu_abstract_algebra",
+            "mmlu_anatomy",
+            "mmlu_astronomy",
+            "mmlu_business_ethics",
+            "mmlu_clinical_knowledge",
+            "mmlu_college_biology",
+            "mmlu_college_chemistry",
+            "mmlu_college_computer_science",
+            "mmlu_college_mathematics",
+            "mmlu_college_medicine",
+            "mmlu_college_physics",
+            "mmlu_computer_security",
+            "mmlu_conceptual_physics",
+            "mmlu_econometrics",
+            "mmlu_electrical_engineering",
+            "mmlu_elementary_mathematics",
+            "mmlu_formal_logic",
+            "mmlu_global_facts",
+            "mmlu_high_school_biology",
+            "mmlu_high_school_chemistry",
+            "mmlu_high_school_computer_science",
+            "mmlu_high_school_european_history",
+            "mmlu_high_school_geography",
+            "mmlu_high_school_government_and_politics",
+            "mmlu_high_school_macroeconomics",
+            "mmlu_high_school_mathematics",
+            "mmlu_high_school_microeconomics",
+            "mmlu_high_school_physics",
+            "mmlu_high_school_psychology",
+            "mmlu_high_school_statistics",
+            "mmlu_high_school_us_history",
+            "mmlu_high_school_world_history",
+            "mmlu_human_aging",
+            "mmlu_human_sexuality",
+            "mmlu_international_law",
+            "mmlu_jurisprudence",
+            "mmlu_logical_fallacies",
+            "mmlu_machine_learning",
+            "mmlu_management",
+            "mmlu_marketing",
+            "mmlu_medical_genetics",
+            "mmlu_miscellaneous",
+            "mmlu_moral_disputes",
+            "mmlu_moral_scenarios",
+            "mmlu_nutrition",
+            "mmlu_philosophy",
+            "mmlu_prehistory",
+            "mmlu_professional_accounting",
+            "mmlu_professional_law",
+            "mmlu_professional_medicine",
+            "mmlu_professional_psychology",
+            "mmlu_public_relations",
+            "mmlu_security_studies",
+            "mmlu_sociology",
+            "mmlu_us_foreign_policy",
+            "mmlu_virology",
+            "mmlu_world_religions"
+          ]
+        }
+      }
+    },
+    {
+      "evaluation_name": "Abstract Algebra",
+      "source_data": {
+        "dataset_name": "helm_mmlu",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/mmlu/benchmark_output/releases/v1.13.0/groups/mmlu_subjects.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "EM on Abstract Algebra",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.33,
+        "details": {
+          "description": "min=0.33, mean=0.33, max=0.33, sum=0.66 (2)",
+          "tab": "Accuracy",
+          "Abstract Algebra - Observed inference time (s)": {
+            "description": "min=0.162, mean=0.162, max=0.162, sum=0.324 (2)",
+            "tab": "Efficiency",
+            "score": 0.1620460057258606
+          },
+          "Abstract Algebra - # eval": {
+            "description": "min=100, mean=100, max=100, sum=200 (2)",
+            "tab": "General information",
+            "score": 100.0
+          },
+          "Abstract Algebra - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Abstract Algebra - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Abstract Algebra - # prompt tokens": {
+            "description": "min=397.66, mean=397.66, max=397.66, sum=795.32 (2)",
+            "tab": "General information",
+            "score": 397.66
+          },
+          "Abstract Algebra - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "subject": "abstract_algebra",
+          "method": "multiple_choice_joint",
+          "eval_split": "test",
+          "groups": "mmlu_abstract_algebra"
+        }
+      }
+    },
+    {
+      "evaluation_name": "Anatomy",
+      "source_data": {
+        "dataset_name": "helm_mmlu",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/mmlu/benchmark_output/releases/v1.13.0/groups/mmlu_subjects.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "EM on Anatomy",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.615,
+        "details": {
+          "description": "min=0.615, mean=0.615, max=0.615, sum=1.23 (2)",
+          "tab": "Accuracy",
+          "Anatomy - Observed inference time (s)": {
+            "description": "min=0.157, mean=0.157, max=0.157, sum=0.314 (2)",
+            "tab": "Efficiency",
+            "score": 0.15700986297042283
+          },
+          "Anatomy - # eval": {
+            "description": "min=135, mean=135, max=135, sum=270 (2)",
+            "tab": "General information",
+            "score": 135.0
+          },
+          "Anatomy - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Anatomy - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Anatomy - # prompt tokens": {
+            "description": "min=360.096, mean=360.096, max=360.096, sum=720.193 (2)",
+            "tab": "General information",
+            "score": 360.0962962962963
+          },
+          "Anatomy - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "subject": "anatomy",
+          "method": "multiple_choice_joint",
+          "eval_split": "test",
+          "groups": "mmlu_anatomy"
+        }
+      }
+    },
+    {
+      "evaluation_name": "College Physics",
+      "source_data": {
+        "dataset_name": "helm_mmlu",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/mmlu/benchmark_output/releases/v1.13.0/groups/mmlu_subjects.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "EM on College Physics",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.382,
+        "details": {
+          "description": "min=0.382, mean=0.382, max=0.382, sum=0.765 (2)",
+          "tab": "Accuracy",
+          "College Chemistry - Observed inference time (s)": {
+            "description": "min=0.185, mean=0.185, max=0.185, sum=0.37 (2)",
+            "tab": "Efficiency",
+            "score": 0.18501442193984985
+          },
+          "College Biology - Observed inference time (s)": {
+            "description": "min=0.163, mean=0.163, max=0.163, sum=0.325 (2)",
+            "tab": "Efficiency",
+            "score": 0.1627496729294459
+          },
+          "College Computer Science - Observed inference time (s)": {
+            "description": "min=0.182, mean=0.182, max=0.182, sum=0.363 (2)",
+            "tab": "Efficiency",
+            "score": 0.18159597158432006
+          },
+          "College Mathematics - Observed inference time (s)": {
+            "description": "min=0.173, mean=0.173, max=0.173, sum=0.346 (2)",
+            "tab": "Efficiency",
+            "score": 0.17305777072906495
+          },
+          "College Medicine - Observed inference time (s)": {
+            "description": "min=0.167, mean=0.167, max=0.167, sum=0.334 (2)",
+            "tab": "Efficiency",
+            "score": 0.1671100668824477
+          },
+          "College Physics - Observed inference time (s)": {
+            "description": "min=0.169, mean=0.169, max=0.169, sum=0.339 (2)",
+            "tab": "Efficiency",
+            "score": 0.16945467041988
+          },
+          "College Chemistry - # eval": {
+            "description": "min=100, mean=100, max=100, sum=200 (2)",
+            "tab": "General information",
+            "score": 100.0
+          },
+          "College Chemistry - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "College Chemistry - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "College Chemistry - # prompt tokens": {
+            "description": "min=586.57, mean=586.57, max=586.57, sum=1173.14 (2)",
+            "tab": "General information",
+            "score": 586.57
+          },
+          "College Chemistry - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "College Biology - # eval": {
+            "description": "min=144, mean=144, max=144, sum=288 (2)",
+            "tab": "General information",
+            "score": 144.0
+          },
+          "College Biology - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "College Biology - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "College Biology - # prompt tokens": {
+            "description": "min=496.632, mean=496.632, max=496.632, sum=993.264 (2)",
+            "tab": "General information",
+            "score": 496.63194444444446
+          },
+          "College Biology - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "College Computer Science - # eval": {
+            "description": "min=100, mean=100, max=100, sum=200 (2)",
+            "tab": "General information",
+            "score": 100.0
+          },
+          "College Computer Science - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "College Computer Science - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "College Computer Science - # prompt tokens": {
+            "description": "min=869.29, mean=869.29, max=869.29, sum=1738.58 (2)",
+            "tab": "General information",
+            "score": 869.29
+          },
+          "College Computer Science - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "College Mathematics - # eval": {
+            "description": "min=100, mean=100, max=100, sum=200 (2)",
+            "tab": "General information",
+            "score": 100.0
+          },
+          "College Mathematics - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "College Mathematics - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "College Mathematics - # prompt tokens": {
+            "description": "min=645.25, mean=645.25, max=645.25, sum=1290.5 (2)",
+            "tab": "General information",
+            "score": 645.25
+          },
+          "College Mathematics - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "College Medicine - # eval": {
+            "description": "min=173, mean=173, max=173, sum=346 (2)",
+            "tab": "General information",
+            "score": 173.0
+          },
+          "College Medicine - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "College Medicine - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "College Medicine - # prompt tokens": {
+            "description": "min=535.092, mean=535.092, max=535.092, sum=1070.185 (2)",
+            "tab": "General information",
+            "score": 535.0924855491329
+          },
+          "College Medicine - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "College Physics - # eval": {
+            "description": "min=102, mean=102, max=102, sum=204 (2)",
+            "tab": "General information",
+            "score": 102.0
+          },
+          "College Physics - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "College Physics - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "College Physics - # prompt tokens": {
+            "description": "min=530.382, mean=530.382, max=530.382, sum=1060.765 (2)",
+            "tab": "General information",
+            "score": 530.3823529411765
+          },
+          "College Physics - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "subject": "college_physics",
+          "method": "multiple_choice_joint",
+          "eval_split": "test",
+          "groups": "mmlu_college_physics"
+        }
+      }
+    },
+    {
+      "evaluation_name": "Computer Security",
+      "source_data": {
+        "dataset_name": "helm_mmlu",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/mmlu/benchmark_output/releases/v1.13.0/groups/mmlu_subjects.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "EM on Computer Security",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.78,
+        "details": {
+          "description": "min=0.78, mean=0.78, max=0.78, sum=1.56 (2)",
+          "tab": "Accuracy",
+          "Computer Security - Observed inference time (s)": {
+            "description": "min=0.163, mean=0.163, max=0.163, sum=0.327 (2)",
+            "tab": "Efficiency",
+            "score": 0.16325130462646484
+          },
+          "Computer Security - # eval": {
+            "description": "min=100, mean=100, max=100, sum=200 (2)",
+            "tab": "General information",
+            "score": 100.0
+          },
+          "Computer Security - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Computer Security - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Computer Security - # prompt tokens": {
+            "description": "min=399.41, mean=399.41, max=399.41, sum=798.82 (2)",
+            "tab": "General information",
+            "score": 399.41
+          },
+          "Computer Security - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "subject": "computer_security",
+          "method": "multiple_choice_joint",
+          "eval_split": "test",
+          "groups": "mmlu_computer_security"
+        }
+      }
+    },
+    {
+      "evaluation_name": "Econometrics",
+      "source_data": {
+        "dataset_name": "helm_mmlu",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/mmlu/benchmark_output/releases/v1.13.0/groups/mmlu_subjects.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "EM on Econometrics",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.456,
+        "details": {
+          "description": "min=0.456, mean=0.456, max=0.456, sum=0.912 (2)",
+          "tab": "Accuracy",
+          "Econometrics - Observed inference time (s)": {
+            "description": "min=0.174, mean=0.174, max=0.174, sum=0.347 (2)",
+            "tab": "Efficiency",
+            "score": 0.17368793905827037
+          },
+          "Econometrics - # eval": {
+            "description": "min=114, mean=114, max=114, sum=228 (2)",
+            "tab": "General information",
+            "score": 114.0
+          },
+          "Econometrics - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Econometrics - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Econometrics - # prompt tokens": {
+            "description": "min=661.579, mean=661.579, max=661.579, sum=1323.158 (2)",
+            "tab": "General information",
+            "score": 661.578947368421
+          },
+          "Econometrics - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "subject": "econometrics",
+          "method": "multiple_choice_joint",
+          "eval_split": "test",
+          "groups": "mmlu_econometrics"
+        }
+      }
+    },
+    {
+      "evaluation_name": "Global Facts",
+      "source_data": {
+        "dataset_name": "helm_mmlu",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/mmlu/benchmark_output/releases/v1.13.0/groups/mmlu_subjects.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "EM on Global Facts",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.42,
+        "details": {
+          "description": "min=0.42, mean=0.42, max=0.42, sum=0.84 (2)",
+          "tab": "Accuracy",
+          "Global Facts - Observed inference time (s)": {
+            "description": "min=0.166, mean=0.166, max=0.166, sum=0.332 (2)",
+            "tab": "Efficiency",
+            "score": 0.16606518507003784
+          },
+          "Global Facts - # eval": {
+            "description": "min=100, mean=100, max=100, sum=200 (2)",
+            "tab": "General information",
+            "score": 100.0
+          },
+          "Global Facts - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Global Facts - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Global Facts - # prompt tokens": {
+            "description": "min=469.58, mean=469.58, max=469.58, sum=939.16 (2)",
+            "tab": "General information",
+            "score": 469.58
+          },
+          "Global Facts - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "subject": "global_facts",
+          "method": "multiple_choice_joint",
+          "eval_split": "test",
+          "groups": "mmlu_global_facts"
+        }
+      }
+    },
+    {
+      "evaluation_name": "Jurisprudence",
+      "source_data": {
+        "dataset_name": "helm_mmlu",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/mmlu/benchmark_output/releases/v1.13.0/groups/mmlu_subjects.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "EM on Jurisprudence",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.796,
+        "details": {
+          "description": "min=0.796, mean=0.796, max=0.796, sum=1.593 (2)",
+          "tab": "Accuracy",
+          "Jurisprudence - Observed inference time (s)": {
+            "description": "min=0.16, mean=0.16, max=0.16, sum=0.319 (2)",
+            "tab": "Efficiency",
+            "score": 0.15962726098519783
+          },
+          "Jurisprudence - # eval": {
+            "description": "min=108, mean=108, max=108, sum=216 (2)",
+            "tab": "General information",
+            "score": 108.0
+          },
+          "Jurisprudence - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Jurisprudence - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Jurisprudence - # prompt tokens": {
+            "description": "min=417.944, mean=417.944, max=417.944, sum=835.889 (2)",
+            "tab": "General information",
+            "score": 417.94444444444446
+          },
+          "Jurisprudence - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "subject": "jurisprudence",
+          "method": "multiple_choice_joint",
+          "eval_split": "test",
+          "groups": "mmlu_jurisprudence"
+        }
+      }
+    },
+    {
+      "evaluation_name": "Philosophy",
+      "source_data": {
+        "dataset_name": "helm_mmlu",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/mmlu/benchmark_output/releases/v1.13.0/groups/mmlu_subjects.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "EM on Philosophy",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.685,
+        "details": {
+          "description": "min=0.685, mean=0.685, max=0.685, sum=1.37 (2)",
+          "tab": "Accuracy",
+          "Philosophy - Observed inference time (s)": {
+            "description": "min=0.154, mean=0.154, max=0.154, sum=0.307 (2)",
+            "tab": "Efficiency",
+            "score": 0.1535167272451223
+          },
+          "Philosophy - # eval": {
+            "description": "min=311, mean=311, max=311, sum=622 (2)",
+            "tab": "General information",
+            "score": 311.0
+          },
+          "Philosophy - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Philosophy - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Philosophy - # prompt tokens": {
+            "description": "min=355.508, mean=355.508, max=355.508, sum=711.016 (2)",
+            "tab": "General information",
+            "score": 355.508038585209
+          },
+          "Philosophy - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "subject": "philosophy",
+          "method": "multiple_choice_joint",
+          "eval_split": "test",
+          "groups": "mmlu_philosophy"
+        }
+      }
+    },
+    {
+      "evaluation_name": "Professional Psychology",
+      "source_data": {
+        "dataset_name": "helm_mmlu",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/mmlu/benchmark_output/releases/v1.13.0/groups/mmlu_subjects.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "EM on Professional Psychology",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.681,
+        "details": {
+          "description": "min=0.681, mean=0.681, max=0.681, sum=1.363 (2)",
+          "tab": "Accuracy",
+          "Professional Medicine - Observed inference time (s)": {
+            "description": "min=0.195, mean=0.195, max=0.195, sum=0.389 (2)",
+            "tab": "Efficiency",
+            "score": 0.19464709828881657
+          },
+          "Professional Accounting - Observed inference time (s)": {
+            "description": "min=0.177, mean=0.177, max=0.177, sum=0.354 (2)",
+            "tab": "Efficiency",
+            "score": 0.1770885929148248
+          },
+          "Professional Law - Observed inference time (s)": {
+            "description": "min=0.234, mean=0.234, max=0.234, sum=0.469 (2)",
+            "tab": "Efficiency",
+            "score": 0.23427105509473262
+          },
+          "Professional Psychology - Observed inference time (s)": {
+            "description": "min=0.211, mean=0.211, max=0.211, sum=0.423 (2)",
+            "tab": "Efficiency",
+            "score": 0.2114220471943126
+          },
+          "Professional Medicine - # eval": {
+            "description": "min=272, mean=272, max=272, sum=544 (2)",
+            "tab": "General information",
+            "score": 272.0
+          },
+          "Professional Medicine - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Professional Medicine - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Professional Medicine - # prompt tokens": {
+            "description": "min=1143.129, mean=1143.129, max=1143.129, sum=2286.257 (2)",
+            "tab": "General information",
+            "score": 1143.1286764705883
+          },
+          "Professional Medicine - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Professional Accounting - # eval": {
+            "description": "min=282, mean=282, max=282, sum=564 (2)",
+            "tab": "General information",
+            "score": 282.0
+          },
+          "Professional Accounting - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Professional Accounting - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Professional Accounting - # prompt tokens": {
+            "description": "min=767.429, mean=767.429, max=767.429, sum=1534.858 (2)",
+            "tab": "General information",
+            "score": 767.4290780141844
+          },
+          "Professional Accounting - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Professional Law - # eval": {
+            "description": "min=1534, mean=1534, max=1534, sum=3068 (2)",
+            "tab": "General information",
+            "score": 1534.0
+          },
+          "Professional Law - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Professional Law - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Professional Law - # prompt tokens": {
+            "description": "min=1697.692, mean=1697.692, max=1697.692, sum=3395.385 (2)",
+            "tab": "General information",
+            "score": 1697.6923076923076
+          },
+          "Professional Law - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Professional Psychology - # eval": {
+            "description": "min=612, mean=612, max=612, sum=1224 (2)",
+            "tab": "General information",
+            "score": 612.0
+          },
+          "Professional Psychology - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Professional Psychology - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Professional Psychology - # prompt tokens": {
+            "description": "min=609.167, mean=609.167, max=609.167, sum=1218.333 (2)",
+            "tab": "General information",
+            "score": 609.1666666666666
+          },
+          "Professional Psychology - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "subject": "professional_psychology",
+          "method": "multiple_choice_joint",
+          "eval_split": "test",
+          "groups": "mmlu_professional_psychology"
+        }
+      }
+    },
+    {
+      "evaluation_name": "Us Foreign Policy",
+      "source_data": {
+        "dataset_name": "helm_mmlu",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/mmlu/benchmark_output/releases/v1.13.0/groups/mmlu_subjects.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "EM on Us Foreign Policy",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.82,
+        "details": {
+          "description": "min=0.82, mean=0.82, max=0.82, sum=1.64 (2)",
+          "tab": "Accuracy",
+          "Us Foreign Policy - Observed inference time (s)": {
+            "description": "min=0.183, mean=0.183, max=0.183, sum=0.366 (2)",
+            "tab": "Efficiency",
+            "score": 0.18277841329574585
+          },
+          "Us Foreign Policy - # eval": {
+            "description": "min=100, mean=100, max=100, sum=200 (2)",
+            "tab": "General information",
+            "score": 100.0
+          },
+          "Us Foreign Policy - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Us Foreign Policy - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Us Foreign Policy - # prompt tokens": {
+            "description": "min=452.23, mean=452.23, max=452.23, sum=904.46 (2)",
+            "tab": "General information",
+            "score": 452.23
+          },
+          "Us Foreign Policy - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "subject": "us_foreign_policy",
+          "method": "multiple_choice_joint",
+          "eval_split": "test",
+          "groups": "mmlu_us_foreign_policy"
+        }
+      }
+    },
+    {
+      "evaluation_name": "Astronomy",
+      "source_data": {
+        "dataset_name": "helm_mmlu",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/mmlu/benchmark_output/releases/v1.13.0/groups/mmlu_subjects.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "EM on Astronomy",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.743,
+        "details": {
+          "description": "min=0.743, mean=0.743, max=0.743, sum=1.487 (2)",
+          "tab": "Accuracy",
+          "Astronomy - Observed inference time (s)": {
+            "description": "min=0.223, mean=0.223, max=0.223, sum=0.446 (2)",
+            "tab": "Efficiency",
+            "score": 0.22317567624543844
+          },
+          "Astronomy - # eval": {
+            "description": "min=152, mean=152, max=152, sum=304 (2)",
+            "tab": "General information",
+            "score": 152.0
+          },
+          "Astronomy - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Astronomy - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Astronomy - # prompt tokens": {
+            "description": "min=615.276, mean=615.276, max=615.276, sum=1230.553 (2)",
+            "tab": "General information",
+            "score": 615.2763157894736
+          },
+          "Astronomy - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "subject": "astronomy",
+          "method": "multiple_choice_joint",
+          "eval_split": "test",
+          "groups": "mmlu_astronomy"
+        }
+      }
+    },
+    {
+      "evaluation_name": "Business Ethics",
+      "source_data": {
+        "dataset_name": "helm_mmlu",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/mmlu/benchmark_output/releases/v1.13.0/groups/mmlu_subjects.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "EM on Business Ethics",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.63,
+        "details": {
+          "description": "min=0.63, mean=0.63, max=0.63, sum=1.26 (2)",
+          "tab": "Accuracy",
+          "Business Ethics - Observed inference time (s)": {
+            "description": "min=0.17, mean=0.17, max=0.17, sum=0.34 (2)",
+            "tab": "Efficiency",
+            "score": 0.16991474628448486
+          },
+          "Business Ethics - # eval": {
+            "description": "min=100, mean=100, max=100, sum=200 (2)",
+            "tab": "General information",
+            "score": 100.0
+          },
+          "Business Ethics - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Business Ethics - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Business Ethics - # prompt tokens": {
+            "description": "min=582.46, mean=582.46, max=582.46, sum=1164.92 (2)",
+            "tab": "General information",
+            "score": 582.46
+          },
+          "Business Ethics - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "subject": "business_ethics",
+          "method": "multiple_choice_joint",
+          "eval_split": "test",
+          "groups": "mmlu_business_ethics"
+        }
+      }
+    },
+    {
+      "evaluation_name": "Clinical Knowledge",
+      "source_data": {
+        "dataset_name": "helm_mmlu",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/mmlu/benchmark_output/releases/v1.13.0/groups/mmlu_subjects.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "EM on Clinical Knowledge",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.751,
+        "details": {
+          "description": "min=0.751, mean=0.751, max=0.751, sum=1.502 (2)",
+          "tab": "Accuracy",
+          "Clinical Knowledge - Observed inference time (s)": {
+            "description": "min=0.186, mean=0.186, max=0.186, sum=0.371 (2)",
+            "tab": "Efficiency",
+            "score": 0.1857448289979179
+          },
+          "Clinical Knowledge - # eval": {
+            "description": "min=265, mean=265, max=265, sum=530 (2)",
+            "tab": "General information",
+            "score": 265.0
+          },
+          "Clinical Knowledge - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Clinical Knowledge - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Clinical Knowledge - # prompt tokens": {
+            "description": "min=433.181, mean=433.181, max=433.181, sum=866.362 (2)",
+            "tab": "General information",
+            "score": 433.1811320754717
+          },
+          "Clinical Knowledge - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "subject": "clinical_knowledge",
+          "method": "multiple_choice_joint",
+          "eval_split": "test",
+          "groups": "mmlu_clinical_knowledge"
+        }
+      }
+    },
+    {
+      "evaluation_name": "Conceptual Physics",
+      "source_data": {
+        "dataset_name": "helm_mmlu",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/mmlu/benchmark_output/releases/v1.13.0/groups/mmlu_subjects.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "EM on Conceptual Physics",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.528,
+        "details": {
+          "description": "min=0.528, mean=0.528, max=0.528, sum=1.055 (2)",
+          "tab": "Accuracy",
+          "Conceptual Physics - Observed inference time (s)": {
+            "description": "min=0.146, mean=0.146, max=0.146, sum=0.293 (2)",
+            "tab": "Efficiency",
+            "score": 0.14639884360293123
+          },
+          "Conceptual Physics - # eval": {
+            "description": "min=235, mean=235, max=235, sum=470 (2)",
+            "tab": "General information",
+            "score": 235.0
+          },
+          "Conceptual Physics - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Conceptual Physics - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Conceptual Physics - # prompt tokens": {
+            "description": "min=322.511, mean=322.511, max=322.511, sum=645.021 (2)",
+            "tab": "General information",
+            "score": 322.51063829787233
+          },
+          "Conceptual Physics - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "subject": "conceptual_physics",
+          "method": "multiple_choice_joint",
+          "eval_split": "test",
+          "groups": "mmlu_conceptual_physics"
+        }
+      }
+    },
+    {
+      "evaluation_name": "Electrical Engineering",
+      "source_data": {
+        "dataset_name": "helm_mmlu",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/mmlu/benchmark_output/releases/v1.13.0/groups/mmlu_subjects.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "EM on Electrical Engineering",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.593,
+        "details": {
+          "description": "min=0.593, mean=0.593, max=0.593, sum=1.186 (2)",
+          "tab": "Accuracy",
+          "Electrical Engineering - Observed inference time (s)": {
+            "description": "min=0.164, mean=0.164, max=0.164, sum=0.329 (2)",
+            "tab": "Efficiency",
+            "score": 0.16444927248461494
+          },
+          "Electrical Engineering - # eval": {
+            "description": "min=145, mean=145, max=145, sum=290 (2)",
+            "tab": "General information",
+            "score": 145.0
+          },
+          "Electrical Engineering - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Electrical Engineering - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Electrical Engineering - # prompt tokens": {
+            "description": "min=494.648, mean=494.648, max=494.648, sum=989.297 (2)",
+            "tab": "General information",
+            "score": 494.64827586206894
+          },
+          "Electrical Engineering - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "subject": "electrical_engineering",
+          "method": "multiple_choice_joint",
+          "eval_split": "test",
+          "groups": "mmlu_electrical_engineering"
+        }
+      }
+    },
+    {
+      "evaluation_name": "Elementary Mathematics",
+      "source_data": {
+        "dataset_name": "helm_mmlu",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/mmlu/benchmark_output/releases/v1.13.0/groups/mmlu_subjects.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "EM on Elementary Mathematics",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.437,
+        "details": {
+          "description": "min=0.437, mean=0.437, max=0.437, sum=0.873 (2)",
+          "tab": "Accuracy",
+          "Elementary Mathematics - Observed inference time (s)": {
+            "description": "min=0.171, mean=0.171, max=0.171, sum=0.342 (2)",
+            "tab": "Efficiency",
+            "score": 0.17102001079175838
+          },
+          "Elementary Mathematics - # eval": {
+            "description": "min=378, mean=378, max=378, sum=756 (2)",
+            "tab": "General information",
+            "score": 378.0
+          },
+          "Elementary Mathematics - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Elementary Mathematics - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Elementary Mathematics - # prompt tokens": {
+            "description": "min=609.537, mean=609.537, max=609.537, sum=1219.074 (2)",
+            "tab": "General information",
+            "score": 609.5370370370371
+          },
+          "Elementary Mathematics - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "subject": "elementary_mathematics",
+          "method": "multiple_choice_joint",
+          "eval_split": "test",
+          "groups": "mmlu_elementary_mathematics"
+        }
+      }
+    },
+    {
+      "evaluation_name": "Formal Logic",
+      "source_data": {
+        "dataset_name": "helm_mmlu",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/mmlu/benchmark_output/releases/v1.13.0/groups/mmlu_subjects.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "EM on Formal Logic",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.405,
+        "details": {
+          "description": "min=0.405, mean=0.405, max=0.405, sum=0.81 (2)",
+          "tab": "Accuracy",
+          "Formal Logic - Observed inference time (s)": {
+            "description": "min=0.178, mean=0.178, max=0.178, sum=0.357 (2)",
+            "tab": "Efficiency",
+            "score": 0.17840472289494105
+          },
+          "Formal Logic - # eval": {
+            "description": "min=126, mean=126, max=126, sum=252 (2)",
+            "tab": "General information",
+            "score": 126.0
+          },
+          "Formal Logic - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Formal Logic - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Formal Logic - # prompt tokens": {
+            "description": "min=630.992, mean=630.992, max=630.992, sum=1261.984 (2)",
+            "tab": "General information",
+            "score": 630.9920634920635
+          },
+          "Formal Logic - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "subject": "formal_logic",
+          "method": "multiple_choice_joint",
+          "eval_split": "test",
+          "groups": "mmlu_formal_logic"
+        }
+      }
+    },
+    {
+      "evaluation_name": "High School World History",
+      "source_data": {
+        "dataset_name": "helm_mmlu",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/mmlu/benchmark_output/releases/v1.13.0/groups/mmlu_subjects.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "EM on High School World History",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.84,
+        "details": {
+          "description": "min=0.84, mean=0.84, max=0.84, sum=1.679 (2)",
+          "tab": "Accuracy",
+          "High School Biology - Observed inference time (s)": {
+            "description": "min=0.168, mean=0.168, max=0.168, sum=0.337 (2)",
+            "tab": "Efficiency",
+            "score": 0.16835398827829667
+          },
+          "High School Chemistry - Observed inference time (s)": {
+            "description": "min=0.171, mean=0.171, max=0.171, sum=0.341 (2)",
+            "tab": "Efficiency",
+            "score": 0.17066421649726154
+          },
+          "High School Computer Science - Observed inference time (s)": {
+            "description": "min=0.183, mean=0.183, max=0.183, sum=0.367 (2)",
+            "tab": "Efficiency",
+            "score": 0.1834348964691162
+          },
+          "High School European History - Observed inference time (s)": {
+            "description": "min=0.289, mean=0.289, max=0.289, sum=0.577 (2)",
+            "tab": "Efficiency",
+            "score": 0.28851397543242485
+          },
+          "High School Geography - Observed inference time (s)": {
+            "description": "min=0.155, mean=0.155, max=0.155, sum=0.31 (2)",
+            "tab": "Efficiency",
+            "score": 0.15488721987213752
+          },
+          "High School Government And Politics - Observed inference time (s)": {
+            "description": "min=0.169, mean=0.169, max=0.169, sum=0.338 (2)",
+            "tab": "Efficiency",
+            "score": 0.16877420331530002
+          },
+          "High School Macroeconomics - Observed inference time (s)": {
+            "description": "min=0.159, mean=0.159, max=0.159, sum=0.318 (2)",
+            "tab": "Efficiency",
+            "score": 0.1590262247965886
+          },
+          "High School Mathematics - Observed inference time (s)": {
+            "description": "min=0.169, mean=0.169, max=0.169, sum=0.337 (2)",
+            "tab": "Efficiency",
+            "score": 0.1685257187596074
+          },
+          "High School Microeconomics - Observed inference time (s)": {
+            "description": "min=0.156, mean=0.156, max=0.156, sum=0.312 (2)",
+            "tab": "Efficiency",
+            "score": 0.1562105868043018
+          },
+          "High School Physics - Observed inference time (s)": {
+            "description": "min=0.165, mean=0.165, max=0.165, sum=0.33 (2)",
+            "tab": "Efficiency",
+            "score": 0.16475912277272206
+          },
+          "High School Psychology - Observed inference time (s)": {
+            "description": "min=0.169, mean=0.169, max=0.169, sum=0.339 (2)",
+            "tab": "Efficiency",
+            "score": 0.16945652830491373
+          },
+          "High School Statistics - Observed inference time (s)": {
+            "description": "min=0.184, mean=0.184, max=0.184, sum=0.368 (2)",
+            "tab": "Efficiency",
+            "score": 0.18419962348761382
+          },
+          "High School US History - Observed inference time (s)": {
+            "description": "min=0.285, mean=0.285, max=0.285, sum=0.571 (2)",
+            "tab": "Efficiency",
+            "score": 0.28542132938609405
+          },
+          "High School World History - Observed inference time (s)": {
+            "description": "min=0.216, mean=0.216, max=0.216, sum=0.433 (2)",
+            "tab": "Efficiency",
+            "score": 0.21634829698232658
+          },
+          "High School Biology - # eval": {
+            "description": "min=310, mean=310, max=310, sum=620 (2)",
+            "tab": "General information",
+            "score": 310.0
+          },
+          "High School Biology - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "High School Biology - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "High School Biology - # prompt tokens": {
+            "description": "min=527.213, mean=527.213, max=527.213, sum=1054.426 (2)",
+            "tab": "General information",
+            "score": 527.2129032258065
+          },
+          "High School Biology - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "High School Chemistry - # eval": {
+            "description": "min=203, mean=203, max=203, sum=406 (2)",
+            "tab": "General information",
+            "score": 203.0
+          },
+          "High School Chemistry - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "High School Chemistry - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "High School Chemistry - # prompt tokens": {
+            "description": "min=530.635, mean=530.635, max=530.635, sum=1061.271 (2)",
+            "tab": "General information",
+            "score": 530.6354679802955
+          },
+          "High School Chemistry - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "High School Computer Science - # eval": {
+            "description": "min=100, mean=100, max=100, sum=200 (2)",
+            "tab": "General information",
+            "score": 100.0
+          },
+          "High School Computer Science - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "High School Computer Science - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "High School Computer Science - # prompt tokens": {
+            "description": "min=932.02, mean=932.02, max=932.02, sum=1864.04 (2)",
+            "tab": "General information",
+            "score": 932.02
+          },
+          "High School Computer Science - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "High School European History - # eval": {
+            "description": "min=165, mean=165, max=165, sum=330 (2)",
+            "tab": "General information",
+            "score": 165.0
+          },
+          "High School European History - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "High School European History - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "High School European History - # prompt tokens": {
+            "description": "min=2823.042, mean=2823.042, max=2823.042, sum=5646.085 (2)",
+            "tab": "General information",
+            "score": 2823.042424242424
+          },
+          "High School European History - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "High School Geography - # eval": {
+            "description": "min=198, mean=198, max=198, sum=396 (2)",
+            "tab": "General information",
+            "score": 198.0
+          },
+          "High School Geography - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "High School Geography - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "High School Geography - # prompt tokens": {
+            "description": "min=407.818, mean=407.818, max=407.818, sum=815.636 (2)",
+            "tab": "General information",
+            "score": 407.8181818181818
+          },
+          "High School Geography - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "High School Government And Politics - # eval": {
+            "description": "min=193, mean=193, max=193, sum=386 (2)",
+            "tab": "General information",
+            "score": 193.0
+          },
+          "High School Government And Politics - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "High School Government And Politics - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "High School Government And Politics - # prompt tokens": {
+            "description": "min=489.155, mean=489.155, max=489.155, sum=978.311 (2)",
+            "tab": "General information",
+            "score": 489.1554404145078
+          },
+          "High School Government And Politics - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "High School Macroeconomics - # eval": {
+            "description": "min=390, mean=390, max=390, sum=780 (2)",
+            "tab": "General information",
+            "score": 390.0
+          },
+          "High School Macroeconomics - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "High School Macroeconomics - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "High School Macroeconomics - # prompt tokens": {
+            "description": "min=407.654, mean=407.654, max=407.654, sum=815.308 (2)",
+            "tab": "General information",
+            "score": 407.65384615384613
+          },
+          "High School Macroeconomics - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "High School Mathematics - # eval": {
+            "description": "min=270, mean=270, max=270, sum=540 (2)",
+            "tab": "General information",
+            "score": 270.0
+          },
+          "High School Mathematics - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "High School Mathematics - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "High School Mathematics - # prompt tokens": {
+            "description": "min=589.774, mean=589.774, max=589.774, sum=1179.548 (2)",
+            "tab": "General information",
+            "score": 589.7740740740741
+          },
+          "High School Mathematics - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "High School Microeconomics - # eval": {
+            "description": "min=238, mean=238, max=238, sum=476 (2)",
+            "tab": "General information",
+            "score": 238.0
+          },
+          "High School Microeconomics - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "High School Microeconomics - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "High School Microeconomics - # prompt tokens": {
+            "description": "min=428.403, mean=428.403, max=428.403, sum=856.807 (2)",
+            "tab": "General information",
+            "score": 428.4033613445378
+          },
+          "High School Microeconomics - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "High School Physics - # eval": {
+            "description": "min=151, mean=151, max=151, sum=302 (2)",
+            "tab": "General information",
+            "score": 151.0
+          },
+          "High School Physics - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "High School Physics - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "High School Physics - # prompt tokens": {
+            "description": "min=604.272, mean=604.272, max=604.272, sum=1208.543 (2)",
+            "tab": "General information",
+            "score": 604.2715231788079
+          },
+          "High School Physics - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "High School Psychology - # eval": {
+            "description": "min=545, mean=545, max=545, sum=1090 (2)",
+            "tab": "General information",
+            "score": 545.0
+          },
+          "High School Psychology - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "High School Psychology - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "High School Psychology - # prompt tokens": {
+            "description": "min=516.004, mean=516.004, max=516.004, sum=1032.007 (2)",
+            "tab": "General information",
+            "score": 516.0036697247706
+          },
+          "High School Psychology - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "High School Statistics - # eval": {
+            "description": "min=216, mean=216, max=216, sum=432 (2)",
+            "tab": "General information",
+            "score": 216.0
+          },
+          "High School Statistics - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "High School Statistics - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "High School Statistics - # prompt tokens": {
+            "description": "min=871.264, mean=871.264, max=871.264, sum=1742.528 (2)",
+            "tab": "General information",
+            "score": 871.2638888888889
+          },
+          "High School Statistics - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "High School US History - # eval": {
+            "description": "min=204, mean=204, max=204, sum=408 (2)",
+            "tab": "General information",
+            "score": 204.0
+          },
+          "High School US History - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "High School US History - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "High School US History - # prompt tokens": {
+            "description": "min=2240.358, mean=2240.358, max=2240.358, sum=4480.716 (2)",
+            "tab": "General information",
+            "score": 2240.357843137255
+          },
+          "High School US History - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "High School World History - # eval": {
+            "description": "min=237, mean=237, max=237, sum=474 (2)",
+            "tab": "General information",
+            "score": 237.0
+          },
+          "High School World History - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "High School World History - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "High School World History - # prompt tokens": {
+            "description": "min=1443.321, mean=1443.321, max=1443.321, sum=2886.641 (2)",
+            "tab": "General information",
+            "score": 1443.3206751054852
+          },
+          "High School World History - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "subject": "high_school_world_history",
+          "method": "multiple_choice_joint",
+          "eval_split": "test",
+          "groups": "mmlu_high_school_world_history"
+        }
+      }
+    },
+    {
+      "evaluation_name": "Human Sexuality",
+      "source_data": {
+        "dataset_name": "helm_mmlu",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/mmlu/benchmark_output/releases/v1.13.0/groups/mmlu_subjects.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "EM on Human Sexuality",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.763,
+        "details": {
+          "description": "min=0.763, mean=0.763, max=0.763, sum=1.527 (2)",
+          "tab": "Accuracy",
+          "Human Aging - Observed inference time (s)": {
+            "description": "min=0.154, mean=0.154, max=0.154, sum=0.308 (2)",
+            "tab": "Efficiency",
+            "score": 0.15405324649383134
+          },
+          "Human Sexuality - Observed inference time (s)": {
+            "description": "min=0.159, mean=0.159, max=0.159, sum=0.318 (2)",
+            "tab": "Efficiency",
+            "score": 0.15911357275402274
+          },
+          "Human Aging - # eval": {
+            "description": "min=223, mean=223, max=223, sum=446 (2)",
+            "tab": "General information",
+            "score": 223.0
+          },
+          "Human Aging - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Human Aging - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Human Aging - # prompt tokens": {
+            "description": "min=336.09, mean=336.09, max=336.09, sum=672.179 (2)",
+            "tab": "General information",
+            "score": 336.0896860986547
+          },
+          "Human Aging - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Human Sexuality - # eval": {
+            "description": "min=131, mean=131, max=131, sum=262 (2)",
+            "tab": "General information",
+            "score": 131.0
+          },
+          "Human Sexuality - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Human Sexuality - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Human Sexuality - # prompt tokens": {
+            "description": "min=367.16, mean=367.16, max=367.16, sum=734.321 (2)",
+            "tab": "General information",
+            "score": 367.1603053435114
+          },
+          "Human Sexuality - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "subject": "human_sexuality",
+          "method": "multiple_choice_joint",
+          "eval_split": "test",
+          "groups": "mmlu_human_sexuality"
+        }
+      }
+    },
+    {
+      "evaluation_name": "International Law",
+      "source_data": {
+        "dataset_name": "helm_mmlu",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/mmlu/benchmark_output/releases/v1.13.0/groups/mmlu_subjects.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "EM on International Law",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.802,
+        "details": {
+          "description": "min=0.802, mean=0.802, max=0.802, sum=1.603 (2)",
+          "tab": "Accuracy",
+          "International Law - Observed inference time (s)": {
+            "description": "min=0.174, mean=0.174, max=0.174, sum=0.347 (2)",
+            "tab": "Efficiency",
+            "score": 0.1736255066453918
+          },
+          "International Law - # eval": {
+            "description": "min=121, mean=121, max=121, sum=242 (2)",
+            "tab": "General information",
+            "score": 121.0
+          },
+          "International Law - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "International Law - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "International Law - # prompt tokens": {
+            "description": "min=653.612, mean=653.612, max=653.612, sum=1307.223 (2)",
+            "tab": "General information",
+            "score": 653.6115702479339
+          },
+          "International Law - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "subject": "international_law",
+          "method": "multiple_choice_joint",
+          "eval_split": "test",
+          "groups": "mmlu_international_law"
+        }
+      }
+    },
+    {
+      "evaluation_name": "Logical Fallacies",
+      "source_data": {
+        "dataset_name": "helm_mmlu",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/mmlu/benchmark_output/releases/v1.13.0/groups/mmlu_subjects.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "EM on Logical Fallacies",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.798,
+        "details": {
+          "description": "min=0.798, mean=0.798, max=0.798, sum=1.595 (2)",
+          "tab": "Accuracy",
+          "Logical Fallacies - Observed inference time (s)": {
+            "description": "min=0.164, mean=0.164, max=0.164, sum=0.327 (2)",
+            "tab": "Efficiency",
+            "score": 0.16361909117435386
+          },
+          "Logical Fallacies - # eval": {
+            "description": "min=163, mean=163, max=163, sum=326 (2)",
+            "tab": "General information",
+            "score": 163.0
+          },
+          "Logical Fallacies - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Logical Fallacies - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Logical Fallacies - # prompt tokens": {
+            "description": "min=463.773, mean=463.773, max=463.773, sum=927.546 (2)",
+            "tab": "General information",
+            "score": 463.7730061349693
+          },
+          "Logical Fallacies - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "subject": "logical_fallacies",
+          "method": "multiple_choice_joint",
+          "eval_split": "test",
+          "groups": "mmlu_logical_fallacies"
+        }
+      }
+    },
+    {
+      "evaluation_name": "Machine Learning",
+      "source_data": {
+        "dataset_name": "helm_mmlu",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/mmlu/benchmark_output/releases/v1.13.0/groups/mmlu_subjects.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "EM on Machine Learning",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.446,
+        "details": {
+          "description": "min=0.446, mean=0.446, max=0.446, sum=0.893 (2)",
+          "tab": "Accuracy",
+          "Machine Learning - Observed inference time (s)": {
+            "description": "min=0.176, mean=0.176, max=0.176, sum=0.352 (2)",
+            "tab": "Efficiency",
+            "score": 0.17583884937422617
+          },
+          "Machine Learning - # eval": {
+            "description": "min=112, mean=112, max=112, sum=224 (2)",
+            "tab": "General information",
+            "score": 112.0
+          },
+          "Machine Learning - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Machine Learning - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Machine Learning - # prompt tokens": {
+            "description": "min=716.438, mean=716.438, max=716.438, sum=1432.875 (2)",
+            "tab": "General information",
+            "score": 716.4375
+          },
+          "Machine Learning - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "subject": "machine_learning",
+          "method": "multiple_choice_joint",
+          "eval_split": "test",
+          "groups": "mmlu_machine_learning"
+        }
+      }
+    },
+    {
+      "evaluation_name": "Management",
+      "source_data": {
+        "dataset_name": "helm_mmlu",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/mmlu/benchmark_output/releases/v1.13.0/groups/mmlu_subjects.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "EM on Management",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.796,
+        "details": {
+          "description": "min=0.796, mean=0.796, max=0.796, sum=1.592 (2)",
+          "tab": "Accuracy",
+          "Management - Observed inference time (s)": {
+            "description": "min=0.156, mean=0.156, max=0.156, sum=0.312 (2)",
+            "tab": "Efficiency",
+            "score": 0.15610716875317027
+          },
+          "Management - # eval": {
+            "description": "min=103, mean=103, max=103, sum=206 (2)",
+            "tab": "General information",
+            "score": 103.0
+          },
+          "Management - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Management - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Management - # prompt tokens": {
+            "description": "min=294.456, mean=294.456, max=294.456, sum=588.913 (2)",
+            "tab": "General information",
+            "score": 294.45631067961165
+          },
+          "Management - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "subject": "management",
+          "method": "multiple_choice_joint",
+          "eval_split": "test",
+          "groups": "mmlu_management"
+        }
+      }
+    },
+    {
+      "evaluation_name": "Marketing",
+      "source_data": {
+        "dataset_name": "helm_mmlu",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/mmlu/benchmark_output/releases/v1.13.0/groups/mmlu_subjects.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "EM on Marketing",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.872,
+        "details": {
+          "description": "min=0.872, mean=0.872, max=0.872, sum=1.744 (2)",
+          "tab": "Accuracy",
+          "Marketing - Observed inference time (s)": {
+            "description": "min=0.161, mean=0.161, max=0.161, sum=0.321 (2)",
+            "tab": "Efficiency",
+            "score": 0.16073521895286363
+          },
+          "Marketing - # eval": {
+            "description": "min=234, mean=234, max=234, sum=468 (2)",
+            "tab": "General information",
+            "score": 234.0
+          },
+          "Marketing - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Marketing - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Marketing - # prompt tokens": {
+            "description": "min=446.855, mean=446.855, max=446.855, sum=893.709 (2)",
+            "tab": "General information",
+            "score": 446.85470085470087
+          },
+          "Marketing - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "subject": "marketing",
+          "method": "multiple_choice_joint",
+          "eval_split": "test",
+          "groups": "mmlu_marketing"
+        }
+      }
+    },
+    {
+      "evaluation_name": "Medical Genetics",
+      "source_data": {
+        "dataset_name": "helm_mmlu",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/mmlu/benchmark_output/releases/v1.13.0/groups/mmlu_subjects.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "EM on Medical Genetics",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.81,
+        "details": {
+          "description": "min=0.81, mean=0.81, max=0.81, sum=1.62 (2)",
+          "tab": "Accuracy",
+          "Medical Genetics - Observed inference time (s)": {
+            "description": "min=0.16, mean=0.16, max=0.16, sum=0.319 (2)",
+            "tab": "Efficiency",
+            "score": 0.15951916217803955
+          },
+          "Medical Genetics - # eval": {
+            "description": "min=100, mean=100, max=100, sum=200 (2)",
+            "tab": "General information",
+            "score": 100.0
+          },
+          "Medical Genetics - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Medical Genetics - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Medical Genetics - # prompt tokens": {
+            "description": "min=357.02, mean=357.02, max=357.02, sum=714.04 (2)",
+            "tab": "General information",
+            "score": 357.02
+          },
+          "Medical Genetics - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "subject": "medical_genetics",
+          "method": "multiple_choice_joint",
+          "eval_split": "test",
+          "groups": "mmlu_medical_genetics"
+        }
+      }
+    },
+    {
+      "evaluation_name": "Miscellaneous",
+      "source_data": {
+        "dataset_name": "helm_mmlu",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/mmlu/benchmark_output/releases/v1.13.0/groups/mmlu_subjects.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "EM on Miscellaneous",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.848,
+        "details": {
+          "description": "min=0.848, mean=0.848, max=0.848, sum=1.696 (2)",
+          "tab": "Accuracy",
+          "Miscellaneous - Observed inference time (s)": {
+            "description": "min=0.153, mean=0.153, max=0.153, sum=0.307 (2)",
+            "tab": "Efficiency",
+            "score": 0.15332558511317462
+          },
+          "Miscellaneous - # eval": {
+            "description": "min=783, mean=783, max=783, sum=1566 (2)",
+            "tab": "General information",
+            "score": 783.0
+          },
+          "Miscellaneous - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Miscellaneous - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Miscellaneous - # prompt tokens": {
+            "description": "min=325.76, mean=325.76, max=325.76, sum=651.52 (2)",
+            "tab": "General information",
+            "score": 325.75989782886336
+          },
+          "Miscellaneous - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "subject": "miscellaneous",
+          "method": "multiple_choice_joint",
+          "eval_split": "test",
+          "groups": "mmlu_miscellaneous"
+        }
+      }
+    },
+    {
+      "evaluation_name": "Moral Scenarios",
+      "source_data": {
+        "dataset_name": "helm_mmlu",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/mmlu/benchmark_output/releases/v1.13.0/groups/mmlu_subjects.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "EM on Moral Scenarios",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.451,
+        "details": {
+          "description": "min=0.451, mean=0.451, max=0.451, sum=0.903 (2)",
+          "tab": "Accuracy",
+          "Moral Disputes - Observed inference time (s)": {
+            "description": "min=0.17, mean=0.17, max=0.17, sum=0.339 (2)",
+            "tab": "Efficiency",
+            "score": 0.16953640452699165
+          },
+          "Moral Scenarios - Observed inference time (s)": {
+            "description": "min=0.176, mean=0.176, max=0.176, sum=0.351 (2)",
+            "tab": "Efficiency",
+            "score": 0.1756493640345568
+          },
+          "Moral Disputes - # eval": {
+            "description": "min=346, mean=346, max=346, sum=692 (2)",
+            "tab": "General information",
+            "score": 346.0
+          },
+          "Moral Disputes - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Moral Disputes - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Moral Disputes - # prompt tokens": {
+            "description": "min=506.78, mean=506.78, max=506.78, sum=1013.561 (2)",
+            "tab": "General information",
+            "score": 506.78034682080926
+          },
+          "Moral Disputes - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Moral Scenarios - # eval": {
+            "description": "min=895, mean=895, max=895, sum=1790 (2)",
+            "tab": "General information",
+            "score": 895.0
+          },
+          "Moral Scenarios - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Moral Scenarios - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Moral Scenarios - # prompt tokens": {
+            "description": "min=699.344, mean=699.344, max=699.344, sum=1398.688 (2)",
+            "tab": "General information",
+            "score": 699.3441340782123
+          },
+          "Moral Scenarios - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "subject": "moral_scenarios",
+          "method": "multiple_choice_joint",
+          "eval_split": "test",
+          "groups": "mmlu_moral_scenarios"
+        }
+      }
+    },
+    {
+      "evaluation_name": "Nutrition",
+      "source_data": {
+        "dataset_name": "helm_mmlu",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/mmlu/benchmark_output/releases/v1.13.0/groups/mmlu_subjects.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "EM on Nutrition",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.703,
+        "details": {
+          "description": "min=0.703, mean=0.703, max=0.703, sum=1.405 (2)",
+          "tab": "Accuracy",
+          "Nutrition - Observed inference time (s)": {
+            "description": "min=0.171, mean=0.171, max=0.171, sum=0.342 (2)",
+            "tab": "Efficiency",
+            "score": 0.17089871020098918
+          },
+          "Nutrition - # eval": {
+            "description": "min=306, mean=306, max=306, sum=612 (2)",
+            "tab": "General information",
+            "score": 306.0
+          },
+          "Nutrition - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Nutrition - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Nutrition - # prompt tokens": {
+            "description": "min=618.402, mean=618.402, max=618.402, sum=1236.804 (2)",
+            "tab": "General information",
+            "score": 618.4019607843137
+          },
+          "Nutrition - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "subject": "nutrition",
+          "method": "multiple_choice_joint",
+          "eval_split": "test",
+          "groups": "mmlu_nutrition"
+        }
+      }
+    },
+    {
+      "evaluation_name": "Prehistory",
+      "source_data": {
+        "dataset_name": "helm_mmlu",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/mmlu/benchmark_output/releases/v1.13.0/groups/mmlu_subjects.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "EM on Prehistory",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.728,
+        "details": {
+          "description": "min=0.728, mean=0.728, max=0.728, sum=1.457 (2)",
+          "tab": "Accuracy",
+          "Prehistory - Observed inference time (s)": {
+            "description": "min=0.167, mean=0.167, max=0.167, sum=0.333 (2)",
+            "tab": "Efficiency",
+            "score": 0.16663335429297554
+          },
+          "Prehistory - # eval": {
+            "description": "min=324, mean=324, max=324, sum=648 (2)",
+            "tab": "General information",
+            "score": 324.0
+          },
+          "Prehistory - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Prehistory - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Prehistory - # prompt tokens": {
+            "description": "min=549.235, mean=549.235, max=549.235, sum=1098.469 (2)",
+            "tab": "General information",
+            "score": 549.2345679012345
+          },
+          "Prehistory - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "subject": "prehistory",
+          "method": "multiple_choice_joint",
+          "eval_split": "test",
+          "groups": "mmlu_prehistory"
+        }
+      }
+    },
+    {
+      "evaluation_name": "Public Relations",
+      "source_data": {
+        "dataset_name": "helm_mmlu",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/mmlu/benchmark_output/releases/v1.13.0/groups/mmlu_subjects.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "EM on Public Relations",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.7,
+        "details": {
+          "description": "min=0.7, mean=0.7, max=0.7, sum=1.4 (2)",
+          "tab": "Accuracy",
+          "Public Relations - Observed inference time (s)": {
+            "description": "min=0.17, mean=0.17, max=0.17, sum=0.341 (2)",
+            "tab": "Efficiency",
+            "score": 0.17039124532179398
+          },
+          "Public Relations - # eval": {
+            "description": "min=110, mean=110, max=110, sum=220 (2)",
+            "tab": "General information",
+            "score": 110.0
+          },
+          "Public Relations - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Public Relations - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Public Relations - # prompt tokens": {
+            "description": "min=434.682, mean=434.682, max=434.682, sum=869.364 (2)",
+            "tab": "General information",
+            "score": 434.6818181818182
+          },
+          "Public Relations - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "subject": "public_relations",
+          "method": "multiple_choice_joint",
+          "eval_split": "test",
+          "groups": "mmlu_public_relations"
+        }
+      }
+    },
+    {
+      "evaluation_name": "Security Studies",
+      "source_data": {
+        "dataset_name": "helm_mmlu",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/mmlu/benchmark_output/releases/v1.13.0/groups/mmlu_subjects.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "EM on Security Studies",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.714,
+        "details": {
+          "description": "min=0.714, mean=0.714, max=0.714, sum=1.429 (2)",
+          "tab": "Accuracy",
+          "Security Studies - Observed inference time (s)": {
+            "description": "min=0.203, mean=0.203, max=0.203, sum=0.405 (2)",
+            "tab": "Efficiency",
+            "score": 0.20251671927315848
+          },
+          "Security Studies - # eval": {
+            "description": "min=245, mean=245, max=245, sum=490 (2)",
+            "tab": "General information",
+            "score": 245.0
+          },
+          "Security Studies - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Security Studies - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Security Studies - # prompt tokens": {
+            "description": "min=1207.494, mean=1207.494, max=1207.494, sum=2414.988 (2)",
+            "tab": "General information",
+            "score": 1207.4938775510204
+          },
+          "Security Studies - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "subject": "security_studies",
+          "method": "multiple_choice_joint",
+          "eval_split": "test",
+          "groups": "mmlu_security_studies"
+        }
+      }
+    },
+    {
+      "evaluation_name": "Sociology",
+      "source_data": {
+        "dataset_name": "helm_mmlu",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/mmlu/benchmark_output/releases/v1.13.0/groups/mmlu_subjects.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "EM on Sociology",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.866,
+        "details": {
+          "description": "min=0.866, mean=0.866, max=0.866, sum=1.731 (2)",
+          "tab": "Accuracy",
+          "Sociology - Observed inference time (s)": {
+            "description": "min=0.164, mean=0.164, max=0.164, sum=0.327 (2)",
+            "tab": "Efficiency",
+            "score": 0.16369761163322485
+          },
+          "Sociology - # eval": {
+            "description": "min=201, mean=201, max=201, sum=402 (2)",
+            "tab": "General information",
+            "score": 201.0
+          },
+          "Sociology - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Sociology - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Sociology - # prompt tokens": {
+            "description": "min=467.343, mean=467.343, max=467.343, sum=934.687 (2)",
+            "tab": "General information",
+            "score": 467.34328358208955
+          },
+          "Sociology - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "subject": "sociology",
+          "method": "multiple_choice_joint",
+          "eval_split": "test",
+          "groups": "mmlu_sociology"
+        }
+      }
+    },
+    {
+      "evaluation_name": "Virology",
+      "source_data": {
+        "dataset_name": "helm_mmlu",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/mmlu/benchmark_output/releases/v1.13.0/groups/mmlu_subjects.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "EM on Virology",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.542,
+        "details": {
+          "description": "min=0.542, mean=0.542, max=0.542, sum=1.084 (2)",
+          "tab": "Accuracy",
+          "Virology - Observed inference time (s)": {
+            "description": "min=0.158, mean=0.158, max=0.158, sum=0.316 (2)",
+            "tab": "Efficiency",
+            "score": 0.15811713919582138
+          },
+          "Virology - # eval": {
+            "description": "min=166, mean=166, max=166, sum=332 (2)",
+            "tab": "General information",
+            "score": 166.0
+          },
+          "Virology - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "Virology - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Virology - # prompt tokens": {
+            "description": "min=352.861, mean=352.861, max=352.861, sum=705.723 (2)",
+            "tab": "General information",
+            "score": 352.8614457831325
+          },
+          "Virology - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "subject": "virology",
+          "method": "multiple_choice_joint",
+          "eval_split": "test",
+          "groups": "mmlu_virology"
+        }
+      }
+    },
+    {
+      "evaluation_name": "World Religions",
+      "source_data": {
+        "dataset_name": "helm_mmlu",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/mmlu/benchmark_output/releases/v1.13.0/groups/mmlu_subjects.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "EM on World Religions",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.813,
+        "details": {
+          "description": "min=0.813, mean=0.813, max=0.813, sum=1.626 (2)",
+          "tab": "Accuracy",
+          "World Religions - Observed inference time (s)": {
+            "description": "min=0.145, mean=0.145, max=0.145, sum=0.291 (2)",
+            "tab": "Efficiency",
+            "score": 0.1452833434991669
+          },
+          "World Religions - # eval": {
+            "description": "min=171, mean=171, max=171, sum=342 (2)",
+            "tab": "General information",
+            "score": 171.0
+          },
+          "World Religions - # train": {
+            "description": "min=5, mean=5, max=5, sum=10 (2)",
+            "tab": "General information",
+            "score": 5.0
+          },
+          "World Religions - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "World Religions - # prompt tokens": {
+            "description": "min=277.047, mean=277.047, max=277.047, sum=554.094 (2)",
+            "tab": "General information",
+            "score": 277.046783625731
+          },
+          "World Religions - # output tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (2)",
+            "tab": "General information",
+            "score": 0.0
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "subject": "world_religions",
+          "method": "multiple_choice_joint",
+          "eval_split": "test",
+          "groups": "mmlu_world_religions"
+        }
+      }
+    },
+    {
+      "evaluation_name": "Mean win rate",
+      "source_data": {
+        "dataset_name": "helm_mmlu",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/mmlu/benchmark_output/releases/v1.13.0/groups/mmlu_subjects.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "How many models this model outperforms on average (over columns).",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.959,
+        "details": {
+          "tab": "Efficiency"
+        }
+      },
+      "generation_config": {
+        "additional_details": {}
+      }
+    }
+  ]
+}

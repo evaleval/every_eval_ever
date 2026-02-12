@@ -1,0 +1,345 @@
+{
+  "schema_version": "0.2.0",
+  "evaluation_id": "helm_capabilities/qwen_qwen3-235b-a22b-fp8-tput/1770835969.095764",
+  "retrieved_timestamp": "1770835969.095764",
+  "source_metadata": {
+    "source_name": "helm_capabilities",
+    "source_type": "documentation",
+    "source_organization_name": "crfm",
+    "evaluator_relationship": "third_party"
+  },
+  "model_info": {
+    "name": "Qwen3 235B A22B FP8 Throughput",
+    "id": "qwen/qwen3-235b-a22b-fp8-tput",
+    "developer": "qwen",
+    "inference_platform": "unknown"
+  },
+  "evaluation_results": [
+    {
+      "evaluation_name": "Mean score",
+      "source_data": {
+        "dataset_name": "helm_capabilities",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/capabilities/benchmark_output/releases/v1.15.0/groups/core_scenarios.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "The mean of the scores from all columns.",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.726,
+        "details": {
+          "tab": "Accuracy",
+          "Mean score - Efficiency": {
+            "description": null,
+            "tab": "Efficiency",
+            "score": 175.88874367192255
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {}
+      }
+    },
+    {
+      "evaluation_name": "MMLU-Pro",
+      "source_data": {
+        "dataset_name": "MMLU-Pro",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/capabilities/benchmark_output/releases/v1.15.0/groups/core_scenarios.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "COT correct on MMLU-Pro",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.817,
+        "details": {
+          "description": "min=0.817, mean=0.817, max=0.817, sum=0.817 (1)",
+          "tab": "Accuracy",
+          "MMLU-Pro - Observed inference time (s)": {
+            "description": "min=126.73, mean=126.73, max=126.73, sum=126.73 (1)",
+            "tab": "Efficiency",
+            "score": 126.73047786664962
+          },
+          "MMLU-Pro - # eval": {
+            "description": "min=1000, mean=1000, max=1000, sum=1000 (1)",
+            "tab": "General information",
+            "score": 1000.0
+          },
+          "MMLU-Pro - # train": {
+            "description": "min=0, mean=0, max=0, sum=0 (1)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "MMLU-Pro - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (1)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "MMLU-Pro - # prompt tokens": {
+            "description": "min=259.715, mean=259.715, max=259.715, sum=259.715 (1)",
+            "tab": "General information",
+            "score": 259.715
+          },
+          "MMLU-Pro - # output tokens": {
+            "description": "min=3518.576, mean=3518.576, max=3518.576, sum=3518.576 (1)",
+            "tab": "General information",
+            "score": 3518.576
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "subset": "all",
+          "use_chain_of_thought": "true",
+          "use_few_shot": "false"
+        }
+      }
+    },
+    {
+      "evaluation_name": "GPQA",
+      "source_data": {
+        "dataset_name": "GPQA",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/capabilities/benchmark_output/releases/v1.15.0/groups/core_scenarios.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "COT correct on GPQA",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.623,
+        "details": {
+          "description": "min=0.623, mean=0.623, max=0.623, sum=0.623 (1)",
+          "tab": "Accuracy",
+          "GPQA - Observed inference time (s)": {
+            "description": "min=237.413, mean=237.413, max=237.413, sum=237.413 (1)",
+            "tab": "Efficiency",
+            "score": 237.41318658488748
+          },
+          "GPQA - # eval": {
+            "description": "min=446, mean=446, max=446, sum=446 (1)",
+            "tab": "General information",
+            "score": 446.0
+          },
+          "GPQA - # train": {
+            "description": "min=0, mean=0, max=0, sum=0 (1)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "GPQA - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (1)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "GPQA - # prompt tokens": {
+            "description": "min=274.37, mean=274.37, max=274.37, sum=274.37 (1)",
+            "tab": "General information",
+            "score": 274.36995515695065
+          },
+          "GPQA - # output tokens": {
+            "description": "min=7431.507, mean=7431.507, max=7431.507, sum=7431.507 (1)",
+            "tab": "General information",
+            "score": 7431.506726457399
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "subset": "gpqa_main",
+          "use_chain_of_thought": "true",
+          "use_few_shot": "false"
+        }
+      }
+    },
+    {
+      "evaluation_name": "IFEval",
+      "source_data": {
+        "dataset_name": "IFEval",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/capabilities/benchmark_output/releases/v1.15.0/groups/core_scenarios.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "IFEval Strict Acc on IFEval",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.816,
+        "details": {
+          "description": "min=0.816, mean=0.816, max=0.816, sum=0.816 (1)",
+          "tab": "Accuracy",
+          "IFEval - Observed inference time (s)": {
+            "description": "min=36.742, mean=36.742, max=36.742, sum=36.742 (1)",
+            "tab": "Efficiency",
+            "score": 36.742134021963516
+          },
+          "IFEval - # eval": {
+            "description": "min=541, mean=541, max=541, sum=541 (1)",
+            "tab": "General information",
+            "score": 541.0
+          },
+          "IFEval - # train": {
+            "description": "min=0, mean=0, max=0, sum=0 (1)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "IFEval - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (1)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "IFEval - # prompt tokens": {
+            "description": "min=46.492, mean=46.492, max=46.492, sum=46.492 (1)",
+            "tab": "General information",
+            "score": 46.491682070240294
+          },
+          "IFEval - # output tokens": {
+            "description": "min=1101.856, mean=1101.856, max=1101.856, sum=1101.856 (1)",
+            "tab": "General information",
+            "score": 1101.8558225508318
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {}
+      }
+    },
+    {
+      "evaluation_name": "WildBench",
+      "source_data": {
+        "dataset_name": "WildBench",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/capabilities/benchmark_output/releases/v1.15.0/groups/core_scenarios.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "WB Score on WildBench",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.828,
+        "details": {
+          "description": "min=0.828, mean=0.828, max=0.828, sum=0.828 (1)",
+          "tab": "Accuracy",
+          "WildBench - Observed inference time (s)": {
+            "description": "min=125.734, mean=125.734, max=125.734, sum=125.734 (1)",
+            "tab": "Efficiency",
+            "score": 125.73418169164657
+          },
+          "WildBench - # eval": {
+            "description": "min=1000, mean=1000, max=1000, sum=1000 (1)",
+            "tab": "General information",
+            "score": 1000.0
+          },
+          "WildBench - # train": {
+            "description": "min=0, mean=0, max=0, sum=0 (1)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "WildBench - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (1)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "WildBench - # prompt tokens": {
+            "description": "min=0, mean=0, max=0, sum=0 (1)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "WildBench - # output tokens": {
+            "description": "min=3594.207, mean=3594.207, max=3594.207, sum=3594.207 (1)",
+            "tab": "General information",
+            "score": 3594.207
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "subset": "v2"
+        }
+      }
+    },
+    {
+      "evaluation_name": "Omni-MATH",
+      "source_data": {
+        "dataset_name": "Omni-MATH",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/capabilities/benchmark_output/releases/v1.15.0/groups/core_scenarios.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "Acc on Omni-MATH",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.548,
+        "details": {
+          "description": "min=0.548, mean=0.548, max=0.548, sum=0.548 (1)",
+          "tab": "Accuracy",
+          "Omni-MATH - Observed inference time (s)": {
+            "description": "min=352.824, mean=352.824, max=352.824, sum=352.824 (1)",
+            "tab": "Efficiency",
+            "score": 352.82373819446565
+          },
+          "Omni-MATH - # eval": {
+            "description": "min=1000, mean=1000, max=1000, sum=1000 (1)",
+            "tab": "General information",
+            "score": 1000.0
+          },
+          "Omni-MATH - # train": {
+            "description": "min=0, mean=0, max=0, sum=0 (1)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Omni-MATH - truncated": {
+            "description": "min=0, mean=0, max=0, sum=0 (1)",
+            "tab": "General information",
+            "score": 0.0
+          },
+          "Omni-MATH - # prompt tokens": {
+            "description": "min=111.6, mean=111.6, max=111.6, sum=111.6 (1)",
+            "tab": "General information",
+            "score": 111.6
+          },
+          "Omni-MATH - # output tokens": {
+            "description": "min=10072.403, mean=10072.403, max=10072.403, sum=10072.403 (1)",
+            "tab": "General information",
+            "score": 10072.403
+          }
+        }
+      },
+      "generation_config": {
+        "additional_details": {}
+      }
+    }
+  ]
+}

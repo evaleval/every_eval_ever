@@ -1,0 +1,267 @@
+{
+  "schema_version": "0.2.0",
+  "evaluation_id": "helm_instruct/anthropic_claude-v1.3/1770834858.3559701",
+  "retrieved_timestamp": "1770834858.3559701",
+  "source_metadata": {
+    "source_name": "helm_instruct",
+    "source_type": "documentation",
+    "source_organization_name": "crfm",
+    "evaluator_relationship": "third_party"
+  },
+  "model_info": {
+    "name": "Anthropic Claude v1.3",
+    "id": "anthropic/claude-v1.3",
+    "developer": "anthropic",
+    "inference_platform": "unknown"
+  },
+  "evaluation_results": [
+    {
+      "evaluation_name": "Mean win rate",
+      "source_data": {
+        "dataset_name": "helm_instruct",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/instruct/benchmark_output/releases/v1.0.0/groups/instruction_following.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "How many models this model outperform on average (over columns).",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.611,
+        "details": {
+          "tab": "Instruction Following"
+        }
+      },
+      "generation_config": {
+        "additional_details": {}
+      }
+    },
+    {
+      "evaluation_name": "Anthropic RLHF dataset",
+      "source_data": {
+        "dataset_name": "Anthropic RLHF dataset",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/instruct/benchmark_output/releases/v1.0.0/groups/instruction_following.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "Harmlessness on Anthropic RLHF dataset",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 5.0
+      },
+      "score_details": {
+        "score": 4.965,
+        "details": {
+          "description": "min=4.925, mean=4.965, max=5, sum=39.72 (8)",
+          "tab": "Instruction Following"
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "subset": [
+            "hh",
+            "hh",
+            "hh",
+            "hh",
+            "red_team",
+            "red_team",
+            "red_team",
+            "red_team"
+          ],
+          "evaluator": [
+            "claude",
+            "gpt4",
+            "mturk",
+            "scale",
+            "claude",
+            "gpt4",
+            "mturk",
+            "scale"
+          ]
+        }
+      }
+    },
+    {
+      "evaluation_name": "Best ChatGPT Prompts",
+      "source_data": {
+        "dataset_name": "Best ChatGPT Prompts",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/instruct/benchmark_output/releases/v1.0.0/groups/instruction_following.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "Harmlessness on Best ChatGPT Prompts",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 5.0
+      },
+      "score_details": {
+        "score": 4.995,
+        "details": {
+          "description": "min=4.985, mean=4.995, max=5, sum=19.98 (4)",
+          "tab": "Instruction Following"
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "path": "src_helm_benchmark_scenarios_best_chatgpt_prompts.yaml",
+          "tags": "",
+          "evaluator": [
+            "claude",
+            "gpt4",
+            "mturk",
+            "scale"
+          ]
+        }
+      }
+    },
+    {
+      "evaluation_name": "Koala test dataset",
+      "source_data": {
+        "dataset_name": "Koala test dataset",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/instruct/benchmark_output/releases/v1.0.0/groups/instruction_following.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "Harmlessness on Koala test dataset",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 5.0
+      },
+      "score_details": {
+        "score": 4.981,
+        "details": {
+          "description": "min=4.965, mean=4.981, max=5, sum=19.925 (4)",
+          "tab": "Instruction Following"
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "evaluator": [
+            "claude",
+            "gpt4",
+            "mturk",
+            "scale"
+          ]
+        }
+      }
+    },
+    {
+      "evaluation_name": "Open Assistant",
+      "source_data": {
+        "dataset_name": "Open Assistant",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/instruct/benchmark_output/releases/v1.0.0/groups/instruction_following.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "Harmlessness on Open Assistant",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 5.0
+      },
+      "score_details": {
+        "score": 4.975,
+        "details": {
+          "description": "min=4.935, mean=4.975, max=5, sum=19.9 (4)",
+          "tab": "Instruction Following"
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "language": "en",
+          "evaluator": [
+            "claude",
+            "gpt4",
+            "mturk",
+            "scale"
+          ]
+        }
+      }
+    },
+    {
+      "evaluation_name": "Self Instruct",
+      "source_data": {
+        "dataset_name": "Self Instruct",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/instruct/benchmark_output/releases/v1.0.0/groups/instruction_following.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "Harmlessness on Self Instruct",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 5.0
+      },
+      "score_details": {
+        "score": 4.992,
+        "details": {
+          "description": "min=4.98, mean=4.992, max=5, sum=19.97 (4)",
+          "tab": "Instruction Following"
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "evaluator": [
+            "claude",
+            "gpt4",
+            "mturk",
+            "scale"
+          ]
+        }
+      }
+    },
+    {
+      "evaluation_name": "Vicuna",
+      "source_data": {
+        "dataset_name": "Vicuna",
+        "source_type": "url",
+        "url": [
+          "https://storage.googleapis.com/crfm-helm-public/instruct/benchmark_output/releases/v1.0.0/groups/instruction_following.json"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "Harmlessness on Vicuna",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 5.0
+      },
+      "score_details": {
+        "score": 4.989,
+        "details": {
+          "description": "min=4.956, mean=4.989, max=5, sum=19.956 (4)",
+          "tab": "Instruction Following"
+        }
+      },
+      "generation_config": {
+        "additional_details": {
+          "category": "all",
+          "evaluator": [
+            "claude",
+            "gpt4",
+            "mturk",
+            "scale"
+          ]
+        }
+      }
+    }
+  ]
+}
