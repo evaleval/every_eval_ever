@@ -1,10 +1,10 @@
 from pathlib import Path
 
-from scripts.eval_converters.helm.adapter import HELMAdapter
+from eval_converters.helm.adapter import HELMAdapter
 from eval_types import (
     EvaluationLog, 
     EvaluatorRelationship,
-    SourceData,
+    SourceDataHf,
     SourceMetadata
 )
 
@@ -13,7 +13,7 @@ def _load_eval(adapter, filepath, metadata_args):
     eval_dirpath = Path(filepath)
     converted_eval = adapter.transform_from_directory(eval_dirpath, metadata_args=metadata_args)
     assert isinstance(converted_eval, EvaluationLog)
-    assert isinstance(converted_eval.source_data, SourceData)
+    assert isinstance(converted_eval.source_data, SourceDataHf)
 
     assert converted_eval.source_metadata.source_name == 'helm'
     assert converted_eval.source_metadata.source_type.value == 'evaluation_run'
