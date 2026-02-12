@@ -4,12 +4,12 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'scripts/validate_data.py'
+      - 'automation_scripts/validate_data.py'
       - 'eval.schema.json'
       - 'data/**'
   pull_request:
     paths:
-      - 'scripts/validate_data.py'
+      - 'automation_scripts/validate_data.py'
       - 'eval.schema.json'
       - 'data/**'
 
@@ -34,7 +34,7 @@ jobs:
           enable-cache: false
 
       - name: Check for duplicate entries
-        run: uv run python scripts/check_duplicate_entries.py data
+        run: uv run python automation_scripts/check_duplicate_entries.py data
 
       - name: Validate data
         run: uv run pre-commit run --all-files

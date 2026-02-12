@@ -9,7 +9,7 @@ Supports multiple HELM variants:
 - HELM_MMLU
 
 Usage:
-    uv run python -m scripts.helm.adapter --leaderboard_name HELM_Lite --source_data_url <url>
+    uv run python -m automation_scripts.helm.adapter --leaderboard_name HELM_Lite --source_data_url <url>
 """
 
 import math

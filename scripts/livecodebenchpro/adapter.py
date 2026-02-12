@@ -5,7 +5,7 @@ Moves top-level source_data URLs into per-evaluation_result source_data fields
 using SourceDataUrl, matching each URL to its evaluation by difficulty.
 
 Usage:
-    uv run python scripts/livecodebenchpro/adapter.py
+    uv run python automation_scripts/livecodebenchpro/adapter.py
 """
 
 import json
