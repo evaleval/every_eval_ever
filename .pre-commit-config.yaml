@@ -3,7 +3,7 @@ repos:
   hooks:
     - id: validate-data
       name: Validate data
-      entry: uv run python automation_scripts/validate_data.py --schema-path eval.schema.json
+      entry: uv run python utils/validate_data.py --schema-path eval.schema.json
       exclude: ^(tests/|.*\.schema\.json$)
       language: system
       types_or: [json]

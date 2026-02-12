@@ -7,7 +7,7 @@ Data sources:
 - RewardBench v2: JSON files from allenai/reward-bench-2-results dataset (eval-set/{org}/{model}.json)
 
 Usage:
-    uv run python -m automation_scripts.rewardbench.adapter
+    uv run python -m utils.rewardbench.adapter
 """
 
 import re
@@ -31,7 +31,7 @@ from eval_types import (
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from utils import (
+from helpers import (
     fetch_csv,
     fetch_json,
     get_developer,

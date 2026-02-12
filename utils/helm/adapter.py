@@ -9,7 +9,7 @@ Supports multiple HELM variants:
 - HELM_MMLU
 
 Usage:
-    uv run python -m automation_scripts.helm.adapter --leaderboard_name HELM_Lite --source_data_url <url>
+    uv run python -m utils.helm.adapter --leaderboard_name HELM_Lite --source_data_url <url>
 """
 
 import math
@@ -32,7 +32,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from utils import (
+from helpers import (
     fetch_json,
     get_developer,
     make_model_info,

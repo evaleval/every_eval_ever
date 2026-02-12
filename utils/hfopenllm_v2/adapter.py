@@ -5,7 +5,7 @@ Data source:
 - HF Open LLM Leaderboard v2 API: https://open-llm-leaderboard-open-llm-leaderboard.hf.space/api/leaderboard/formatted
 
 Usage:
-    uv run python -m automation_scripts.hfopenllm_v2.adapter
+    uv run python -m utils.hfopenllm_v2.adapter
 """
 
 import time
@@ -25,7 +25,7 @@ from eval_types import (
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from utils import (
+from helpers import (
     fetch_json,
     get_developer,
     make_model_info,

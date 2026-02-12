@@ -6,7 +6,7 @@ Data source:
 - Global MMLU Lite: Kaggle Benchmarks API (cohere-labs/global-mmlu-lite)
 
 Usage:
-    uv run python -m automation_scripts.global-mmlu-lite.adapter
+    uv run python -m utils.global-mmlu-lite.adapter
 """
 
 import time
@@ -28,7 +28,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from utils import (
+from helpers import (
     fetch_json,
     get_developer,
     make_source_metadata,

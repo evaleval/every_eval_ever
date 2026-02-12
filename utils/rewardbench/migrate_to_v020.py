@@ -14,7 +14,7 @@ For RewardBench v2 results (evaluation_id starts with "reward-bench-2/"):
     source_data = {"dataset_name": "RewardBench 2", "source_type": "hf_dataset", "hf_repo": "allenai/reward-bench-2-results"}
 
 Usage:
-    python -m automation_scripts.rewardbench.migrate_to_v020
+    python -m utils.rewardbench.migrate_to_v020
 """
 
 import json
