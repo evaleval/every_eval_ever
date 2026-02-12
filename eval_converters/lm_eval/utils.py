@@ -50,6 +50,7 @@ MODEL_TYPE_TO_INFERENCE_PLATFORM = {
 
 # Maps lm-eval config.model values to inference engine names
 MODEL_TYPE_TO_INFERENCE_ENGINE = {
+    "hf": "transformers",
     "vllm": "vllm",
     "gguf": "llama.cpp",
 }

@@ -7,6 +7,8 @@ import uuid
 from pathlib import Path
 
 from .adapter import LMEvalAdapter
+from .instance_level_adapter import LMEvalInstanceLevelAdapter
+from .utils import find_samples_file
 
 
 def main():
@@ -49,6 +51,20 @@ def main():
         action="store_true",
         help="Include instance-level sample data (requires --log_samples in original eval)",
     )
+    parser.add_argument(
+        "--inference_engine",
+        type=str,
+        default=None,
+        help="Override inference engine name (e.g. 'vllm', 'transformers'). "
+        "Auto-detected from model type when possible.",
+    )
+    parser.add_argument(
+        "--inference_engine_version",
+        type=str,
+        default=None,
+        help="Inference engine version (e.g. '0.6.0'). "
+        "Not available from lm-eval logs, so must be provided manually.",
+    )
 
     args = parser.parse_args()
 
@@ -60,8 +76,10 @@ def main():
         "evaluator_relationship": args.evaluator_relationship,
         "source_organization_url": args.source_organization_url,
     }
-    if args.include_samples:
-        metadata_args["output_dir"] = str(output_dir)
+    if args.inference_engine:
+        metadata_args["inference_engine"] = args.inference_engine
+    if args.inference_engine_version:
+        metadata_args["inference_engine_version"] = args.inference_engine_version
 
     log_path = Path(args.log_path)
 
@@ -92,8 +110,28 @@ def main():
         out_path = output_dir / eval_name / developer / model_name
         out_path.mkdir(parents=True, exist_ok=True)
 
-        file_name = f"{uuid.uuid4()}.json"
-        out_file = out_path / file_name
+        eval_uuid = str(uuid.uuid4())
+
+        # Save instance-level samples if requested, using the same UUID
+        if args.include_samples:
+            meta = adapter.get_eval_metadata(log.evaluation_id)
+            parent_dir = meta.get("parent_dir")
+            task_name = meta.get("task_name")
+            if parent_dir and task_name:
+                samples_file = find_samples_file(Path(parent_dir), task_name)
+                if samples_file:
+                    instance_adapter = LMEvalInstanceLevelAdapter()
+                    detailed = instance_adapter.transform_and_save(
+                        samples_path=samples_file,
+                        evaluation_id=log.evaluation_id,
+                        model_id=log.model_info.id,
+                        task_name=task_name,
+                        output_dir=str(out_path),
+                        file_uuid=eval_uuid,
+                    )
+                    log.detailed_evaluation_results = detailed
+
+        out_file = out_path / f"{eval_uuid}.json"
 
         with open(out_file, "w") as f:
             json.dump(log.model_dump(mode="json", exclude_none=True), f, indent=2)

@@ -50,10 +50,13 @@ class LMEvalInstanceLevelAdapter:
         model_id: str,
         task_name: str,
         output_dir: Optional[Union[str, Path]] = None,
+        file_uuid: Optional[str] = None,
     ) -> Optional[DetailedEvaluationResults]:
         """Transform samples and save to JSONL, returning a DetailedEvaluationResults pointer.
 
         If output_dir is None, returns None (skips instance-level output).
+        If file_uuid is provided, the output file is named {file_uuid}_samples.jsonl
+        so it shares the UUID of the corresponding evaluation result file.
         """
         if output_dir is None:
             return None
@@ -64,7 +67,10 @@ class LMEvalInstanceLevelAdapter:
 
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
-        out_file = output_dir / f"samples_{task_name}.jsonl"
+        if file_uuid:
+            out_file = output_dir / f"{file_uuid}_samples.jsonl"
+        else:
+            out_file = output_dir / f"samples_{task_name}.jsonl"
 
         with open(out_file, "w") as f:
             for log in logs:

@@ -30,9 +30,7 @@ from eval_types import (
     Uncertainty,
 )
 
-from .instance_level_adapter import LMEvalInstanceLevelAdapter
 from .utils import (
-    find_samples_file,
     parse_model_args,
     MODEL_TYPE_TO_INFERENCE_ENGINE,
     MODEL_TYPE_TO_INFERENCE_PLATFORM,
@@ -42,6 +40,16 @@ from .utils import (
 
 class LMEvalAdapter(BaseEvaluationAdapter):
     """Converts lm-evaluation-harness results to every_eval_ever format."""
+
+    def __init__(self, strict_validation: bool = True):
+        super().__init__(strict_validation)
+        # Stores per-log metadata so callers can find sample files after transform.
+        # Keyed by evaluation_id -> {"parent_dir": str, "task_name": str}
+        self._eval_metadata = {}
+
+    def get_eval_metadata(self, evaluation_id: str) -> Dict[str, Any]:
+        """Return stored metadata for a given evaluation_id."""
+        return self._eval_metadata.get(evaluation_id, {})
 
     @property
     def metadata(self) -> AdapterMetadata:
@@ -56,8 +64,11 @@ class LMEvalAdapter(BaseEvaluationAdapter):
     def supported_library(self) -> SupportedLibrary:
         return SupportedLibrary.LM_EVAL
 
-    def _extract_model_info(self, raw_data: Dict[str, Any]) -> ModelInfo:
+    def _extract_model_info(
+        self, raw_data: Dict[str, Any], metadata_args: Optional[Dict[str, Any]] = None
+    ) -> ModelInfo:
         """Extract model information from lm-eval results."""
+        metadata_args = metadata_args or {}
         config = raw_data.get("config", {})
         model_type = config.get("model", "")
         model_args_str = config.get("model_args", "")
@@ -76,10 +87,13 @@ class LMEvalAdapter(BaseEvaluationAdapter):
 
         inference_platform = MODEL_TYPE_TO_INFERENCE_PLATFORM.get(model_type)
 
+        # Determine inference engine name: CLI override > auto-detection from model type
+        engine_name = metadata_args.get("inference_engine") or MODEL_TYPE_TO_INFERENCE_ENGINE.get(model_type)
+        engine_version = metadata_args.get("inference_engine_version")
+
         inference_engine = None
-        engine_name = MODEL_TYPE_TO_INFERENCE_ENGINE.get(model_type)
         if engine_name:
-            inference_engine = InferenceEngine(name=engine_name)
+            inference_engine = InferenceEngine(name=engine_name, version=engine_version)
 
         additional = {}
         if config.get("model_num_parameters"):
@@ -278,7 +292,7 @@ class LMEvalAdapter(BaseEvaluationAdapter):
         Expects metadata_args to contain 'task_name' specifying which task.
         """
         task_name = metadata_args["task_name"]
-        model_info = self._extract_model_info(raw_data)
+        model_info = self._extract_model_info(raw_data, metadata_args)
 
         retrieved_timestamp = get_current_unix_timestamp()
         eval_timestamp = raw_data.get("date")
@@ -306,20 +320,11 @@ class LMEvalAdapter(BaseEvaluationAdapter):
             evaluator_relationship=evaluator_relationship,
         )
 
-        # Optionally attach instance-level results
-        detailed = None
-        samples_dir = metadata_args.get("parent_eval_output_dir")
-        if samples_dir and metadata_args.get("output_dir"):
-            samples_file = find_samples_file(Path(samples_dir), task_name)
-            if samples_file:
-                instance_adapter = LMEvalInstanceLevelAdapter()
-                detailed = instance_adapter.transform_and_save(
-                    samples_path=samples_file,
-                    evaluation_id=evaluation_id,
-                    model_id=model_info.id,
-                    task_name=task_name,
-                    output_dir=metadata_args.get("output_dir"),
-                )
+        # Store metadata so callers can find sample files after transform
+        self._eval_metadata[evaluation_id] = {
+            "parent_dir": metadata_args.get("parent_eval_output_dir"),
+            "task_name": task_name,
+        }
 
         return EvaluationLog(
             schema_version=SCHEMA_VERSION,
@@ -329,7 +334,6 @@ class LMEvalAdapter(BaseEvaluationAdapter):
             source_metadata=source_metadata,
             model_info=model_info,
             evaluation_results=evaluation_results,
-            detailed_evaluation_results=detailed,
         )
 
     def transform_from_file(
