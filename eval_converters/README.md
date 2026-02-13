@@ -9,7 +9,7 @@ uv sync
 ```
 
 ### Inspect
-`
+
 The conversion script from `Inspect AI` to the unified schema can be run using `eval_converters/inspect/__main__.py`.
 
 Using the `--log_path` argument, you can choose one of three ways to specify evaluations to convert:
@@ -74,4 +74,44 @@ options:
                         Relationship of evaluation author to the model
   --source_organization_url SOURCE_ORGANIZATION_URL
   --source_organization_logo_url SOURCE_ORGANIZATION_LOGO_URL
+```
+
+## lm-eval-harness
+
+The conversion script from `lm-eval-harness` evaluation logs to the unified schema can be run using `eval_converters/lm_eval/__main__.py`.
+
+Using the `--log_path` argument, you can run a command like this:
+
+```bash
+uv run python -m eval_converters.lm_eval --log_path tests/data/lm_eval/results_2026-01-21T03-44-18.458309.json
+```
+
+
+Full manual for conversion of your own lm-eval evaluation log into unified is available below:
+
+```bash
+usage: __main__.py [-h] --log_path LOG_PATH --output_dir OUTPUT_DIR [--source_organization_name SOURCE_ORGANIZATION_NAME]
+                   [--evaluator_relationship {first_party,third_party,collaborative,other}] [--source_organization_url SOURCE_ORGANIZATION_URL] [--include_samples]
+                   [--inference_engine INFERENCE_ENGINE] [--inference_engine_version INFERENCE_ENGINE_VERSION]
+
+Convert lm-evaluation-harness output to every_eval_ever format
+
+options:
+  -h, --help            show this help message and exit
+  --log_path LOG_PATH   Path to results JSON file or directory containing results files
+  --output_dir OUTPUT_DIR
+                        Output directory for converted files
+  --source_organization_name SOURCE_ORGANIZATION_NAME
+                        Name of the organization that ran the evaluation
+  --evaluator_relationship {first_party,third_party,collaborative,other}
+                        Relationship of the evaluator to the model
+  --source_organization_url SOURCE_ORGANIZATION_URL
+                        URL of the source organization
+  --source_organization_logo_url SOURCE_ORGANIZATION_LOGO_URL
+                        Logo of the source organization
+  --include_samples     Include instance-level sample data (requires --log_samples in original eval)
+  --inference_engine INFERENCE_ENGINE
+                        Override inference engine name (e.g. 'vllm', 'transformers'). Auto-detected from model type when possible.
+  --inference_engine_version INFERENCE_ENGINE_VERSION
+                        Inference engine version (e.g. '0.6.0'). Not available from lm-eval logs, so must be provided manually.
 ```

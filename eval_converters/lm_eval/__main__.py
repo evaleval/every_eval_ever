@@ -24,7 +24,7 @@ def main():
     parser.add_argument(
         "--output_dir",
         type=str,
-        required=True,
+        default="data",
         help="Output directory for converted files",
     )
     parser.add_argument(
@@ -45,6 +45,12 @@ def main():
         type=str,
         default=None,
         help="URL of the source organization",
+    )
+    parser.add_argument(
+        "--source_organization_logo_url",
+        type=str,
+        default=None,
+        help="Logo of the source organization",
     )
     parser.add_argument(
         "--include_samples",
