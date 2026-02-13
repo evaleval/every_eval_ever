@@ -57,9 +57,12 @@
                     "type": "string",
                     "description": "Includes chat template, CoT and all relevant modifications - basically the un-tokenized version of what the model sees"
                 },
-                "reference": {
-                    "type": "string",
-                    "description": "Ground truth or reference answer for comparison/scoring"
+                "references": {
+                    "type": "array",
+                    "description": "Ground truths or reference answers for comparison/scoring",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "choices": {
                     "type": "array",
@@ -76,8 +79,11 @@
             "required": ["raw"],
             "properties": {
                 "raw": {
-                    "type": "string",
-                    "description": "Complete model response"
+                    "type": "array",
+                    "description": "Complete model responses",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "reasoning_trace": {
                     "type": ["string", "null"],

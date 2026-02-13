@@ -127,7 +127,7 @@ class InspectInstanceLevelDataAdapter:
         for sample in samples:
             sample_input = Input(
                 raw=sample.input,
-                reference=sample.target,
+                references=[sample.target],
                 choices=sample.choices
             )
 
