@@ -17,7 +17,7 @@ def parse_args():
 
     parser.add_argument('--log_path', type=str, default='tests/data/helm/mmlu:subject=philosophy,method=multiple_choice_joint,model=openai_gpt2', help="Path to directory with single evaluaion or multiple evaluations to convert")
     parser.add_argument('--output_dir', type=str, default='data')
-    parser.add_argument('--source_organization_name', type=str, default='Unknown', help='Orgnization which pushed evaluation to the evalHub.')
+    parser.add_argument('--source_organization_name', type=str, help='Orgnization which pushed evaluation.')
     parser.add_argument('--evaluator_relationship', type=str, default='other', help='Relationship of evaluation author to the model', choices=['first_party', 'third_party', 'collaborative', 'other'])
     parser.add_argument('--source_organization_url', type=str, default=None)
     parser.add_argument('--source_organization_logo_url', type=str, default=None)
@@ -44,22 +44,38 @@ class HELMEvalLogConverter:
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
     def convert_to_unified_schema(self, metadata_args: Dict[str, Any] = None) -> Union[EvaluationLog, List[EvaluationLog]]:
-        return HELMAdapter().transform_from_directory(self.log_path, metadata_args=metadata_args)
+        return HELMAdapter().transform_from_directory(self.log_path, self.output_dir, metadata_args=metadata_args)
 
     def save_to_file(self, unified_eval_log: EvaluationLog, output_filedir: str, output_filepath: str) -> bool:
         try:
-            json_str = unified_eval_log.model_dump_json(indent=2, exclude_none=True)
+            json_str = unified_eval_log.model_dump_json(indent=4, exclude_none=True)
 
             unified_eval_log_dir = Path(f'{self.output_dir}/{output_filedir}')
             unified_eval_log_dir.mkdir(parents=True, exist_ok=True)
 
-            with open(f'{unified_eval_log_dir}/{output_filepath}', 'w') as json_file:
+            unified_eval_path = f'{unified_eval_log_dir}/{output_filepath}'
+            with open(unified_eval_path, 'w') as json_file:
                 json_file.write(json_str)
 
             print(f'Unified eval log was successfully saved to {output_filepath} file.')
         except Exception as e:
             print(f"Problem with saving unified eval log to file: {e}")
             raise e
+
+def save_evaluation_log(
+    unified_output: EvaluationLog,
+    helm_converter: HELMEvalLogConverter,
+    file_uuid: str
+) -> bool:
+    try:
+        model_developer, model_name = unified_output.model_info.id.split('/')
+        filedir = f'{unified_output.evaluation_results[0].source_data.dataset_name}/{model_developer}/{model_name}'
+        filename = f'{file_uuid}.json'
+        helm_converter.save_to_file(unified_output, filedir, filename)
+        return True
+    except Exception as e:
+        print(f'Failed to save eval log {unified_output.evaluation_id} to file.\n{str(e)}')
+        return False
 
 
 if __name__ == '__main__':
@@ -70,26 +86,32 @@ if __name__ == '__main__':
         output_dir=args.output_dir
     )
     
+    file_uuid = str(uuid.uuid4())
+
     metadata_args = {
         'source_organization_name': args.source_organization_name,
         'source_organization_url': args.source_organization_url,
         'source_organization_logo_url': args.source_organization_logo_url,
-        'evaluator_relationship': EvaluatorRelationship(args.evaluator_relationship)
+        'evaluator_relationship': EvaluatorRelationship(args.evaluator_relationship),
+        'file_uuid': file_uuid,
+        'parent_eval_output_dir': args.output_dir
     }
 
     unified_output = helm_converter.convert_to_unified_schema(metadata_args)
 
     if unified_output and isinstance(unified_output, EvaluationLog):
-        model_developer, model_name = unified_output.model_info.id.split('/')
-        filedir = f'{unified_output.source_data.dataset_name}/{model_developer}/{model_name}'
-        filename = f'{str(uuid.uuid4())}.json'
-        helm_converter.save_to_file(unified_output, filedir, filename)
+        save_evaluation_log(
+            unified_output,
+            helm_converter,
+            file_uuid
+        )
 
     elif unified_output and isinstance(unified_output, List):
         for single_unified_output in unified_output:
-            model_developer, model_name = single_unified_output.model_info.id.split('/')
-            filedir = f'{single_unified_output.source_data.dataset_name}/{model_developer}/{model_name}'
-            filename = f'{str(uuid.uuid4())}.json'
-            helm_converter.save_to_file(single_unified_output, filedir, filename)
+            save_evaluation_log(
+                single_unified_output,
+                helm_converter,
+                file_uuid
+            )
     else:
         print("Missing unified schema result!")

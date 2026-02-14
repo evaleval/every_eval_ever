@@ -85,9 +85,12 @@
                         "type": "string"
                     }
                 },
-                "reasoning_trace": {
-                    "type": ["string", "null"],
-                    "description": "Reasoning trace of the model if applicable (e.g. chain-of-thought tokens)"
+                "reasoning_traces": {
+                    "type": "array",
+                    "description": "Reasoning traces of the model if applicable (e.g. chain-of-thought tokens)",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },

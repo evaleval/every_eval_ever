@@ -161,10 +161,10 @@ class LMEvalInstanceLevelAdapter:
             interaction_type=InteractionType.single_turn,
             input=Input(
                 raw=prompt,
-                reference=target,
+                references=[target],
                 choices=self._extract_choices(sample),
             ),
-            output=Output(raw=raw_output),
+            output=Output(raw=[raw_output]),
             answer_attribution=answer_attribution,
             evaluation=Evaluation(
                 score=score,

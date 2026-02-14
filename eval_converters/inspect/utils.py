@@ -281,16 +281,6 @@ def extract_model_info_from_model_path(model_path: str) -> ModelInfo:
         inference_platform='unknown'
     )
 
-def sha256_file(path, chunk_size=8192):
-    sha256 = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(chunk_size), b""):
-            sha256.update(chunk)
-    return sha256.hexdigest()
-
-def sha256_string(text: str, chunk_size=8192):
-    return hashlib.sha256(text.encode('utf-8')).hexdigest()
-
 def save_to_file(path: str, obj: BaseModel) -> bool:
     json_str = obj.model_dump_json(indent=4, exclude_none=True)
 

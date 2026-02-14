@@ -63,8 +63,9 @@ from eval_converters.common.utils import (
 from eval_converters.inspect.instance_level_adapter import (
     InspectInstanceLevelDataAdapter
 )
+from eval_converters.common.utils import sha256_file
 from eval_converters.inspect.utils import (
-    extract_model_info_from_model_path, sha256_file
+    extract_model_info_from_model_path
 )
 from eval_converters import SCHEMA_VERSION
 
