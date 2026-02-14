@@ -26,7 +26,7 @@ from instance_level_types import (
 )
 
 from eval_converters import SCHEMA_VERSION
-from eval_converters.inspect.utils import sha256_string
+from eval_converters.common.utils import sha256_string
 
 
 class InspectInstanceLevelDataAdapter:

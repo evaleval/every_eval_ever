@@ -58,8 +58,16 @@
                     "description": "Includes chat template, CoT and all relevant modifications - basically the un-tokenized version of what the model sees"
                 },
                 "reference": {
-                    "type": "string",
-                    "description": "Ground truth or reference answer for comparison/scoring"
+                    "description": "Ground truths or reference answers for comparison/scoring",
+                    "oneOf": [
+                        {
+                            "type": "array",
+                            "items": { "type": "string" }
+                        },
+                        {
+                            "type": "string"
+                        }
+                    ]
                 },
                 "choices": {
                     "type": "array",
@@ -76,12 +84,28 @@
             "required": ["raw"],
             "properties": {
                 "raw": {
-                    "type": "string",
-                    "description": "Complete model response"
+                    "description": "Complete model responses",
+                    "oneOf": [
+                        {
+                            "type": "array",
+                            "items": { "type": "string" }
+                        },
+                        {
+                            "type": "string"
+                        }
+                    ]
                 },
                 "reasoning_trace": {
-                    "type": ["string", "null"],
-                    "description": "Reasoning trace of the model if applicable (e.g. chain-of-thought tokens)"
+                    "description": "Reasoning traces of the model if applicable (e.g. chain-of-thought tokens)",
+                    "oneOf": [
+                        {
+                            "type": "array",
+                            "items": { "type": "string" }
+                        },
+                        {
+                            "type": "string"
+                        }
+                    ]
                 }
             }
         },
