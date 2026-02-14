@@ -118,7 +118,7 @@ class HELMInstanceLevelDataAdapter:
                 interaction_type=InteractionType.single_turn,
                 input=Input(
                     raw=state.request.prompt,
-                    references=correct_refs if correct_refs else [],
+                    reference=correct_refs if correct_refs else [],
                     choices=(
                         state.output_mapping.values()
                         if state.output_mapping
@@ -127,7 +127,7 @@ class HELMInstanceLevelDataAdapter:
                 ),
                 output=Output(
                     raw=completions,
-                    reasoning_traces=reasoning_traces
+                    reasoning_trace=reasoning_traces
                 ),
                 answer_attribution=[AnswerAttributionItem(
                     turn_idx=0,

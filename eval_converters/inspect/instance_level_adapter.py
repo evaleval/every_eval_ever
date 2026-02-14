@@ -26,7 +26,7 @@ from instance_level_types import (
 )
 
 from eval_converters import SCHEMA_VERSION
-from eval_converters.inspect.utils import sha256_string
+from eval_converters.common.utils import sha256_string
 
 
 class InspectInstanceLevelDataAdapter:
@@ -127,7 +127,7 @@ class InspectInstanceLevelDataAdapter:
         for sample in samples:
             sample_input = Input(
                 raw=sample.input,
-                references=[sample.target],
+                reference=sample.target,
                 choices=sample.choices
             )
 
@@ -149,8 +149,8 @@ class InspectInstanceLevelDataAdapter:
                         response = score.explanation
 
             sample_output = Output(
-                raw=[response],
-                reasoning_traces=[reasoning_trace]
+                raw=response,
+                reasoning_trace=reasoning_trace
             )
 
             interactions = []
@@ -170,8 +170,8 @@ class InspectInstanceLevelDataAdapter:
                 interaction_type = InteractionType.multi_turn
                 
             evaluation = Evaluation(
-                score=1.0 if sample_input.references[0] == response else 0.0,
-                is_correct=sample_input.references[0] == response,
+                score=1.0 if sample_input.reference == response else 0.0,
+                is_correct=sample_input.reference == response,
                 num_turns=len(interactions),
                 tool_calls_count=sum(
                     len(intr.tool_calls) if intr.tool_calls else 0
@@ -197,7 +197,7 @@ class InspectInstanceLevelDataAdapter:
                 model_id=model_id,
                 evaluation_name=evaluation_name,
                 sample_id=sample.id,
-                sample_hash=sha256_string(sample_input.raw + sample_input.references[0]),
+                sample_hash=sha256_string(sample_input.raw + sample_input.reference),
                 interaction_type=interaction_type,
                 input=sample_input,
                 output=sample_output,

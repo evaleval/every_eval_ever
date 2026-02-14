@@ -57,12 +57,17 @@
                     "type": "string",
                     "description": "Includes chat template, CoT and all relevant modifications - basically the un-tokenized version of what the model sees"
                 },
-                "references": {
-                    "type": "array",
+                "reference": {
                     "description": "Ground truths or reference answers for comparison/scoring",
-                    "items": {
-                        "type": "string"
-                    }
+                    "oneOf": [
+                        {
+                            "type": "array",
+                            "items": { "type": "string" }
+                        },
+                        {
+                            "type": "string"
+                        }
+                    ]
                 },
                 "choices": {
                     "type": "array",
@@ -79,18 +84,28 @@
             "required": ["raw"],
             "properties": {
                 "raw": {
-                    "type": "array",
                     "description": "Complete model responses",
-                    "items": {
-                        "type": "string"
-                    }
+                    "oneOf": [
+                        {
+                            "type": "array",
+                            "items": { "type": "string" }
+                        },
+                        {
+                            "type": "string"
+                        }
+                    ]
                 },
-                "reasoning_traces": {
-                    "type": "array",
+                "reasoning_trace": {
                     "description": "Reasoning traces of the model if applicable (e.g. chain-of-thought tokens)",
-                    "items": {
-                        "type": "string"
-                    }
+                    "oneOf": [
+                        {
+                            "type": "array",
+                            "items": { "type": "string" }
+                        },
+                        {
+                            "type": "string"
+                        }
+                    ]
                 }
             }
         },
