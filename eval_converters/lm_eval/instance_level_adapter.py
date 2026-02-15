@@ -181,12 +181,40 @@ class LMEvalInstanceLevelAdapter:
             },
         )
 
-    def _extract_output(self, sample: Dict[str, Any]) -> str:
+    def _is_multiple_choice(self, sample: dict[str, Any]) -> bool:
+        """Check if a sample is multiple-choice by inspecting the arguments structure."""
+        arguments = sample.get("arguments", {})
+        return len(arguments) > 1 and "gen_args_1" in arguments
+
+    def _extract_output(self, sample: dict[str, Any]) -> str:
         """Extract the model's output from a sample."""
-        # Prefer filtered_resps (post-filter), fall back to raw resps
         filtered_resps = sample.get("filtered_resps", [])
         resps = sample.get("resps", [])
 
+        if self._is_multiple_choice(sample):
+            # For multiple-choice, find the selected choice index from filtered_resps.
+            # Each entry is [log_prob, is_greedy]; the model picks the highest log_prob.
+            source = filtered_resps if filtered_resps else resps
+            if not source:
+                return ""
+            try:
+                log_probs = []
+                for resp in source:
+                    if isinstance(resp, list) and resp:
+                        val = resp[0] if isinstance(resp[0], list) else resp
+                        log_probs.append(float(val[0]))
+                    else:
+                        log_probs.append(float("-inf"))
+                selected_idx = log_probs.index(max(log_probs))
+                # Return the choice text from arguments if available
+                choices = self._extract_choices(sample)
+                if choices and selected_idx < len(choices):
+                    return choices[selected_idx]
+                return str(selected_idx)
+            except (ValueError, TypeError, IndexError):
+                return str(filtered_resps)
+
+        # For generation tasks, use the first response
         source = filtered_resps if filtered_resps else resps
         if not source:
             return ""
@@ -196,10 +224,17 @@ class LMEvalInstanceLevelAdapter:
             return str(first[0]) if first else ""
         return str(first)
 
-    def _extract_choices(self, sample: Dict[str, Any]) -> Optional[List[str]]:
-        """Extract multiple choice options if available."""
-        doc = sample.get("doc", {})
-        for key in ("choices", "options", "answers"):
-            if key in doc and isinstance(doc[key], list):
-                return [str(c) for c in doc[key]]
-        return None
+    def _extract_choices(self, sample: dict[str, Any]) -> list[str] | None:
+        """Extract multiple choice options from arguments structure."""
+        arguments = sample.get("arguments", {})
+        if not self._is_multiple_choice(sample):
+            return None
+        # Collect arg_1 (continuation text) from each gen_args_N in order
+        choices = []
+        idx = 0
+        while f"gen_args_{idx}" in arguments:
+            arg = arguments[f"gen_args_{idx}"]
+            if "arg_1" in arg:
+                choices.append(str(arg["arg_1"]).strip())
+            idx += 1
+        return choices if choices else None

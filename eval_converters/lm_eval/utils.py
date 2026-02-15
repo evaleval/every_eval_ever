@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Dict, Optional
 
 
-def parse_model_args(model_args: str) -> Dict[str, str]:
+def parse_model_args(model_args: str | None) -> Dict[str, str]:
     """Parse lm-eval model_args string (comma-separated key=value pairs).
 
     Handles the common format: "pretrained=EleutherAI/pythia-160m,dtype=float16"

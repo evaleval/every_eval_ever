@@ -195,6 +195,6 @@ uv run datamodel-codegen --input instance_level_eval.schema.json --output instan
 
 ## Eval Converters
 
-We have prepared converters to make adapting to our schema as easy as possible. At the moment, we support converting local evaluations in `Inspect AI` and `HELM` formats into our unified schema.
+We have prepared converters to make adapting to our schema as easy as possible. At the moment, we support converting local evaluations in `Inspect AI`, `HELM` and `lm-evaluation-harness` formats into our unified schema.
 
 For more information, see the README in `eval_converters`.
