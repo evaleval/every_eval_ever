@@ -153,12 +153,19 @@ class InspectInstanceLevelDataAdapter:
                 for message_idx, message in enumerate(sample.messages)
             ]
 
-            if any(interaction.role.lower() == 'tool' for interaction in processed_messages):
+            counted_assistant_roles = sum([
+                message.role.lower() == 'assistant' for message in processed_messages
+            ])
+            counted_tool_roles = sum([
+                message.role.lower() == 'tool' for message in processed_messages
+            ])
+
+            if counted_tool_roles:
                 interaction_type = InteractionType.agentic
-            elif len(processed_messages) <= 3:
-                interaction_type = InteractionType.single_turn
-            else:
+            elif counted_assistant_roles > 1:
                 interaction_type = InteractionType.multi_turn
+            else:
+                interaction_type = InteractionType.single_turn
 
             if interaction_type == InteractionType.single_turn:
                 sample_output = Output(
