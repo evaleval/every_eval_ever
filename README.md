@@ -48,7 +48,7 @@ Note: Each file can contain multiple individual results related to one model. Se
 5. [Validate] Validation runs automatically via [`validate-data.yml`](.github/workflows/validate-data.yml) using [`validate_data.py`](utils/validate_data.py) to check JSON files against the schema before merging.
 6. [Submit] Two ways to submit your evaluation data:
    - **Option A: Drag & drop via Hugging Face** — Go to [evaleval/EEE_datastore](https://huggingface.co/datasets/evaleval/EEE_datastore) → click "Files and versions" → "Contribute" → "Upload files" → drag and drop your data → select "Open as a pull request to the main branch". See [step-by-step screenshots](https://docs.google.com/document/d/1dxTQF8ncGCzaAOIj0RX7E9Hg4THmUBzezDOYUp_XdCY/edit?usp=sharing).
-   - **Option B: Clone & PR** — Clone the [repository](https://github.com/evaleval/every_eval_ever), add your data under `data/`, and open a pull request
+   - **Option B: Clone & PR** — Clone the [HuggingFace repository](https://huggingface.co/datasets/evaleval/EEE_datastore), add your data under `data/`, and open a pull request
 
 ### Schema Instructions
 
