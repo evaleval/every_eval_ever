@@ -8,8 +8,22 @@
 - 🔧 **Validation** that checks data against the schema before it enters the repository
 - 🔌 **Converters** for [Inspect AI](eval_converters/inspect/), [HELM](eval_converters/helm/), and [lm-eval-harness](eval_converters/lm_eval/), so you can transform your existing evaluation logs into the standard format
 
+### Terminology
+
+| Term | Our Definition | Example |
+|---|---|---|
+| **Single Benchmark** | Standardized eval using one dataset to test a single capability, producing one score | MMLU — ~15k multiple-choice QA across 57 subjects |
+| **Composite Benchmark** | A collection of simple benchmarks aggregated into one overall score, testing multiple capabilities at once | BIG-Bench bundles >200 tasks with a single aggregate score |
+| **Metric** | Any numerical value used to score performance on a benchmark (accuracy, F1, precision, recall, …) | A model scores 92% accuracy on MMLU |
+
 ## 🚀 Contributor Guide
-Leaderboard/evaluation data is split-up into files by individual model, and data for each model is stored using [`eval.schema.json`](eval.schema.json). The repository is structured into folders as `data/{eval_name}/{developer_name}/{model_name}/`.
+Leaderboard/evaluation data is split-up into files by individual model, and data for each model is stored using [`eval.schema.json`](eval.schema.json). The repository is structured into folders as `data/{benchmark_name}/{developer_name}/{model_name}/`.
+
+### TL;DR How to successfully submit
+
+1. Data must conform to [`eval.schema.json`](eval.schema.json) (current version: `0.2.0`)
+2. Validation runs automatically on every PR via [`validate_data.py`](utils/validate_data.py)
+3. An EvalEval member will review and merge your submission
 
 ### UUID Naming Convention
 
@@ -30,9 +44,11 @@ Note: Each file can contain multiple individual results related to one model. Se
 1. Add a new folder under [`data/`](data/) with a codename for your eval.
 2. For each model, use the HuggingFace (`developer_name/model_name`) naming convention to create a 2-tier folder structure.
 3. Add a JSON file with results for each model and name it `{uuid}.json`.
-4. [Optional] Include a [`utils/`](utils/) folder in your eval name folder with any scripts used to generate the data (see e.g. [`utils/global-mmlu-lite/adapter.py`](utils/global-mmlu-lite/adapter.py)).
+4. [Optional] Include a [`utils/`](utils/) folder in your benchmark name folder with any scripts used to generate the data (see e.g. [`utils/global-mmlu-lite/adapter.py`](utils/global-mmlu-lite/adapter.py)).
 5. [Validate] Validation runs automatically via [`validate-data.yml`](.github/workflows/validate-data.yml) using [`validate_data.py`](utils/validate_data.py) to check JSON files against the schema before merging.
-6. [Submit] Submit your evaluation data via [Hugging Face Spaces](https://huggingface.co/spaces/evaleval/every_eval_ever_space).
+6. [Submit] Two ways to submit your evaluation data:
+   - **Option A: Drag & drop via Hugging Face** — Go to [evaleval/EEE_datastore](https://huggingface.co/datasets/evaleval/EEE_datastore) → click "Files and versions" → "Contribute" → "Upload files" → drag and drop your data → select "Open as a pull request to the main branch". See [step-by-step screenshots](https://docs.google.com/document/d/1dxTQF8ncGCzaAOIj0RX7E9Hg4THmUBzezDOYUp_XdCY/edit?usp=sharing).
+   - **Option B: Clone & PR** — Clone the [repository](https://github.com/evaleval/every_eval_ever), add your data under `data/`, and open a pull request
 
 ### Schema Instructions
 
@@ -42,7 +58,7 @@ Note: Each file can contain multiple individual results related to one model. Se
 - Google: `gemini-2.5-pro`, `gemini-2.5-flash`
 - xAI (Grok): `grok-2-2024-08-13`, `grok-3-2025-01-15`
 
-2. **`evaluation_id`**: Use `{eval_name/model_id/retrieved_timestamp}` format (e.g. `livecodebenchpro/qwen3-235b-a22b-thinking-2507/1760492095.8105888`).
+2. **`evaluation_id`**: Use `{benchmark_name/model_id/retrieved_timestamp}` format (e.g. `livecodebenchpro/qwen3-235b-a22b-thinking-2507/1760492095.8105888`).
 
 3. **`inference_platform`** vs **`inference_engine`**: Where possible specify where the evaluation was run using one of these two fields.
 - `inference_platform`: Use this field when the evaluation was run through a remote API (e.g., `openai`, `huggingface`, `openrouter`, `anthropic`, `xai`).
@@ -72,6 +88,23 @@ For evaluations that include per-sample results, aggregate `{uuid}.json` files c
 - **`agentic`**: Tool-using evaluations with function calls and sandbox execution — uses `interactions` array with `tool_calls`
 
 Each instance captures: `input` (raw question + reference answer), `answer_attribution` (how the answer was extracted), `evaluation` (score, is_correct), and optional `token_usage` and `performance` metrics. Instance-level JSONL files are produced automatically by the [eval converters](eval_converters/README.md).
+
+Example `single_turn` instance:
+
+```json
+{
+  "schema_version": "instance_level_eval_0.2.0",
+  "evaluation_id": "math_eval/meta-llama/Llama-2-7b-chat/1706000000",
+  "model_id": "meta-llama/Llama-2-7b-chat",
+  "evaluation_name": "math_eval",
+  "sample_id": 4,
+  "interaction_type": "single_turn",
+  "input": { "raw": "If 2^10 = 4^x, what is the value of x?", "reference": "5" },
+  "output": { "raw": "Rewrite 4 as 2^2, so 4^x = 2^(2x). Since 2^10 = 2^(2x), x = 5." },
+  "answer_attribution": [{ "source": "output.raw", "extracted_value": "5" }],
+  "evaluation": { "score": 1.0, "is_correct": true }
+}
+```
 
 ### Agentic Evaluations
 
@@ -124,7 +157,7 @@ uv run pre-commit install
 
 ```
 data/
-└── {eval_name}/
+└── {benchmark_name}/
     └── {developer_name}/
         └── {model_name}/
             ├── {uuid}.json          # aggregate results
