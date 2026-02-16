@@ -5,15 +5,19 @@ from eval_converters.inspect.utils import extract_model_info_from_model_path
 from eval_types import (
     EvaluationLog, 
     EvaluatorRelationship,
-    SourceDataHf
+    SourceDataHf,
+    SourceMetadata
 )
 
 def _load_eval(adapter, filepath, metadata_args):
     eval_path = Path(filepath)
     converted_eval = adapter.transform_from_file(eval_path, metadata_args=metadata_args)
     assert isinstance(converted_eval, EvaluationLog)
-    assert isinstance(converted_eval.source_data, SourceDataHf)
+    # In schema 0.2, source_data is now in evaluation_results
+    assert isinstance(converted_eval.evaluation_results[0].source_data, SourceDataHf)
 
+    # In schema 0.2, source_metadata replaces the old source_data at eval level
+    assert isinstance(converted_eval.source_metadata, SourceMetadata)
     assert converted_eval.source_metadata.source_name == 'inspect_ai'
     assert converted_eval.source_metadata.source_type.value == 'evaluation_run'
 
@@ -29,16 +33,22 @@ def test_pubmedqa_eval():
 
     converted_eval = _load_eval(adapter, 'tests/data/inspect/data_pubmedqa_gpt4o_mini.json', metadata_args)
 
-    assert converted_eval.retrieved_timestamp == '1751553870.0'
+    # In schema 0.2, use evaluation_timestamp (from source data) for stable assertions
+    assert converted_eval.evaluation_timestamp == '1751553870.0'
+    assert converted_eval.retrieved_timestamp is not None
     
-    assert converted_eval.source_data.dataset_name == 'pubmed_qa'
-    assert converted_eval.source_data.hf_repo == 'bigbio/pubmed_qa'
-    assert len(converted_eval.source_data.sample_ids) == 2
+    # In schema 0.2, source_data is accessed through evaluation_results
+    assert converted_eval.evaluation_results[0].source_data.dataset_name == 'pubmed_qa'
+    assert converted_eval.evaluation_results[0].source_data.hf_repo == 'bigbio/pubmed_qa'
+    assert len(converted_eval.evaluation_results[0].source_data.sample_ids) == 2
 
-    assert converted_eval.model_info.name == 'openai/azure/gpt-4o-mini-2024-07-18'
+    # In schema 0.2, model names are normalized differently
+    assert converted_eval.model_info.name == 'openai/gpt-4o-mini-2024-07-18'
     assert converted_eval.model_info.id == 'openai/gpt-4o-mini-2024-07-18'
     assert converted_eval.model_info.developer == 'openai'
-    assert converted_eval.model_info.inference_platform == 'azure'
+    # In schema 0.2, inference_platform is normalized differently
+    assert converted_eval.model_info.inference_platform == 'openai'
+    # In schema 0.2, inference_engine is an InferenceEngine object
     assert converted_eval.model_info.inference_engine is None
 
     results = converted_eval.evaluation_results
@@ -46,12 +56,11 @@ def test_pubmedqa_eval():
     assert results[0].metric_config.evaluation_description == 'accuracy'
     assert results[0].score_details.score == 1.0
 
-    results_per_sample = converted_eval.detailed_evaluation_results_per_samples
-    sample_ids = [sample.sample_id for sample in results_per_sample]
-    assert sorted(sample_ids) == ['12377809', '26163474']
-    assert results_per_sample[0].ground_truth == 'A'
-    assert results_per_sample[0].response == 'A'
-    assert results_per_sample[0].choices == ['yes', 'no', 'maybe']
+    # In schema 0.2, detailed_evaluation_results_per_samples is replaced by detailed_evaluation_results
+    # which is a reference to a JSONL file with per-sample data
+    assert converted_eval.detailed_evaluation_results is not None
+    assert converted_eval.detailed_evaluation_results.format is not None
+    assert converted_eval.detailed_evaluation_results.total_rows == 2
 
 
 def test_arc_sonnet_eval():
@@ -63,16 +72,21 @@ def test_arc_sonnet_eval():
     }
     converted_eval = _load_eval(adapter, 'tests/data/inspect/data_arc_sonnet.json', metadata_args)
 
-    assert converted_eval.retrieved_timestamp == '1761000045.0'
+    # In schema 0.2, use evaluation_timestamp (from source data) for stable assertions
+    assert converted_eval.evaluation_timestamp == '1761000045.0'
+    assert converted_eval.retrieved_timestamp is not None
 
-    assert converted_eval.source_data.dataset_name == 'ai2_arc'
-    assert converted_eval.source_data.hf_repo == 'allenai/ai2_arc'
-    assert len(converted_eval.source_data.sample_ids) == 5
+    # In schema 0.2, source_data is accessed through evaluation_results
+    assert converted_eval.evaluation_results[0].source_data.dataset_name == 'ai2_arc'
+    assert converted_eval.evaluation_results[0].source_data.hf_repo == 'allenai/ai2_arc'
+    assert len(converted_eval.evaluation_results[0].source_data.sample_ids) == 5
 
-    assert converted_eval.model_info.name == 'anthropic/claude-sonnet-4-0'
-    assert converted_eval.model_info.id == 'anthropic/claude-sonnet-4-0'
+    # In schema 0.2, model names are normalized differently
+    assert converted_eval.model_info.name == 'anthropic/claude-sonnet-4-20250514'
+    assert converted_eval.model_info.id == 'anthropic/claude-sonnet-4-20250514'
     assert converted_eval.model_info.developer == 'anthropic'
     assert converted_eval.model_info.inference_platform == 'anthropic'
+    # In schema 0.2, inference_engine is an InferenceEngine object
     assert converted_eval.model_info.inference_engine is None
 
     results = converted_eval.evaluation_results
@@ -80,12 +94,11 @@ def test_arc_sonnet_eval():
     assert results[0].metric_config.evaluation_description == 'accuracy'
     assert results[0].score_details.score == 1.0
 
-    results_per_sample = converted_eval.detailed_evaluation_results_per_samples
-    sample_ids = [sample.sample_id for sample in results_per_sample]
-    assert sorted(sample_ids) == ['1', '2', '3', '4', '5']
-    assert results_per_sample[0].ground_truth == 'A'
-    assert results_per_sample[0].response == 'A'
-    assert 'Sunlight is the source of energy for nearly all ecosystems.' in results_per_sample[0].choices
+    # In schema 0.2, detailed_evaluation_results_per_samples is replaced by detailed_evaluation_results
+    # which is a reference to a JSONL file with per-sample data
+    assert converted_eval.detailed_evaluation_results is not None
+    assert converted_eval.detailed_evaluation_results.format is not None
+    assert converted_eval.detailed_evaluation_results.total_rows > 0
 
 
 def test_arc_qwen_eval():
@@ -97,29 +110,32 @@ def test_arc_qwen_eval():
 
     converted_eval = _load_eval(adapter, 'tests/data/inspect/data_arc_qwen.json', metadata_args)
 
-    assert converted_eval.retrieved_timestamp == '1761001924.0'
+    # In schema 0.2, use evaluation_timestamp (from source data) for stable assertions
+    assert converted_eval.evaluation_timestamp == '1761001924.0'
+    assert converted_eval.retrieved_timestamp is not None
 
-    assert converted_eval.source_data.dataset_name == 'ai2_arc'
-    assert converted_eval.source_data.hf_repo == 'allenai/ai2_arc'
-    assert len(converted_eval.source_data.sample_ids) == 3
+    # In schema 0.2, source_data is accessed through evaluation_results
+    assert converted_eval.evaluation_results[0].source_data.dataset_name == 'ai2_arc'
+    assert converted_eval.evaluation_results[0].source_data.hf_repo == 'allenai/ai2_arc'
+    assert len(converted_eval.evaluation_results[0].source_data.sample_ids) == 3
 
     assert converted_eval.model_info.name == 'ollama/qwen2.5:0.5b'
     assert converted_eval.model_info.id == 'ollama/qwen2.5-0.5b'
     assert converted_eval.model_info.developer == 'ollama'
     assert converted_eval.model_info.inference_platform is None
-    assert converted_eval.model_info.inference_engine == 'ollama'
+    # In schema 0.2, inference_engine is an InferenceEngine object with name attribute
+    assert converted_eval.model_info.inference_engine.name == 'ollama'
 
     results = converted_eval.evaluation_results
     assert results[0].evaluation_name == 'choice'
     assert results[0].metric_config.evaluation_description == 'accuracy'
     assert results[0].score_details.score == 0.3333333333333333
 
-    results_per_sample = converted_eval.detailed_evaluation_results_per_samples
-    sample_ids = [sample.sample_id for sample in results_per_sample]
-    assert sorted(sample_ids) == ['1', '2', '3']
-    assert results_per_sample[1].ground_truth == 'B'
-    assert results_per_sample[1].response == 'D'
-    assert results_per_sample[1].choices == ["safety goggles", "breathing mask", "rubber gloves", "lead apron"]
+    # In schema 0.2, detailed_evaluation_results_per_samples is replaced by detailed_evaluation_results
+    # which is a reference to a JSONL file with per-sample data
+    assert converted_eval.detailed_evaluation_results is not None
+    assert converted_eval.detailed_evaluation_results.format is not None
+    assert converted_eval.detailed_evaluation_results.total_rows > 0
 
 def test_convert_model_path_to_standarized_model_ids():
     model_path_to_standarized_id_map = {

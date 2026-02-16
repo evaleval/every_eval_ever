@@ -6,14 +6,10 @@ from pathlib import Path
 import pytest
 
 
-MODULE_PATH = Path(__file__).resolve().parents[1] / "scripts" / "check_duplicate_entries.py"
+MODULE_PATH = Path(__file__).resolve().parents[1] / "utils" / "check_duplicate_entries.py"
 DATA_ROOT = Path(__file__).resolve().parents[1] / "data"
 SAMPLE_FILES = [
-    DATA_ROOT
-    / "hfopenllm_v2"
-    / "TencentARC"
-    / "LLaMA-Pro-8B-Instruct"
-    / "98ea850e-7019-4728-a558-8b1819ec47c2.json",
+    Path(__file__).resolve().parent / "data" / "98ea850e-7019-4728-a558-8b1819ec47c2.json",
     DATA_ROOT
     / "reward-bench"
     / "nicolinho"
