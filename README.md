@@ -17,6 +17,8 @@
 | **Metric** | Any numerical value used to score performance on a benchmark (accuracy, F1, precision, recall, …) | A model scores 92% accuracy on MMLU |
 
 ## 🚀 Contributor Guide
+New data can be contributed to the [Hugging Face Dataset](https://huggingface.co/datasets/evaleval/EEE_datastore) using the following process:
+
 Leaderboard/evaluation data is split-up into files by individual model, and data for each model is stored using [`eval.schema.json`](eval.schema.json). The repository is structured into folders as `data/{benchmark_name}/{developer_name}/{model_name}/`.
 
 ### TL;DR How to successfully submit
