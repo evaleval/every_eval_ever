@@ -148,35 +148,43 @@ class InspectInstanceLevelDataAdapter:
                     elif score.explanation:
                         response = score.explanation
 
-            sample_output = Output(
-                raw=response,
-                reasoning_trace=reasoning_trace
-            )
+            processed_messages = [
+                self._handle_chat_messages(message_idx, message) 
+                for message_idx, message in enumerate(sample.messages)
+            ]
 
-            interactions = []
-            for message_idx, message in enumerate(sample.messages):
-                interactions.append(
-                    self._handle_chat_messages(
-                        message_idx,
-                        message
-                    )
-                )
+            counted_assistant_roles = sum([
+                message.role.lower() == 'assistant' for message in processed_messages
+            ])
+            counted_tool_roles = sum([
+                message.role.lower() == 'tool' for message in processed_messages
+            ])
 
-            if any(interaction.role.lower() == 'tool' for interaction in interactions):
+            if counted_tool_roles:
                 interaction_type = InteractionType.agentic
-            elif len(interactions) <= 3:
-                interaction_type = InteractionType.single_turn
-            else:
+            elif counted_assistant_roles > 1:
                 interaction_type = InteractionType.multi_turn
+            else:
+                interaction_type = InteractionType.single_turn
+
+            if interaction_type == InteractionType.single_turn:
+                sample_output = Output(
+                    raw=response,
+                    reasoning_trace=reasoning_trace
+                )
+                interactions = None
+            else:
+                sample_output = None
+                interactions = processed_messages
                 
             evaluation = Evaluation(
                 score=1.0 if sample_input.reference == response else 0.0,
                 is_correct=sample_input.reference == response,
-                num_turns=len(interactions),
+                num_turns=len(interactions) if interactions else 1,
                 tool_calls_count=sum(
                     len(intr.tool_calls) if intr.tool_calls else 0
                     for intr in interactions
-                )
+                ) if interactions else 0
             )
 
             answer_attribution: List[AnswerAttributionItem] = []

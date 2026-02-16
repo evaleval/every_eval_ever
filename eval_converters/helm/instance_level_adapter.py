@@ -5,14 +5,13 @@ from helm.benchmark.adaptation.scenario_state import (
 )
 
 from pathlib import Path
-from typing import Any, List, Tuple
+from typing import List, Tuple
 
 from instance_level_types import (
     AnswerAttributionItem,
     Evaluation,
     Input,
     InstanceLevelEvaluationLog,
-    Interaction,
     InteractionType,
     Performance,
     Output,
@@ -102,11 +101,6 @@ class HELMInstanceLevelDataAdapter:
                     reasoning_tokens=cot_tokens if cot_tokens else None,
                     total_tokens=int(p_tokens + c_tokens)
                 )
-            
-                # messages: Optional[List[Dict[str, str]]] = None
-                # """Used for chat models.
-                # If messages is specified for a chat model, the prompt is ignored.
-                # Otherwise, the client should convert the prompt into a message."""
 
             instance_level_logs.append(InstanceLevelEvaluationLog(
                 schema_version=SCHEMA_VERSION,
