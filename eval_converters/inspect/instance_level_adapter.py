@@ -167,6 +167,7 @@ class InspectInstanceLevelDataAdapter:
             else:
                 interaction_type = InteractionType.single_turn
 
+
             if interaction_type == InteractionType.single_turn:
                 sample_output = Output(
                     raw=response,
@@ -176,7 +177,7 @@ class InspectInstanceLevelDataAdapter:
             else:
                 sample_output = None
                 interactions = processed_messages
-                
+               
             evaluation = Evaluation(
                 score=1.0 if sample_input.reference == response else 0.0,
                 is_correct=sample_input.reference == response,

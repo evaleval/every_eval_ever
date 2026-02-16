@@ -10,8 +10,8 @@ from instance_level_types import InstanceLevelEvaluationLog, InteractionType
 def _load_instance_level_data(adapter, filepath, metadata_args):
     eval_dirpath = Path(filepath)
     converted_eval_list = adapter.transform_from_directory(
-        eval_dirpath, 
-        output_path='/tmp/helm_output',
+        eval_dirpath,
+        output_path=str(Path(metadata_args['parent_eval_output_dir']) / 'helm_output'),
         metadata_args=metadata_args
     )
     
@@ -105,6 +105,7 @@ def test_hellaswag_instance_level():
         assert len(log.input.choices) == 4
         
         assert log.output.raw == [' B']
+        assert log.interactions is None
         
         assert log.evaluation.score == 0.0
         assert log.evaluation.is_correct is False
@@ -140,6 +141,7 @@ def test_narrativeqa_instance_level():
         assert log.input.reference == ['The school Mascot', 'the schools mascot']
         
         assert log.output.raw == [' Olive.']
+        assert log.interactions is None
         
         assert log.evaluation.score == 0.0
         assert log.evaluation.is_correct is False

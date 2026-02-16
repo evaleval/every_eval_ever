@@ -1,8 +1,9 @@
 from pathlib import Path
+import tempfile
 
 from eval_converters.helm.adapter import HELMAdapter
 from eval_types import (
-    EvaluationLog, 
+    EvaluationLog,
     EvaluatorRelationship,
     SourceDataHf,
     SourceMetadata
@@ -11,8 +12,9 @@ from eval_types import (
 
 def _load_eval(adapter, filepath, metadata_args):
     eval_dirpath = Path(filepath)
-
-    converted_eval = adapter.transform_from_directory(eval_dirpath, output_path='/tmp/helm_output', metadata_args=metadata_args)
+    
+    with tempfile.TemporaryDirectory() as tmpdir:
+        converted_eval = adapter.transform_from_directory(eval_dirpath, output_path=str(Path(tmpdir) / 'helm_output'), metadata_args=metadata_args)
 
     converted_eval = converted_eval[0]
     assert isinstance(converted_eval, EvaluationLog)

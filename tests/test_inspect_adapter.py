@@ -1,17 +1,23 @@
 from pathlib import Path
+import tempfile
 
 from eval_converters.inspect.adapter import InspectAIAdapter
 from eval_converters.inspect.utils import extract_model_info_from_model_path
 from eval_types import (
-    EvaluationLog, 
+    EvaluationLog,
     EvaluatorRelationship,
     SourceDataHf,
     SourceMetadata
 )
 
+
 def _load_eval(adapter, filepath, metadata_args):
     eval_path = Path(filepath)
-    converted_eval = adapter.transform_from_file(eval_path, metadata_args=metadata_args)
+    
+    with tempfile.TemporaryDirectory() as tmpdir:
+        metadata_args['parent_eval_output_dir'] = tmpdir
+        converted_eval = adapter.transform_from_file(eval_path, metadata_args=metadata_args)
+    
     assert isinstance(converted_eval, EvaluationLog)
     assert isinstance(converted_eval.evaluation_results[0].source_data, SourceDataHf)
 
@@ -116,6 +122,40 @@ def test_arc_qwen_eval():
     assert converted_eval.detailed_evaluation_results is not None
     assert converted_eval.detailed_evaluation_results.format is not None
     assert converted_eval.detailed_evaluation_results.total_rows > 0
+
+
+def test_gaia_eval():
+    adapter = InspectAIAdapter()
+    metadata_args = {
+        'source_organization_name': 'TestOrg',
+        'evaluator_relationship': EvaluatorRelationship.first_party,
+    }
+
+    converted_eval = _load_eval(adapter, 'tests/data/inspect/2026-02-07T11-26-57+00-00_gaia_4V8zHbbRKpU5Yv2BMoBcjE.json', metadata_args)
+
+    assert converted_eval.evaluation_timestamp is not None
+    assert converted_eval.retrieved_timestamp is not None
+    
+    assert converted_eval.evaluation_results[0].source_data.dataset_name == 'GAIA'
+    assert converted_eval.evaluation_results[0].source_data.hf_repo is not None
+    assert len(converted_eval.evaluation_results[0].source_data.sample_ids) > 0
+
+    assert converted_eval.model_info.name == 'openai/gpt-4.1-mini-2025-04-14'
+    assert converted_eval.model_info.id == 'openai/gpt-4.1-mini-2025-04-14'
+    assert converted_eval.model_info.developer == 'openai'
+    assert converted_eval.model_info.inference_platform == 'openai'
+    assert converted_eval.model_info.inference_engine is None
+
+    results = converted_eval.evaluation_results
+    assert len(results) > 0
+    assert results[0].evaluation_name == 'gaia_scorer'
+    assert results[0].metric_config.evaluation_description == 'accuracy'
+    assert results[0].score_details.score >= 0.0
+
+    assert converted_eval.detailed_evaluation_results is not None
+    assert converted_eval.detailed_evaluation_results.format is not None
+    assert converted_eval.detailed_evaluation_results.total_rows > 0
+
 
 def test_convert_model_path_to_standarized_model_ids():
     model_path_to_standarized_id_map = {

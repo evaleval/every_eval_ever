@@ -10,11 +10,7 @@ MODULE_PATH = Path(__file__).resolve().parents[1] / "utils" / "check_duplicate_e
 DATA_ROOT = Path(__file__).resolve().parents[1] / "data"
 SAMPLE_FILES = [
     Path(__file__).resolve().parent / "data" / "98ea850e-7019-4728-a558-8b1819ec47c2.json",
-    DATA_ROOT
-    / "reward-bench"
-    / "nicolinho"
-    / "QRM-Llama3.1-8B-v2"
-    / "121344ec-61ef-49c5-a74b-b86f605d513e.json",
+    Path(__file__).resolve().parent / "data" / "98ea850e-7019-4728-a558-8b1819ec47c2.json"
 ]
 
 
