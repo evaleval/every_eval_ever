@@ -14,7 +14,7 @@
 |---|---|---|
 | **Single Benchmark** | Standardized eval using one dataset to test a single capability, producing one score | MMLU — ~15k multiple-choice QA across 57 subjects |
 | **Composite Benchmark** | A collection of simple benchmarks aggregated into one overall score, testing multiple capabilities at once | BIG-Bench bundles >200 tasks with a single aggregate score |
-| **Metric** | Any numerical value used to score performance on a benchmark (accuracy, F1, precision, recall, …) | A model scores 92% accuracy on MMLU |
+| **Metric** | Any numerical or categorical value used to score performance on a benchmark (accuracy, F1, precision, recall, …) | A model scores 92% accuracy on MMLU |
 
 ## 🚀 Contributor Guide
 New data can be contributed to the [Hugging Face Dataset](https://huggingface.co/datasets/evaleval/EEE_datastore) using the following process:
