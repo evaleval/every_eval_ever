@@ -1,5 +1,6 @@
 """Adapter for converting lm-evaluation-harness output to every_eval_ever format."""
 
+import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
@@ -122,10 +123,10 @@ class LMEvalAdapter(BaseEvaluationAdapter):
             ),
         )
 
-    def _get_leaf_tasks(self, raw_data: Dict[str, Any]) -> List[str]:
-        """Get task names that have actual metric results (not group placeholders)."""
+    def _get_tasks(self, raw_data: Dict[str, Any]) -> List[str]:
+        """Get task names that have actual metric results (leaf tasks and groups)."""
         results = raw_data.get("results", {})
-        leaf_tasks = []
+        tasks = []
         for task_name, task_results in results.items():
             # Skip group placeholder entries (only have alias and " " keys)
             non_alias_keys = [k for k in task_results if k != "alias"]
@@ -135,12 +136,13 @@ class LMEvalAdapter(BaseEvaluationAdapter):
             has_metric = any(
                 isinstance(v, (int, float))
                 for k, v in task_results.items()
-                if k not in ("alias", "samples") and "_stderr," not in k
+                if k not in ("alias", "samples", "name", "sample_len", "sample_count")
+                and "_stderr," not in k
             )
             if not has_metric:
                 continue
-            leaf_tasks.append(task_name)
-        return leaf_tasks
+            tasks.append(task_name)
+        return tasks
 
     def _build_source_data(
         self, task_config: Dict[str, Any], task_name: str
@@ -187,7 +189,7 @@ class LMEvalAdapter(BaseEvaluationAdapter):
         for k, v in gen_kwargs.items():
             if k not in ("temperature", "top_p", "top_k", "max_gen_toks"):
                 additional[k] = (
-                    str(v) if not isinstance(v, (str, int, float, bool)) else v
+                    json.dumps(v) if not isinstance(v, (str, int, float, bool)) else v
                 )
         if task_config.get("num_fewshot") is not None:
             additional["num_fewshot"] = task_config["num_fewshot"]
@@ -218,7 +220,7 @@ class LMEvalAdapter(BaseEvaluationAdapter):
 
         results = []
         for key, value in task_results.items():
-            if key in ("alias", "samples"):
+            if key in ("alias", "samples", "name", "sample_len", "sample_count"):
                 continue
             if "_stderr," in key:
                 continue
@@ -253,7 +255,11 @@ class LMEvalAdapter(BaseEvaluationAdapter):
             )
 
             uncertainty = None
-            num_samples = n_samples.get("effective") or task_results.get("samples")
+            num_samples = (
+                n_samples.get("effective")
+                or task_results.get("samples")
+                or task_results.get("sample_len")
+            )
             if stderr_val is not None or num_samples:
                 uncertainty = Uncertainty(
                     standard_error=(
@@ -345,7 +351,7 @@ class LMEvalAdapter(BaseEvaluationAdapter):
         """
         file_path = Path(file_path)
         raw_data = self._load_file(file_path)
-        leaf_tasks = self._get_leaf_tasks(raw_data)
+        tasks = self._get_tasks(raw_data)
 
         # Pass the parent directory so instance-level adapter can find samples files
         if "parent_eval_output_dir" not in metadata_args:
@@ -355,7 +361,7 @@ class LMEvalAdapter(BaseEvaluationAdapter):
             }
 
         results = []
-        for task_name in leaf_tasks:
+        for task_name in tasks:
             task_metadata = {**metadata_args, "task_name": task_name}
             log = self._transform_single(raw_data, task_metadata)
             results.append(log)
