@@ -73,7 +73,12 @@ Note: Each file can contain multiple individual results related to one model. Se
 
 6. The schema is designed to accommodate both numeric and level-based (e.g. Low, Medium, High) metrics. For level-based metrics, the actual 'value' should be converted to an integer (e.g. Low = 1, Medium = 2, High = 3), and the `level_names` property should be used to specify the mapping of levels to integers.
 
-7. Additional details can be provided in several places in the schema. They are not required, but can be useful for detailed analysis.
+7. **Timestamps**: The schema has three timestamp fields — use them as follows:
+- `retrieved_timestamp` (required) — when this record was created, in Unix epoch format (e.g. `1760492095.8105888`)
+- `evaluation_timestamp` (top-level, optional) — when the evaluation was run
+- `evaluation_results[].evaluation_timestamp` (per-result, optional) — when a specific evaluation result was produced, if different results were run at different times
+
+8. Additional details can be provided in several places in the schema. They are not required, but can be useful for detailed analysis.
 - `model_info.additional_details`: Use this field to provide any additional information about the model itself (e.g. number of parameters)
 - `evaluation_results.generation_config.generation_args`: Specify additional arguments used to generate outputs from the model
 - `evaluation_results.generation_config.additional_details`: Use this field to provide any additional information about the evaluation process that is not captured elsewhere
@@ -81,7 +86,7 @@ Note: Each file can contain multiple individual results related to one model. Se
 
 ### Instance-Level Data
 
-For evaluations that include per-sample results, aggregate `{uuid}.json` files can link to instance-level `{uuid}.jsonl` files via the `detailed_evaluation_results` field. The instance-level schema ([`instance_level_eval.schema.json`](instance_level_eval.schema.json)) supports three interaction types:
+For evaluations that include per-sample results, the individual results should be stored in a companion `{uuid}.jsonl` file in the same folder (one JSONL per JSON, sharing the same UUID). The aggregate JSON file refers to its JSONL via the `detailed_evaluation_results` field. The instance-level schema ([`instance_level_eval.schema.json`](instance_level_eval.schema.json)) supports three interaction types:
 
 - **`single_turn`**: Standard QA, MCQ, classification — uses `output` object
 - **`multi_turn`**: Conversational evaluations with multiple exchanges — uses `interactions` array
