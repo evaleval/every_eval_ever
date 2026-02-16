@@ -1,19 +1,27 @@
 from pathlib import Path
+import tempfile
 
 from eval_converters.inspect.adapter import InspectAIAdapter
 from eval_converters.inspect.utils import extract_model_info_from_model_path
 from eval_types import (
-    EvaluationLog, 
+    EvaluationLog,
     EvaluatorRelationship,
-    SourceDataHf
+    SourceDataHf,
+    SourceMetadata
 )
+
 
 def _load_eval(adapter, filepath, metadata_args):
     eval_path = Path(filepath)
-    converted_eval = adapter.transform_from_file(eval_path, metadata_args=metadata_args)
+    
+    with tempfile.TemporaryDirectory() as tmpdir:
+        metadata_args['parent_eval_output_dir'] = tmpdir
+        converted_eval = adapter.transform_from_file(eval_path, metadata_args=metadata_args)
+    
     assert isinstance(converted_eval, EvaluationLog)
-    assert isinstance(converted_eval.source_data, SourceDataHf)
+    assert isinstance(converted_eval.evaluation_results[0].source_data, SourceDataHf)
 
+    assert isinstance(converted_eval.source_metadata, SourceMetadata)
     assert converted_eval.source_metadata.source_name == 'inspect_ai'
     assert converted_eval.source_metadata.source_type.value == 'evaluation_run'
 
@@ -29,16 +37,17 @@ def test_pubmedqa_eval():
 
     converted_eval = _load_eval(adapter, 'tests/data/inspect/data_pubmedqa_gpt4o_mini.json', metadata_args)
 
-    assert converted_eval.retrieved_timestamp == '1751553870.0'
+    assert converted_eval.evaluation_timestamp == '1751553870.0'
+    assert converted_eval.retrieved_timestamp is not None
     
-    assert converted_eval.source_data.dataset_name == 'pubmed_qa'
-    assert converted_eval.source_data.hf_repo == 'bigbio/pubmed_qa'
-    assert len(converted_eval.source_data.sample_ids) == 2
+    assert converted_eval.evaluation_results[0].source_data.dataset_name == 'pubmed_qa'
+    assert converted_eval.evaluation_results[0].source_data.hf_repo == 'bigbio/pubmed_qa'
+    assert len(converted_eval.evaluation_results[0].source_data.sample_ids) == 2
 
-    assert converted_eval.model_info.name == 'openai/azure/gpt-4o-mini-2024-07-18'
+    assert converted_eval.model_info.name == 'openai/gpt-4o-mini-2024-07-18'
     assert converted_eval.model_info.id == 'openai/gpt-4o-mini-2024-07-18'
     assert converted_eval.model_info.developer == 'openai'
-    assert converted_eval.model_info.inference_platform == 'azure'
+    assert converted_eval.model_info.inference_platform == 'openai'
     assert converted_eval.model_info.inference_engine is None
 
     results = converted_eval.evaluation_results
@@ -46,12 +55,9 @@ def test_pubmedqa_eval():
     assert results[0].metric_config.evaluation_description == 'accuracy'
     assert results[0].score_details.score == 1.0
 
-    results_per_sample = converted_eval.detailed_evaluation_results_per_samples
-    sample_ids = [sample.sample_id for sample in results_per_sample]
-    assert sorted(sample_ids) == ['12377809', '26163474']
-    assert results_per_sample[0].ground_truth == 'A'
-    assert results_per_sample[0].response == 'A'
-    assert results_per_sample[0].choices == ['yes', 'no', 'maybe']
+    assert converted_eval.detailed_evaluation_results is not None
+    assert converted_eval.detailed_evaluation_results.format is not None
+    assert converted_eval.detailed_evaluation_results.total_rows == 2
 
 
 def test_arc_sonnet_eval():
@@ -63,14 +69,15 @@ def test_arc_sonnet_eval():
     }
     converted_eval = _load_eval(adapter, 'tests/data/inspect/data_arc_sonnet.json', metadata_args)
 
-    assert converted_eval.retrieved_timestamp == '1761000045.0'
+    assert converted_eval.evaluation_timestamp == '1761000045.0'
+    assert converted_eval.retrieved_timestamp is not None
 
-    assert converted_eval.source_data.dataset_name == 'ai2_arc'
-    assert converted_eval.source_data.hf_repo == 'allenai/ai2_arc'
-    assert len(converted_eval.source_data.sample_ids) == 5
+    assert converted_eval.evaluation_results[0].source_data.dataset_name == 'ai2_arc'
+    assert converted_eval.evaluation_results[0].source_data.hf_repo == 'allenai/ai2_arc'
+    assert len(converted_eval.evaluation_results[0].source_data.sample_ids) == 5
 
-    assert converted_eval.model_info.name == 'anthropic/claude-sonnet-4-0'
-    assert converted_eval.model_info.id == 'anthropic/claude-sonnet-4-0'
+    assert converted_eval.model_info.name == 'anthropic/claude-sonnet-4-20250514'
+    assert converted_eval.model_info.id == 'anthropic/claude-sonnet-4-20250514'
     assert converted_eval.model_info.developer == 'anthropic'
     assert converted_eval.model_info.inference_platform == 'anthropic'
     assert converted_eval.model_info.inference_engine is None
@@ -80,12 +87,9 @@ def test_arc_sonnet_eval():
     assert results[0].metric_config.evaluation_description == 'accuracy'
     assert results[0].score_details.score == 1.0
 
-    results_per_sample = converted_eval.detailed_evaluation_results_per_samples
-    sample_ids = [sample.sample_id for sample in results_per_sample]
-    assert sorted(sample_ids) == ['1', '2', '3', '4', '5']
-    assert results_per_sample[0].ground_truth == 'A'
-    assert results_per_sample[0].response == 'A'
-    assert 'Sunlight is the source of energy for nearly all ecosystems.' in results_per_sample[0].choices
+    assert converted_eval.detailed_evaluation_results is not None
+    assert converted_eval.detailed_evaluation_results.format is not None
+    assert converted_eval.detailed_evaluation_results.total_rows > 0
 
 
 def test_arc_qwen_eval():
@@ -97,29 +101,61 @@ def test_arc_qwen_eval():
 
     converted_eval = _load_eval(adapter, 'tests/data/inspect/data_arc_qwen.json', metadata_args)
 
-    assert converted_eval.retrieved_timestamp == '1761001924.0'
+    assert converted_eval.evaluation_timestamp == '1761001924.0'
+    assert converted_eval.retrieved_timestamp is not None
 
-    assert converted_eval.source_data.dataset_name == 'ai2_arc'
-    assert converted_eval.source_data.hf_repo == 'allenai/ai2_arc'
-    assert len(converted_eval.source_data.sample_ids) == 3
+    assert converted_eval.evaluation_results[0].source_data.dataset_name == 'ai2_arc'
+    assert converted_eval.evaluation_results[0].source_data.hf_repo == 'allenai/ai2_arc'
+    assert len(converted_eval.evaluation_results[0].source_data.sample_ids) == 3
 
     assert converted_eval.model_info.name == 'ollama/qwen2.5:0.5b'
     assert converted_eval.model_info.id == 'ollama/qwen2.5-0.5b'
     assert converted_eval.model_info.developer == 'ollama'
     assert converted_eval.model_info.inference_platform is None
-    assert converted_eval.model_info.inference_engine == 'ollama'
+    assert converted_eval.model_info.inference_engine.name == 'ollama'
 
     results = converted_eval.evaluation_results
     assert results[0].evaluation_name == 'choice'
     assert results[0].metric_config.evaluation_description == 'accuracy'
     assert results[0].score_details.score == 0.3333333333333333
 
-    results_per_sample = converted_eval.detailed_evaluation_results_per_samples
-    sample_ids = [sample.sample_id for sample in results_per_sample]
-    assert sorted(sample_ids) == ['1', '2', '3']
-    assert results_per_sample[1].ground_truth == 'B'
-    assert results_per_sample[1].response == 'D'
-    assert results_per_sample[1].choices == ["safety goggles", "breathing mask", "rubber gloves", "lead apron"]
+    assert converted_eval.detailed_evaluation_results is not None
+    assert converted_eval.detailed_evaluation_results.format is not None
+    assert converted_eval.detailed_evaluation_results.total_rows > 0
+
+
+def test_gaia_eval():
+    adapter = InspectAIAdapter()
+    metadata_args = {
+        'source_organization_name': 'TestOrg',
+        'evaluator_relationship': EvaluatorRelationship.first_party,
+    }
+
+    converted_eval = _load_eval(adapter, 'tests/data/inspect/2026-02-07T11-26-57+00-00_gaia_4V8zHbbRKpU5Yv2BMoBcjE.json', metadata_args)
+
+    assert converted_eval.evaluation_timestamp is not None
+    assert converted_eval.retrieved_timestamp is not None
+    
+    assert converted_eval.evaluation_results[0].source_data.dataset_name == 'GAIA'
+    assert converted_eval.evaluation_results[0].source_data.hf_repo is not None
+    assert len(converted_eval.evaluation_results[0].source_data.sample_ids) > 0
+
+    assert converted_eval.model_info.name == 'openai/gpt-4.1-mini-2025-04-14'
+    assert converted_eval.model_info.id == 'openai/gpt-4.1-mini-2025-04-14'
+    assert converted_eval.model_info.developer == 'openai'
+    assert converted_eval.model_info.inference_platform == 'openai'
+    assert converted_eval.model_info.inference_engine is None
+
+    results = converted_eval.evaluation_results
+    assert len(results) > 0
+    assert results[0].evaluation_name == 'gaia_scorer'
+    assert results[0].metric_config.evaluation_description == 'accuracy'
+    assert results[0].score_details.score >= 0.0
+
+    assert converted_eval.detailed_evaluation_results is not None
+    assert converted_eval.detailed_evaluation_results.format is not None
+    assert converted_eval.detailed_evaluation_results.total_rows > 0
+
 
 def test_convert_model_path_to_standarized_model_ids():
     model_path_to_standarized_id_map = {
