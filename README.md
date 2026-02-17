@@ -191,7 +191,7 @@ Each evaluation has its own directory under [`data/`](data/). Within each evalua
 
 ## 📋 The Schema in Practice
 
-For a detailed walk-through, see the [blogpost](https://evalevalai.com/infrastructure/2026/02/15/everyevalever-launch/).
+For a detailed walk-through, see the [blogpost](https://evalevalai.com/infrastructure/2026/02/17/everyevalever-launch/).
 
 Each result file captures not just scores but the context needed to interpret and reuse them. Here's how it works, piece by piece:
 
