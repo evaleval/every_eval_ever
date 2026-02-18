@@ -39,22 +39,22 @@ Each JSON file is named with a **UUID (Universally Unique Identifier)** in the f
 - `e70acf51-30ef-4c20-b7cc-51704d114d70.json` (evaluation run #1)
 - `a1b2c3d4-5678-90ab-cdef-1234567890ab.json` (evaluation run #2)
 
-Note: Each file can contain multiple individual results related to one model. See [examples in /data](data/).
+Note: Each file can contain multiple individual results related to one model. See [examples in the datastore](https://huggingface.co/datasets/evaleval/EEE_datastore/tree/main/data).
 
 ### How to add new eval:
 
-1. Add a new folder under [`data/`](data/) with a codename for your eval.
-2. For each model, use the HuggingFace (`developer_name/model_name`) naming convention to create a 2-tier folder structure.
+1. Add a new folder under [`data/`](https://huggingface.co/datasets/evaleval/EEE_datastore/tree/main/data) on the Hugging Face datastore with a codename for your eval.
+2. For each model, use the Hugging Face (`developer_name/model_name`) naming convention to create a 2-tier folder structure.
 3. Add a JSON file with results for each model and name it `{uuid}.json`.
 4. [Optional] Include a [`utils/`](utils/) folder in your benchmark name folder with any scripts used to generate the data (see e.g. [`utils/global-mmlu-lite/adapter.py`](utils/global-mmlu-lite/adapter.py)).
 5. [Validate] Validation runs automatically via [`validate-data.yml`](.github/workflows/validate-data.yml) using [`validate_data.py`](utils/validate_data.py) to check JSON files against the schema before merging.
 6. [Submit] Two ways to submit your evaluation data:
    - **Option A: Drag & drop via Hugging Face** — Go to [evaleval/EEE_datastore](https://huggingface.co/datasets/evaleval/EEE_datastore) → click "Files and versions" → "Contribute" → "Upload files" → drag and drop your data → select "Open as a pull request to the main branch". See [step-by-step screenshots](https://docs.google.com/document/d/1dxTQF8ncGCzaAOIj0RX7E9Hg4THmUBzezDOYUp_XdCY/edit?usp=sharing).
-   - **Option B: Clone & PR** — Clone the [HuggingFace repository](https://huggingface.co/datasets/evaleval/EEE_datastore), add your data under `data/`, and open a pull request
+   - **Option B: Clone & PR** — Clone the [Hugging Face repository](https://huggingface.co/datasets/evaleval/EEE_datastore), add your data under `data/`, and open a pull request
 
 ### Schema Instructions
 
-1. **`model_info`**: Use HuggingFace formatting (`developer_name/model_name`). If a model does not come from HuggingFace, use the exact API reference. Check [examples in /data/livecodebenchpro](data/livecodebenchpro/). Notably, some do have a **date included in the model name**, but others **do not**. For example:
+1. **`model_info`**: Use Hugging Face formatting (`developer_name/model_name`). If a model does not come from Hugging Face, use the exact API reference. Check [examples in data/livecodebenchpro](https://huggingface.co/datasets/evaleval/EEE_datastore/tree/main/data/livecodebenchpro). Notably, some do have a **date included in the model name**, but others **do not**. For example:
 - OpenAI: `gpt-4o-2024-11-20`, `gpt-5-2025-08-07`, `o3-2025-04-16`
 - Anthropic: `claude-3-7-sonnet-20250219`, `claude-3-sonnet-20240229`
 - Google: `gemini-2.5-pro`, `gemini-2.5-flash`
@@ -70,7 +70,7 @@ Note: Each file can contain multiple individual results related to one model. Se
 
 5. **`source_data`** is specified per evaluation result (inside `evaluation_results`), with three variants:
 - `source_type: "url"` — link to a web source (e.g. leaderboard API)
-- `source_type: "hf_dataset"` — reference to a HuggingFace dataset (e.g. `{"hf_repo": "google/IFEval"}`)
+- `source_type: "hf_dataset"` — reference to a Hugging Face dataset (e.g. `{"hf_repo": "google/IFEval"}`)
 - `source_type: "other"` — for private or proprietary datasets
 
 6. The schema is designed to accommodate both numeric and level-based (e.g. Low, Medium, High) metrics. For level-based metrics, the actual 'value' should be converted to an integer (e.g. Low = 1, Medium = 2, High = 3), and the `level_names` property should be used to specify the mapping of levels to integers.
@@ -160,7 +160,9 @@ To install the pre-commit so that it will run before `git commit` (optional):
 uv run pre-commit install
 ```
 
-## 🗂️ Repository Structure
+## 🗂️ Data Structure
+
+Evaluation data is hosted on the [Hugging Face datastore](https://huggingface.co/datasets/evaleval/EEE_datastore). The folder structure is:
 
 ```
 data/
@@ -175,19 +177,19 @@ Example evaluations included in the schema v0.2 release:
 
 | Evaluation | Data |
 |---|---|
-| Global MMLU Lite | [`data/global-mmlu-lite/`](data/global-mmlu-lite/) |
-| HELM Capabilities v1.15 | [`data/helm_capabilities/`](data/helm_capabilities/) |
-| HELM Classic | [`data/helm_classic/`](data/helm_classic/) |
-| HELM Instruct | [`data/helm_instruct/`](data/helm_instruct/) |
-| HELM Lite | [`data/helm_lite/`](data/helm_lite/) |
-| HELM MMLU | [`data/helm_mmlu/`](data/helm_mmlu/) |
-| HF Open LLM Leaderboard v2 | [`data/hfopenllm_v2/`](data/hfopenllm_v2/) |
-| LiveCodeBench Pro | [`data/livecodebenchpro/`](data/livecodebenchpro/) |
-| RewardBench | [`data/reward-bench/`](data/reward-bench/) |
+| Global MMLU Lite | [`data/global-mmlu-lite/`](https://huggingface.co/datasets/evaleval/EEE_datastore/tree/main/data/global-mmlu-lite) |
+| HELM Capabilities v1.15 | [`data/helm_capabilities/`](https://huggingface.co/datasets/evaleval/EEE_datastore/tree/main/data/helm_capabilities) |
+| HELM Classic | [`data/helm_classic/`](https://huggingface.co/datasets/evaleval/EEE_datastore/tree/main/data/helm_classic) |
+| HELM Instruct | [`data/helm_instruct/`](https://huggingface.co/datasets/evaleval/EEE_datastore/tree/main/data/helm_instruct) |
+| HELM Lite | [`data/helm_lite/`](https://huggingface.co/datasets/evaleval/EEE_datastore/tree/main/data/helm_lite) |
+| HELM MMLU | [`data/helm_mmlu/`](https://huggingface.co/datasets/evaleval/EEE_datastore/tree/main/data/helm_mmlu) |
+| HF Open LLM Leaderboard v2 | [`data/hfopenllm_v2/`](https://huggingface.co/datasets/evaleval/EEE_datastore/tree/main/data/hfopenllm_v2) |
+| LiveCodeBench Pro | [`data/livecodebenchpro/`](https://huggingface.co/datasets/evaleval/EEE_datastore/tree/main/data/livecodebenchpro) |
+| RewardBench | [`data/reward-bench/`](https://huggingface.co/datasets/evaleval/EEE_datastore/tree/main/data/reward-bench) |
 
 Schemas: [`eval.schema.json`](eval.schema.json) (aggregate) · [`instance_level_eval.schema.json`](instance_level_eval.schema.json) (per-sample JSONL)
 
-Each evaluation has its own directory under [`data/`](data/). Within each evaluation, models are organized by developer and model name. Instance-level data is stored in optional `{uuid}.jsonl` files alongside aggregate `{uuid}.json` results.
+Each evaluation has its own directory under [`data/`](https://huggingface.co/datasets/evaleval/EEE_datastore/tree/main/data) on the Hugging Face datastore. Within each evaluation, models are organized by developer and model name. Instance-level data is stored in optional `{uuid}.jsonl` files alongside aggregate `{uuid}.json` results.
 
 ## 📋 The Schema in Practice
 
