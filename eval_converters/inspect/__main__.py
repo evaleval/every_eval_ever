@@ -22,6 +22,8 @@ def parse_args():
     parser.add_argument('--evaluator_relationship', type=str, default='third_party', help='Relationship of evaluation author to the model', choices=['first_party', 'third_party', 'collaborative', 'other'])
     parser.add_argument('--source_organization_url', type=str, default=None)
     parser.add_argument('--source_organization_logo_url', type=str, default=None)
+    parser.add_argument('--eval_library_name', type=str, default='inspect_ai', help='Name of the evaluation library (e.g. inspect_ai, lm_eval, helm)')
+    parser.add_argument('--eval_library_version', type=str, default='unknown', help='Version of the evaluation library')
 
 
     args = parser.parse_args()
@@ -116,7 +118,9 @@ if __name__ == '__main__':
         'source_organization_logo_url': args.source_organization_logo_url,
         'evaluator_relationship': EvaluatorRelationship(args.evaluator_relationship),
         'file_uuid': file_uuid,
-        'parent_eval_output_dir': args.output_dir
+        'parent_eval_output_dir': args.output_dir,
+        'eval_library_name': args.eval_library_name,
+        'eval_library_version': args.eval_library_version,
     }
 
     unified_output = inspect_converter.convert_to_unified_schema(metadata_args)

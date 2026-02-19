@@ -71,6 +71,18 @@ def main():
         help="Inference engine version (e.g. '0.6.0'). "
         "Not available from lm-eval logs, so must be provided manually.",
     )
+    parser.add_argument(
+        "--eval_library_name",
+        type=str,
+        default="lm_eval",
+        help="Name of the evaluation library (e.g. inspect_ai, lm_eval, helm)",
+    )
+    parser.add_argument(
+        "--eval_library_version",
+        type=str,
+        default="unknown",
+        help="Version of the evaluation library",
+    )
 
     args = parser.parse_args()
 
@@ -81,6 +93,8 @@ def main():
         "source_organization_name": args.source_organization_name,
         "evaluator_relationship": args.evaluator_relationship,
         "source_organization_url": args.source_organization_url,
+        "eval_library_name": args.eval_library_name,
+        "eval_library_version": args.eval_library_version,
     }
     if args.inference_engine:
         metadata_args["inference_engine"] = args.inference_engine
