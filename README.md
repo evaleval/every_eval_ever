@@ -27,6 +27,16 @@ Leaderboard/evaluation data is split-up into files by individual model, and data
 2. Validation runs automatically on every PR via [`validate_data.py`](utils/validate_data.py)
 3. An EvalEval member will review and merge your submission
 
+### PR Naming Convention
+
+Use these prefixes in your pull request titles:
+
+- `[Submission]` - New evaluation data
+- `[Issue #N]` - Fix for a specific GitHub issue
+- `[Feature]` - New functionality not tied to an issue
+- `[Docs]` - Documentation changes
+- `[ACL Shared Task]` - Shared task submissions (priority review)
+
 ### UUID Naming Convention
 
 Each JSON file is named with a **UUID (Universally Unique Identifier)** in the format `{uuid}.json`. The UUID is automatically generated (using standard UUID v4) when creating a new evaluation result file. This ensures that:
