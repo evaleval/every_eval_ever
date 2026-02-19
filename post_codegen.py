@@ -30,14 +30,14 @@ PATCHES = [
         if self.interaction_type == InteractionType.single_turn:
             if self.output is None:
                 raise ValueError("single_turn interaction_type requires output")
-            if self.interactions is not None:
+            if self.messages is not None:
                 raise ValueError(
-                    "single_turn interaction_type must not have interactions"
+                    "single_turn interaction_type must not have messages"
                 )
         else:
-            if self.interactions is None:
+            if self.messages is None:
                 raise ValueError(
-                    f"{self.interaction_type.value} interaction_type requires interactions"
+                    f"{self.interaction_type.value} interaction_type requires messages"
                 )
             if self.output is not None:
                 raise ValueError(

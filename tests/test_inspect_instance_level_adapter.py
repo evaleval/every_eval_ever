@@ -55,7 +55,7 @@ def test_pubmedqa_instance_level():
         assert log.input.raw.startswith('Context')
         
         assert log.output.raw == ['A']
-        assert log.interactions is None
+        assert log.messages is None
         
         assert log.evaluation.score == 1.0
         assert log.evaluation.is_correct is True
@@ -88,7 +88,7 @@ def test_arc_sonnet_instance_level():
         assert 'Sunlight is the source of energy' in log.input.choices[0]
         
         assert log.output.raw == ['A']
-        assert log.interactions is None
+        assert log.messages is None
         
         assert log.evaluation.score == 1.0
         assert log.evaluation.is_correct is True
@@ -157,13 +157,13 @@ def test_gaia_instance_level():
         assert log.input.raw is not None or log.input.choices is not None
         
         assert log.output is None
-        assert log.interactions is not None
-        assert any([i.role for i in log.interactions if i.role == 'tool'])
+        assert log.messages is not None
+        assert any([i.role for i in log.messages if i.role == 'tool'])
         
-        assert len(log.interactions) > 2
-        assert log.interactions[0].turn_idx == 0
-        assert log.interactions[0].role == 'system'
-        assert log.interactions[1].role == 'user'
+        assert len(log.messages) > 2
+        assert log.messages[0].turn_idx == 0
+        assert log.messages[0].role == 'system'
+        assert log.messages[1].role == 'user'
 
         assert log.evaluation.score >= 0.0
         

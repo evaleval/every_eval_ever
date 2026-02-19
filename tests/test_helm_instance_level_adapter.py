@@ -61,7 +61,7 @@ def test_mmlu_instance_level():
         
         assert log.output.raw == [' D']
         
-        assert log.interactions is None
+        assert log.messages is None
         
         assert len(log.answer_attribution) == 1
         assert log.answer_attribution[0].turn_idx == 0
@@ -105,7 +105,7 @@ def test_hellaswag_instance_level():
         assert len(log.input.choices) == 4
         
         assert log.output.raw == [' B']
-        assert log.interactions is None
+        assert log.messages is None
         
         assert log.evaluation.score == 0.0
         assert log.evaluation.is_correct is False
@@ -141,7 +141,7 @@ def test_narrativeqa_instance_level():
         assert log.input.reference == ['The school Mascot', 'the schools mascot']
         
         assert log.output.raw == [' Olive.']
-        assert log.interactions is None
+        assert log.messages is None
         
         assert log.evaluation.score == 0.0
         assert log.evaluation.is_correct is False
