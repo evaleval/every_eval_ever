@@ -385,7 +385,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
 
         eval_library = EvalLibrary(
             name=metadata_args.get("eval_library_name", "inspect_ai"),
-            version=metadata_args.get("eval_library_version"),
+            version=metadata_args.get("eval_library_version", "unknown"),
         )
 
         source_metadata = SourceMetadata(

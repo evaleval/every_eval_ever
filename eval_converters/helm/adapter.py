@@ -342,7 +342,7 @@ class HELMAdapter(BaseEvaluationAdapter):
             ),
             eval_library=EvalLibrary(
                 name=metadata_args.get("eval_library_name", "helm"),
-                version=metadata_args.get("eval_library_version"),
+                version=metadata_args.get("eval_library_version", "unknown"),
             ),
             model_info=model_info,
             evaluation_results=evaluation_results,

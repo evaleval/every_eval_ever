@@ -305,7 +305,7 @@ class LMEvalAdapter(BaseEvaluationAdapter):
 
         eval_library = EvalLibrary(
             name=metadata_args.get("eval_library_name", "lm_eval"),
-            version=metadata_args.get("eval_library_version"),
+            version=metadata_args.get("eval_library_version", "unknown"),
         )
 
         source_metadata = SourceMetadata(
