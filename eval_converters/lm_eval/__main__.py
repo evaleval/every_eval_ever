@@ -81,7 +81,7 @@ def main():
         "--eval_library_version",
         type=str,
         default="unknown",
-        help="Version of the evaluation library",
+        help="Version of the evaluation library. It should be extracted in the adapter if available in the evaluation log.",
     )
 
     args = parser.parse_args()

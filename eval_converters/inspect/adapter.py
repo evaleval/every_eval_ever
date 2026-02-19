@@ -1,6 +1,5 @@
 import json
 import os
-import uuid
 
 from inspect_ai.log import (
     EvalDataset,
@@ -18,7 +17,6 @@ from inspect_ai.log import (
     read_eval_log_sample_summaries,
 )
 from inspect_ai.log import EvalPlan as InspectEvalPlan
-from math import isfinite
 from pathlib import Path
 from typing import Any, Dict, List, Tuple, Union
 from urllib.parse import urlparse
@@ -326,6 +324,17 @@ class InspectAIAdapter(BaseEvaluationAdapter):
             generation_args=generation_args,
             additional_details=additional_details or None
         )
+    
+    def _extract_library_version(
+        self,
+        packages: Dict[str, str]
+    ) -> str:
+        parts = [
+            f"{name}:{version}"
+            for name, version in packages.items()
+            if version
+        ]
+        return ",".join(parts)        
 
     def transform_from_directory(
         self,
@@ -383,9 +392,10 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         if not evaluation_unix_timestamp:
             evaluation_unix_timestamp = retrieved_unix_timestamp
 
+        library_version = self._extract_library_version(eval_spec.packages)
         eval_library = EvalLibrary(
             name=metadata_args.get("eval_library_name", "inspect_ai"),
-            version=metadata_args.get("eval_library_version", "unknown"),
+            version=library_version or metadata_args.get("eval_library_version", "unknown"),
         )
 
         source_metadata = SourceMetadata(

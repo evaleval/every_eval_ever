@@ -105,8 +105,6 @@ class LMEvalAdapter(BaseEvaluationAdapter):
             additional["revision"] = str(config["model_revision"])
         if config.get("model_sha"):
             additional["sha"] = str(config["model_sha"])
-        if raw_data.get("lm_eval_version"):
-            additional["lm_eval_version"] = str(raw_data["lm_eval_version"])
         if model_args_str:
             additional["model_args"] = str(model_args_str)
 
@@ -303,9 +301,10 @@ class LMEvalAdapter(BaseEvaluationAdapter):
         )
         evaluator_relationship = EvaluatorRelationship(evaluator_rel_str)
 
+        library_version = str(raw_data.get("lm_eval_version", ""))
         eval_library = EvalLibrary(
             name=metadata_args.get("eval_library_name", "lm_eval"),
-            version=metadata_args.get("eval_library_version", "unknown"),
+            version=library_version or metadata_args.get("eval_library_version", "unknown"),
         )
 
         source_metadata = SourceMetadata(
