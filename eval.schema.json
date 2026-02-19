@@ -72,6 +72,13 @@
                         "collaborative",
                         "other"
                     ]
+                },
+                "additional_details": {
+                    "type": "object",
+                    "description": "Additional parameters (key-value pairs, all values must be strings)",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -174,6 +181,7 @@
                             },
                             "min_score": {
                                 "type": "number",
+                 
                                 "description": "Minimum possible score for continuous metric"
                             },
                             "max_score": {
