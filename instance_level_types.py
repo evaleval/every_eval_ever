@@ -39,7 +39,7 @@ class Output(BaseModel):
 class ToolCall(BaseModel):
     id: str = Field(..., description="Unique identifier for the tool call")
     name: str = Field(..., description="Name of tool/function")
-    arguments: dict[str, Any] | None = Field(
+    arguments: dict[str, str] | None = Field(
         None, description="Arguments used to call the tool (all values must be strings)"
     )
 
