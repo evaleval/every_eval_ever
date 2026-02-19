@@ -1,3 +1,4 @@
+import json
 import os
 import datetime
 from typing import Any, Dict, List, Tuple
@@ -13,8 +14,8 @@ from helm.benchmark.run_spec import RunSpec
 from helm.common.codec import from_json
 
 from eval_types import (
-    AdditionalPropertiesObject,
     DetailedEvaluationResults,
+    EvalLibrary,
     EvaluationLog,
     EvaluationResult,
     MetricConfig,
@@ -237,11 +238,11 @@ class HELMAdapter(BaseEvaluationAdapter):
             dataset_name=dataset_name,
             source_type="hf_dataset",
             samples_number=len(set(state.instance.id for state in request_states)),
-            sample_ids=[state.instance.id for state in request_states],
-            additional_details=AdditionalPropertiesObject(
-                scenario_name=run_spec.scenario_spec.class_name,
-                scenario_args=run_spec.scenario_spec.args
-            )
+            sample_ids=[str(state.instance.id) for state in request_states],
+            additional_details={
+                "scenario_name": str(run_spec.scenario_spec.class_name),
+                "scenario_args": json.dumps(run_spec.scenario_spec.args) if run_spec.scenario_spec.args else ""
+            }
         )
 
         evaluation_id = f"{source_data.dataset_name}/{model_info.id.replace('/', '_')}/{evaluation_timestamp}"
@@ -280,20 +281,20 @@ class HELMAdapter(BaseEvaluationAdapter):
                                 standard_deviation=stat.stddev,
                                 num_samples=adapter_spec.max_eval_instances or len(request_states)
                             ),
-                            details=AdditionalPropertiesObject(
-                                count=stat.count, 
-                                split=stat.name.split,
-                                perturbation=stat.name.perturbation
-                            )
+                            details={
+                                "count": str(stat.count),
+                                "split": str(stat.name.split) if stat.name.split else "",
+                                "perturbation": str(stat.name.perturbation) if stat.name.perturbation else ""
+                            }
                         ),
                         generation_config=GenerationConfig(
                             generation_args=self._extract_generation_args(adapter_spec=adapter_spec, request_state=request_states[0]),
-                            additional_details=AdditionalPropertiesObject(
-                                stop_sequences=request_states[0].request.stop_sequences,
-                                presence_penalty=request_states[0].request.presence_penalty,
-                                frequency_penalty=request_states[0].request.frequency_penalty,
-                                num_completions=request_states[0].request.num_completions
-                            )
+                            additional_details={
+                                "stop_sequences": json.dumps(request_states[0].request.stop_sequences) if request_states[0].request.stop_sequences else "[]",
+                                "presence_penalty": str(request_states[0].request.presence_penalty),
+                                "frequency_penalty": str(request_states[0].request.frequency_penalty),
+                                "num_completions": str(request_states[0].request.num_completions)
+                            }
                         )
                     )
                 )
@@ -338,6 +339,10 @@ class HELMAdapter(BaseEvaluationAdapter):
                 source_organization_url=metadata_args.get('source_organization_url'),
                 source_organization_logo_url=metadata_args.get('source_organization_logo_url'),
                 evaluator_relationship=metadata_args.get('evaluator_relationship') or 'third_party',
+            ),
+            eval_library=EvalLibrary(
+                name=metadata_args.get("eval_library_name", "helm"),
+                version=metadata_args.get("eval_library_version", "unknown"),
             ),
             model_info=model_info,
             evaluation_results=evaluation_results,

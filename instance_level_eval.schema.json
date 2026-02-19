@@ -1,5 +1,5 @@
 {   "$schema": "http://json-schema.org/draft-07/schema#",
-    "version": "instance_level_eval_0.2.0",
+    "version": "instance_level_eval_0.2.1",
     "type": "object",
     "description": "Schema for storing instance-level evaluation data for LLM evaluations, supporting single-turn, multi-turn, and agentic interactions",
     "required": [
@@ -13,7 +13,7 @@
         "answer_attribution",
         "evaluation"
     ],
-    "additionalProperties": true,
+    "additionalProperties": false,
     "properties": {
         "schema_version": {
             "type": "string",
@@ -32,11 +32,11 @@
             "description": "The specific eval name, ideally unique (e.g. GSM8K, mmlu_physics)"
         },
         "sample_id": {
-            "type": ["integer", "string"],
+            "type": "string",
             "description": "Question/sample identifier from the original dataset (e.g. gsm8k_0001)"
         },
         "sample_hash": {
-            "type": "string",
+            "type": ["string", "null"],
             "description": "Hash of (input.raw + input.reference) to ensure comparison is between the same sample across models, in case sample_id is not consistent"
         },
         "interaction_type": {
@@ -54,23 +54,16 @@
                     "description": "The raw input as defined in the eval"
                 },
                 "formatted": {
-                    "type": "string",
+                    "type": ["string", "null"],
                     "description": "Includes chat template, CoT and all relevant modifications - basically the un-tokenized version of what the model sees"
                 },
                 "reference": {
+                    "type": "array",
                     "description": "Ground truths or reference answers for comparison/scoring",
-                    "oneOf": [
-                        {
-                            "type": "array",
-                            "items": { "type": "string" }
-                        },
-                        {
-                            "type": "string"
-                        }
-                    ]
+                    "items": { "type": "string" }
                 },
                 "choices": {
-                    "type": "array",
+                    "type": ["array", "null"],
                     "description": "Optional list of choices for multiple-choice questions",
                     "items": {
                         "type": "string"
@@ -84,34 +77,20 @@
             "required": ["raw"],
             "properties": {
                 "raw": {
+                    "type": "array",
                     "description": "Complete model responses",
-                    "oneOf": [
-                        {
-                            "type": "array",
-                            "items": { "type": "string" }
-                        },
-                        {
-                            "type": "string"
-                        }
-                    ]
+                    "items": { "type": "string" }
                 },
                 "reasoning_trace": {
+                    "type": ["array", "null"],
                     "description": "Reasoning traces of the model if applicable (e.g. chain-of-thought tokens)",
-                    "oneOf": [
-                        {
-                            "type": "array",
-                            "items": { "type": "string" }
-                        },
-                        {
-                            "type": "string"
-                        }
-                    ]
+                    "items": { "type": "string" }
                 }
             }
         },
-        "interactions": {
+        "messages": {
             "type": ["array", "null"],
-            "description": "List of interactions - used for multi_turn and agentic, null for single_turn",
+            "description": "Full message transcript - used for multi_turn and agentic, null for single_turn. Contains all system, user, assistant, and tool messages in order.",
             "items": {
                 "type": "object",
                 "required": ["turn_idx", "role"],
@@ -149,27 +128,21 @@
                                     "description": "Name of tool/function"
                                 },
                                 "arguments": {
-                                    "type": "object",
-                                    "description": "Arguments used to call the tool",
-                                    "additionalProperties": true
+                                    "type": ["object", "null"],
+                                    "description": "Arguments used to call the tool (all values must be strings)",
+                                    "additionalProperties": {
+                                        "type": "string"
+                                    }
                                 }
                             }
                         }
                     },
                     "tool_call_id": {
-                        "oneOf": [
-                            {
-                                "type": "string",
-                                "description": "Reference to the tool call ID this turn is responding to (for tool role responses)"
-                            },
-                            {
-                                "type": "array",
-                                "description": "Reference to the tool call ID(s) this message has the content payload for.",
-                                "items": {
-                                    "type": "string"
-                                }
-                            }
-                        ]
+                        "type": ["array", "null"],
+                        "description": "Reference to the tool call ID(s) this message has the content payload for.",
+                        "items": {
+                            "type": "string"
+                        }
                     }
                 }
             }
@@ -184,11 +157,11 @@
                     "turn_idx": {
                         "type": "integer",
                         "minimum": 0,
-                        "description": "Turn index in interactions. 0 for single_turn"
+                        "description": "Turn index in messages. 0 for single_turn"
                     },
                     "source": {
                         "type": "string",
-                        "description": "Source of the extracted value (e.g. 'output.raw' or 'interactions[turn_idx].content')"
+                        "description": "Source of the extracted value (e.g. 'output.raw' or 'messages[turn_idx].content')"
                     },
                     "extracted_value": {
                         "type": "string",
@@ -211,7 +184,7 @@
             "required": ["score", "is_correct"],
             "properties": {
                 "score": {
-                    "type": ["number", "boolean"],
+                    "type": "number",
                     "description": "Instance-level score"
                 },
                 "is_correct": {
@@ -219,14 +192,14 @@
                     "description": "Whether the final answer is correct"
                 },
                 "num_turns": {
-                    "type": "integer",
+                    "type": ["integer", "null"],
                     "minimum": 1,
                     "description": "Number of turns in the interaction"
                 },
                 "tool_calls_count": {
-                    "type": "integer",
+                    "type": ["integer", "null"],
                     "minimum": 0,
-                    "description": "Count of tool calls across all turns in interactions"
+                    "description": "Count of tool calls across all turns in messages"
                 }
             }
         },
@@ -285,18 +258,26 @@
                     "type": ["number", "null"],
                     "minimum": 0,
                     "description": "Time for generation in milliseconds"
+                },
+                "additional_details": {
+                    "type": ["object", "null"],
+                    "description": "Additional performance metrics (key-value pairs, all values must be strings)",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 }
-            },
-            "additionalProperties": true
+            }
         },
         "error": {
             "type": ["string", "null"],
             "description": "Information about any error that occurred (e.g. timeout, refusal, API error)"
         },
         "metadata": {
-            "type": "object",
+            "type": ["object", "null"],
             "description": "Optional metadata about the sample (e.g. subject, difficulty, tags)",
-            "additionalProperties": true
+            "additionalProperties": {
+                "type": "string"
+            }
         }
     },
     "allOf": [
@@ -317,7 +298,7 @@
                             "type": "null"
                         }
                     },
-                    "interactions": {
+                    "messages": {
                         "type": "null"
                     }
                 }
@@ -332,12 +313,12 @@
                 }
             },
             "then": {
-                "required": ["interactions"],
+                "required": ["messages"],
                 "properties": {
                     "output": {
                         "type": "null"
                     },
-                    "interactions": {
+                    "messages": {
                         "type": "array",
                         "not": {
                             "type": "null"

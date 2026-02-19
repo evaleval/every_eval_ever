@@ -1,6 +1,6 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "type": "object",
     "description": "Schema for storing and validating LLMs evaluation data, including model configuration, prompts, instances, Output, and evaluation metrics",
     "required": [
@@ -9,6 +9,7 @@
         "retrieved_timestamp",
         "source_metadata",
         "model_info",
+        "eval_library",
         "evaluation_results"
     ],
     "additionalProperties": false,
@@ -71,8 +72,40 @@
                         "collaborative",
                         "other"
                     ]
+                },
+                "additional_details": {
+                    "type": "object",
+                    "description": "Additional parameters (key-value pairs, all values must be strings)",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 }
             }
+        },
+        "eval_library": {
+            "type": "object",
+            "description": "Evaluation library/framework used to run the evaluation",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Name of the evaluation library (e.g. inspect_ai, lm_eval, helm)"
+                },
+                "version": {
+                    "type": "string",
+                    "description": "Version of the evaluation library. Use 'unknown' if the version is not available."
+                },
+                "additional_details": {
+                    "type": "object",
+                    "description": "Additional parameters (key-value pairs, all values must be strings)",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                }
+            },
+            "required": [
+                "name",
+                "version"
+            ]
         },
         "model_info": {
             "$ref": "#/$defs/model_info"
@@ -155,6 +188,7 @@
                             },
                             "min_score": {
                                 "type": "number",
+                 
                                 "description": "Minimum possible score for continuous metric"
                             },
                             "max_score": {
@@ -164,7 +198,6 @@
                             "llm_scoring": {
                                 "type": "object",
                                 "description": "Configuration when LLM is used as scorer/judge",
-                                "additionalProperties": true,
                                 "required": [
                                     "judges",
                                     "input_prompt"
@@ -197,8 +230,19 @@
                                         "description": "Expert/human baseline score for comparison"
                                     },
                                     "additional_details": {
-                                        "$ref": "#/$defs/additional_properties_object"
+                                        "type": "object",
+                                        "description": "Additional parameters (key-value pairs, all values must be strings)",
+                                        "additionalProperties": {
+                                            "type": "string"
+                                        }
                                     }
+                                }
+                            },
+                            "additional_details": {
+                                "type": "object",
+                                "description": "Additional parameters (key-value pairs, all values must be strings)",
+                                "additionalProperties": {
+                                    "type": "string"
                                 }
                             }
                         },
@@ -232,7 +276,7 @@
                         }
                     },
                     "score_details": {
-                        "type" : "object",
+                        "type": "object",
                         "description": "The score for the evaluation and related details",
                         "required": [
                             "score"
@@ -243,7 +287,11 @@
                                 "description": "The score for the evaluation"
                             },
                             "details": {
-                                "$ref": "#/$defs/additional_properties_object"
+                                "type": "object",
+                                "description": "Additional parameters (key-value pairs, all values must be strings)",
+                                "additionalProperties": {
+                                    "type": "string"
+                                }
                             },
                             "uncertainty": {
                                 "type": "object",
@@ -262,7 +310,9 @@
                                                 "description": "How the standard error was computed (e.g. 'analytic', 'bootstrap', 'jackknife')"
                                             }
                                         },
-                                        "required": ["value"]
+                                        "required": [
+                                            "value"
+                                        ]
                                     },
                                     "confidence_interval": {
                                         "type": "object",
@@ -287,7 +337,10 @@
                                                 "description": "How the confidence interval was computed"
                                             }
                                         },
-                                        "required": ["lower", "upper"]
+                                        "required": [
+                                            "lower",
+                                            "upper"
+                                        ]
                                     },
                                     "standard_deviation": {
                                         "type": "number",
@@ -313,24 +366,15 @@
                                 "description": "Parameters used to generate results - properties may vary by model type",
                                 "properties": {
                                     "temperature": {
-                                        "type": [
-                                            "null",
-                                            "number"
-                                        ],
+                                        "type": ["null", "number"],
                                         "description": "Sampling temperature"
                                     },
                                     "top_p": {
-                                        "type": [
-                                            "null",
-                                            "number"
-                                        ],
+                                        "type": ["null", "number"],
                                         "description": "Nucleus sampling parameter"
                                     },
                                     "top_k": {
-                                        "type": [
-                                            "null",
-                                            "number"
-                                        ],
+                                        "type": ["null", "number"],
                                         "description": "Top-k sampling parameter"
                                     },
                                     "max_tokens": {
@@ -368,13 +412,21 @@
                                                             "type": "string"
                                                         },
                                                         "parameters": {
-                                                            "$ref": "#/$defs/additional_properties_object"
+                                                            "type": "object",
+                                                            "description": "Additional parameters (key-value pairs, all values must be strings)",
+                                                            "additionalProperties": {
+                                                                "type": "string"
+                                                            }
                                                         }
                                                     }
                                                 }
                                             },
                                             "additional_details": {
-                                                "$ref": "#/$defs/additional_properties_object"
+                                                "type": "object",
+                                                "description": "Additional parameters (key-value pairs, all values must be strings)",
+                                                "additionalProperties": {
+                                                    "type": "string"
+                                                }
                                             }
                                         }
                                     },
@@ -387,19 +439,17 @@
                                             },
                                             "steps": {
                                                 "type": "array",
-                                                "description": "Array of evaluation plan steps",
+                                                "description": "Array of evaluation plan steps (each step is a JSON-serialized string)",
                                                 "items": {
-                                                    "solver": {
-                                                        "type": "string",
-                                                        "description": "Name of solver e.g. system_message, react."
-                                                    },
-                                                    "parameters": {
-                                                        "$ref": "#/$defs/additional_properties_object"
-                                                    }
+                                                    "type": "string"
                                                 }
                                             },
                                             "config": {
-                                                "$ref": "#/$defs/additional_properties_object"
+                                                "type": "object",
+                                                "description": "Additional parameters (key-value pairs, all values must be strings)",
+                                                "additionalProperties": {
+                                                    "type": "string"
+                                                }
                                             }
                                         }
                                     },
@@ -444,10 +494,14 @@
                                         "description": "Feedback from the model after incorrect attempt."
                                     }
                                 },
-                                "additionalProperties": true
+                                "additionalProperties": false
                             },
                             "additional_details": {
-                                "$ref": "#/$defs/additional_properties_object"
+                                "type": "object",
+                                "description": "Additional parameters (key-value pairs, all values must be strings)",
+                                "additionalProperties": {
+                                    "type": "string"
+                                }
                             }
                         }
                     }
@@ -455,6 +509,7 @@
             }
         },
         "detailed_evaluation_results": {
+            "type": "object",
             "description": "Reference to the evaluation results for all individual samples in the evaluation",
             "properties": {
                 "format": {
@@ -484,16 +539,18 @@
                 "total_rows": {
                     "type": "integer",
                     "description": "Total number of rows in the detailed evaluation results file"
+                },
+                "additional_details": {
+                    "type": "object",
+                    "description": "Additional parameters (key-value pairs, all values must be strings)",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 }
             }
         }
     },
     "$defs": {
-        "additional_properties_object": {
-            "type": "object",
-            "description": "Additional parameters (key-value object)",
-            "additionalProperties": true
-        },
         "judge_config": {
             "type": "object",
             "description": "Configuration for a single LLM judge/juror",
@@ -510,6 +567,13 @@
                 "weight": {
                     "type": "number",
                     "description": "Weight of this judge's score in aggregation (used in jury)"
+                },
+                "additional_details": {
+                    "type": "object",
+                    "description": "Additional parameters (key-value pairs, all values must be strings)",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -552,7 +616,11 @@
                     }
                 },
                 "additional_details": {
-                    "$ref": "#/$defs/additional_properties_object"
+                    "type": "object",
+                    "description": "Additional parameters (key-value pairs, all values must be strings)",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -564,7 +632,6 @@
                 "source_type",
                 "url"
             ],
-            "additionalProperties": true,
             "properties": {
                 "dataset_name": {
                     "type": "string",
@@ -582,7 +649,11 @@
                     "description": "URL(s) for the source of the evaluation data"
                 },
                 "additional_details": {
-                    "$ref": "#/$defs/additional_properties_object"
+                    "type": "object",
+                    "description": "Additional parameters (key-value pairs, all values must be strings)",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -593,7 +664,6 @@
                 "dataset_name",
                 "source_type"
             ],
-            "additionalProperties": true,
             "properties": {
                 "dataset_name": {
                     "type": "string",
@@ -618,14 +688,15 @@
                     "type": "array",
                     "description": "Array of sample ids used for evaluation",
                     "items": {
-                        "type": [
-                            "integer",
-                            "string"
-                        ]
+                        "type": "string"
                     }
                 },
                 "additional_details": {
-                    "$ref": "#/$defs/additional_properties_object"
+                    "type": "object",
+                    "description": "Additional parameters (key-value pairs, all values must be strings)",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -645,7 +716,11 @@
                     "const": "other"
                 },
                 "additional_details": {
-                    "$ref": "#/$defs/additional_properties_object"
+                    "type": "object",
+                    "description": "Additional parameters (key-value pairs, all values must be strings)",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 }
             }
         }

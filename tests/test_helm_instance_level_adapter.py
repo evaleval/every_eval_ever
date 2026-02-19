@@ -48,7 +48,7 @@ def test_mmlu_instance_level():
         assert len(instance_logs) == 10
         log = instance_logs[0]
         
-        assert log.schema_version == '0.2.0'
+        assert log.schema_version == '0.2.1'
         assert log.evaluation_id == 'test_mmlu_samples'
         assert log.model_id == 'openai/gpt2'
         assert log.evaluation_name == 'mmlu'
@@ -61,7 +61,7 @@ def test_mmlu_instance_level():
         
         assert log.output.raw == [' D']
         
-        assert log.interactions is None
+        assert log.messages is None
         
         assert len(log.answer_attribution) == 1
         assert log.answer_attribution[0].turn_idx == 0
@@ -97,7 +97,7 @@ def test_hellaswag_instance_level():
         assert len(instance_logs) == 10
         log = instance_logs[0]
         
-        assert log.schema_version == '0.2.0'
+        assert log.schema_version == '0.2.1'
         assert log.model_id == 'eleutherai/pythia-1b-v0'
         assert log.evaluation_name == 'hellaswag'
         assert log.interaction_type == InteractionType.single_turn
@@ -105,7 +105,7 @@ def test_hellaswag_instance_level():
         assert len(log.input.choices) == 4
         
         assert log.output.raw == [' B']
-        assert log.interactions is None
+        assert log.messages is None
         
         assert log.evaluation.score == 0.0
         assert log.evaluation.is_correct is False
@@ -133,7 +133,7 @@ def test_narrativeqa_instance_level():
         assert len(instance_logs) == 5
         log = instance_logs[0]
         
-        assert log.schema_version == '0.2.0'
+        assert log.schema_version == '0.2.1'
         assert log.model_id == 'openai/gpt2'
         assert log.evaluation_name == 'narrativeqa'
         assert log.interaction_type == InteractionType.single_turn
@@ -141,7 +141,7 @@ def test_narrativeqa_instance_level():
         assert log.input.reference == ['The school Mascot', 'the schools mascot']
         
         assert log.output.raw == [' Olive.']
-        assert log.interactions is None
+        assert log.messages is None
         
         assert log.evaluation.score == 0.0
         assert log.evaluation.is_correct is False

@@ -48,14 +48,14 @@ def test_pubmedqa_instance_level():
         assert len(instance_logs) == 2
         log = instance_logs[0]
         
-        assert log.schema_version == '0.2.0'
+        assert log.schema_version == '0.2.1'
         assert log.model_id == 'openai/gpt-4o-mini-2024-07-18'
         assert log.interaction_type == InteractionType.single_turn
         
         assert log.input.raw.startswith('Context')
         
-        assert log.output.raw == 'A'
-        assert log.interactions is None
+        assert log.output.raw == ['A']
+        assert log.messages is None
         
         assert log.evaluation.score == 1.0
         assert log.evaluation.is_correct is True
@@ -80,15 +80,15 @@ def test_arc_sonnet_instance_level():
         assert len(instance_logs) == 5
         log = instance_logs[0]
         
-        assert log.schema_version == '0.2.0'
+        assert log.schema_version == '0.2.1'
         assert log.model_id == 'anthropic/claude-sonnet-4-20250514'
         assert log.interaction_type == InteractionType.single_turn
         
         assert len(log.input.choices) == 4
         assert 'Sunlight is the source of energy' in log.input.choices[0]
         
-        assert log.output.raw == 'A'
-        assert log.interactions is None
+        assert log.output.raw == ['A']
+        assert log.messages is None
         
         assert log.evaluation.score == 1.0
         assert log.evaluation.is_correct is True
@@ -118,7 +118,7 @@ def test_arc_qwen_instance_level():
         assert len(instance_logs) == 3
         log = instance_logs[0]
         
-        assert log.schema_version == '0.2.0'
+        assert log.schema_version == '0.2.1'
         assert log.model_id == 'ollama/qwen2.5-0.5b'
         assert log.interaction_type == InteractionType.single_turn
         
@@ -149,7 +149,7 @@ def test_gaia_instance_level():
         assert len(instance_logs) > 0
         log = instance_logs[0]
         
-        assert log.schema_version == '0.2.0'
+        assert log.schema_version == '0.2.1'
         assert log.model_id == 'openai/gpt-4.1-mini-2025-04-14'
         
         assert log.interaction_type == InteractionType.agentic
@@ -157,13 +157,13 @@ def test_gaia_instance_level():
         assert log.input.raw is not None or log.input.choices is not None
         
         assert log.output is None
-        assert log.interactions is not None
-        assert any([i.role for i in log.interactions if i.role == 'tool'])
+        assert log.messages is not None
+        assert any([i.role for i in log.messages if i.role == 'tool'])
         
-        assert len(log.interactions) > 2
-        assert log.interactions[0].turn_idx == 0
-        assert log.interactions[0].role == 'system'
-        assert log.interactions[1].role == 'user'
+        assert len(log.messages) > 2
+        assert log.messages[0].turn_idx == 0
+        assert log.messages[0].role == 'system'
+        assert log.messages[1].role == 'user'
 
         assert log.evaluation.score >= 0.0
         

@@ -17,7 +17,7 @@ from instance_level_types import (
     Evaluation,
     Input,
     InstanceLevelEvaluationLog,
-    Interaction,
+    Message,
     InteractionType,
     Performance,
     Output,
@@ -66,7 +66,7 @@ class InspectInstanceLevelDataAdapter:
         self,
         turn_idx: int,
         message: ChatMessage
-    ) -> Interaction:
+    ) -> Message:
         role = message.role
         content = message.content
         reasoning = None
@@ -81,15 +81,15 @@ class InspectInstanceLevelDataAdapter:
                 ToolCall(
                     id=tool_call.id,
                     name=tool_call.function,
-                    arguments=tool_call.arguments
+                    arguments={str(k): str(v) for k, v in tool_call.arguments.items()} if tool_call.arguments else None
                 )
                 for tool_call in message.tool_calls or []
             ]
             
         if isinstance(message, ChatMessageUser) or isinstance(message, ChatMessageTool):
-            tool_call_id = message.tool_call_id
+            tool_call_id = [message.tool_call_id] if isinstance(message.tool_call_id, str) else message.tool_call_id
 
-        return Interaction(
+        return Message(
             turn_idx=turn_idx,
             role=role,
             content=content,
@@ -127,7 +127,7 @@ class InspectInstanceLevelDataAdapter:
         for sample in samples:
             sample_input = Input(
                 raw=sample.input,
-                reference=sample.target,
+                reference=[sample.target] if isinstance(sample.target, str) else list(sample.target),
                 choices=sample.choices
             )
 
@@ -149,15 +149,15 @@ class InspectInstanceLevelDataAdapter:
                         response = score.explanation
 
             processed_messages = [
-                self._handle_chat_messages(message_idx, message) 
-                for message_idx, message in enumerate(sample.messages)
+                self._handle_chat_messages(msg_idx, msg)
+                for msg_idx, msg in enumerate(sample.messages)
             ]
 
             counted_assistant_roles = sum([
-                message.role.lower() == 'assistant' for message in processed_messages
+                msg.role.lower() == 'assistant' for msg in processed_messages
             ])
             counted_tool_roles = sum([
-                message.role.lower() == 'tool' for message in processed_messages
+                msg.role.lower() == 'tool' for msg in processed_messages
             ])
 
             if counted_tool_roles:
@@ -170,22 +170,22 @@ class InspectInstanceLevelDataAdapter:
 
             if interaction_type == InteractionType.single_turn:
                 sample_output = Output(
-                    raw=response,
-                    reasoning_trace=reasoning_trace
+                    raw=[response] if isinstance(response, str) else list(response),
+                    reasoning_trace=[reasoning_trace] if isinstance(reasoning_trace, str) else reasoning_trace
                 )
-                interactions = None
+                messages = None
             else:
                 sample_output = None
-                interactions = processed_messages
-               
+                messages = processed_messages
+
             evaluation = Evaluation(
-                score=1.0 if sample_input.reference == response else 0.0,
-                is_correct=sample_input.reference == response,
-                num_turns=len(interactions) if interactions else 1,
+                score=1.0 if response in sample_input.reference else 0.0,
+                is_correct=response in sample_input.reference,
+                num_turns=len(messages) if messages else 1,
                 tool_calls_count=sum(
-                    len(intr.tool_calls) if intr.tool_calls else 0
-                    for intr in interactions
-                ) if interactions else 0
+                    len(msg.tool_calls) if msg.tool_calls else 0
+                    for msg in messages
+                ) if messages else 0
             )
 
             answer_attribution: List[AnswerAttributionItem] = []
@@ -205,20 +205,20 @@ class InspectInstanceLevelDataAdapter:
                 evaluation_id=self.evaluation_id,
                 model_id=model_id,
                 evaluation_name=evaluation_name,
-                sample_id=sample.id,
-                sample_hash=sha256_string(sample_input.raw + sample_input.reference),
+                sample_id=str(sample.id),
+                sample_hash=sha256_string(sample_input.raw + ''.join(sample_input.reference)),
                 interaction_type=interaction_type,
                 input=sample_input,
                 output=sample_output,
-                interactions=interactions,
+                messages=messages,
                 answer_attribution=answer_attribution,
                 evaluation=evaluation,
                 token_usage=token_usage,
                 performance=performance,
                 error=f'{sample.error.message}\n{sample.error.traceback}' if sample.error else None,
                 metadata={
-                    'stop_reason': sample.output.stop_reason,
-                    'epoch': sample.epoch
+                    'stop_reason': str(sample.output.stop_reason) if sample.output.stop_reason else '',
+                    'epoch': str(sample.epoch)
                 }
             )
 

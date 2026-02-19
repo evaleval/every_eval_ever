@@ -101,8 +101,8 @@ Note: Each file can contain multiple individual results related to one model. Se
 For evaluations that include per-sample results, the individual results should be stored in a companion `{uuid}.jsonl` file in the same folder (one JSONL per JSON, sharing the same UUID). The aggregate JSON file refers to its JSONL via the `detailed_evaluation_results` field. The instance-level schema ([`instance_level_eval.schema.json`](instance_level_eval.schema.json)) supports three interaction types:
 
 - **`single_turn`**: Standard QA, MCQ, classification — uses `output` object
-- **`multi_turn`**: Conversational evaluations with multiple exchanges — uses `interactions` array
-- **`agentic`**: Tool-using evaluations with function calls and sandbox execution — uses `interactions` array with `tool_calls`
+- **`multi_turn`**: Conversational evaluations with multiple exchanges — uses `messages` array
+- **`agentic`**: Tool-using evaluations with function calls and sandbox execution — uses `messages` array with `tool_calls`
 
 Each instance captures: `input` (raw question + reference answer), `answer_attribution` (how the answer was extracted), `evaluation` (score, is_correct), and optional `token_usage` and `performance` metrics. Instance-level JSONL files are produced automatically by the [eval converters](eval_converters/README.md).
 
@@ -140,7 +140,7 @@ For agentic evaluations (e.g., SWE-Bench, GAIA), the aggregate schema captures c
 }
 ```
 
-At the instance level, agentic evaluations use `interaction_type: "agentic"` with full tool call traces recorded in the `interactions` array. See the [Inspect AI test fixture](tests/data/inspect/) for a GAIA example with docker sandbox and tool usage.
+At the instance level, agentic evaluations use `interaction_type: "agentic"` with full tool call traces recorded in the `messages` array. See the [Inspect AI test fixture](tests/data/inspect/) for a GAIA example with docker sandbox and tool usage.
 
 ## ✅ Data Validation
 

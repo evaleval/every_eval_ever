@@ -1,5 +1,5 @@
+import json
 import os
-import uuid
 
 from inspect_ai.log import (
     EvalDataset,
@@ -17,18 +17,17 @@ from inspect_ai.log import (
     read_eval_log_sample_summaries,
 )
 from inspect_ai.log import EvalPlan as InspectEvalPlan
-from math import isfinite
 from pathlib import Path
 from typing import Any, Dict, List, Tuple, Union
 from urllib.parse import urlparse
 
 from eval_types import (
-    AdditionalPropertiesObject,
     AgenticEvalConfig,
     AvailableTool,
     DetailedEvaluationResults,
     EvalLimits,
     EvalPlan,
+    EvalLibrary,
     EvaluationLog,
     EvaluationResult,
     Format,
@@ -206,10 +205,8 @@ class InspectAIAdapter(BaseEvaluationAdapter):
             dataset_name=dataset_name,
             hf_repo=dataset.location,
             samples_number=dataset.samples,
-            sample_ids=dataset.sample_ids,
-            additional_details=AdditionalPropertiesObject(
-                shuffled = dataset.shuffled
-            )
+            sample_ids=[str(sid) for sid in dataset.sample_ids] if dataset.sample_ids is not None else None,
+            additional_details={"shuffled": str(dataset.shuffled)}
         )
 
     def _safe_get(self, obj: Any, field: str):
@@ -241,7 +238,11 @@ class InspectAIAdapter(BaseEvaluationAdapter):
             AvailableTool(
                 name=self._safe_get(tool, 'name'),
                 description=self._safe_get(tool, 'description'),
-                parameters=self._safe_get(tool, 'params'),
+                parameters=(
+                    {str(k): str(v) for k, v in raw_params.items()}
+                    if (raw_params := self._safe_get(tool, 'params')) and isinstance(raw_params, dict)
+                    else None
+                ),
             )
             for tool_list in tools_in_plan_steps
             if isinstance(tool_list, list) and tool_list
@@ -273,8 +274,11 @@ class InspectAIAdapter(BaseEvaluationAdapter):
 
         eval_plan = EvalPlan(
             name=inspect_plan.name,
-            steps=inspect_plan.steps,
-            config=inspect_plan.config.model_dump(),
+            steps=[
+                json.dumps(step.model_dump() if hasattr(step, 'model_dump') else vars(step))
+                for step in inspect_plan.steps
+            ],
+            config={k: str(v) for k, v in inspect_plan.config.model_dump().items() if v is not None},
         )
 
         eval_limits = EvalLimits(
@@ -314,14 +318,23 @@ class InspectAIAdapter(BaseEvaluationAdapter):
             max_attempts=max_attempts,
         )
 
-        additional_details = AdditionalPropertiesObject.model_validate(
-            eval_generation_config
-        )
+        additional_details = eval_generation_config
         
         return GenerationConfig(
             generation_args=generation_args,
             additional_details=additional_details or None
         )
+    
+    def _extract_library_version(
+        self,
+        packages: Dict[str, str]
+    ) -> str:
+        parts = [
+            f"{name}:{version}"
+            for name, version in packages.items()
+            if version
+        ]
+        return ",".join(parts)        
 
     def transform_from_directory(
         self,
@@ -378,6 +391,12 @@ class InspectAIAdapter(BaseEvaluationAdapter):
 
         if not evaluation_unix_timestamp:
             evaluation_unix_timestamp = retrieved_unix_timestamp
+
+        library_version = self._extract_library_version(eval_spec.packages)
+        eval_library = EvalLibrary(
+            name=metadata_args.get("eval_library_name", "inspect_ai"),
+            version=library_version or metadata_args.get("eval_library_version", "unknown"),
+        )
 
         source_metadata = SourceMetadata(
             source_name='inspect_ai',
@@ -460,6 +479,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
             evaluation_timestamp=evaluation_unix_timestamp,
             retrieved_timestamp=retrieved_unix_timestamp,
             source_metadata=source_metadata,
+            eval_library=eval_library,
             model_info=model_info,
             evaluation_results=evaluation_results,
             detailed_evaluation_results=detailed_evaluation_results

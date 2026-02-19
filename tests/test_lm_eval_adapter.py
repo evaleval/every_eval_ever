@@ -73,8 +73,8 @@ def test_transform_from_file_model_info():
     assert model.id == model.name
     assert model.developer == "RylanSchaeffer"
     assert model.inference_engine.name == "transformers"
-    assert model.additional_details.num_parameters == 93069280
-    assert model.additional_details.dtype == "torch.bfloat16"
+    assert model.additional_details["num_parameters"] == "93069280"
+    assert model.additional_details["dtype"] == "torch.bfloat16"
 
 
 def test_transform_from_file_source_metadata():
@@ -137,7 +137,7 @@ def test_transform_from_file_generation_config():
     assert gen is not None
     assert gen.generation_args.temperature == 0.0
     assert gen.generation_args.max_tokens == 512
-    assert gen.additional_details.num_fewshot == 0
+    assert gen.additional_details["num_fewshot"] == "0"
 
 
 def test_transform_from_file_eval_timestamp():
@@ -205,10 +205,10 @@ def test_instance_level_transform_samples():
     assert len(logs) == 10
 
     first = logs[0]
-    assert first.sample_id == 0
+    assert first.sample_id == "0"
     assert first.evaluation_name == "math_perturbed_full"
     assert first.model_id == "test-model"
-    assert first.input.reference == "3"
+    assert first.input.reference == ["3"]
     assert first.evaluation.score == 0.0
     assert first.evaluation.is_correct is False
     assert first.input.choices is None  # generation task, not MC
