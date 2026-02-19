@@ -54,7 +54,7 @@ def test_pubmedqa_instance_level():
         
         assert log.input.raw.startswith('Context')
         
-        assert log.output.raw == 'A'
+        assert log.output.raw == ['A']
         assert log.interactions is None
         
         assert log.evaluation.score == 1.0
@@ -87,7 +87,7 @@ def test_arc_sonnet_instance_level():
         assert len(log.input.choices) == 4
         assert 'Sunlight is the source of energy' in log.input.choices[0]
         
-        assert log.output.raw == 'A'
+        assert log.output.raw == ['A']
         assert log.interactions is None
         
         assert log.evaluation.score == 1.0

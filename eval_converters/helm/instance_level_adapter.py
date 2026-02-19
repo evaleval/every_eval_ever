@@ -73,6 +73,8 @@ class HELMInstanceLevelDataAdapter:
                 else []
             )
             reasoning_traces = extract_all_reasonings(state)
+            if isinstance(reasoning_traces, str):
+                reasoning_traces = [reasoning_traces]
 
             is_correct = False
             score = 0.0
@@ -107,14 +109,14 @@ class HELMInstanceLevelDataAdapter:
                 evaluation_id=self.evaluation_id,
                 model_id=model_id,
                 evaluation_name=evaluation_name,
-                sample_id=state.instance.id,
+                sample_id=str(state.instance.id),
                 sample_hash=sha256_string(state.request.prompt + correct_refs[0]), # TODO use all references
                 interaction_type=InteractionType.single_turn,
                 input=Input(
                     raw=state.request.prompt,
                     reference=correct_refs if correct_refs else [],
                     choices=(
-                        state.output_mapping.values()
+                        list(state.output_mapping.values())
                         if state.output_mapping
                         else [ref.output.text for ref in state.instance.references]
                     )

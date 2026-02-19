@@ -13,7 +13,7 @@
         "answer_attribution",
         "evaluation"
     ],
-    "additionalProperties": true,
+    "additionalProperties": false,
     "properties": {
         "schema_version": {
             "type": "string",
@@ -32,7 +32,7 @@
             "description": "The specific eval name, ideally unique (e.g. GSM8K, mmlu_physics)"
         },
         "sample_id": {
-            "type": ["integer", "string"],
+            "type": "string",
             "description": "Question/sample identifier from the original dataset (e.g. gsm8k_0001)"
         },
         "sample_hash": {
@@ -58,16 +58,9 @@
                     "description": "Includes chat template, CoT and all relevant modifications - basically the un-tokenized version of what the model sees"
                 },
                 "reference": {
+                    "type": "array",
                     "description": "Ground truths or reference answers for comparison/scoring",
-                    "oneOf": [
-                        {
-                            "type": "array",
-                            "items": { "type": "string" }
-                        },
-                        {
-                            "type": "string"
-                        }
-                    ]
+                    "items": { "type": "string" }
                 },
                 "choices": {
                     "type": "array",
@@ -84,28 +77,14 @@
             "required": ["raw"],
             "properties": {
                 "raw": {
+                    "type": "array",
                     "description": "Complete model responses",
-                    "oneOf": [
-                        {
-                            "type": "array",
-                            "items": { "type": "string" }
-                        },
-                        {
-                            "type": "string"
-                        }
-                    ]
+                    "items": { "type": "string" }
                 },
                 "reasoning_trace": {
+                    "type": "array",
                     "description": "Reasoning traces of the model if applicable (e.g. chain-of-thought tokens)",
-                    "oneOf": [
-                        {
-                            "type": "array",
-                            "items": { "type": "string" }
-                        },
-                        {
-                            "type": "string"
-                        }
-                    ]
+                    "items": { "type": "string" }
                 }
             }
         },
@@ -150,26 +129,20 @@
                                 },
                                 "arguments": {
                                     "type": "object",
-                                    "description": "Arguments used to call the tool",
-                                    "additionalProperties": true
+                                    "description": "Arguments used to call the tool (all values must be strings)",
+                                    "additionalProperties": {
+                                        "type": "string"
+                                    }
                                 }
                             }
                         }
                     },
                     "tool_call_id": {
-                        "oneOf": [
-                            {
-                                "type": "string",
-                                "description": "Reference to the tool call ID this turn is responding to (for tool role responses)"
-                            },
-                            {
-                                "type": "array",
-                                "description": "Reference to the tool call ID(s) this message has the content payload for.",
-                                "items": {
-                                    "type": "string"
-                                }
-                            }
-                        ]
+                        "type": "array",
+                        "description": "Reference to the tool call ID(s) this message has the content payload for.",
+                        "items": {
+                            "type": "string"
+                        }
                     }
                 }
             }
@@ -211,7 +184,7 @@
             "required": ["score", "is_correct"],
             "properties": {
                 "score": {
-                    "type": ["number", "boolean"],
+                    "type": "number",
                     "description": "Instance-level score"
                 },
                 "is_correct": {
@@ -251,17 +224,17 @@
                     "description": "Total tokens used"
                 },
                 "input_tokens_cache_write": {
-                    "type": ["integer", "null"],
+                    "type": "integer",
                     "minimum": 0,
                     "description": "Number of tokens written to the cache"
                 },
                 "input_tokens_cache_read": {
-                    "type": ["integer", "null"],
+                    "type": "integer",
                     "minimum": 0,
                     "description": "Number of tokens retrieved from the cache"
                 },
                 "reasoning_tokens": {
-                    "type": ["integer", "null"],
+                    "type": "integer",
                     "minimum": 0,
                     "description": "Number of tokens used for reasoning"
                 }
@@ -272,22 +245,28 @@
             "description": "Performance and latency metrics",
             "properties": {
                 "latency_ms": {
-                    "type": ["number", "null"],
+                    "type": "number",
                     "minimum": 0,
                     "description": "Total latency in milliseconds"
                 },
                 "time_to_first_token_ms": {
-                    "type": ["number", "null"],
+                    "type": "number",
                     "minimum": 0,
                     "description": "Time to first token in milliseconds"
                 },
                 "generation_time_ms": {
-                    "type": ["number", "null"],
+                    "type": "number",
                     "minimum": 0,
                     "description": "Time for generation in milliseconds"
+                },
+                "additional_details": {
+                    "type": "object",
+                    "description": "Additional performance metrics (key-value pairs, all values must be strings)",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 }
-            },
-            "additionalProperties": true
+            }
         },
         "error": {
             "type": ["string", "null"],
@@ -296,7 +275,9 @@
         "metadata": {
             "type": "object",
             "description": "Optional metadata about the sample (e.g. subject, difficulty, tags)",
-            "additionalProperties": true
+            "additionalProperties": {
+                "type": "string"
+            }
         }
     },
     "allOf": [

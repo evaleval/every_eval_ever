@@ -12,7 +12,7 @@ from eval_converters.common.adapter import (
 )
 from eval_converters.common.utils import get_current_unix_timestamp
 from eval_types import (
-    AdditionalPropertiesObject,
+    EvalLibrary,
     EvaluationLog,
     EvaluationResult,
     EvaluatorRelationship,
@@ -98,17 +98,17 @@ class LMEvalAdapter(BaseEvaluationAdapter):
 
         additional = {}
         if config.get("model_num_parameters"):
-            additional["num_parameters"] = config["model_num_parameters"]
+            additional["num_parameters"] = str(config["model_num_parameters"])
         if config.get("model_dtype"):
-            additional["dtype"] = config["model_dtype"]
+            additional["dtype"] = str(config["model_dtype"])
         if config.get("model_revision"):
-            additional["revision"] = config["model_revision"]
+            additional["revision"] = str(config["model_revision"])
         if config.get("model_sha"):
-            additional["sha"] = config["model_sha"]
+            additional["sha"] = str(config["model_sha"])
         if raw_data.get("lm_eval_version"):
-            additional["lm_eval_version"] = raw_data["lm_eval_version"]
+            additional["lm_eval_version"] = str(raw_data["lm_eval_version"])
         if model_args_str:
-            additional["model_args"] = model_args_str
+            additional["model_args"] = str(model_args_str)
 
         return ModelInfo(
             name=pretrained,
@@ -116,11 +116,7 @@ class LMEvalAdapter(BaseEvaluationAdapter):
             developer=developer,
             inference_platform=inference_platform,
             inference_engine=inference_engine,
-            additional_details=(
-                AdditionalPropertiesObject.model_validate(additional)
-                if additional
-                else None
-            ),
+            additional_details=additional if additional else None,
         )
 
     def _get_tasks(self, raw_data: Dict[str, Any]) -> List[str]:
@@ -188,19 +184,13 @@ class LMEvalAdapter(BaseEvaluationAdapter):
         additional = {}
         for k, v in gen_kwargs.items():
             if k not in ("temperature", "top_p", "top_k", "max_gen_toks"):
-                additional[k] = (
-                    json.dumps(v) if not isinstance(v, (str, int, float, bool)) else v
-                )
+                additional[k] = json.dumps(v) if not isinstance(v, str) else v
         if task_config.get("num_fewshot") is not None:
-            additional["num_fewshot"] = task_config["num_fewshot"]
+            additional["num_fewshot"] = str(task_config["num_fewshot"])
 
         return GenerationConfig(
             generation_args=args,
-            additional_details=(
-                AdditionalPropertiesObject.model_validate(additional)
-                if additional
-                else None
-            ),
+            additional_details=additional if additional else None,
         )
 
     def _build_evaluation_results(
@@ -313,6 +303,11 @@ class LMEvalAdapter(BaseEvaluationAdapter):
         )
         evaluator_relationship = EvaluatorRelationship(evaluator_rel_str)
 
+        eval_library = EvalLibrary(
+            name=metadata_args.get("eval_library_name", "lm_eval"),
+            version=metadata_args.get("eval_library_version"),
+        )
+
         source_metadata = SourceMetadata(
             source_name="lm-evaluation-harness",
             source_type=SourceType.evaluation_run,
@@ -338,6 +333,7 @@ class LMEvalAdapter(BaseEvaluationAdapter):
             retrieved_timestamp=retrieved_timestamp,
             evaluation_timestamp=eval_timestamp,
             source_metadata=source_metadata,
+            eval_library=eval_library,
             model_info=model_info,
             evaluation_results=evaluation_results,
         )

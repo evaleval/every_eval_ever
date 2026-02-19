@@ -156,28 +156,28 @@ class LMEvalInstanceLevelAdapter:
             evaluation_id=evaluation_id,
             model_id=model_id,
             evaluation_name=eval_name,
-            sample_id=sample.get("doc_id", 0),
+            sample_id=str(sample.get("doc_id", 0)),
             sample_hash=sample_hash,
             interaction_type=InteractionType.single_turn,
             input=Input(
                 raw=prompt,
-                reference=target,
+                reference=[target],
                 choices=self._extract_choices(sample),
             ),
-            output=Output(raw=raw_output),
+            output=Output(raw=[raw_output]),
             answer_attribution=answer_attribution,
             evaluation=Evaluation(
                 score=score,
                 is_correct=is_correct,
             ),
             metadata={
-                "doc_hash": sample.get("doc_hash"),
-                "prompt_hash": sample.get("prompt_hash"),
-                "target_hash": sample.get("target_hash"),
-                "filter": filter_name,
-                "lm_eval_metrics": {
+                "doc_hash": str(sample.get("doc_hash", "")),
+                "prompt_hash": str(sample.get("prompt_hash", "")),
+                "target_hash": str(sample.get("target_hash", "")),
+                "filter": str(filter_name),
+                "lm_eval_metrics": json.dumps({
                     m: sample.get(m) for m in metrics if m in sample
-                },
+                }),
             },
         )
 
