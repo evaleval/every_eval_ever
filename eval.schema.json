@@ -344,15 +344,15 @@
                                 "description": "Parameters used to generate results - properties may vary by model type",
                                 "properties": {
                                     "temperature": {
-                                        "type": "number",
+                                        "type": ["null", "number"],
                                         "description": "Sampling temperature"
                                     },
                                     "top_p": {
-                                        "type": "number",
+                                        "type": ["null", "number"],
                                         "description": "Nucleus sampling parameter"
                                     },
                                     "top_k": {
-                                        "type": "number",
+                                        "type": ["null", "number"],
                                         "description": "Top-k sampling parameter"
                                     },
                                     "max_tokens": {

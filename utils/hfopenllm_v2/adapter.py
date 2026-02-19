@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from eval_types import (
+    EvalLibrary,
     EvaluationLog,
     EvaluationResult,
     EvaluatorRelationship,
@@ -146,7 +147,7 @@ def convert_model(model_data: Dict[str, Any], retrieved_timestamp: str) -> Evalu
     evaluation_id = f"hfopenllm_v2/{developer}_{model_name}/{retrieved_timestamp}"
 
     return EvaluationLog(
-        schema_version="0.2.0",
+        schema_version="0.2.1",
         evaluation_id=evaluation_id,
         retrieved_timestamp=retrieved_timestamp,
         source_metadata=make_source_metadata(
@@ -154,6 +155,7 @@ def convert_model(model_data: Dict[str, Any], retrieved_timestamp: str) -> Evalu
             organization_name="Hugging Face",
             evaluator_relationship=EvaluatorRelationship.third_party,
         ),
+        eval_library=EvalLibrary(name="unknown", version="unknown"),
         model_info=model_info,
         evaluation_results=eval_results,
     )

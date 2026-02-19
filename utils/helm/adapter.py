@@ -12,6 +12,7 @@ Usage:
     uv run python -m utils.helm.adapter --leaderboard_name HELM_Lite --source_data_url <url>
 """
 
+import json
 import math
 import time
 from argparse import ArgumentParser
@@ -19,6 +20,7 @@ from collections import defaultdict
 from typing import Any, Dict, List, Tuple
 
 from eval_types import (
+    EvalLibrary,
     EvaluationLog,
     EvaluationResult,
     EvaluatorRelationship,
@@ -259,15 +261,13 @@ def convert(
                         else f"{full_eval_name} - {tab_name}"
                     )
 
-                    setattr(
-                        existing.score_details.details,
-                        detail_key,
-                        {
-                            "description": cell.get("description"),
-                            "tab": tab_name,
-                            "score": cell.get("value"),
-                        }
-                    )
+                    if existing.score_details.details is None:
+                        existing.score_details.details = {}
+                    existing.score_details.details[detail_key] = json.dumps({
+                        "description": str(cell.get("description", "")),
+                        "tab": tab_name,
+                        "score": str(cell.get("value", "")),
+                    })
                 
     # Save evaluation logs
     for model_name, results_by_metric in model_results.items():
@@ -281,7 +281,7 @@ def convert(
         )
 
         eval_log = EvaluationLog(
-            schema_version="0.2.0",
+            schema_version="0.2.1",
             evaluation_id=evaluation_id,
             retrieved_timestamp=retrieved_timestamp,
             source_metadata=make_source_metadata(
@@ -289,6 +289,7 @@ def convert(
                 organization_name="crfm",
                 evaluator_relationship=EvaluatorRelationship.third_party,
             ),
+            eval_library=EvalLibrary(name="unknown", version="unknown"),
             model_info=model_info,
             evaluation_results=list(results_by_metric.values()),
         )

@@ -14,6 +14,7 @@ from typing import List
 
 from eval_types import (
     ConfidenceInterval,
+    EvalLibrary,
     EvaluationLog,
     EvaluationResult,
     EvaluatorRelationship,
@@ -167,7 +168,7 @@ def fetch_global_mmlu_lite(retrieved_timestamp: str) -> int:
         # Build evaluation log
         evaluation_id = f"global-mmlu-lite/{model_info.id.replace('/', '_')}/{retrieved_timestamp}"
         eval_log = EvaluationLog(
-            schema_version="0.2.0",
+            schema_version="0.2.1",
             evaluation_id=evaluation_id,
             retrieved_timestamp=retrieved_timestamp,
             source_metadata=make_source_metadata(
@@ -176,6 +177,7 @@ def fetch_global_mmlu_lite(retrieved_timestamp: str) -> int:
                 organization_url="www.kaggle.com",
                 evaluator_relationship=EvaluatorRelationship.third_party,
             ),
+            eval_library=EvalLibrary(name="unknown", version="unknown"),
             model_info=model_info,
             evaluation_results=eval_results,
         )

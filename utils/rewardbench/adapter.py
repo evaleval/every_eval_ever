@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from eval_types import (
+    EvalLibrary,
     EvaluationLog,
     EvaluationResult,
     EvaluatorRelationship,
@@ -40,7 +41,7 @@ from helpers import (
 )
 
 # Schema version
-SCHEMA_VERSION = "0.2.0"
+SCHEMA_VERSION = "0.2.1"
 
 # Data source URLs
 REWARDBENCH_V1_CSV = "https://huggingface.co/spaces/allenai/reward-bench/resolve/main/leaderboard/final-rbv1-data.csv"
@@ -221,6 +222,7 @@ def fetch_rewardbench_v1(retrieved_timestamp: str) -> int:
             evaluation_id=evaluation_id,
             retrieved_timestamp=retrieved_timestamp,
             source_metadata=V1_SOURCE_METADATA,
+            eval_library=EvalLibrary(name="unknown", version="unknown"),
             model_info=model_info,
             evaluation_results=eval_results,
         )
@@ -328,6 +330,7 @@ def fetch_rewardbench_v2(retrieved_timestamp: str) -> int:
                 evaluation_id=evaluation_id,
                 retrieved_timestamp=retrieved_timestamp,
                 source_metadata=V2_SOURCE_METADATA,
+                eval_library=EvalLibrary(name="unknown", version="unknown"),
                 model_info=model_info,
                 evaluation_results=eval_results,
             )
