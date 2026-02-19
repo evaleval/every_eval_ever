@@ -93,6 +93,13 @@
                 "version": {
                     "type": "string",
                     "description": "Version of the evaluation library. Use 'unknown' if the version is not available."
+                },
+                "additional_details": {
+                    "type": "object",
+                    "description": "Additional parameters (key-value pairs, all values must be strings)",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 }
             },
             "required": [
@@ -229,6 +236,13 @@
                                             "type": "string"
                                         }
                                     }
+                                }
+                            },
+                            "additional_details": {
+                                "type": "object",
+                                "description": "Additional parameters (key-value pairs, all values must be strings)",
+                                "additionalProperties": {
+                                    "type": "string"
                                 }
                             }
                         },
@@ -525,6 +539,13 @@
                 "total_rows": {
                     "type": "integer",
                     "description": "Total number of rows in the detailed evaluation results file"
+                },
+                "additional_details": {
+                    "type": "object",
+                    "description": "Additional parameters (key-value pairs, all values must be strings)",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 }
             }
         }
@@ -546,6 +567,13 @@
                 "weight": {
                     "type": "number",
                     "description": "Weight of this judge's score in aggregation (used in jury)"
+                },
+                "additional_details": {
+                    "type": "object",
+                    "description": "Additional parameters (key-value pairs, all values must be strings)",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 }
             }
         },
