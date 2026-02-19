@@ -238,7 +238,7 @@ class HELMAdapter(BaseEvaluationAdapter):
             dataset_name=dataset_name,
             source_type="hf_dataset",
             samples_number=len(set(state.instance.id for state in request_states)),
-            sample_ids=[state.instance.id for state in request_states],
+            sample_ids=[str(state.instance.id) for state in request_states],
             additional_details={
                 "scenario_name": str(run_spec.scenario_spec.class_name),
                 "scenario_args": json.dumps(run_spec.scenario_spec.args) if run_spec.scenario_spec.args else ""
