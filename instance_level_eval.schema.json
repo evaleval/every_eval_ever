@@ -29,7 +29,11 @@
         },
         "evaluation_name": {
             "type": "string",
-            "description": "The specific eval name, ideally unique (e.g. GSM8K, mmlu_physics)"
+            "description": "The specific eval name, ideally unique (e.g. GSM8K, mmlu_physics). Primarily for display/filtering when evaluation_result_id is unavailable."
+        },
+        "evaluation_result_id": {
+            "type": "string",
+            "description": "Preferred deterministic foreign key to aggregate evaluation_results[].evaluation_result_id."
         },
         "sample_id": {
             "type": "string",
