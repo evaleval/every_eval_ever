@@ -56,6 +56,15 @@
                         "type": "string"
                     }
                 }
+            },
+            "if": {
+                "anyOf": [
+                    {"required": ["run_fingerprint"]},
+                    {"required": ["content_hash"]}
+                ]
+            },
+            "then": {
+                "required": ["hash_algorithm"]
             }
         },
         "evaluation_timestamp": {
