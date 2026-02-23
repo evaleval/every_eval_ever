@@ -22,6 +22,42 @@
             "type": "string",
             "description": "Unique identifier for this specific evaluation run. Use eval_name/model_id/retrieved_timestamp format"
         },
+        "dedupe_identity": {
+            "type": "object",
+            "description": "Optional deterministic identifiers for idempotent ingestion and cross-contributor auditability.",
+            "properties": {
+                "run_fingerprint": {
+                    "type": "string",
+                    "description": "Content-derived fingerprint for evaluation settings/configuration. Stable across contributors when canonicalization is shared."
+                },
+                "content_hash": {
+                    "type": "string",
+                    "description": "Hash of canonicalized aggregate record content or source artifact."
+                },
+                "hash_algorithm": {
+                    "type": "string",
+                    "enum": [
+                        "sha256",
+                        "sha1",
+                        "md5",
+                        "blake3",
+                        "other"
+                    ],
+                    "description": "Hash algorithm used for run_fingerprint/content_hash."
+                },
+                "canonicalization_version": {
+                    "type": "string",
+                    "description": "Version/spec name of the canonicalization procedure used before hashing."
+                },
+                "additional_details": {
+                    "type": "object",
+                    "description": "Additional parameters (key-value pairs, all values must be strings)",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "evaluation_timestamp": {
             "type": "string",
             "description": "Timestamp for when the evaluation was run"
