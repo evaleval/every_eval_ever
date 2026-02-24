@@ -28,10 +28,12 @@
             "properties": {
                 "run_fingerprint": {
                     "type": "string",
+                    "pattern": "^[a-fA-F0-9]+$",
                     "description": "Content-derived fingerprint for evaluation settings/configuration. Stable across contributors when canonicalization is shared."
                 },
                 "content_hash": {
                     "type": "string",
+                    "pattern": "^[a-fA-F0-9]+$",
                     "description": "Hash of canonicalized aggregate record content or source artifact."
                 },
                 "hash_algorithm": {
