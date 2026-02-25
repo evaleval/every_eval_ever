@@ -1,3 +1,4 @@
+import contextlib
 from pathlib import Path
 import tempfile
 
@@ -57,6 +58,28 @@ def test_pubmedqa_eval():
 
     assert converted_eval.detailed_evaluation_results is not None
     assert converted_eval.detailed_evaluation_results.format is not None
+    assert converted_eval.detailed_evaluation_results.total_rows == 2
+
+
+def test_transform_without_metadata_args_uses_defaults(tmp_path):
+    adapter = InspectAIAdapter()
+    eval_file = (
+        Path(__file__).resolve().parent
+        / "data/inspect/data_pubmedqa_gpt4o_mini.json"
+    )
+    with contextlib.chdir(tmp_path):
+        converted_eval = adapter.transform_from_file(
+            eval_file.as_posix(),
+            metadata_args=None,
+        )
+
+    assert isinstance(converted_eval, EvaluationLog)
+    assert converted_eval.source_metadata.source_organization_name == 'unknown'
+    assert (
+        converted_eval.source_metadata.evaluator_relationship
+        == EvaluatorRelationship.third_party
+    )
+    assert converted_eval.detailed_evaluation_results is not None
     assert converted_eval.detailed_evaluation_results.total_rows == 2
 
 

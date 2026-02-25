@@ -30,6 +30,7 @@ from eval_types import (
     EvalLibrary,
     EvaluationLog,
     EvaluationResult,
+    EvaluatorRelationship,
     Format,
     GenerationArgs,
     GenerationConfig,
@@ -341,6 +342,8 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         dir_path: Union[str, Path],
         metadata_args: Dict[str, Any] = None
     ) -> List[EvaluationLog]:
+        metadata_args = metadata_args or {}
+
         if isinstance(dir_path, str):
             dir_path = Path(dir_path)
 
@@ -362,6 +365,8 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         EvaluationLog,
         List[EvaluationLog]
     ]:
+        metadata_args = metadata_args or {}
+
         if not os.path.exists(file_path):
             raise FileNotFoundError(f'File path {file_path} does not exists!')
         
@@ -381,6 +386,8 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         raw_data: Tuple[EvalLog, List[EvalSampleSummary], EvalSample | None], 
         metadata_args: Dict[str, Any]
     ) -> EvaluationLog:
+        metadata_args = metadata_args or {}
+
         raw_eval_log, sample_summaries, single_sample = raw_data
         eval_spec: EvalSpec = raw_eval_log.eval
         eval_stats: EvalStats = raw_eval_log.stats
@@ -398,13 +405,21 @@ class InspectAIAdapter(BaseEvaluationAdapter):
             version=library_version or metadata_args.get("eval_library_version", "unknown"),
         )
 
+        evaluator_relationship = metadata_args.get(
+            "evaluator_relationship", EvaluatorRelationship.third_party
+        )
+        if isinstance(evaluator_relationship, str):
+            evaluator_relationship = EvaluatorRelationship(evaluator_relationship)
+
         source_metadata = SourceMetadata(
             source_name='inspect_ai',
             source_type=SourceType.evaluation_run,
-            source_organization_name=metadata_args.get('source_organization_name'),
+            source_organization_name=metadata_args.get(
+                'source_organization_name', 'unknown'
+            ),
             source_organization_url=metadata_args.get('source_organization_url'),
             source_organization_logo_url=metadata_args.get('source_organization_logo_url'),
-            evaluator_relationship=metadata_args.get('evaluator_relationship')
+            evaluator_relationship=evaluator_relationship,
         )
 
         source_data = self._extract_source_data(
@@ -448,15 +463,21 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         )
 
         evaluation_id = f'{source_data.dataset_name}/{model_path.replace('/', '_')}/{evaluation_unix_timestamp}'
-        
-        model_dev, model_name = model_info.id.split('/')
-        parent_eval_output_dir = metadata_args.get('parent_eval_output_dir')
-        evaluation_dir = f'{parent_eval_output_dir}/{source_data.dataset_name}/{model_dev}/{model_name}'
-        detailed_results_id = f'{metadata_args.get('file_uuid')}_samples'
-        
+
         evaluation_name = eval_spec.dataset.name or eval_spec.task
 
-        if raw_eval_log.samples:
+        parent_eval_output_dir = metadata_args.get("parent_eval_output_dir", "data")
+        if raw_eval_log.samples and parent_eval_output_dir:
+            if "/" in model_info.id:
+                model_dev, model_name = model_info.id.split("/", 1)
+            else:
+                model_dev, model_name = "unknown", model_info.id
+            evaluation_dir = (
+                f"{parent_eval_output_dir}/{source_data.dataset_name}/{model_dev}/{model_name}"
+            )
+            file_uuid = metadata_args.get("file_uuid") or "none"
+            detailed_results_id = f"{file_uuid}_samples"
+
             instance_level_log_path, instance_level_rows_number = InspectInstanceLevelDataAdapter(
                 detailed_results_id, Format.jsonl.value, HashAlgorithm.sha256.value, evaluation_dir
             ).convert_instance_level_logs(
