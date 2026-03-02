@@ -81,7 +81,7 @@ class InspectInstanceLevelDataAdapter:
                 ToolCall(
                     id=tool_call.id,
                     name=tool_call.function,
-                    arguments={str(k): str(v) for k, v in tool_call.arguments.items()} if tool_call.arguments else None
+                    arguments={str(k): json.dumps(v) for k, v in tool_call.arguments.items()} if tool_call.arguments else None
                 )
                 for tool_call in message.tool_calls or []
             ]

@@ -93,10 +93,10 @@ def extract_generation_config(run_specs: List[str]) -> Dict[str, Any]:
 
     # Collapse values if they are identical
     for key, values in list(generation_config.items()):
-        if len(set(values)) == 1:
+        if isinstance(values, list) and len(set(values)) == 1:
             values = values[0]
 
-        generation_config[key] = str(values)
+        generation_config[key] = json.dumps(values)
 
     return dict(generation_config)
 
@@ -208,7 +208,7 @@ def convert(
                 if metric_name:
                     evaluation_description = f'{metric_name} on {dataset_name}'
                 else:
-                    evaluation_description = header.get("description")
+                    evaluation_description = header.get("description", "")
 
                 if is_new_metric:
                     metric_config = MetricConfig(
@@ -248,7 +248,7 @@ def convert(
                                 else -1
                             ),
                             details={
-                                "description": str(cell.get("description")),
+                                "description": str(cell.get("description", "")),
                                 "tab": str(tab_name),
                             },
                         ),

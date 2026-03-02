@@ -240,7 +240,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
                 name=self._safe_get(tool, 'name'),
                 description=self._safe_get(tool, 'description'),
                 parameters=(
-                    {str(k): str(v) for k, v in raw_params.items()}
+                    {str(k): json.dumps(v) for k, v in raw_params.items()}
                     if (raw_params := self._safe_get(tool, 'params')) and isinstance(raw_params, dict)
                     else None
                 ),
@@ -267,7 +267,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
     ) -> GenerationConfig:
         eval_config = spec.model_generate_config
         eval_generation_config = {
-            gen_config: str(value) 
+            gen_config: json.dumps(value) 
             for gen_config, value in vars(eval_config).items() if value is not None
         }
         eval_sandbox = spec.task_args.get("sandbox", None)
@@ -281,7 +281,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
                 json.dumps(step.model_dump() if hasattr(step, 'model_dump') else vars(step))
                 for step in inspect_plan.steps
             ],
-            config={k: str(v) for k, v in inspect_plan.config.model_dump().items() if v is not None},
+            config={str(k): json.dumps(v) for k, v in inspect_plan.config.model_dump().items() if v is not None},
         )
 
         eval_limits = EvalLimits(
