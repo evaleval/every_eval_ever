@@ -1,13 +1,24 @@
 import json
 
-from helm.benchmark.adaptation.scenario_state import (
-    RequestState
-)
-
 from pathlib import Path
-from typing import List, Tuple
+from typing import Any, List, Tuple
 
-from instance_level_types import (
+_HELM_IMPORT_ERROR: Exception | None = None
+try:
+    from helm.benchmark.adaptation.scenario_state import RequestState
+except Exception as ex:  # pragma: no cover - exercised only when optional deps missing
+    _HELM_IMPORT_ERROR = ex
+    RequestState = Any  # type: ignore[assignment]
+
+
+def _require_helm_dependencies() -> None:
+    if _HELM_IMPORT_ERROR is not None:
+        raise ImportError(
+            "HELM converter dependencies are missing. "
+            "Install with: pip install 'every_eval_ever[helm]'"
+        ) from _HELM_IMPORT_ERROR
+
+from every_eval_ever.instance_level_types import (
     AnswerAttributionItem,
     Evaluation,
     Input,
@@ -18,9 +29,9 @@ from instance_level_types import (
     TokenUsage,
 )
 
-from eval_converters import SCHEMA_VERSION
-from eval_converters.common.utils import sha256_string
-from eval_converters.helm.utils import extract_all_reasonings
+from every_eval_ever.converters import SCHEMA_VERSION
+from every_eval_ever.converters.common.utils import sha256_string
+from every_eval_ever.converters.helm.utils import extract_all_reasonings
 
 
 class HELMInstanceLevelDataAdapter:
@@ -31,6 +42,7 @@ class HELMInstanceLevelDataAdapter:
         hash_algorithm: str, 
         evaluation_dir: str
     ):
+        _require_helm_dependencies()
         self.evaluation_id = evaulation_id
         self.format = format
         self.hash_algorithm = hash_algorithm

@@ -1,5 +1,9 @@
-from typing import List
-from helm.benchmark.adaptation.scenario_state import RequestState
+from typing import Any, List
+
+try:
+    from helm.benchmark.adaptation.scenario_state import RequestState
+except Exception:  # pragma: no cover - exercised only when optional deps missing
+    RequestState = Any  # type: ignore[assignment]
 
 def extract_reasoning(request_state: RequestState) -> str | None:
     if request_state.result and request_state.result.completions:

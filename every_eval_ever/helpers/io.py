@@ -5,7 +5,7 @@ import uuid
 from pathlib import Path
 from typing import Union
 
-from eval_types import EvaluationLog
+from every_eval_ever.eval_types import EvaluationLog
 
 
 def sanitize_filename(name: str) -> str:

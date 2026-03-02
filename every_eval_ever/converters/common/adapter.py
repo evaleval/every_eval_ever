@@ -7,8 +7,8 @@ from huggingface_hub import model_info
 from pathlib import Path
 from typing import Any, Dict, List, Tuple, Union
 
-from eval_converters.common.error import AdapterError, TransformationError
-from eval_types import EvaluationLog
+from every_eval_ever.converters.common.error import AdapterError, TransformationError
+from every_eval_ever.eval_types import EvaluationLog
 
 @dataclass
 class AdapterMetadata:

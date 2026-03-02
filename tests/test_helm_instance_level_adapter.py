@@ -2,9 +2,9 @@ import json
 import tempfile
 from pathlib import Path
 
-from eval_converters.helm.adapter import HELMAdapter
-from eval_types import EvaluatorRelationship
-from instance_level_types import InstanceLevelEvaluationLog, InteractionType
+from every_eval_ever.converters.helm.adapter import HELMAdapter
+from every_eval_ever.eval_types import EvaluatorRelationship
+from every_eval_ever.instance_level_types import InstanceLevelEvaluationLog, InteractionType
 
 
 def _load_instance_level_data(adapter, filepath, metadata_args):

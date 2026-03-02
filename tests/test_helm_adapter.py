@@ -1,8 +1,8 @@
 from pathlib import Path
 import tempfile
 
-from eval_converters.helm.adapter import HELMAdapter
-from eval_types import (
+from every_eval_ever.converters.helm.adapter import HELMAdapter
+from every_eval_ever.eval_types import (
     EvaluationLog,
     EvaluatorRelationship,
     SourceDataHf,

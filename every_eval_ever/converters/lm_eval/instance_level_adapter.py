@@ -5,9 +5,9 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-from eval_converters import SCHEMA_VERSION
-from eval_types import DetailedEvaluationResults, Format, HashAlgorithm
-from instance_level_types import (
+from every_eval_ever.converters import SCHEMA_VERSION
+from every_eval_ever.eval_types import DetailedEvaluationResults, Format, HashAlgorithm
+from every_eval_ever.instance_level_types import (
     AnswerAttributionItem,
     Evaluation,
     Input,

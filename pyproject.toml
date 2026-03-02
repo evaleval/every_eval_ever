@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "every-eval-ever"
 version = "0.1.0"
@@ -8,14 +12,32 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
-    "crfm-helm>=0.5.12",
-    "datamodel-code-generator[ruff]>=0.52.2",
     "huggingface-hub>=0.36.0,<1.0.0",
-    "inspect-ai>=0.3.160,<0.4.0",
     "jsonschema>=4.26.0,<5.0.0",
     "pydantic>=2.12.5,<3.0.0",
     "requests>=2.32.5,<3.0.0",
 ]
+
+[project.optional-dependencies]
+inspect = ["inspect-ai>=0.3.160,<0.4.0"]
+helm = ["crfm-helm>=0.5.12", "dacite>=1.9.2,<2.0.0"]
+all = [
+    "inspect-ai>=0.3.160,<0.4.0",
+    "crfm-helm>=0.5.12",
+    "dacite>=1.9.2,<2.0.0",
+]
+
+[project.scripts]
+every_eval_ever = "every_eval_ever.cli:main"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["every_eval_ever*"]
+
+[tool.setuptools.package-data]
+every_eval_ever = ["schemas/*.json"]
 
 [dependency-groups]
 dev = [

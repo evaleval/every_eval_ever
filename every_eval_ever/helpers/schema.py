@@ -3,7 +3,7 @@
 import time
 from typing import Any, Dict, List, Optional
 
-from eval_types import (
+from every_eval_ever.eval_types import (
     EvaluationLog,
     EvaluationResult,
     EvaluatorRelationship,
@@ -113,6 +113,7 @@ def make_source_metadata(
     source_type: str = "documentation",
     evaluator_relationship: EvaluatorRelationship = EvaluatorRelationship.third_party,
     organization_url: Optional[str] = None,
+    additional_details: Optional[Dict[str, str]] = None,
 ) -> SourceMetadata:
     """
     Create SourceMetadata for an evaluation source.
@@ -123,6 +124,7 @@ def make_source_metadata(
         source_type: Either "documentation" or "evaluation_run"
         evaluator_relationship: Relationship to model developer
         organization_url: Optional URL for the organization
+        additional_details: Optional extra metadata key-values
 
     Returns:
         Configured SourceMetadata instance
@@ -133,6 +135,7 @@ def make_source_metadata(
         source_organization_name=organization_name,
         source_organization_url=organization_url,
         evaluator_relationship=evaluator_relationship,
+        additional_details=additional_details,
     )
 
 

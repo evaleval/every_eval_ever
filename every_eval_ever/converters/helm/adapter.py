@@ -3,17 +3,28 @@ import os
 import datetime
 from typing import Any, Dict, List, Tuple
 from pathlib import Path
-from dacite import from_dict
 
-from helm.benchmark.metrics.metric import PerInstanceStats
-from helm.benchmark.adaptation.scenario_state import AdapterSpec, RequestState, ScenarioState
-from helm.benchmark.metrics.statistic import Stat
-from helm.benchmark.config_registry import register_builtin_configs_from_helm_package
-from helm.benchmark.model_deployment_registry import get_model_deployment
-from helm.benchmark.run_spec import RunSpec
-from helm.common.codec import from_json
+_HELM_IMPORT_ERROR: Exception | None = None
+try:
+    from dacite import from_dict
+    from helm.benchmark.metrics.metric import PerInstanceStats
+    from helm.benchmark.adaptation.scenario_state import (
+        AdapterSpec,
+        RequestState,
+        ScenarioState,
+    )
+    from helm.benchmark.metrics.statistic import Stat
+    from helm.benchmark.config_registry import register_builtin_configs_from_helm_package
+    from helm.benchmark.model_deployment_registry import get_model_deployment
+    from helm.benchmark.run_spec import RunSpec
+    from helm.common.codec import from_json
+except Exception as ex:  # pragma: no cover - exercised only when optional deps missing
+    _HELM_IMPORT_ERROR = ex
+    from_dict = None  # type: ignore[assignment]
+    PerInstanceStats = AdapterSpec = RequestState = ScenarioState = Stat = RunSpec = Any  # type: ignore[assignment]
+    get_model_deployment = register_builtin_configs_from_helm_package = from_json = None  # type: ignore[assignment]
 
-from eval_types import (
+from every_eval_ever.eval_types import (
     DetailedEvaluationResults,
     EvalLibrary,
     EvaluationLog,
@@ -32,19 +43,29 @@ from eval_types import (
     Uncertainty
 )
 
-from instance_level_types import (
+from every_eval_ever.instance_level_types import (
     InstanceLevelEvaluationLog
 )
 
-from eval_converters.common.adapter import AdapterMetadata, BaseEvaluationAdapter, SupportedLibrary
-from eval_converters.common.utils import sha256_file
-from eval_converters.helm.utils import extract_reasoning
-from eval_converters.helm.instance_level_adapter import (
+from every_eval_ever.converters.common.adapter import AdapterMetadata, BaseEvaluationAdapter, SupportedLibrary
+from every_eval_ever.converters.common.utils import sha256_file
+from every_eval_ever.converters.helm.utils import extract_reasoning
+from every_eval_ever.converters.helm.instance_level_adapter import (
     HELMInstanceLevelDataAdapter
 )
-from eval_converters import SCHEMA_VERSION
+from every_eval_ever.converters import SCHEMA_VERSION
 
-register_builtin_configs_from_helm_package()
+
+def _require_helm_dependencies() -> None:
+    if _HELM_IMPORT_ERROR is not None:
+        raise ImportError(
+            "HELM converter dependencies are missing. "
+            "Install with: pip install 'every_eval_ever[helm]'"
+        ) from _HELM_IMPORT_ERROR
+
+
+if register_builtin_configs_from_helm_package is not None:
+    register_builtin_configs_from_helm_package()
 
 
 class HELMAdapter(BaseEvaluationAdapter):
@@ -301,7 +322,7 @@ class HELMAdapter(BaseEvaluationAdapter):
 
         if request_states:
             parent_eval_output_dir = metadata_args.get('parent_eval_output_dir')
-            detailed_results_id = f'{metadata_args.get('file_uuid')}_samples'
+            detailed_results_id = f"{metadata_args.get('file_uuid')}_samples"
             model_dev, model_name = model_info.id.split('/', 1)
             evaluation_dir = f'{parent_eval_output_dir}/{source_data.dataset_name}/{model_dev}/{model_name}'
 
@@ -350,3 +371,6 @@ class HELMAdapter(BaseEvaluationAdapter):
         )
 
         return eval_log
+    def __init__(self, strict_validation: bool = True):
+        _require_helm_dependencies()
+        super().__init__(strict_validation)

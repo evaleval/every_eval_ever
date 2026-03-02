@@ -9,10 +9,9 @@ Usage:
 """
 
 import time
-from pathlib import Path
 from typing import Any, Dict, List
 
-from eval_types import (
+from every_eval_ever.eval_types import (
     EvalLibrary,
     EvaluationLog,
     EvaluationResult,
@@ -23,10 +22,7 @@ from eval_types import (
     SourceDataHf,
 )
 
-import sys
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from helpers import (
+from every_eval_ever.helpers import (
     fetch_json,
     get_developer,
     make_model_info,

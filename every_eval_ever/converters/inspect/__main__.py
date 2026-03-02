@@ -6,12 +6,12 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Tuple, Union
 
-from eval_converters.inspect.adapter import InspectAIAdapter
-from eval_types import (
+from every_eval_ever.converters.inspect.adapter import InspectAIAdapter
+from every_eval_ever.eval_types import (
     EvaluatorRelationship,
     EvaluationLog
 )
-from instance_level_types import InstanceLevelEvaluationLog
+from every_eval_ever.instance_level_types import InstanceLevelEvaluationLog
 
 def parse_args():
     parser = ArgumentParser()
