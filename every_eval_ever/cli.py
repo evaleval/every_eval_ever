@@ -14,6 +14,7 @@ from every_eval_ever.converters.inspect.adapter import InspectAIAdapter
 from every_eval_ever.converters.lm_eval.adapter import LMEvalAdapter
 from every_eval_ever.converters.lm_eval.instance_level_adapter import LMEvalInstanceLevelAdapter
 from every_eval_ever.converters.lm_eval.utils import find_samples_file
+from every_eval_ever.check_duplicate_entries import main as check_duplicates_main
 from every_eval_ever.eval_types import EvaluationLog, EvaluatorRelationship
 from every_eval_ever.validate import main as validate_main
 
@@ -50,17 +51,6 @@ def _write_log(log: EvaluationLog, base_output: Path, eval_uuid: str | None = No
     with out_file.open("w", encoding="utf-8") as file:
         json.dump(log.model_dump(mode="json", exclude_none=True), file, indent=2)
     return out_file
-
-
-def _cmd_convert_help(args: argparse.Namespace) -> int:
-    src = args.src or "<src>"
-    dst = args.dst or "<dst>"
-    print("Usage examples:")
-    print(f"  every_eval_ever convert {src} {dst} --log-path <path> --output-dir data")
-    print("  every_eval_ever convert lm_eval eee --log-path results_*.json --include-samples")
-    print("  every_eval_ever convert inspect eee --log-path <inspect-log-or-dir>")
-    print("  every_eval_ever convert helm eee --log-path <helm-run-dir>")
-    return 0
 
 
 def _cmd_convert_lm_eval(args: argparse.Namespace) -> int:
@@ -153,12 +143,14 @@ def build_parser() -> argparse.ArgumentParser:
     validate_parser.add_argument("--schema-path", default=None)
     validate_parser.add_argument("--schema", choices=["aggregate", "instance"], default="aggregate")
 
+    check_duplicates_parser = subparsers.add_parser(
+        "check-duplicates",
+        help="Detect duplicate evaluation JSON entries",
+    )
+    check_duplicates_parser.add_argument("paths", nargs="+", help="File or directory paths")
+
     convert_parser = subparsers.add_parser("convert", help="Convert source eval logs to every_eval_ever")
     convert_subparsers = convert_parser.add_subparsers(dest="source", required=True)
-
-    help_parser = convert_subparsers.add_parser("help", help="Show convert usage")
-    help_parser.add_argument("src", nargs="?")
-    help_parser.add_argument("dst", nargs="?")
 
     for source in ["lm_eval", "inspect", "helm"]:
         source_parser = convert_subparsers.add_parser(source)
@@ -196,10 +188,10 @@ def main(argv: list[str] | None = None) -> int:
             *( ["--schema-path", args.schema_path] if args.schema_path else [] ),
         ])
 
-    if args.command == "convert":
-        if args.source == "help":
-            return _cmd_convert_help(args)
+    if args.command == "check-duplicates":
+        return check_duplicates_main(args.paths)
 
+    if args.command == "convert":
         if getattr(args, "dst", "eee") != "eee":
             raise ValueError("Only destination 'eee' is currently supported")
 

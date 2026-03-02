@@ -21,7 +21,7 @@ def _require_inspect_dependencies() -> None:
     if _INSPECT_IMPORT_ERROR is not None:
         raise ImportError(
             "Inspect converter dependencies are missing. "
-            "Install with: pip install 'every-eval-ever[inspect]'"
+            "Install with: pip install 'every_eval_ever[inspect]'"
         ) from _INSPECT_IMPORT_ERROR
 
 from every_eval_ever.instance_level_types import (

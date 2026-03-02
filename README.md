@@ -38,7 +38,7 @@ Leaderboard/evaluation data is split-up into files by individual model, and data
 ### TL;DR How to successfully submit
 
 1. Data must conform to [`eval.schema.json`](every_eval_ever/schemas/eval.schema.json) (current version: `0.2.0`)
-2. Validation runs automatically on every PR via [`validate_data.py`](every_eval_ever/validate.py)
+2. Validation runs automatically on every PR via [`every_eval_ever validate`](every_eval_ever/validate.py)
 3. An EvalEval member will review and merge your submission
 
 ### PR Naming Convention
@@ -71,7 +71,7 @@ Note: Each file can contain multiple individual results related to one model. Se
 2. For each model, use the Hugging Face (`developer_name/model_name`) naming convention to create a 2-tier folder structure.
 3. Add a JSON file with results for each model and name it `{uuid}.json`.
 4. [Optional] Include a [`utils/`](utils/) folder in your benchmark name folder with any scripts used to generate the data (see e.g. [`utils/global-mmlu-lite/adapter.py`](utils/global-mmlu-lite/adapter.py)).
-5. [Validate] Validation runs automatically via [`validate-data.yml`](.github/workflows/validate-data.yml) using [`validate_data.py`](every_eval_ever/validate.py) to check JSON files against the schema before merging.
+5. [Validate] Validation runs automatically via [`validate-data.yml`](.github/workflows/validate-data.yml) using [`every_eval_ever validate`](every_eval_ever/validate.py) to check JSON files against the schema before merging.
 6. [Submit] Two ways to submit your evaluation data:
    - **Option A: Drag & drop via Hugging Face** — Go to [evaleval/EEE_datastore](https://huggingface.co/datasets/evaleval/EEE_datastore) → click "Files and versions" → "Contribute" → "Upload files" → drag and drop your data → select "Open as a pull request to the main branch". See [step-by-step screenshots](https://docs.google.com/document/d/1dxTQF8ncGCzaAOIj0RX7E9Hg4THmUBzezDOYUp_XdCY/edit?usp=sharing).
    - **Option B: Clone & PR** — Clone the [Hugging Face repository](https://huggingface.co/datasets/evaleval/EEE_datastore), add your data under `data/`, and open a pull request
@@ -287,6 +287,12 @@ Validation command:
 
 ```bash
 every_eval_ever validate <path-or-dir>
+```
+
+Duplicate check command:
+
+```bash
+every_eval_ever check-duplicates <path-or-dir>
 ```
 
 For full CLI usage and required input files, see the [Eval Converters README](every_eval_ever/converters/README.md).

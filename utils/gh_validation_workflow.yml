@@ -4,12 +4,14 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'utils/validate_data.py'
+      - 'every_eval_ever/validate.py'
+      - 'every_eval_ever/check_duplicate_entries.py'
       - 'eval.schema.json'
       - 'data/**'
   pull_request:
     paths:
-      - 'utils/validate_data.py'
+      - 'every_eval_ever/validate.py'
+      - 'every_eval_ever/check_duplicate_entries.py'
       - 'eval.schema.json'
       - 'data/**'
 
@@ -34,7 +36,7 @@ jobs:
           enable-cache: false
 
       - name: Check for duplicate entries
-        run: uv run python utils/check_duplicate_entries.py data
+        run: uv run python -m every_eval_ever check-duplicates data
 
       - name: Validate data
-        run: uv run pre-commit run --all-files
+        run: uv run python -m every_eval_ever validate data --schema aggregate
