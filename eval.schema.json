@@ -122,6 +122,10 @@
                     "score_details"
                 ],
                 "properties": {
+                    "evaluation_result_id": {
+                        "type": "string",
+                        "description": "Stable identifier for this metric result inside an evaluation run. Recommended deterministic join key for instance-level records."
+                    },
                     "evaluation_name": {
                         "type": "string",
                         "description": "Name of the evaluation"
@@ -154,6 +158,34 @@
                             "evaluation_description": {
                                 "type": "string",
                                 "description": "Description of the evaluation"
+                            },
+                            "metric_id": {
+                                "type": "string",
+                                "description": "Stable metric identifier for joining/deduping/querying. Use a canonical global id when applicable (e.g. accuracy, f1_macro, auroc, rmse, pass_at_k). For benchmark/leaderboard-specific metrics, use a namespaced id (e.g. rewardbench.overall, lmarena.elo)."
+                            },
+                            "metric_name": {
+                                "type": "string",
+                                "description": "Display name for the metric (e.g. Accuracy, F1-macro, pass@1)."
+                            },
+                            "metric_kind": {
+                                "type": "string",
+                                "description": "Normalized metric family/type used for safe aggregation (e.g. accuracy, f1, auroc, rmse, mae, pass_rate, elo)."
+                            },
+                            "metric_unit": {
+                                "type": "string",
+                                "description": "Unit of the metric values (e.g. proportion, percent, points, ms, tokens)."
+                            },
+                            "metric_parameters": {
+                                "type": "object",
+                                "description": "Metric-specific parameters (e.g. {\"k\": 1} for pass@k).",
+                                "additionalProperties": {
+                                    "type": [
+                                        "string",
+                                        "number",
+                                        "boolean",
+                                        "null"
+                                    ]
+                                }
                             },
                             "lower_is_better": {
                                 "type": "boolean",

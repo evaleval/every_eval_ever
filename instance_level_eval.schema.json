@@ -29,7 +29,11 @@
         },
         "evaluation_name": {
             "type": "string",
-            "description": "The specific eval name, ideally unique (e.g. GSM8K, mmlu_physics)"
+            "description": "The specific eval name, ideally unique (e.g. GSM8K, mmlu_physics). Primarily for display/filtering when evaluation_result_id is unavailable. If an evaluation run reports multiple aggregate results/metrics for the same sample, emit multiple instance records (one per aggregate result) rather than trying to attach a single instance record to many aggregate results."
+        },
+        "evaluation_result_id": {
+            "type": "string",
+            "description": "Preferred deterministic foreign key to aggregate evaluation_results[].evaluation_result_id. This is intended to point to exactly one aggregate evaluation result; if a single underlying interaction/sample contributes to multiple aggregate results, emit multiple instance records with different evaluation_result_id values."
         },
         "sample_id": {
             "type": "string",
