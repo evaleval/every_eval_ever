@@ -1,17 +1,21 @@
 from __future__ import annotations
 from argparse import ArgumentParser
 import json
+import logging
 import uuid
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Tuple, Union
 
+from inspect_ai.log import list_eval_logs
 from eval_converters.inspect.adapter import InspectAIAdapter
 from eval_types import (
     EvaluatorRelationship,
     EvaluationLog
 )
 from instance_level_types import InstanceLevelEvaluationLog
+
+logger = logging.getLogger(__name__)
 
 def parse_args():
     parser = ArgumentParser()
@@ -81,9 +85,12 @@ class InspectEvalLogConverter:
             with open(unified_eval_path, 'w') as json_file:
                 json_file.write(json_str)
 
-            print(f'Unified eval log was successfully saved to {unified_eval_path} path.')
+            logger.info(
+                "Unified eval log was successfully saved to %s path.",
+                unified_eval_path,
+            )
         except Exception as e:
-            print(f"Problem with saving unified eval log to file: {e}")
+            logger.exception("Problem with saving unified eval log to file: %s", e)
             raise e
 
 def save_evaluation_log(
@@ -98,46 +105,86 @@ def save_evaluation_log(
         inspect_converter.save_to_file(unified_output, filedir, filename)
         return True
     except Exception as e:
-        print(f'Failed to save eval log {unified_output.evaluation_id} to file.\n{str(e)}')
+        logger.error(
+            "Failed to save eval log %s to file. %s",
+            unified_output.evaluation_id,
+            str(e),
+        )
         return False
+
+def extract_file_uuid_from_output(unified_output: EvaluationLog) -> str | None:
+    detailed = unified_output.detailed_evaluation_results
+    if detailed and detailed.file_path:
+        stem = Path(detailed.file_path).stem
+        suffix = "_samples"
+        if stem.endswith(suffix):
+            return stem[: -len(suffix)]
+    return None
 
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)
     args = parse_args()
 
     inspect_converter = InspectEvalLogConverter(
         log_path=args.log_path,
         output_dir=args.output_dir
     )
-    
-    file_uuid = str(uuid.uuid4())
 
-    metadata_args = {
+    base_metadata_args = {
         'source_organization_name': args.source_organization_name,
         'source_organization_url': args.source_organization_url,
         'source_organization_logo_url': args.source_organization_logo_url,
         'evaluator_relationship': EvaluatorRelationship(args.evaluator_relationship),
-        'file_uuid': file_uuid,
         'parent_eval_output_dir': args.output_dir,
         'eval_library_name': args.eval_library_name,
         'eval_library_version': args.eval_library_version,
     }
 
-    unified_output = inspect_converter.convert_to_unified_schema(metadata_args)
-    
-    if unified_output:
-        if isinstance(unified_output, List):
-            for single_unified_output in unified_output:
-                save_evaluation_log(
-                    single_unified_output,
-                    inspect_converter,
-                    file_uuid
-                )
+    if inspect_converter.is_log_path_directory:
+        log_paths: List[Path] = list_eval_logs(inspect_converter.log_path.absolute().as_posix())
+        if not log_paths:
+            logger.warning("Missing evaluations logs to convert!")
         else:
+            file_uuids = [str(uuid.uuid4()) for _ in log_paths]
+            metadata_args = {
+                **base_metadata_args,
+                "file_uuids": file_uuids,
+            }
+            unified_output = inspect_converter.convert_to_unified_schema(metadata_args)
+            if unified_output and isinstance(unified_output, List):
+                for idx, single_unified_output in enumerate(unified_output):
+                    file_uuid = file_uuids[idx] if idx < len(file_uuids) else None
+                    if not file_uuid:
+                        file_uuid = extract_file_uuid_from_output(single_unified_output)
+                    if not file_uuid:
+                        file_uuid = str(uuid.uuid4())
+                        logger.warning(
+                            "Missing UUID for output %s; generated %s for aggregate save.",
+                            single_unified_output.evaluation_id,
+                            file_uuid,
+                        )
+                    save_evaluation_log(
+                        single_unified_output,
+                        inspect_converter,
+                        file_uuid,
+                    )
+            else:
+                logger.warning("Missing unified schema result!")
+    else:
+        file_uuid = str(uuid.uuid4())
+        metadata_args = {
+            **base_metadata_args,
+            'file_uuid': file_uuid,
+        }
+
+        unified_output = inspect_converter.convert_to_unified_schema(metadata_args)
+        
+        if unified_output:
             save_evaluation_log(
                 unified_output,
                 inspect_converter,
-                file_uuid
+                file_uuid,
             )
-    else:
-        print("Missing unified schema result!")
+        else:
+            logger.warning("Missing unified schema result!")

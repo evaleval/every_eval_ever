@@ -14,6 +14,8 @@ from eval_types import (
 
 def _load_eval(adapter, filepath, metadata_args):
     eval_path = Path(filepath)
+    metadata_args = dict(metadata_args)
+    metadata_args.setdefault("file_uuid", "test-file-uuid")
     
     with tempfile.TemporaryDirectory() as tmpdir:
         metadata_args['parent_eval_output_dir'] = tmpdir
@@ -27,6 +29,13 @@ def _load_eval(adapter, filepath, metadata_args):
     assert converted_eval.source_metadata.source_type.value == 'evaluation_run'
 
     return converted_eval
+
+
+def _extract_file_uuid_from_detailed_results(converted_eval: EvaluationLog) -> str:
+    assert converted_eval.detailed_evaluation_results is not None
+    stem = Path(converted_eval.detailed_evaluation_results.file_path).stem
+    assert stem.endswith("_samples")
+    return stem[: -len("_samples")]
 
 
 def test_pubmedqa_eval():
@@ -61,7 +70,7 @@ def test_pubmedqa_eval():
     assert converted_eval.detailed_evaluation_results.total_rows == 2
 
 
-def test_transform_without_metadata_args_uses_defaults(tmp_path):
+def test_transform_without_metadata_args_uses_defaults(tmp_path, caplog):
     adapter = InspectAIAdapter()
     eval_file = (
         Path(__file__).resolve().parent
@@ -74,6 +83,7 @@ def test_transform_without_metadata_args_uses_defaults(tmp_path):
         )
 
     assert isinstance(converted_eval, EvaluationLog)
+    assert "Missing metadata_args['file_uuid']" in caplog.text
     assert converted_eval.source_metadata.source_organization_name == 'unknown'
     assert (
         converted_eval.source_metadata.evaluator_relationship
@@ -81,6 +91,70 @@ def test_transform_without_metadata_args_uses_defaults(tmp_path):
     )
     assert converted_eval.detailed_evaluation_results is not None
     assert converted_eval.detailed_evaluation_results.total_rows == 2
+    assert _extract_file_uuid_from_detailed_results(converted_eval) != "none"
+
+
+def test_transform_directory_assigns_unique_file_uuid_per_log():
+    adapter = InspectAIAdapter()
+    fixture_dir = Path(__file__).resolve().parent / "data/inspect"
+
+    with tempfile.TemporaryDirectory() as tmp_logs_dir, tempfile.TemporaryDirectory() as tmp_out_dir:
+        tmp_logs_path = Path(tmp_logs_dir)
+        fixture_targets = {
+            "data_pubmedqa_gpt4o_mini.json": "2026-02-01T11-00-00+00-00_pubmedqa_test1.json",
+            "data_arc_qwen.json": "2026-02-01T11-05-00+00-00_arc_test2.json",
+        }
+        for source_name, target_name in fixture_targets.items():
+            source = fixture_dir / source_name
+            target = tmp_logs_path / target_name
+            target.write_bytes(source.read_bytes())
+
+        converted_logs = adapter.transform_from_directory(
+            tmp_logs_path,
+            metadata_args={
+                "source_organization_name": "TestOrg",
+                "evaluator_relationship": EvaluatorRelationship.first_party,
+                "parent_eval_output_dir": tmp_out_dir,
+                "file_uuid": "shared-uuid",
+            },
+        )
+
+    assert len(converted_logs) == 2
+
+    uuids = {_extract_file_uuid_from_detailed_results(log) for log in converted_logs}
+    assert "shared-uuid" not in uuids
+    assert len(uuids) == 2
+
+
+def test_transform_directory_uses_file_uuids_metadata_when_provided():
+    adapter = InspectAIAdapter()
+    fixture_dir = Path(__file__).resolve().parent / "data/inspect"
+    expected_uuids = ["explicit-uuid-1", "explicit-uuid-2"]
+
+    with tempfile.TemporaryDirectory() as tmp_logs_dir, tempfile.TemporaryDirectory() as tmp_out_dir:
+        tmp_logs_path = Path(tmp_logs_dir)
+        fixture_targets = {
+            "data_pubmedqa_gpt4o_mini.json": "2026-02-01T11-00-00+00-00_pubmedqa_test1.json",
+            "data_arc_qwen.json": "2026-02-01T11-05-00+00-00_arc_test2.json",
+        }
+        for source_name, target_name in fixture_targets.items():
+            source = fixture_dir / source_name
+            target = tmp_logs_path / target_name
+            target.write_bytes(source.read_bytes())
+
+        converted_logs = adapter.transform_from_directory(
+            tmp_logs_path,
+            metadata_args={
+                "source_organization_name": "TestOrg",
+                "evaluator_relationship": EvaluatorRelationship.first_party,
+                "parent_eval_output_dir": tmp_out_dir,
+                "file_uuids": expected_uuids,
+            },
+        )
+
+    assert len(converted_logs) == 2
+    uuids = {_extract_file_uuid_from_detailed_results(log) for log in converted_logs}
+    assert uuids == set(expected_uuids)
 
 
 def test_arc_sonnet_eval():
@@ -188,6 +262,7 @@ def test_humaneval_eval():
     }
 
     converted_eval = _load_eval(adapter, 'tests/data/inspect/2026-02-24T11-23-20+00-00_humaneval_ENiBTeoXr2dbbNcDtpbVvq.json', metadata_args)
+    assert converted_eval.detailed_evaluation_results is not None
 
 def test_convert_model_path_to_standarized_model_ids():
     model_path_to_standarized_id_map = {

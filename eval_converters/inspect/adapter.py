@@ -1,5 +1,7 @@
 import json
 import os
+import uuid
+import logging
 
 from inspect_ai.log import (
     EvalDataset,
@@ -68,6 +70,9 @@ from eval_converters.inspect.utils import (
     extract_model_info_from_model_path
 )
 from eval_converters import SCHEMA_VERSION
+
+logger = logging.getLogger(__name__)
+
 
 class InspectAIAdapter(BaseEvaluationAdapter):
     """
@@ -353,8 +358,23 @@ class InspectAIAdapter(BaseEvaluationAdapter):
             raise FileNotFoundError(f"Directory path {dir_path} does not exist!")
         
         log_paths: List[Path] = list_eval_logs(dir_path.absolute().as_posix())
+        file_uuids = metadata_args.get("file_uuids")
         try:
-            return [self.transform_from_file(urlparse(log_path.name).path, metadata_args) for log_path in log_paths]
+            transformed_logs: List[EvaluationLog] = []
+            for idx, log_path in enumerate(log_paths):
+                # In directory mode, each converted log must get its own UUID.
+                per_log_metadata_args = dict(metadata_args)
+                file_uuid = None
+                if isinstance(file_uuids, list) and idx < len(file_uuids):
+                    file_uuid = file_uuids[idx]
+                per_log_metadata_args["file_uuid"] = file_uuid or str(uuid.uuid4())
+                transformed_logs.append(
+                    self.transform_from_file(
+                        urlparse(log_path.name).path,
+                        per_log_metadata_args,
+                    )
+                )
+            return transformed_logs
         except Exception as e:
             raise AdapterError(f"Failed to load file from directory {dir_path}: {str(e)} for InspectAIAdapter")
 
@@ -470,6 +490,15 @@ class InspectAIAdapter(BaseEvaluationAdapter):
 
         parent_eval_output_dir = metadata_args.get("parent_eval_output_dir", "data")
         if raw_eval_log.samples and parent_eval_output_dir:
+            file_uuid = metadata_args.get("file_uuid")
+            if not file_uuid:
+                file_uuid = str(uuid.uuid4())
+                metadata_args["file_uuid"] = file_uuid
+                logging.warning(
+                    f"Missing metadata_args['file_uuid']; generated one for instance-level log: {file_uuid}. "
+                    "Save unified aggregate log with the same uuid."
+                )
+
             if "/" in model_info.id:
                 model_dev, model_name = model_info.id.split("/", 1)
             else:
@@ -477,7 +506,6 @@ class InspectAIAdapter(BaseEvaluationAdapter):
             evaluation_dir = (
                 f"{parent_eval_output_dir}/{source_data.dataset_name}/{model_dev}/{model_name}"
             )
-            file_uuid = metadata_args.get("file_uuid") or "none"
             detailed_results_id = f"{file_uuid}_samples"
 
             instance_level_log_path, instance_level_rows_number = InspectInstanceLevelDataAdapter(
