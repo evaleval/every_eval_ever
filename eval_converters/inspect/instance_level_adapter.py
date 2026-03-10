@@ -37,6 +37,22 @@ class InspectInstanceLevelDataAdapter:
         self.evaluation_dir = evaluation_dir
         self.path = f'{evaluation_dir}/{evaulation_id}.{format}'
 
+    def _serialize_input(self, raw_input) -> str:
+        if isinstance(raw_input, str):
+            return raw_input
+        parts = []
+        for msg in raw_input:
+            if not isinstance(msg, ChatMessageUser):
+                continue
+            content = getattr(msg, "content", "")
+            if isinstance(content, list):
+                content = " ".join(
+                    block.text if hasattr(block, "text") else str(block)
+                    for block in content
+                )
+            parts.append(content)
+        return "\n".join(parts)
+
     def _parse_content_with_reasoning(
         self,
         content: List[Any]
@@ -126,7 +142,7 @@ class InspectInstanceLevelDataAdapter:
 
         for sample in samples:
             sample_input = Input(
-                raw=sample.input if isinstance(sample.input, str) else next((msg.content for msg in sample.input if isinstance(msg, ChatMessageUser) and isinstance(msg.content, str)), ""),
+                raw=self._serialize_input(sample.input),
                 reference=[sample.target] if isinstance(sample.target, str) else list(sample.target),
                 choices=sample.choices
             )
