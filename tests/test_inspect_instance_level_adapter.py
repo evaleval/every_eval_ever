@@ -3,8 +3,10 @@ import tempfile
 from pathlib import Path
 
 from eval_converters.inspect.adapter import InspectAIAdapter
+from eval_converters.inspect.instance_level_adapter import InspectInstanceLevelDataAdapter
 from eval_types import EvaluatorRelationship
 from instance_level_types import InstanceLevelEvaluationLog, InteractionType
+from inspect_ai.model import ChatMessageAssistant, ChatMessageUser, ContentText
 
 
 def _load_instance_level_data(adapter, filepath, metadata_args):
@@ -170,3 +172,24 @@ def test_gaia_instance_level():
         assert log.token_usage is not None
         assert log.token_usage.input_tokens >= 0
         assert log.token_usage.output_tokens >= 0
+
+def test_serialize_input_skips_non_user_messages():
+    adapter = InspectInstanceLevelDataAdapter("test_id", "jsonl", "sha256", "/tmp")
+
+    user_msg = ChatMessageUser(content="user question")
+    assistant_msg = ChatMessageAssistant(content="assistant answer")
+
+    result = adapter._serialize_input([assistant_msg, user_msg])
+    assert result == "user question"
+    assert "assistant answer" not in result
+
+def test_serialize_input_concatenates_list_content():
+    adapter = InspectInstanceLevelDataAdapter("test_id", "jsonl", "sha256", "/tmp")
+
+    msg_str = ChatMessageUser(content="plain string content")
+    assert adapter._serialize_input([msg_str]) == "plain string content"
+
+    block1 = ContentText(text="Context: some context.")
+    block2 = ContentText(text="Question: what is X?")
+    msg_list = ChatMessageUser(content=[block1, block2])
+    assert adapter._serialize_input([msg_list]) == "Context: some context. Question: what is X?"
