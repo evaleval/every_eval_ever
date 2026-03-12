@@ -107,6 +107,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
 
     def _build_evaluation_result(
         self,
+        evaluation_task_name: str,
         scorer_name: str,
         metric_info: EvalMetric,
         llm_grader: LlmScoring,
@@ -118,7 +119,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         num_samples: int = 0
     ) -> EvaluationResult:
         return EvaluationResult(
-            evaluation_name=scorer_name,
+            evaluation_name=f"{evaluation_task_name} - {scorer_name}",
             source_data=source_data,
             evaluation_timestamp=evaluation_timestamp,
             metric_config=MetricConfig(
@@ -142,6 +143,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
 
     def _extract_evaluation_results(
         self,
+        evaluation_task_name: str,
         scores: List[EvalScore],
         source_data: SourceDataHf,
         generation_config: Dict[str, Any],
@@ -182,6 +184,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
                 
                 results.append(
                     self._build_evaluation_result(
+                        evaluation_task_name=evaluation_task_name,
                         scorer_name=scorer_name,
                         metric_info=metric_info,
                         llm_grader=llm_grader,
@@ -472,8 +475,11 @@ class InspectAIAdapter(BaseEvaluationAdapter):
 
         results: EvalResults | None = raw_eval_log.results
 
+        evaluation_task_name = eval_spec.task_display_name or eval_spec.task
+
         evaluation_results = (
             self._extract_evaluation_results(
+                evaluation_task_name,
                 results.scores if results else [],
                 source_data,
                 generation_config,
@@ -485,8 +491,6 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         )
 
         evaluation_id = f'{source_data.dataset_name}/{model_path.replace('/', '_')}/{evaluation_unix_timestamp}'
-
-        evaluation_name = eval_spec.dataset.name or eval_spec.task
 
         parent_eval_output_dir = metadata_args.get("parent_eval_output_dir", "data")
         if raw_eval_log.samples and parent_eval_output_dir:
@@ -511,7 +515,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
             instance_level_log_path, instance_level_rows_number = InspectInstanceLevelDataAdapter(
                 detailed_results_id, Format.jsonl.value, HashAlgorithm.sha256.value, evaluation_dir
             ).convert_instance_level_logs(
-                evaluation_name, model_info.id, raw_eval_log.samples
+                evaluation_task_name, model_info.id, raw_eval_log.samples
             )
 
             detailed_evaluation_results = DetailedEvaluationResults(

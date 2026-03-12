@@ -61,7 +61,7 @@ def test_pubmedqa_eval():
     assert converted_eval.model_info.inference_engine is None
 
     results = converted_eval.evaluation_results
-    assert results[0].evaluation_name == 'choice'
+    assert results[0].evaluation_name == 'inspect_evals/pubmedqa - choice'
     assert results[0].metric_config.evaluation_description == 'accuracy'
     assert results[0].score_details.score == 1.0
 
@@ -180,7 +180,7 @@ def test_arc_sonnet_eval():
     assert converted_eval.model_info.inference_engine is None
 
     results = converted_eval.evaluation_results
-    assert results[0].evaluation_name == 'choice'
+    assert results[0].evaluation_name == 'arc_easy - choice'
     assert results[0].metric_config.evaluation_description == 'accuracy'
     assert results[0].score_details.score == 1.0
 
@@ -212,7 +212,7 @@ def test_arc_qwen_eval():
     assert converted_eval.model_info.inference_engine.name == 'ollama'
 
     results = converted_eval.evaluation_results
-    assert results[0].evaluation_name == 'choice'
+    assert results[0].evaluation_name == 'arc_easy - choice'
     assert results[0].metric_config.evaluation_description == 'accuracy'
     assert results[0].score_details.score == 0.3333333333333333
 
@@ -245,7 +245,7 @@ def test_gaia_eval():
 
     results = converted_eval.evaluation_results
     assert len(results) > 0
-    assert results[0].evaluation_name == 'gaia_scorer'
+    assert results[0].evaluation_name == 'gaia - gaia_scorer'
     assert results[0].metric_config.evaluation_description == 'accuracy'
     assert results[0].score_details.score >= 0.0
 
