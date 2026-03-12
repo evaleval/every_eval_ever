@@ -1,0 +1,2292 @@
+{
+  "version": 2,
+  "status": "success",
+  "eval": {
+    "eval_id": "aFCWgNShPqVHzcgPABaGqf",
+    "run_id": "WJwr8CiSVNcQCCYypr6brh",
+    "created": "2026-03-06T20:01:27+00:00",
+    "task": "inspect_evals/hellaswag",
+    "task_id": "BCovoA4VKpUb5WxVFidEaG",
+    "task_version": 2,
+    "task_display_name": "hellaswag",
+    "task_registry_name": "inspect_evals/hellaswag",
+    "task_attribs": {},
+    "task_args": {
+      "shuffle": false,
+      "split": "validation"
+    },
+    "task_args_passed": {},
+    "dataset": {
+      "name": "Rowan/hellaswag",
+      "location": "Rowan/hellaswag",
+      "samples": 5,
+      "sample_ids": [
+        "hellaswag_000223e3",
+        "hellaswag_000420a4",
+        "hellaswag_0008f39f",
+        "hellaswag_000b7b85",
+        "hellaswag_000fb77d"
+      ],
+      "shuffled": false
+    },
+    "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+    "model_generate_config": {},
+    "model_args": {},
+    "config": {
+      "epochs": 1,
+      "epochs_reducer": [
+        "mean"
+      ],
+      "fail_on_error": true,
+      "continue_on_fail": false,
+      "sandbox_cleanup": true,
+      "log_samples": true,
+      "log_realtime": false,
+      "log_images": true,
+      "log_buffer": 1004,
+      "score_display": false
+    },
+    "revision": {
+      "type": "git",
+      "origin": "https://github.com/MIMIR-AI-ROUTER/inspect_evals.git",
+      "commit": "e7e8c896"
+    },
+    "packages": {
+      "inspect_ai": "0.3.180.dev77+gb34c521b",
+      "inspect_evals": "0.0.1.dev2117+unknown.ge7e8c896d"
+    },
+    "metadata": {
+      "full_task_version": "2-A",
+      "task_interface_version": "A",
+      "task_comparability_version": 2
+    },
+    "scorers": [
+      {
+        "name": "choice",
+        "options": {},
+        "metrics": [
+          {
+            "name": "inspect_ai/accuracy",
+            "options": {}
+          },
+          {
+            "name": "inspect_ai/stderr",
+            "options": {}
+          }
+        ],
+        "metadata": {}
+      }
+    ]
+  },
+  "plan": {
+    "name": "plan",
+    "steps": [
+      {
+        "solver": "system_message",
+        "params": {
+          "template": "\nChoose the most plausible continuation for the story.\n",
+          "params": {}
+        }
+      },
+      {
+        "solver": "multiple_choice",
+        "params": {
+          "template": null,
+          "cot": false,
+          "multiple_correct": false,
+          "max_tokens": null,
+          "kwargs": {}
+        }
+      }
+    ],
+    "config": {}
+  },
+  "results": {
+    "total_samples": 5,
+    "completed_samples": 5,
+    "scores": [
+      {
+        "name": "choice",
+        "scorer": "choice",
+        "scored_samples": 5,
+        "unscored_samples": 0,
+        "params": {},
+        "metrics": {
+          "accuracy": {
+            "name": "accuracy",
+            "value": 1.0,
+            "params": {}
+          },
+          "stderr": {
+            "name": "stderr",
+            "value": 0.0,
+            "params": {}
+          }
+        }
+      }
+    ]
+  },
+  "stats": {
+    "started_at": "2026-03-06T20:01:27+00:00",
+    "completed_at": "2026-03-06T20:07:58+00:00",
+    "model_usage": {
+      "hf/Qwen/Qwen2.5-7B-Instruct": {
+        "input_tokens": 1351,
+        "output_tokens": 25,
+        "total_tokens": 1376
+      }
+    }
+  },
+  "samples": [
+    {
+      "id": "hellaswag_000223e3",
+      "epoch": 1,
+      "input": "A leaf is floating through the murky ocean water. A group of scuba divers are exploring the bottom of the sea. they",
+      "choices": [
+        "are stretching out on the leaf shaped diver suspended on the floating leaf thing.",
+        "are using cameras as they look at the growth and animals.",
+        "explore look at the coral and other creatures that live on the sea floor.",
+        "find structurally sound features underwater and work hard to build a raft."
+      ],
+      "target": "B",
+      "messages": [
+        {
+          "id": "W6TYoUHui9jEMzwgbB4L62",
+          "content": "\nChoose the most plausible continuation for the story.\n",
+          "role": "system"
+        },
+        {
+          "id": "nTA8xjtHYPDxqkyx2E5HF2",
+          "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nA leaf is floating through the murky ocean water. A group of scuba divers are exploring the bottom of the sea. they\n\nA) are stretching out on the leaf shaped diver suspended on the floating leaf thing.\nB) are using cameras as they look at the growth and animals.\nC) explore look at the coral and other creatures that live on the sea floor.\nD) find structurally sound features underwater and work hard to build a raft.",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "emnEGrx6mLZDUyN57hvenf",
+          "content": "ANSWER: B",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "emnEGrx6mLZDUyN57hvenf",
+              "content": "ANSWER: B",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "ANSWER: B",
+        "usage": {
+          "input_tokens": 182,
+          "output_tokens": 5,
+          "total_tokens": 187
+        },
+        "time": 1.0778983160000735,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "choice": {
+          "value": "C",
+          "answer": "B",
+          "explanation": "ANSWER: B",
+          "history": []
+        }
+      },
+      "metadata": {
+        "source_id": "activitynet~v_P1gGM89_T2g"
+      },
+      "store": {},
+      "events": [
+        {
+          "uuid": "VPDP9xRLvUTsifKsC5RvqJ",
+          "span_id": "07ca0bffbfe74bbb8314abbfe1a8cc15",
+          "timestamp": "2026-03-06T21:03:24.970738+01:00",
+          "working_start": 1412.997047772,
+          "event": "span_begin",
+          "id": "07ca0bffbfe74bbb8314abbfe1a8cc15",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "LLeVehkoUReu6mvCGejxoD",
+          "span_id": "07ca0bffbfe74bbb8314abbfe1a8cc15",
+          "timestamp": "2026-03-06T21:03:24.970792+01:00",
+          "working_start": 1412.997101308,
+          "event": "sample_init",
+          "sample": {
+            "input": "attachment://9ae7578ff3f7b85b2dbe9b6d7c8ac76f",
+            "choices": [
+              "are stretching out on the leaf shaped diver suspended on the floating leaf thing.",
+              "are using cameras as they look at the growth and animals.",
+              "explore look at the coral and other creatures that live on the sea floor.",
+              "find structurally sound features underwater and work hard to build a raft."
+            ],
+            "target": "B",
+            "id": "hellaswag_000223e3",
+            "metadata": {
+              "source_id": "activitynet~v_P1gGM89_T2g"
+            }
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "nTA8xjtHYPDxqkyx2E5HF2",
+                "content": "attachment://9ae7578ff3f7b85b2dbe9b6d7c8ac76f",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {
+              "source_id": "activitynet~v_P1gGM89_T2g"
+            }
+          }
+        },
+        {
+          "uuid": "49827XyZpmNgL7o7EMgNRi",
+          "span_id": "07ca0bffbfe74bbb8314abbfe1a8cc15",
+          "timestamp": "2026-03-06T21:03:24.970841+01:00",
+          "working_start": 1412.997149565,
+          "event": "span_end",
+          "id": "07ca0bffbfe74bbb8314abbfe1a8cc15"
+        },
+        {
+          "uuid": "MVvbmSP6wmFYxQFNwg3rw4",
+          "span_id": "2e897d0eb516453f96f2c52aa9a17f59",
+          "timestamp": "2026-03-06T21:03:24.971340+01:00",
+          "working_start": 0.00048304500000995176,
+          "event": "span_begin",
+          "id": "2e897d0eb516453f96f2c52aa9a17f59",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "9DARGiJCYBLPQT2NmscPny",
+          "span_id": "e454262d24494790b95c20865003be6c",
+          "timestamp": "2026-03-06T21:03:24.971392+01:00",
+          "working_start": 0.0005341169999155682,
+          "event": "span_begin",
+          "id": "e454262d24494790b95c20865003be6c",
+          "parent_id": "2e897d0eb516453f96f2c52aa9a17f59",
+          "type": "solver",
+          "name": "system_message"
+        },
+        {
+          "uuid": "kjJzGNndk7BiiAofAqLVCJ",
+          "span_id": "e454262d24494790b95c20865003be6c",
+          "timestamp": "2026-03-06T21:03:24.971615+01:00",
+          "working_start": 0.0007583750000321743,
+          "event": "state",
+          "changes": [
+            {
+              "op": "remove",
+              "path": "/messages/0/source"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/id",
+              "value": "W6TYoUHui9jEMzwgbB4L62",
+              "replaced": "nTA8xjtHYPDxqkyx2E5HF2"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/role",
+              "value": "system",
+              "replaced": "user"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "\nChoose the most plausible continuation for the story.\n",
+              "replaced": "A leaf is floating through the murky ocean water. A group of scuba divers are exploring the bottom of the sea. they"
+            },
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "nTA8xjtHYPDxqkyx2E5HF2",
+                "content": "attachment://9ae7578ff3f7b85b2dbe9b6d7c8ac76f",
+                "source": "input",
+                "role": "user"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "6TEJo4kqXYKHTUGmgmrrSM",
+          "span_id": "e454262d24494790b95c20865003be6c",
+          "timestamp": "2026-03-06T21:03:24.971656+01:00",
+          "working_start": 0.0007991760001004877,
+          "event": "span_end",
+          "id": "e454262d24494790b95c20865003be6c"
+        },
+        {
+          "uuid": "2EefiqcJJ8jKqbAHcuZxFM",
+          "span_id": "7da74fd3eeb341fd9ccbca91c975f32e",
+          "timestamp": "2026-03-06T21:03:24.971709+01:00",
+          "working_start": 0.0008512720000908303,
+          "event": "span_begin",
+          "id": "7da74fd3eeb341fd9ccbca91c975f32e",
+          "parent_id": "2e897d0eb516453f96f2c52aa9a17f59",
+          "type": "solver",
+          "name": "multiple_choice"
+        },
+        {
+          "uuid": "VQw5FftaoLBCzpmD8V4VSt",
+          "span_id": "7da74fd3eeb341fd9ccbca91c975f32e",
+          "timestamp": "2026-03-06T21:03:24.971846+01:00",
+          "working_start": 0.0009883620000437077,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "W6TYoUHui9jEMzwgbB4L62",
+              "content": "\nChoose the most plausible continuation for the story.\n",
+              "role": "system"
+            },
+            {
+              "id": "nTA8xjtHYPDxqkyx2E5HF2",
+              "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nA leaf is floating through the murky ocean water. A group of scuba divers are exploring the bottom of the sea. they\n\nA) are stretching out on the leaf shaped diver suspended on the floating leaf thing.\nB) are using cameras as they look at the growth and animals.\nC) explore look at the coral and other creatures that live on the sea floor.\nD) find structurally sound features underwater and work hard to build a raft.",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 2048
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "emnEGrx6mLZDUyN57hvenf",
+                  "content": "ANSWER: B",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "ANSWER: B",
+            "usage": {
+              "input_tokens": 182,
+              "output_tokens": 5,
+              "total_tokens": 187
+            },
+            "time": 1.0778983160000735,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-06T21:03:26.050843+01:00",
+          "working_time": 1.0778983160000735
+        },
+        {
+          "uuid": "Hzu2CvPM58mGFnDDgzcsNP",
+          "span_id": "7da74fd3eeb341fd9ccbca91c975f32e",
+          "timestamp": "2026-03-06T21:03:26.051038+01:00",
+          "working_start": 1.0791510330000165,
+          "event": "state",
+          "changes": [
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 1.0778983160000735
+            },
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 182,
+                "output_tokens": 5,
+                "total_tokens": 187
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "emnEGrx6mLZDUyN57hvenf",
+                  "content": "ANSWER: B",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "ANSWER: B",
+              "replaced": ""
+            },
+            {
+              "op": "replace",
+              "path": "/messages/1/content",
+              "value": "attachment://0f1f9996e39f2a155b0c51b3a9d84f7f",
+              "replaced": "A leaf is floating through the murky ocean water. A group of scuba divers are exploring the bottom of the sea. they"
+            },
+            {
+              "op": "add",
+              "path": "/messages/2",
+              "value": {
+                "id": "emnEGrx6mLZDUyN57hvenf",
+                "content": "ANSWER: B",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "bjvPwPFbwqVEduDj9RhYbA",
+          "span_id": "7da74fd3eeb341fd9ccbca91c975f32e",
+          "timestamp": "2026-03-06T21:03:26.051076+01:00",
+          "working_start": 1.079188601000169,
+          "event": "span_end",
+          "id": "7da74fd3eeb341fd9ccbca91c975f32e"
+        },
+        {
+          "uuid": "3Y9FqgoHnqmz5rn9BzYCiC",
+          "span_id": "2e897d0eb516453f96f2c52aa9a17f59",
+          "timestamp": "2026-03-06T21:03:26.051108+01:00",
+          "working_start": 1.0792201850001675,
+          "event": "span_end",
+          "id": "2e897d0eb516453f96f2c52aa9a17f59"
+        },
+        {
+          "uuid": "W22DYMQMPjU3QumVK6zcz8",
+          "span_id": "a87083a92a484531b51825b12d648e31",
+          "timestamp": "2026-03-06T21:03:26.084628+01:00",
+          "working_start": 1.1127403190000678,
+          "event": "span_begin",
+          "id": "a87083a92a484531b51825b12d648e31",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "9ciiYXxP78hPsQJoncC5ho",
+          "span_id": "3a7e3ec72b6244da8957a2bc44b4c64e",
+          "timestamp": "2026-03-06T21:03:26.084661+01:00",
+          "working_start": 1.1127731510000558,
+          "event": "span_begin",
+          "id": "3a7e3ec72b6244da8957a2bc44b4c64e",
+          "parent_id": "a87083a92a484531b51825b12d648e31",
+          "type": "scorer",
+          "name": "choice"
+        },
+        {
+          "uuid": "AjwqPSAox8jn625A7VfaHa",
+          "span_id": "3a7e3ec72b6244da8957a2bc44b4c64e",
+          "timestamp": "2026-03-06T21:03:26.084687+01:00",
+          "working_start": 1.1127994560001753,
+          "event": "score",
+          "score": {
+            "value": "C",
+            "answer": "B",
+            "explanation": "ANSWER: B",
+            "history": []
+          },
+          "target": "B",
+          "intermediate": false
+        },
+        {
+          "uuid": "955jSUr4YpHpQbMGcxhmda",
+          "span_id": "3a7e3ec72b6244da8957a2bc44b4c64e",
+          "timestamp": "2026-03-06T21:03:26.084745+01:00",
+          "working_start": 1.1128575680002086,
+          "event": "span_end",
+          "id": "3a7e3ec72b6244da8957a2bc44b4c64e"
+        },
+        {
+          "uuid": "5XndfoMdzjFFfVNXmN2EkB",
+          "span_id": "a87083a92a484531b51825b12d648e31",
+          "timestamp": "2026-03-06T21:03:26.084767+01:00",
+          "working_start": 1.11287932800019,
+          "event": "span_end",
+          "id": "a87083a92a484531b51825b12d648e31"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 182,
+          "output_tokens": 5,
+          "total_tokens": 187
+        }
+      },
+      "total_time": 1.126,
+      "working_time": 1.125,
+      "uuid": "E6yYJQDJBmCgyhHddvRPVG",
+      "error_retries": [],
+      "attachments": {
+        "9ae7578ff3f7b85b2dbe9b6d7c8ac76f": "A leaf is floating through the murky ocean water. A group of scuba divers are exploring the bottom of the sea. they",
+        "0f1f9996e39f2a155b0c51b3a9d84f7f": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nA leaf is floating through the murky ocean water. A group of scuba divers are exploring the bottom of the sea. they\n\nA) are stretching out on the leaf shaped diver suspended on the floating leaf thing.\nB) are using cameras as they look at the growth and animals.\nC) explore look at the coral and other creatures that live on the sea floor.\nD) find structurally sound features underwater and work hard to build a raft."
+      }
+    },
+    {
+      "id": "hellaswag_000420a4",
+      "epoch": 1,
+      "input": "[header] How to freeze tofu [title] Drain the tofu. [step] If the tofu is in a package, open it up and drain off all of the water. Don't spend too much time on the draining process.",
+      "choices": [
+        "You want to keep the tofu mostly whole. [title] Mix the tofu and cream cheese in a blender.",
+        "If you aren't incredibly worried about texture and you just want to keep the food fresh, then feel free to skip the pressing steps and freeze the tofu directly after you drain it. [title] Place the block of tofu onto an absorbent surface.",
+        "[title] Place the tofu in a bin. [step] A large bin works best, since it's easier to see how much is in there.",
+        "Tofu is tender, and draining it too soon may cause the moisture to become trapped inside, causing more moisture to drain into the nooks and crannies. [title] Check on the tofu per serving."
+      ],
+      "target": "B",
+      "messages": [
+        {
+          "id": "Jc7RonhkBMbaqco3KiLkw7",
+          "content": "\nChoose the most plausible continuation for the story.\n",
+          "role": "system"
+        },
+        {
+          "id": "FNw6Y45Hg8iTKTPvx4kms7",
+          "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\n[header] How to freeze tofu [title] Drain the tofu. [step] If the tofu is in a package, open it up and drain off all of the water. Don't spend too much time on the draining process.\n\nA) You want to keep the tofu mostly whole. [title] Mix the tofu and cream cheese in a blender.\nB) If you aren't incredibly worried about texture and you just want to keep the food fresh, then feel free to skip the pressing steps and freeze the tofu directly after you drain it. [title] Place the block of tofu onto an absorbent surface.\nC) [title] Place the tofu in a bin. [step] A large bin works best, since it's easier to see how much is in there.\nD) Tofu is tender, and draining it too soon may cause the moisture to become trapped inside, causing more moisture to drain into the nooks and crannies. [title] Check on the tofu per serving.",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "QQVfHkgrShYA3e3MrBVaMx",
+          "content": "ANSWER: B",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "QQVfHkgrShYA3e3MrBVaMx",
+              "content": "ANSWER: B",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "ANSWER: B",
+        "usage": {
+          "input_tokens": 356,
+          "output_tokens": 5,
+          "total_tokens": 361
+        },
+        "time": 1.0129426430000876,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "choice": {
+          "value": "C",
+          "answer": "B",
+          "explanation": "ANSWER: B",
+          "history": []
+        }
+      },
+      "metadata": {
+        "source_id": "wikihow~73420"
+      },
+      "store": {},
+      "events": [
+        {
+          "uuid": "85rbVsGJs9gbzdJnBW5F3t",
+          "span_id": "86c41e64dde54d548e90b21ed12bd403",
+          "timestamp": "2026-03-06T21:07:25.231174+01:00",
+          "working_start": 1653.257483066,
+          "event": "span_begin",
+          "id": "86c41e64dde54d548e90b21ed12bd403",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "97AFhC9hPstGVWYD6keZuh",
+          "span_id": "86c41e64dde54d548e90b21ed12bd403",
+          "timestamp": "2026-03-06T21:07:25.231221+01:00",
+          "working_start": 1653.25753049,
+          "event": "sample_init",
+          "sample": {
+            "input": "attachment://af700299aa28564321a25db800475cb6",
+            "choices": [
+              "You want to keep the tofu mostly whole. [title] Mix the tofu and cream cheese in a blender.",
+              "If you aren't incredibly worried about texture and you just want to keep the food fresh, then feel free to skip the pressing steps and freeze the tofu directly after you drain it. [title] Place the block of tofu onto an absorbent surface.",
+              "[title] Place the tofu in a bin. [step] A large bin works best, since it's easier to see how much is in there.",
+              "Tofu is tender, and draining it too soon may cause the moisture to become trapped inside, causing more moisture to drain into the nooks and crannies. [title] Check on the tofu per serving."
+            ],
+            "target": "B",
+            "id": "hellaswag_000420a4",
+            "metadata": {
+              "source_id": "wikihow~73420"
+            }
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "FNw6Y45Hg8iTKTPvx4kms7",
+                "content": "attachment://af700299aa28564321a25db800475cb6",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {
+              "source_id": "wikihow~73420"
+            }
+          }
+        },
+        {
+          "uuid": "9QTmxe3EnQT3Xv7LYCAviC",
+          "span_id": "86c41e64dde54d548e90b21ed12bd403",
+          "timestamp": "2026-03-06T21:07:25.231267+01:00",
+          "working_start": 1653.257575835,
+          "event": "span_end",
+          "id": "86c41e64dde54d548e90b21ed12bd403"
+        },
+        {
+          "uuid": "ikcfUyYdaxuqmACW6RLVBp",
+          "span_id": "69e78c3d8f41422e871065d232d033aa",
+          "timestamp": "2026-03-06T21:07:25.231791+01:00",
+          "working_start": 0.0004939569998896332,
+          "event": "span_begin",
+          "id": "69e78c3d8f41422e871065d232d033aa",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "GNVrjJQPDpEzaD6Y6Svk4g",
+          "span_id": "01d05bbac7bd44649727cc158c13a62f",
+          "timestamp": "2026-03-06T21:07:25.231837+01:00",
+          "working_start": 0.0005395260000113922,
+          "event": "span_begin",
+          "id": "01d05bbac7bd44649727cc158c13a62f",
+          "parent_id": "69e78c3d8f41422e871065d232d033aa",
+          "type": "solver",
+          "name": "system_message"
+        },
+        {
+          "uuid": "juV5CQ68GTyphK9AbfTqzg",
+          "span_id": "01d05bbac7bd44649727cc158c13a62f",
+          "timestamp": "2026-03-06T21:07:25.232078+01:00",
+          "working_start": 0.0007809040000665846,
+          "event": "state",
+          "changes": [
+            {
+              "op": "remove",
+              "path": "/messages/0/source"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/id",
+              "value": "Jc7RonhkBMbaqco3KiLkw7",
+              "replaced": "FNw6Y45Hg8iTKTPvx4kms7"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/role",
+              "value": "system",
+              "replaced": "user"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "\nChoose the most plausible continuation for the story.\n",
+              "replaced": "[header] How to freeze tofu [title] Drain the tofu. [step] If the tofu is in a package, open it up and drain off all of the water. Don't spend too much time on the draining process."
+            },
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "FNw6Y45Hg8iTKTPvx4kms7",
+                "content": "attachment://af700299aa28564321a25db800475cb6",
+                "source": "input",
+                "role": "user"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "j8JY57VJdJZKpJoNpvkTvx",
+          "span_id": "01d05bbac7bd44649727cc158c13a62f",
+          "timestamp": "2026-03-06T21:07:25.232114+01:00",
+          "working_start": 0.0008170640001026186,
+          "event": "span_end",
+          "id": "01d05bbac7bd44649727cc158c13a62f"
+        },
+        {
+          "uuid": "m7jJgYfsrTzBTo42eSPdN6",
+          "span_id": "f4e6c26f1053424181ae3d0b776858d4",
+          "timestamp": "2026-03-06T21:07:25.232148+01:00",
+          "working_start": 0.000850856999932148,
+          "event": "span_begin",
+          "id": "f4e6c26f1053424181ae3d0b776858d4",
+          "parent_id": "69e78c3d8f41422e871065d232d033aa",
+          "type": "solver",
+          "name": "multiple_choice"
+        },
+        {
+          "uuid": "feeEjKw3Pp7jFQGxfRzofM",
+          "span_id": "f4e6c26f1053424181ae3d0b776858d4",
+          "timestamp": "2026-03-06T21:07:25.232301+01:00",
+          "working_start": 0.0010046820000297885,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "Jc7RonhkBMbaqco3KiLkw7",
+              "content": "\nChoose the most plausible continuation for the story.\n",
+              "role": "system"
+            },
+            {
+              "id": "FNw6Y45Hg8iTKTPvx4kms7",
+              "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\n[header] How to freeze tofu [title] Drain the tofu. [step] If the tofu is in a package, open it up and drain off all of the water. Don't spend too much time on the draining process.\n\nA) You want to keep the tofu mostly whole. [title] Mix the tofu and cream cheese in a blender.\nB) If you aren't incredibly worried about texture and you just want to keep the food fresh, then feel free to skip the pressing steps and freeze the tofu directly after you drain it. [title] Place the block of tofu onto an absorbent surface.\nC) [title] Place the tofu in a bin. [step] A large bin works best, since it's easier to see how much is in there.\nD) Tofu is tender, and draining it too soon may cause the moisture to become trapped inside, causing more moisture to drain into the nooks and crannies. [title] Check on the tofu per serving.",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 2048
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "QQVfHkgrShYA3e3MrBVaMx",
+                  "content": "ANSWER: B",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "ANSWER: B",
+            "usage": {
+              "input_tokens": 356,
+              "output_tokens": 5,
+              "total_tokens": 361
+            },
+            "time": 1.0129426430000876,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-06T21:07:26.246352+01:00",
+          "working_time": 1.0129426430000876
+        },
+        {
+          "uuid": "CCGzH2bbb5ToVtEzPdXL4S",
+          "span_id": "f4e6c26f1053424181ae3d0b776858d4",
+          "timestamp": "2026-03-06T21:07:26.246579+01:00",
+          "working_start": 1.0142459830001371,
+          "event": "state",
+          "changes": [
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 1.0129426430000876
+            },
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 356,
+                "output_tokens": 5,
+                "total_tokens": 361
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "QQVfHkgrShYA3e3MrBVaMx",
+                  "content": "ANSWER: B",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "ANSWER: B",
+              "replaced": ""
+            },
+            {
+              "op": "replace",
+              "path": "/messages/1/content",
+              "value": "attachment://5721b2e0ba63405d0e569c7d4b28364c",
+              "replaced": "[header] How to freeze tofu [title] Drain the tofu. [step] If the tofu is in a package, open it up and drain off all of the water. Don't spend too much time on the draining process."
+            },
+            {
+              "op": "add",
+              "path": "/messages/2",
+              "value": {
+                "id": "QQVfHkgrShYA3e3MrBVaMx",
+                "content": "ANSWER: B",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "cm47wxahgwAvxn72Hn2god",
+          "span_id": "f4e6c26f1053424181ae3d0b776858d4",
+          "timestamp": "2026-03-06T21:07:26.246625+01:00",
+          "working_start": 1.0142915840001479,
+          "event": "span_end",
+          "id": "f4e6c26f1053424181ae3d0b776858d4"
+        },
+        {
+          "uuid": "f7KVxnFDfdFZG7ugn3T9Xh",
+          "span_id": "69e78c3d8f41422e871065d232d033aa",
+          "timestamp": "2026-03-06T21:07:26.246663+01:00",
+          "working_start": 1.0143294720000995,
+          "event": "span_end",
+          "id": "69e78c3d8f41422e871065d232d033aa"
+        },
+        {
+          "uuid": "A2g6Yner5gAe9SDjaBmpwH",
+          "span_id": "75c96ddf0c5a44249dc743751cd115e6",
+          "timestamp": "2026-03-06T21:07:26.247076+01:00",
+          "working_start": 1.014742404000117,
+          "event": "span_begin",
+          "id": "75c96ddf0c5a44249dc743751cd115e6",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "9WvQaAPBU6aVuDtjmnpcSx",
+          "span_id": "36839bb21b9e4744ad45a381fb019298",
+          "timestamp": "2026-03-06T21:07:26.247120+01:00",
+          "working_start": 1.0147863410002174,
+          "event": "span_begin",
+          "id": "36839bb21b9e4744ad45a381fb019298",
+          "parent_id": "75c96ddf0c5a44249dc743751cd115e6",
+          "type": "scorer",
+          "name": "choice"
+        },
+        {
+          "uuid": "miQ85qgD63Drfbkfjh3F4J",
+          "span_id": "36839bb21b9e4744ad45a381fb019298",
+          "timestamp": "2026-03-06T21:07:26.247156+01:00",
+          "working_start": 1.014822437000248,
+          "event": "score",
+          "score": {
+            "value": "C",
+            "answer": "B",
+            "explanation": "ANSWER: B",
+            "history": []
+          },
+          "target": "B",
+          "intermediate": false
+        },
+        {
+          "uuid": "YKUsgmJ4MPTHs8CYeufBKj",
+          "span_id": "36839bb21b9e4744ad45a381fb019298",
+          "timestamp": "2026-03-06T21:07:26.247192+01:00",
+          "working_start": 1.014858341000263,
+          "event": "span_end",
+          "id": "36839bb21b9e4744ad45a381fb019298"
+        },
+        {
+          "uuid": "DhUCAbYQx7RuU3AHXbnHKP",
+          "span_id": "75c96ddf0c5a44249dc743751cd115e6",
+          "timestamp": "2026-03-06T21:07:26.247218+01:00",
+          "working_start": 1.014883589000192,
+          "event": "span_end",
+          "id": "75c96ddf0c5a44249dc743751cd115e6"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 356,
+          "output_tokens": 5,
+          "total_tokens": 361
+        }
+      },
+      "total_time": 1.016,
+      "working_time": 1.015,
+      "uuid": "ZNRTeDCQChNMzTW4kjjnMS",
+      "error_retries": [],
+      "attachments": {
+        "af700299aa28564321a25db800475cb6": "[header] How to freeze tofu [title] Drain the tofu. [step] If the tofu is in a package, open it up and drain off all of the water. Don't spend too much time on the draining process.",
+        "5721b2e0ba63405d0e569c7d4b28364c": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\n[header] How to freeze tofu [title] Drain the tofu. [step] If the tofu is in a package, open it up and drain off all of the water. Don't spend too much time on the draining process.\n\nA) You want to keep the tofu mostly whole. [title] Mix the tofu and cream cheese in a blender.\nB) If you aren't incredibly worried about texture and you just want to keep the food fresh, then feel free to skip the pressing steps and freeze the tofu directly after you drain it. [title] Place the block of tofu onto an absorbent surface.\nC) [title] Place the tofu in a bin. [step] A large bin works best, since it's easier to see how much is in there.\nD) Tofu is tender, and draining it too soon may cause the moisture to become trapped inside, causing more moisture to drain into the nooks and crannies. [title] Check on the tofu per serving."
+      }
+    },
+    {
+      "id": "hellaswag_0008f39f",
+      "epoch": 1,
+      "input": "A man is sitting on a bucket ice fishing. He stands up and pulls a fish out of the hole. he",
+      "choices": [
+        "cuts the hook out of the fish and throws the fish on the ice.",
+        "pulls it out and spits it out.",
+        "gets on the fishing line and pulls it to the water.",
+        "pulls it out of the hole and lays it in the water."
+      ],
+      "target": "A",
+      "messages": [
+        {
+          "id": "7JT6tXQdo6FF2Z96oKjBV7",
+          "content": "\nChoose the most plausible continuation for the story.\n",
+          "role": "system"
+        },
+        {
+          "id": "mhfy5FrdhdD6wpgSRFbH8c",
+          "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nA man is sitting on a bucket ice fishing. He stands up and pulls a fish out of the hole. he\n\nA) cuts the hook out of the fish and throws the fish on the ice.\nB) pulls it out and spits it out.\nC) gets on the fishing line and pulls it to the water.\nD) pulls it out of the hole and lays it in the water.",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "SoQXoWFgpKC4updLsUNS5d",
+          "content": "ANSWER: A",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "SoQXoWFgpKC4updLsUNS5d",
+              "content": "ANSWER: A",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "ANSWER: A",
+        "usage": {
+          "input_tokens": 221,
+          "output_tokens": 5,
+          "total_tokens": 226
+        },
+        "time": 1.0107314219999353,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "choice": {
+          "value": "C",
+          "answer": "A",
+          "explanation": "ANSWER: A",
+          "history": []
+        }
+      },
+      "metadata": {
+        "source_id": "activitynet~v_4o7Abew2ExY"
+      },
+      "store": {},
+      "events": [
+        {
+          "uuid": "m8aTgVHPbc68BTNgX3r7pT",
+          "span_id": "c4f045ea14924f40a576cfb0885dbfae",
+          "timestamp": "2026-03-06T21:02:25.365347+01:00",
+          "working_start": 1353.391656224,
+          "event": "span_begin",
+          "id": "c4f045ea14924f40a576cfb0885dbfae",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "dW5iFFiT83etX6YLSkwDzV",
+          "span_id": "c4f045ea14924f40a576cfb0885dbfae",
+          "timestamp": "2026-03-06T21:02:25.365395+01:00",
+          "working_start": 1353.391704032,
+          "event": "sample_init",
+          "sample": {
+            "input": "A man is sitting on a bucket ice fishing. He stands up and pulls a fish out of the hole. he",
+            "choices": [
+              "cuts the hook out of the fish and throws the fish on the ice.",
+              "pulls it out and spits it out.",
+              "gets on the fishing line and pulls it to the water.",
+              "pulls it out of the hole and lays it in the water."
+            ],
+            "target": "A",
+            "id": "hellaswag_0008f39f",
+            "metadata": {
+              "source_id": "activitynet~v_4o7Abew2ExY"
+            }
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "mhfy5FrdhdD6wpgSRFbH8c",
+                "content": "A man is sitting on a bucket ice fishing. He stands up and pulls a fish out of the hole. he",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {
+              "source_id": "activitynet~v_4o7Abew2ExY"
+            }
+          }
+        },
+        {
+          "uuid": "8iBmmMgiGYWBS7QCgZJHqg",
+          "span_id": "c4f045ea14924f40a576cfb0885dbfae",
+          "timestamp": "2026-03-06T21:02:25.365439+01:00",
+          "working_start": 1353.391748417,
+          "event": "span_end",
+          "id": "c4f045ea14924f40a576cfb0885dbfae"
+        },
+        {
+          "uuid": "dDrQhG8myyqCvkpQsmATRW",
+          "span_id": "08b7864d924646828d56404dba7097f4",
+          "timestamp": "2026-03-06T21:02:25.365924+01:00",
+          "working_start": 0.00047120500016717415,
+          "event": "span_begin",
+          "id": "08b7864d924646828d56404dba7097f4",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "kad2RBQ3dYcjhgnNECCCU7",
+          "span_id": "9fc3a89cedce486494017f3e8d1720c3",
+          "timestamp": "2026-03-06T21:02:25.365967+01:00",
+          "working_start": 0.000513509000029444,
+          "event": "span_begin",
+          "id": "9fc3a89cedce486494017f3e8d1720c3",
+          "parent_id": "08b7864d924646828d56404dba7097f4",
+          "type": "solver",
+          "name": "system_message"
+        },
+        {
+          "uuid": "bupvAnMuiYbx8bCgJBMoCg",
+          "span_id": "9fc3a89cedce486494017f3e8d1720c3",
+          "timestamp": "2026-03-06T21:02:25.366190+01:00",
+          "working_start": 0.0007369029999608756,
+          "event": "state",
+          "changes": [
+            {
+              "op": "remove",
+              "path": "/messages/0/source"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/id",
+              "value": "7JT6tXQdo6FF2Z96oKjBV7",
+              "replaced": "mhfy5FrdhdD6wpgSRFbH8c"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/role",
+              "value": "system",
+              "replaced": "user"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "\nChoose the most plausible continuation for the story.\n",
+              "replaced": "A man is sitting on a bucket ice fishing. He stands up and pulls a fish out of the hole. he"
+            },
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "mhfy5FrdhdD6wpgSRFbH8c",
+                "content": "A man is sitting on a bucket ice fishing. He stands up and pulls a fish out of the hole. he",
+                "source": "input",
+                "role": "user"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "C3VRKsXFToiQDqabs2DWrY",
+          "span_id": "9fc3a89cedce486494017f3e8d1720c3",
+          "timestamp": "2026-03-06T21:02:25.366224+01:00",
+          "working_start": 0.0007707270001446886,
+          "event": "span_end",
+          "id": "9fc3a89cedce486494017f3e8d1720c3"
+        },
+        {
+          "uuid": "goisDEXzUYUzc58mohGiFW",
+          "span_id": "66a01c4c34e54cb98199b2ca2f6bdd91",
+          "timestamp": "2026-03-06T21:02:25.366255+01:00",
+          "working_start": 0.0008011280001483101,
+          "event": "span_begin",
+          "id": "66a01c4c34e54cb98199b2ca2f6bdd91",
+          "parent_id": "08b7864d924646828d56404dba7097f4",
+          "type": "solver",
+          "name": "multiple_choice"
+        },
+        {
+          "uuid": "eYR8CBYbViFvQqsgHjNEaR",
+          "span_id": "66a01c4c34e54cb98199b2ca2f6bdd91",
+          "timestamp": "2026-03-06T21:02:25.366396+01:00",
+          "working_start": 0.0009432090000700555,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "7JT6tXQdo6FF2Z96oKjBV7",
+              "content": "\nChoose the most plausible continuation for the story.\n",
+              "role": "system"
+            },
+            {
+              "id": "mhfy5FrdhdD6wpgSRFbH8c",
+              "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nA man is sitting on a bucket ice fishing. He stands up and pulls a fish out of the hole. he\n\nA) cuts the hook out of the fish and throws the fish on the ice.\nB) pulls it out and spits it out.\nC) gets on the fishing line and pulls it to the water.\nD) pulls it out of the hole and lays it in the water.",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 2048
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "SoQXoWFgpKC4updLsUNS5d",
+                  "content": "ANSWER: A",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "ANSWER: A",
+            "usage": {
+              "input_tokens": 221,
+              "output_tokens": 5,
+              "total_tokens": 226
+            },
+            "time": 1.0107314219999353,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-06T21:02:26.378248+01:00",
+          "working_time": 1.0107314219999353
+        },
+        {
+          "uuid": "RQL2sqk5LWqg9qp8tdW68y",
+          "span_id": "66a01c4c34e54cb98199b2ca2f6bdd91",
+          "timestamp": "2026-03-06T21:02:26.378499+01:00",
+          "working_start": 1.0119972590002817,
+          "event": "state",
+          "changes": [
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 1.0107314219999353
+            },
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 221,
+                "output_tokens": 5,
+                "total_tokens": 226
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "SoQXoWFgpKC4updLsUNS5d",
+                  "content": "ANSWER: A",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "ANSWER: A",
+              "replaced": ""
+            },
+            {
+              "op": "replace",
+              "path": "/messages/1/content",
+              "value": "attachment://35fd02904c2f22d4a6afa9e969d8de96",
+              "replaced": "A man is sitting on a bucket ice fishing. He stands up and pulls a fish out of the hole. he"
+            },
+            {
+              "op": "add",
+              "path": "/messages/2",
+              "value": {
+                "id": "SoQXoWFgpKC4updLsUNS5d",
+                "content": "ANSWER: A",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "FgtGmYD6zuzKdfqb2dvGGH",
+          "span_id": "66a01c4c34e54cb98199b2ca2f6bdd91",
+          "timestamp": "2026-03-06T21:02:26.378543+01:00",
+          "working_start": 1.0120405550001124,
+          "event": "span_end",
+          "id": "66a01c4c34e54cb98199b2ca2f6bdd91"
+        },
+        {
+          "uuid": "eazwddTyrgYwCLW2wwRpaK",
+          "span_id": "08b7864d924646828d56404dba7097f4",
+          "timestamp": "2026-03-06T21:02:26.378579+01:00",
+          "working_start": 1.0120767160001378,
+          "event": "span_end",
+          "id": "08b7864d924646828d56404dba7097f4"
+        },
+        {
+          "uuid": "XHQJd56zEnkjgRCSdpJwKE",
+          "span_id": "d6cf0cdf350a4679a5d34c7e8ae0f9ff",
+          "timestamp": "2026-03-06T21:02:26.379016+01:00",
+          "working_start": 1.0125142240001423,
+          "event": "span_begin",
+          "id": "d6cf0cdf350a4679a5d34c7e8ae0f9ff",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "29KAT5HK9PzdzMhv2ToJor",
+          "span_id": "5ac1aa0d0d4e4201a7aeb6c0164f88d2",
+          "timestamp": "2026-03-06T21:02:26.379060+01:00",
+          "working_start": 1.0125579040002322,
+          "event": "span_begin",
+          "id": "5ac1aa0d0d4e4201a7aeb6c0164f88d2",
+          "parent_id": "d6cf0cdf350a4679a5d34c7e8ae0f9ff",
+          "type": "scorer",
+          "name": "choice"
+        },
+        {
+          "uuid": "ZSCwmcupZSvwPYPEHcmULh",
+          "span_id": "5ac1aa0d0d4e4201a7aeb6c0164f88d2",
+          "timestamp": "2026-03-06T21:02:26.379099+01:00",
+          "working_start": 1.0125967210001363,
+          "event": "score",
+          "score": {
+            "value": "C",
+            "answer": "A",
+            "explanation": "ANSWER: A",
+            "history": []
+          },
+          "target": "A",
+          "intermediate": false
+        },
+        {
+          "uuid": "a8wjRby6qa69oHthEVG3wZ",
+          "span_id": "5ac1aa0d0d4e4201a7aeb6c0164f88d2",
+          "timestamp": "2026-03-06T21:02:26.379136+01:00",
+          "working_start": 1.012632977000294,
+          "event": "span_end",
+          "id": "5ac1aa0d0d4e4201a7aeb6c0164f88d2"
+        },
+        {
+          "uuid": "DsczVfccuuZfJCnyQgJ45n",
+          "span_id": "d6cf0cdf350a4679a5d34c7e8ae0f9ff",
+          "timestamp": "2026-03-06T21:02:26.379160+01:00",
+          "working_start": 1.0126567850002175,
+          "event": "span_end",
+          "id": "d6cf0cdf350a4679a5d34c7e8ae0f9ff"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 221,
+          "output_tokens": 5,
+          "total_tokens": 226
+        }
+      },
+      "total_time": 1.014,
+      "working_time": 1.013,
+      "uuid": "NrXtzjjdJNTQ9Bhu4bxfuY",
+      "error_retries": [],
+      "attachments": {
+        "35fd02904c2f22d4a6afa9e969d8de96": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nA man is sitting on a bucket ice fishing. He stands up and pulls a fish out of the hole. he\n\nA) cuts the hook out of the fish and throws the fish on the ice.\nB) pulls it out and spits it out.\nC) gets on the fishing line and pulls it to the water.\nD) pulls it out of the hole and lays it in the water."
+      }
+    },
+    {
+      "id": "hellaswag_000b7b85",
+      "epoch": 1,
+      "input": "A first person view is seen of a man riding a riding lawn mower. he",
+      "choices": [
+        "takes turns quickly, mowing the lawn.",
+        "creates a large puddle of water and a high rush of water around him as he heads back and forth back and forth.",
+        "moves all around while there is a crowd watching.",
+        "talks about how to properly ride an object while another man climbs up on the back of him."
+      ],
+      "target": "A",
+      "messages": [
+        {
+          "id": "gTMnPmKKQGya7SnmJM9uN3",
+          "content": "\nChoose the most plausible continuation for the story.\n",
+          "role": "system"
+        },
+        {
+          "id": "9yJEyKTqU58i3kWHWi6Vrm",
+          "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nA first person view is seen of a man riding a riding lawn mower. he\n\nA) takes turns quickly, mowing the lawn.\nB) creates a large puddle of water and a high rush of water around him as he heads back and forth back and forth.\nC) moves all around while there is a crowd watching.\nD) talks about how to properly ride an object while another man climbs up on the back of him.",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "XZTajuASHUTpkCvPLTc83w",
+          "content": "ANSWER: A",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "XZTajuASHUTpkCvPLTc83w",
+              "content": "ANSWER: A",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "ANSWER: A",
+        "usage": {
+          "input_tokens": 218,
+          "output_tokens": 5,
+          "total_tokens": 223
+        },
+        "time": 1.0136081539999395,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "choice": {
+          "value": "C",
+          "answer": "A",
+          "explanation": "ANSWER: A",
+          "history": []
+        }
+      },
+      "metadata": {
+        "source_id": "activitynet~v_VOGF4tBFEuw"
+      },
+      "store": {},
+      "events": [
+        {
+          "uuid": "R4r6DkhT9euLJD8NF7B8aN",
+          "span_id": "5a7c014806a748dc89a9d3ad8724e966",
+          "timestamp": "2026-03-06T21:01:40.384790+01:00",
+          "working_start": 1308.411099315,
+          "event": "span_begin",
+          "id": "5a7c014806a748dc89a9d3ad8724e966",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "W8YywLUDeX92a2hcDxniqM",
+          "span_id": "5a7c014806a748dc89a9d3ad8724e966",
+          "timestamp": "2026-03-06T21:01:40.384836+01:00",
+          "working_start": 1308.411145044,
+          "event": "sample_init",
+          "sample": {
+            "input": "A first person view is seen of a man riding a riding lawn mower. he",
+            "choices": [
+              "takes turns quickly, mowing the lawn.",
+              "creates a large puddle of water and a high rush of water around him as he heads back and forth back and forth.",
+              "moves all around while there is a crowd watching.",
+              "talks about how to properly ride an object while another man climbs up on the back of him."
+            ],
+            "target": "A",
+            "id": "hellaswag_000b7b85",
+            "metadata": {
+              "source_id": "activitynet~v_VOGF4tBFEuw"
+            }
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "9yJEyKTqU58i3kWHWi6Vrm",
+                "content": "A first person view is seen of a man riding a riding lawn mower. he",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {
+              "source_id": "activitynet~v_VOGF4tBFEuw"
+            }
+          }
+        },
+        {
+          "uuid": "XvFGEwtrbSLMqNyzm4rNJr",
+          "span_id": "5a7c014806a748dc89a9d3ad8724e966",
+          "timestamp": "2026-03-06T21:01:40.384876+01:00",
+          "working_start": 1308.411185364,
+          "event": "span_end",
+          "id": "5a7c014806a748dc89a9d3ad8724e966"
+        },
+        {
+          "uuid": "BMUd4y8S5ypuquSQuEGUdN",
+          "span_id": "e905928a26de44fdb12f2f2e9fc24e66",
+          "timestamp": "2026-03-06T21:01:40.385359+01:00",
+          "working_start": 0.00046966899981271126,
+          "event": "span_begin",
+          "id": "e905928a26de44fdb12f2f2e9fc24e66",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "n8fkUSuBhqLS42ojTWVdGc",
+          "span_id": "2595fc06639e41eca498bfaf0d20a1f9",
+          "timestamp": "2026-03-06T21:01:40.385400+01:00",
+          "working_start": 0.0005104370000026393,
+          "event": "span_begin",
+          "id": "2595fc06639e41eca498bfaf0d20a1f9",
+          "parent_id": "e905928a26de44fdb12f2f2e9fc24e66",
+          "type": "solver",
+          "name": "system_message"
+        },
+        {
+          "uuid": "3z2Zz8SFzVy6cDtGpgrRXY",
+          "span_id": "2595fc06639e41eca498bfaf0d20a1f9",
+          "timestamp": "2026-03-06T21:01:40.385611+01:00",
+          "working_start": 0.0007225029999062826,
+          "event": "state",
+          "changes": [
+            {
+              "op": "remove",
+              "path": "/messages/0/source"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/id",
+              "value": "gTMnPmKKQGya7SnmJM9uN3",
+              "replaced": "9yJEyKTqU58i3kWHWi6Vrm"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/role",
+              "value": "system",
+              "replaced": "user"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "\nChoose the most plausible continuation for the story.\n",
+              "replaced": "A first person view is seen of a man riding a riding lawn mower. he"
+            },
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "9yJEyKTqU58i3kWHWi6Vrm",
+                "content": "A first person view is seen of a man riding a riding lawn mower. he",
+                "source": "input",
+                "role": "user"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "G4s4fmxRxRGeHTAUN63CmY",
+          "span_id": "2595fc06639e41eca498bfaf0d20a1f9",
+          "timestamp": "2026-03-06T21:01:40.385644+01:00",
+          "working_start": 0.000755270999889035,
+          "event": "span_end",
+          "id": "2595fc06639e41eca498bfaf0d20a1f9"
+        },
+        {
+          "uuid": "AnDNn2sMaRYiRRwucXLzXi",
+          "span_id": "16105c2486674e418fa3db44042a9b69",
+          "timestamp": "2026-03-06T21:01:40.385673+01:00",
+          "working_start": 0.0007836879999558732,
+          "event": "span_begin",
+          "id": "16105c2486674e418fa3db44042a9b69",
+          "parent_id": "e905928a26de44fdb12f2f2e9fc24e66",
+          "type": "solver",
+          "name": "multiple_choice"
+        },
+        {
+          "uuid": "TSWCLHmhJkuJjAa3SccRim",
+          "span_id": "16105c2486674e418fa3db44042a9b69",
+          "timestamp": "2026-03-06T21:01:40.385830+01:00",
+          "working_start": 0.0009416409998266317,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "gTMnPmKKQGya7SnmJM9uN3",
+              "content": "\nChoose the most plausible continuation for the story.\n",
+              "role": "system"
+            },
+            {
+              "id": "9yJEyKTqU58i3kWHWi6Vrm",
+              "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nA first person view is seen of a man riding a riding lawn mower. he\n\nA) takes turns quickly, mowing the lawn.\nB) creates a large puddle of water and a high rush of water around him as he heads back and forth back and forth.\nC) moves all around while there is a crowd watching.\nD) talks about how to properly ride an object while another man climbs up on the back of him.",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 2048
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "XZTajuASHUTpkCvPLTc83w",
+                  "content": "ANSWER: A",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "ANSWER: A",
+            "usage": {
+              "input_tokens": 218,
+              "output_tokens": 5,
+              "total_tokens": 223
+            },
+            "time": 1.0136081539999395,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-06T21:01:41.400512+01:00",
+          "working_time": 1.0136081539999395
+        },
+        {
+          "uuid": "RnkZyRFjQ8jAKWgXbWNs8g",
+          "span_id": "16105c2486674e418fa3db44042a9b69",
+          "timestamp": "2026-03-06T21:01:41.400757+01:00",
+          "working_start": 1.014863462999756,
+          "event": "state",
+          "changes": [
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 1.0136081539999395
+            },
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 218,
+                "output_tokens": 5,
+                "total_tokens": 223
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "XZTajuASHUTpkCvPLTc83w",
+                  "content": "ANSWER: A",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "ANSWER: A",
+              "replaced": ""
+            },
+            {
+              "op": "replace",
+              "path": "/messages/1/content",
+              "value": "attachment://79f3131cea092f9b07bcc508944ebea0",
+              "replaced": "A first person view is seen of a man riding a riding lawn mower. he"
+            },
+            {
+              "op": "add",
+              "path": "/messages/2",
+              "value": {
+                "id": "XZTajuASHUTpkCvPLTc83w",
+                "content": "ANSWER: A",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "6SQQhW9AtYMHhP8G32J5GP",
+          "span_id": "16105c2486674e418fa3db44042a9b69",
+          "timestamp": "2026-03-06T21:01:41.400803+01:00",
+          "working_start": 1.0149082629998247,
+          "event": "span_end",
+          "id": "16105c2486674e418fa3db44042a9b69"
+        },
+        {
+          "uuid": "8DNJceP5mkXDoh5fn6BRgp",
+          "span_id": "e905928a26de44fdb12f2f2e9fc24e66",
+          "timestamp": "2026-03-06T21:01:41.400838+01:00",
+          "working_start": 1.0149428549998447,
+          "event": "span_end",
+          "id": "e905928a26de44fdb12f2f2e9fc24e66"
+        },
+        {
+          "uuid": "iRNzTXTtF2iwivmSANNhFp",
+          "span_id": "5920a1760b9d47a6b92847e5d26eed49",
+          "timestamp": "2026-03-06T21:01:41.401277+01:00",
+          "working_start": 1.0153822199997649,
+          "event": "span_begin",
+          "id": "5920a1760b9d47a6b92847e5d26eed49",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "TEPNh94ueR6eCtGNfawbyG",
+          "span_id": "1a039f0c810546339fb2ef97c34207bb",
+          "timestamp": "2026-03-06T21:01:41.401320+01:00",
+          "working_start": 1.0154247479997593,
+          "event": "span_begin",
+          "id": "1a039f0c810546339fb2ef97c34207bb",
+          "parent_id": "5920a1760b9d47a6b92847e5d26eed49",
+          "type": "scorer",
+          "name": "choice"
+        },
+        {
+          "uuid": "MX4fS2K4Lim58ojemTSVyb",
+          "span_id": "1a039f0c810546339fb2ef97c34207bb",
+          "timestamp": "2026-03-06T21:01:41.401357+01:00",
+          "working_start": 1.0154613879997214,
+          "event": "score",
+          "score": {
+            "value": "C",
+            "answer": "A",
+            "explanation": "ANSWER: A",
+            "history": []
+          },
+          "target": "A",
+          "intermediate": false
+        },
+        {
+          "uuid": "4n6oZdjZR7GZXNSnbN4SRR",
+          "span_id": "1a039f0c810546339fb2ef97c34207bb",
+          "timestamp": "2026-03-06T21:01:41.401391+01:00",
+          "working_start": 1.0154958529997202,
+          "event": "span_end",
+          "id": "1a039f0c810546339fb2ef97c34207bb"
+        },
+        {
+          "uuid": "Lnr4cAHJgmLu3fLGmkTZVc",
+          "span_id": "5920a1760b9d47a6b92847e5d26eed49",
+          "timestamp": "2026-03-06T21:01:41.401414+01:00",
+          "working_start": 1.0155187329996807,
+          "event": "span_end",
+          "id": "5920a1760b9d47a6b92847e5d26eed49"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 218,
+          "output_tokens": 5,
+          "total_tokens": 223
+        }
+      },
+      "total_time": 1.017,
+      "working_time": 1.016,
+      "uuid": "kSQw8ek98xh77F9UcEFnXd",
+      "error_retries": [],
+      "attachments": {
+        "79f3131cea092f9b07bcc508944ebea0": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nA first person view is seen of a man riding a riding lawn mower. he\n\nA) takes turns quickly, mowing the lawn.\nB) creates a large puddle of water and a high rush of water around him as he heads back and forth back and forth.\nC) moves all around while there is a crowd watching.\nD) talks about how to properly ride an object while another man climbs up on the back of him."
+      }
+    },
+    {
+      "id": "hellaswag_000fb77d",
+      "epoch": 1,
+      "input": "[header] How to get a discount from comcast [title] Determine the types of comcast services you plan on using. [step] Comcast currently offers a variety of services; including cable television, internet, home telephone service, a home security system, and technical support for computers. [substeps] Often, it is cheaper to have services packaged in \" bundles.",
+      "choices": [
+        "\" for instance, you might buy a service that downloads and sends audio files to your address book. This might work for you, but could also work for comcast on private or public computers, too.",
+        "\" in some cases, you will need to have the services delivered to you through your network. Also, some service providers will charge higher levels of monthly features, like telecommuting or installation, while others will only provide that service to some people.",
+        "\" the way in which a company buys products and services will determine the amount of inputs you need to use. Businesses who purchase products that they think will last longer may have fewer inputs that ensure that their services will be as efficient when they reach a certain net goal.",
+        "\" if you want more than one of the services listed above, there are a number of packages available. Keep in mind, though, that nearly all of the available packages include internet and cable together; there may not be special offers advertised for just home telephone and cable."
+      ],
+      "target": "D",
+      "messages": [
+        {
+          "id": "FhuWiphMUEpkAEqW9wF5mt",
+          "content": "\nChoose the most plausible continuation for the story.\n",
+          "role": "system"
+        },
+        {
+          "id": "VPuU3R6JgzS9tDagttDTYZ",
+          "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\n[header] How to get a discount from comcast [title] Determine the types of comcast services you plan on using. [step] Comcast currently offers a variety of services; including cable television, internet, home telephone service, a home security system, and technical support for computers. [substeps] Often, it is cheaper to have services packaged in \" bundles.\n\nA) \" for instance, you might buy a service that downloads and sends audio files to your address book. This might work for you, but could also work for comcast on private or public computers, too.\nB) \" in some cases, you will need to have the services delivered to you through your network. Also, some service providers will charge higher levels of monthly features, like telecommuting or installation, while others will only provide that service to some people.\nC) \" the way in which a company buys products and services will determine the amount of inputs you need to use. Businesses who purchase products that they think will last longer may have fewer inputs that ensure that their services will be as efficient when they reach a certain net goal.\nD) \" if you want more than one of the services listed above, there are a number of packages available. Keep in mind, though, that nearly all of the available packages include internet and cable together; there may not be special offers advertised for just home telephone and cable.",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "knZcjuwNcSXxDhTwBb25L3",
+          "content": "ANSWER: D",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "knZcjuwNcSXxDhTwBb25L3",
+              "content": "ANSWER: D",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "ANSWER: D",
+        "usage": {
+          "input_tokens": 374,
+          "output_tokens": 5,
+          "total_tokens": 379
+        },
+        "time": 1.0198125549998167,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "choice": {
+          "value": "C",
+          "answer": "D",
+          "explanation": "ANSWER: D",
+          "history": []
+        }
+      },
+      "metadata": {
+        "source_id": "wikihow~45733"
+      },
+      "store": {},
+      "events": [
+        {
+          "uuid": "ShtvJ5NzoWwDMsqPBdoaJE",
+          "span_id": "d2d202cb96334c43b1f3d8dec487f4f9",
+          "timestamp": "2026-03-06T21:06:01.125573+01:00",
+          "working_start": 1569.151882394,
+          "event": "span_begin",
+          "id": "d2d202cb96334c43b1f3d8dec487f4f9",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "YVkoRc7b3FbxD6sKgNUQWd",
+          "span_id": "d2d202cb96334c43b1f3d8dec487f4f9",
+          "timestamp": "2026-03-06T21:06:01.125621+01:00",
+          "working_start": 1569.151929914,
+          "event": "sample_init",
+          "sample": {
+            "input": "attachment://31b9a797ea5a73f48bc04aa8df66d512",
+            "choices": [
+              "\" for instance, you might buy a service that downloads and sends audio files to your address book. This might work for you, but could also work for comcast on private or public computers, too.",
+              "\" in some cases, you will need to have the services delivered to you through your network. Also, some service providers will charge higher levels of monthly features, like telecommuting or installation, while others will only provide that service to some people.",
+              "\" the way in which a company buys products and services will determine the amount of inputs you need to use. Businesses who purchase products that they think will last longer may have fewer inputs that ensure that their services will be as efficient when they reach a certain net goal.",
+              "\" if you want more than one of the services listed above, there are a number of packages available. Keep in mind, though, that nearly all of the available packages include internet and cable together; there may not be special offers advertised for just home telephone and cable."
+            ],
+            "target": "D",
+            "id": "hellaswag_000fb77d",
+            "metadata": {
+              "source_id": "wikihow~45733"
+            }
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "VPuU3R6JgzS9tDagttDTYZ",
+                "content": "attachment://31b9a797ea5a73f48bc04aa8df66d512",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {
+              "source_id": "wikihow~45733"
+            }
+          }
+        },
+        {
+          "uuid": "MjRQ9jfUe4MgaG7RCzW2vR",
+          "span_id": "d2d202cb96334c43b1f3d8dec487f4f9",
+          "timestamp": "2026-03-06T21:06:01.125666+01:00",
+          "working_start": 1569.151974395,
+          "event": "span_end",
+          "id": "d2d202cb96334c43b1f3d8dec487f4f9"
+        },
+        {
+          "uuid": "cXQDjuurBwGKLAdvfaoQX8",
+          "span_id": "0113b8f89ef040c6a29169ab1ac68174",
+          "timestamp": "2026-03-06T21:06:01.126165+01:00",
+          "working_start": 0.000486084999920422,
+          "event": "span_begin",
+          "id": "0113b8f89ef040c6a29169ab1ac68174",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "TnEHMagAgW4K6aYMVG6b9S",
+          "span_id": "dc472611ab0d4111959ac1350fa9f33c",
+          "timestamp": "2026-03-06T21:06:01.126209+01:00",
+          "working_start": 0.0005293809999784571,
+          "event": "span_begin",
+          "id": "dc472611ab0d4111959ac1350fa9f33c",
+          "parent_id": "0113b8f89ef040c6a29169ab1ac68174",
+          "type": "solver",
+          "name": "system_message"
+        },
+        {
+          "uuid": "o6vy9nGkLamhLoRsQpLxdw",
+          "span_id": "dc472611ab0d4111959ac1350fa9f33c",
+          "timestamp": "2026-03-06T21:06:01.126447+01:00",
+          "working_start": 0.0007681990000492078,
+          "event": "state",
+          "changes": [
+            {
+              "op": "remove",
+              "path": "/messages/0/source"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/id",
+              "value": "FhuWiphMUEpkAEqW9wF5mt",
+              "replaced": "VPuU3R6JgzS9tDagttDTYZ"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/role",
+              "value": "system",
+              "replaced": "user"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "\nChoose the most plausible continuation for the story.\n",
+              "replaced": "[header] How to get a discount from comcast [title] Determine the types of comcast services you plan on using. [step] Comcast currently offers a variety of services; including cable television, internet, home telephone service, a home security system, and technical support for computers. [substeps] Often, it is cheaper to have services packaged in \" bundles."
+            },
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "VPuU3R6JgzS9tDagttDTYZ",
+                "content": "attachment://31b9a797ea5a73f48bc04aa8df66d512",
+                "source": "input",
+                "role": "user"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "RpTvF2539NK8MLKBxahibE",
+          "span_id": "dc472611ab0d4111959ac1350fa9f33c",
+          "timestamp": "2026-03-06T21:06:01.126481+01:00",
+          "working_start": 0.0008010960000319756,
+          "event": "span_end",
+          "id": "dc472611ab0d4111959ac1350fa9f33c"
+        },
+        {
+          "uuid": "UvBPktkvsGEkn7cezZvaDn",
+          "span_id": "4317395988dc450e93aa8137e043cb78",
+          "timestamp": "2026-03-06T21:06:01.126512+01:00",
+          "working_start": 0.0008326479999141156,
+          "event": "span_begin",
+          "id": "4317395988dc450e93aa8137e043cb78",
+          "parent_id": "0113b8f89ef040c6a29169ab1ac68174",
+          "type": "solver",
+          "name": "multiple_choice"
+        },
+        {
+          "uuid": "i7dgwUEDi2aCwri9jcu2jr",
+          "span_id": "4317395988dc450e93aa8137e043cb78",
+          "timestamp": "2026-03-06T21:06:01.126639+01:00",
+          "working_start": 0.0009595609999450971,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "FhuWiphMUEpkAEqW9wF5mt",
+              "content": "\nChoose the most plausible continuation for the story.\n",
+              "role": "system"
+            },
+            {
+              "id": "VPuU3R6JgzS9tDagttDTYZ",
+              "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\n[header] How to get a discount from comcast [title] Determine the types of comcast services you plan on using. [step] Comcast currently offers a variety of services; including cable television, internet, home telephone service, a home security system, and technical support for computers. [substeps] Often, it is cheaper to have services packaged in \" bundles.\n\nA) \" for instance, you might buy a service that downloads and sends audio files to your address book. This might work for you, but could also work for comcast on private or public computers, too.\nB) \" in some cases, you will need to have the services delivered to you through your network. Also, some service providers will charge higher levels of monthly features, like telecommuting or installation, while others will only provide that service to some people.\nC) \" the way in which a company buys products and services will determine the amount of inputs you need to use. Businesses who purchase products that they think will last longer may have fewer inputs that ensure that their services will be as efficient when they reach a certain net goal.\nD) \" if you want more than one of the services listed above, there are a number of packages available. Keep in mind, though, that nearly all of the available packages include internet and cable together; there may not be special offers advertised for just home telephone and cable.",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 2048
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "knZcjuwNcSXxDhTwBb25L3",
+                  "content": "ANSWER: D",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "ANSWER: D",
+            "usage": {
+              "input_tokens": 374,
+              "output_tokens": 5,
+              "total_tokens": 379
+            },
+            "time": 1.0198125549998167,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-06T21:06:02.147636+01:00",
+          "working_time": 1.0198125549998167
+        },
+        {
+          "uuid": "f7AGqLpYx2rTyevGXsrzDW",
+          "span_id": "4317395988dc450e93aa8137e043cb78",
+          "timestamp": "2026-03-06T21:06:02.147894+01:00",
+          "working_start": 1.0211020069996266,
+          "event": "state",
+          "changes": [
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 1.0198125549998167
+            },
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 374,
+                "output_tokens": 5,
+                "total_tokens": 379
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "knZcjuwNcSXxDhTwBb25L3",
+                  "content": "ANSWER: D",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "ANSWER: D",
+              "replaced": ""
+            },
+            {
+              "op": "replace",
+              "path": "/messages/1/content",
+              "value": "attachment://195a9f8d7f8a08a3ab33610fa07f7720",
+              "replaced": "[header] How to get a discount from comcast [title] Determine the types of comcast services you plan on using. [step] Comcast currently offers a variety of services; including cable television, internet, home telephone service, a home security system, and technical support for computers. [substeps] Often, it is cheaper to have services packaged in \" bundles."
+            },
+            {
+              "op": "add",
+              "path": "/messages/2",
+              "value": {
+                "id": "knZcjuwNcSXxDhTwBb25L3",
+                "content": "ANSWER: D",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "KT4hCKpYgLLWgQjzgSP7QC",
+          "span_id": "4317395988dc450e93aa8137e043cb78",
+          "timestamp": "2026-03-06T21:06:02.147950+01:00",
+          "working_start": 1.0211571429997548,
+          "event": "span_end",
+          "id": "4317395988dc450e93aa8137e043cb78"
+        },
+        {
+          "uuid": "fnKXStjvxdg8dC2VZJD6ok",
+          "span_id": "0113b8f89ef040c6a29169ab1ac68174",
+          "timestamp": "2026-03-06T21:06:02.147987+01:00",
+          "working_start": 1.0211937829997169,
+          "event": "span_end",
+          "id": "0113b8f89ef040c6a29169ab1ac68174"
+        },
+        {
+          "uuid": "9zTiYm6XQ8UMvSGjdJ8Zbj",
+          "span_id": "a542c14052ee4398a409826d2c5ff164",
+          "timestamp": "2026-03-06T21:06:02.148441+01:00",
+          "working_start": 1.0216479639996123,
+          "event": "span_begin",
+          "id": "a542c14052ee4398a409826d2c5ff164",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "2Q382qhBR5pXpsonoL4FNx",
+          "span_id": "3a2355196a3b4beaa117a6c456475dee",
+          "timestamp": "2026-03-06T21:06:02.148490+01:00",
+          "working_start": 1.0216966679995494,
+          "event": "span_begin",
+          "id": "3a2355196a3b4beaa117a6c456475dee",
+          "parent_id": "a542c14052ee4398a409826d2c5ff164",
+          "type": "scorer",
+          "name": "choice"
+        },
+        {
+          "uuid": "jVgpxSj4fkcxX5CJJGSdXU",
+          "span_id": "3a2355196a3b4beaa117a6c456475dee",
+          "timestamp": "2026-03-06T21:06:02.148527+01:00",
+          "working_start": 1.02173369299976,
+          "event": "score",
+          "score": {
+            "value": "C",
+            "answer": "D",
+            "explanation": "ANSWER: D",
+            "history": []
+          },
+          "target": "D",
+          "intermediate": false
+        },
+        {
+          "uuid": "W6QtoPXNjTTvTumtVRMa8t",
+          "span_id": "3a2355196a3b4beaa117a6c456475dee",
+          "timestamp": "2026-03-06T21:06:02.148563+01:00",
+          "working_start": 1.021769916999574,
+          "event": "span_end",
+          "id": "3a2355196a3b4beaa117a6c456475dee"
+        },
+        {
+          "uuid": "TSbMiAgAkLqLggweF9TNRS",
+          "span_id": "a542c14052ee4398a409826d2c5ff164",
+          "timestamp": "2026-03-06T21:06:02.148587+01:00",
+          "working_start": 1.0217931169995609,
+          "event": "span_end",
+          "id": "a542c14052ee4398a409826d2c5ff164"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 374,
+          "output_tokens": 5,
+          "total_tokens": 379
+        }
+      },
+      "total_time": 1.023,
+      "working_time": 1.022,
+      "uuid": "5XCEJwkPcUpd9HLYvgWWKH",
+      "error_retries": [],
+      "attachments": {
+        "31b9a797ea5a73f48bc04aa8df66d512": "[header] How to get a discount from comcast [title] Determine the types of comcast services you plan on using. [step] Comcast currently offers a variety of services; including cable television, internet, home telephone service, a home security system, and technical support for computers. [substeps] Often, it is cheaper to have services packaged in \" bundles.",
+        "195a9f8d7f8a08a3ab33610fa07f7720": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\n[header] How to get a discount from comcast [title] Determine the types of comcast services you plan on using. [step] Comcast currently offers a variety of services; including cable television, internet, home telephone service, a home security system, and technical support for computers. [substeps] Often, it is cheaper to have services packaged in \" bundles.\n\nA) \" for instance, you might buy a service that downloads and sends audio files to your address book. This might work for you, but could also work for comcast on private or public computers, too.\nB) \" in some cases, you will need to have the services delivered to you through your network. Also, some service providers will charge higher levels of monthly features, like telecommuting or installation, while others will only provide that service to some people.\nC) \" the way in which a company buys products and services will determine the amount of inputs you need to use. Businesses who purchase products that they think will last longer may have fewer inputs that ensure that their services will be as efficient when they reach a certain net goal.\nD) \" if you want more than one of the services listed above, there are a number of packages available. Keep in mind, though, that nearly all of the available packages include internet and cable together; there may not be special offers advertised for just home telephone and cable."
+      }
+    }
+  ],
+  "reductions": [
+    {
+      "scorer": "choice",
+      "samples": [
+        {
+          "value": 1.0,
+          "answer": "A",
+          "explanation": "ANSWER: A",
+          "history": [],
+          "sample_id": "hellaswag_000b7b85"
+        },
+        {
+          "value": 1.0,
+          "answer": "A",
+          "explanation": "ANSWER: A",
+          "history": [],
+          "sample_id": "hellaswag_0008f39f"
+        },
+        {
+          "value": 1.0,
+          "answer": "B",
+          "explanation": "ANSWER: B",
+          "history": [],
+          "sample_id": "hellaswag_000223e3"
+        },
+        {
+          "value": 1.0,
+          "answer": "D",
+          "explanation": "ANSWER: D",
+          "history": [],
+          "sample_id": "hellaswag_000fb77d"
+        },
+        {
+          "value": 1.0,
+          "answer": "B",
+          "explanation": "ANSWER: B",
+          "history": [],
+          "sample_id": "hellaswag_000420a4"
+        }
+      ]
+    }
+  ]
+}

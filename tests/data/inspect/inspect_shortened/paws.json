@@ -1,0 +1,1987 @@
+{
+  "version": 2,
+  "status": "success",
+  "eval": {
+    "eval_id": "NyRgkWeizPCfqXEjCi6VYX",
+    "run_id": "85QpndVXJbddEiDP5EA4QE",
+    "created": "2026-03-10T23:13:34+00:00",
+    "task": "inspect_evals/paws",
+    "task_id": "XjCeQSsw4pkWThRSYmVDQ6",
+    "task_version": 2,
+    "task_display_name": "paws",
+    "task_registry_name": "inspect_evals/paws",
+    "task_attribs": {},
+    "task_args": {
+      "shuffle": true
+    },
+    "task_args_passed": {},
+    "dataset": {
+      "name": "google-research-datasets/paws",
+      "location": "google-research-datasets/paws",
+      "samples": 5,
+      "sample_ids": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "shuffled": false
+    },
+    "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+    "model_generate_config": {},
+    "model_args": {},
+    "model_roles": {},
+    "config": {
+      "epochs": 1,
+      "epochs_reducer": [
+        "mean"
+      ],
+      "fail_on_error": true,
+      "continue_on_fail": false,
+      "sandbox_cleanup": true,
+      "log_samples": true,
+      "log_realtime": false,
+      "log_images": true,
+      "log_buffer": 800,
+      "log_shared": 0,
+      "score_display": false
+    },
+    "revision": {
+      "type": "git",
+      "origin": "https://github.com/MIMIR-AI-ROUTER/inspect_evals.git",
+      "commit": "26ee9b93"
+    },
+    "packages": {
+      "inspect_ai": "0.3.180.dev77+gb34c521b",
+      "inspect_evals": "0.0.1.dev2141+unknown.g26ee9b93d"
+    },
+    "metadata": {
+      "full_task_version": "2-A",
+      "task_interface_version": "A",
+      "task_comparability_version": 2
+    },
+    "scorers": [
+      {
+        "name": "includes",
+        "options": {},
+        "metrics": [
+          {
+            "name": "inspect_ai/accuracy",
+            "options": {}
+          },
+          {
+            "name": "inspect_ai/stderr",
+            "options": {}
+          }
+        ],
+        "metadata": {}
+      }
+    ]
+  },
+  "plan": {
+    "name": "plan",
+    "steps": [
+      {
+        "solver": "prompt_template",
+        "params": {
+          "template": "\nAnswer Yes if the following two sentences are paraphrases. If they are not, answer No.\nDo not give any other answer other than Yes or No in your response.\n{prompt}\n",
+          "params": {}
+        }
+      },
+      {
+        "solver": "generate",
+        "params": {
+          "tool_calls": "loop",
+          "kwargs": {}
+        }
+      }
+    ],
+    "config": {}
+  },
+  "results": {
+    "total_samples": 5,
+    "completed_samples": 5,
+    "scores": [
+      {
+        "name": "includes",
+        "scorer": "includes",
+        "scored_samples": 5,
+        "unscored_samples": 0,
+        "params": {},
+        "metrics": {
+          "accuracy": {
+            "name": "accuracy",
+            "value": 0.8,
+            "params": {}
+          },
+          "stderr": {
+            "name": "stderr",
+            "value": 0.2,
+            "params": {}
+          }
+        }
+      }
+    ]
+  },
+  "stats": {
+    "started_at": "2026-03-10T23:13:34+00:00",
+    "completed_at": "2026-03-10T23:18:11+00:00",
+    "model_usage": {
+      "hf/Qwen/Qwen2.5-7B-Instruct": {
+        "input_tokens": 826,
+        "output_tokens": 10,
+        "total_tokens": 836
+      }
+    }
+  },
+  "samples": [
+    {
+      "id": 1,
+      "epoch": 1,
+      "input": "Sentence1: This was a series of nested angular standards , so that measurements in azimuth and elevation could be done directly in polar coordinates relative to the ecliptic .\nSentence2: This was a series of nested polar scales , so that measurements in azimuth and elevation could be performed directly in angular coordinates relative to the ecliptic .",
+      "target": "No",
+      "messages": [
+        {
+          "id": "VwnbkmGYTAM76tDRcfcEep",
+          "content": "\nAnswer Yes if the following two sentences are paraphrases. If they are not, answer No.\nDo not give any other answer other than Yes or No in your response.\nSentence1: This was a series of nested angular standards , so that measurements in azimuth and elevation could be done directly in polar coordinates relative to the ecliptic .\nSentence2: This was a series of nested polar scales , so that measurements in azimuth and elevation could be performed directly in angular coordinates relative to the ecliptic .\n",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "efurs6MvDmZaygMXkHJVYE",
+          "content": "No",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "efurs6MvDmZaygMXkHJVYE",
+              "content": "No",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "No",
+        "usage": {
+          "input_tokens": 158,
+          "output_tokens": 2,
+          "total_tokens": 160
+        },
+        "time": 1.0405780319997575,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "includes": {
+          "value": "C",
+          "answer": "no",
+          "explanation": "No",
+          "history": []
+        }
+      },
+      "metadata": {},
+      "store": {},
+      "events": [
+        {
+          "uuid": "KbxfxiVUHMa4BjsoKVMKjc",
+          "span_id": "496d6661afd64557aab48c602fa54813",
+          "timestamp": "2026-03-11T00:14:29.786179+01:00",
+          "working_start": 21703.832520164,
+          "event": "span_begin",
+          "id": "496d6661afd64557aab48c602fa54813",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "gPgidcAphm6iu9zsZ9Qum4",
+          "span_id": "496d6661afd64557aab48c602fa54813",
+          "timestamp": "2026-03-11T00:14:29.786222+01:00",
+          "working_start": 21703.832563269,
+          "event": "sample_init",
+          "sample": {
+            "input": "attachment://241abb5b7173b7e6f6461092bc6682d6",
+            "target": "No",
+            "id": 1
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "VwnbkmGYTAM76tDRcfcEep",
+                "content": "attachment://241abb5b7173b7e6f6461092bc6682d6",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {}
+          }
+        },
+        {
+          "uuid": "Uk9ZAKnqcRtP83NoKRhzNu",
+          "span_id": "496d6661afd64557aab48c602fa54813",
+          "timestamp": "2026-03-11T00:14:29.786260+01:00",
+          "working_start": 21703.832601061,
+          "event": "span_end",
+          "id": "496d6661afd64557aab48c602fa54813"
+        },
+        {
+          "uuid": "78MW6dnaw6Z8HbtGvbQ2Pe",
+          "span_id": "0c4cfdc3107c43a9868c9aa3c5fe98ce",
+          "timestamp": "2026-03-11T00:14:29.800632+01:00",
+          "working_start": 0.014359868000610732,
+          "event": "span_begin",
+          "id": "0c4cfdc3107c43a9868c9aa3c5fe98ce",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "RNNzVibei4msghneqb6SU8",
+          "span_id": "d56e00adcbda4b6491c8c38b4e684968",
+          "timestamp": "2026-03-11T00:14:29.800709+01:00",
+          "working_start": 0.014437533001910197,
+          "event": "span_begin",
+          "id": "d56e00adcbda4b6491c8c38b4e684968",
+          "parent_id": "0c4cfdc3107c43a9868c9aa3c5fe98ce",
+          "type": "solver",
+          "name": "prompt_template"
+        },
+        {
+          "uuid": "LqewrTM6jirDdHiqkRSjFx",
+          "span_id": "d56e00adcbda4b6491c8c38b4e684968",
+          "timestamp": "2026-03-11T00:14:29.800877+01:00",
+          "working_start": 0.014605151001887862,
+          "event": "state",
+          "changes": [
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "attachment://0222331441a6fd5c94408949eaf11be2",
+              "replaced": "Sentence1: This was a series of nested angular standards , so that measurements in azimuth and elevation could be done directly in polar coordinates relative to the ecliptic .\nSentence2: This was a series of nested polar scales , so that measurements in azimuth and elevation could be performed directly in angular coordinates relative to the ecliptic ."
+            }
+          ]
+        },
+        {
+          "uuid": "88P2iZma6Wf63DiWQ46yey",
+          "span_id": "d56e00adcbda4b6491c8c38b4e684968",
+          "timestamp": "2026-03-11T00:14:29.800908+01:00",
+          "working_start": 0.014636415002314607,
+          "event": "span_end",
+          "id": "d56e00adcbda4b6491c8c38b4e684968"
+        },
+        {
+          "uuid": "3ikV52gFfkgzbuRsqrcR8z",
+          "span_id": "3a1b1cc5df814512b297989451cc10c7",
+          "timestamp": "2026-03-11T00:14:29.800939+01:00",
+          "working_start": 0.014666751001641387,
+          "event": "span_begin",
+          "id": "3a1b1cc5df814512b297989451cc10c7",
+          "parent_id": "0c4cfdc3107c43a9868c9aa3c5fe98ce",
+          "type": "solver",
+          "name": "generate"
+        },
+        {
+          "uuid": "3JPVGxn8EA7aZtBeq98kyH",
+          "span_id": "3a1b1cc5df814512b297989451cc10c7",
+          "timestamp": "2026-03-11T00:14:29.801044+01:00",
+          "working_start": 0.014772320002521155,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "VwnbkmGYTAM76tDRcfcEep",
+              "content": "\nAnswer Yes if the following two sentences are paraphrases. If they are not, answer No.\nDo not give any other answer other than Yes or No in your response.\nSentence1: This was a series of nested angular standards , so that measurements in azimuth and elevation could be done directly in polar coordinates relative to the ecliptic .\nSentence2: This was a series of nested polar scales , so that measurements in azimuth and elevation could be performed directly in angular coordinates relative to the ecliptic .\n",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 2048
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "efurs6MvDmZaygMXkHJVYE",
+                  "content": "No",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "No",
+            "usage": {
+              "input_tokens": 158,
+              "output_tokens": 2,
+              "total_tokens": 160
+            },
+            "time": 1.0405780319997575,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-11T00:14:30.854464+01:00",
+          "working_time": 1.0405780319997575
+        },
+        {
+          "uuid": "f9gcwFemYnGYhHm3aCQzPG",
+          "span_id": "3a1b1cc5df814512b297989451cc10c7",
+          "timestamp": "2026-03-11T00:14:30.854624+01:00",
+          "working_start": 1.0555742579999787,
+          "event": "state",
+          "changes": [
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "efurs6MvDmZaygMXkHJVYE",
+                "content": "No",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 158,
+                "output_tokens": 2,
+                "total_tokens": 160
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 1.0405780319997575
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "efurs6MvDmZaygMXkHJVYE",
+                  "content": "No",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "No",
+              "replaced": ""
+            }
+          ]
+        },
+        {
+          "uuid": "Re2679MVnPA6GBrZugg4th",
+          "span_id": "3a1b1cc5df814512b297989451cc10c7",
+          "timestamp": "2026-03-11T00:14:30.854686+01:00",
+          "working_start": 1.055635507000261,
+          "event": "span_end",
+          "id": "3a1b1cc5df814512b297989451cc10c7"
+        },
+        {
+          "uuid": "ZiEYQrpAXo8Qf4CFUTfQR2",
+          "span_id": "0c4cfdc3107c43a9868c9aa3c5fe98ce",
+          "timestamp": "2026-03-11T00:14:30.854720+01:00",
+          "working_start": 1.0556695550003496,
+          "event": "span_end",
+          "id": "0c4cfdc3107c43a9868c9aa3c5fe98ce"
+        },
+        {
+          "uuid": "kbsm4cahfEPah3LecbqfBi",
+          "span_id": "8abf2df0ccc94c0db78475b96e37cf81",
+          "timestamp": "2026-03-11T00:14:30.869187+01:00",
+          "working_start": 1.0701364960004867,
+          "event": "span_begin",
+          "id": "8abf2df0ccc94c0db78475b96e37cf81",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "dZKkmNTCgaVHMbXDuxyz5E",
+          "span_id": "2aff2295ee5b4db5a2c1816ed3c89a66",
+          "timestamp": "2026-03-11T00:14:30.869223+01:00",
+          "working_start": 1.0701725610015274,
+          "event": "span_begin",
+          "id": "2aff2295ee5b4db5a2c1816ed3c89a66",
+          "parent_id": "8abf2df0ccc94c0db78475b96e37cf81",
+          "type": "scorer",
+          "name": "includes"
+        },
+        {
+          "uuid": "jgJiQFovz5vvpQrhCMGC7D",
+          "span_id": "2aff2295ee5b4db5a2c1816ed3c89a66",
+          "timestamp": "2026-03-11T00:14:30.869248+01:00",
+          "working_start": 1.0701968809989921,
+          "event": "score",
+          "score": {
+            "value": "C",
+            "answer": "no",
+            "explanation": "No",
+            "history": []
+          },
+          "target": "No",
+          "intermediate": false
+        },
+        {
+          "uuid": "ATCf9y4twKQuGYkut4hqrV",
+          "span_id": "2aff2295ee5b4db5a2c1816ed3c89a66",
+          "timestamp": "2026-03-11T00:14:30.869277+01:00",
+          "working_start": 1.0702263210005185,
+          "event": "span_end",
+          "id": "2aff2295ee5b4db5a2c1816ed3c89a66"
+        },
+        {
+          "uuid": "XoUBQFKv7rWJ8sMd75tskC",
+          "span_id": "8abf2df0ccc94c0db78475b96e37cf81",
+          "timestamp": "2026-03-11T00:14:30.869298+01:00",
+          "working_start": 1.070246961000521,
+          "event": "span_end",
+          "id": "8abf2df0ccc94c0db78475b96e37cf81"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 158,
+          "output_tokens": 2,
+          "total_tokens": 160
+        }
+      },
+      "total_time": 1.088,
+      "working_time": 1.075,
+      "uuid": "RnzMdJMdsFNyqujaQ8qmTr",
+      "error_retries": [],
+      "attachments": {
+        "241abb5b7173b7e6f6461092bc6682d6": "Sentence1: This was a series of nested angular standards , so that measurements in azimuth and elevation could be done directly in polar coordinates relative to the ecliptic .\nSentence2: This was a series of nested polar scales , so that measurements in azimuth and elevation could be performed directly in angular coordinates relative to the ecliptic .",
+        "0222331441a6fd5c94408949eaf11be2": "\nAnswer Yes if the following two sentences are paraphrases. If they are not, answer No.\nDo not give any other answer other than Yes or No in your response.\nSentence1: This was a series of nested angular standards , so that measurements in azimuth and elevation could be done directly in polar coordinates relative to the ecliptic .\nSentence2: This was a series of nested polar scales , so that measurements in azimuth and elevation could be performed directly in angular coordinates relative to the ecliptic .\n"
+      }
+    },
+    {
+      "id": 2,
+      "epoch": 1,
+      "input": "Sentence1: His father emigrated to Missouri in 1868 but returned when his wife became ill and before the rest of the family could also go to America .\nSentence2: His father emigrated to America in 1868 , but returned when his wife became ill and before the rest of the family could go to Missouri .",
+      "target": "No",
+      "messages": [
+        {
+          "id": "TcjSHRLa2RuhnoCwpbUB6T",
+          "content": "\nAnswer Yes if the following two sentences are paraphrases. If they are not, answer No.\nDo not give any other answer other than Yes or No in your response.\nSentence1: His father emigrated to Missouri in 1868 but returned when his wife became ill and before the rest of the family could also go to America .\nSentence2: His father emigrated to America in 1868 , but returned when his wife became ill and before the rest of the family could go to Missouri .\n",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "4DeJFfYHj8onrqvsntgNBz",
+          "content": "No",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "4DeJFfYHj8onrqvsntgNBz",
+              "content": "No",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "No",
+        "usage": {
+          "input_tokens": 160,
+          "output_tokens": 2,
+          "total_tokens": 162
+        },
+        "time": 1.0168401310002082,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "includes": {
+          "value": "C",
+          "answer": "no",
+          "explanation": "No",
+          "history": []
+        }
+      },
+      "metadata": {},
+      "store": {},
+      "events": [
+        {
+          "uuid": "28wNH8MS2xhLbQE6y9q9RD",
+          "span_id": "ebc41ef0464a41ca941d6b99bfebd007",
+          "timestamp": "2026-03-11T00:16:18.936370+01:00",
+          "working_start": 21812.982711783,
+          "event": "span_begin",
+          "id": "ebc41ef0464a41ca941d6b99bfebd007",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "FhWNkWMULZihs84m867QEh",
+          "span_id": "ebc41ef0464a41ca941d6b99bfebd007",
+          "timestamp": "2026-03-11T00:16:18.936422+01:00",
+          "working_start": 21812.982763207,
+          "event": "sample_init",
+          "sample": {
+            "input": "attachment://a28154b10a0217cb9e515effd29b6fc2",
+            "target": "No",
+            "id": 2
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "TcjSHRLa2RuhnoCwpbUB6T",
+                "content": "attachment://a28154b10a0217cb9e515effd29b6fc2",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {}
+          }
+        },
+        {
+          "uuid": "g2H7sBows32RwPr7JBhnmF",
+          "span_id": "ebc41ef0464a41ca941d6b99bfebd007",
+          "timestamp": "2026-03-11T00:16:18.936474+01:00",
+          "working_start": 21812.98281508,
+          "event": "span_end",
+          "id": "ebc41ef0464a41ca941d6b99bfebd007"
+        },
+        {
+          "uuid": "Y6Y9htzTXeiWe9amURNiuR",
+          "span_id": "b0f6627dd5c143f3acded323a613ce44",
+          "timestamp": "2026-03-11T00:16:18.936959+01:00",
+          "working_start": 0.0004663719992095139,
+          "event": "span_begin",
+          "id": "b0f6627dd5c143f3acded323a613ce44",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "4a8F45SM58nJMUwP7G8vRL",
+          "span_id": "bb5c1509c21242a1bc404438dd7a486d",
+          "timestamp": "2026-03-11T00:16:18.937007+01:00",
+          "working_start": 0.0005142119989614002,
+          "event": "span_begin",
+          "id": "bb5c1509c21242a1bc404438dd7a486d",
+          "parent_id": "b0f6627dd5c143f3acded323a613ce44",
+          "type": "solver",
+          "name": "prompt_template"
+        },
+        {
+          "uuid": "Qo4x9qY6aXgJ5gCGDHNyF4",
+          "span_id": "bb5c1509c21242a1bc404438dd7a486d",
+          "timestamp": "2026-03-11T00:16:18.937163+01:00",
+          "working_start": 0.0006700539997837041,
+          "event": "state",
+          "changes": [
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "attachment://2bb5dd13cfccbeecfc0405bb220fb39a",
+              "replaced": "Sentence1: His father emigrated to Missouri in 1868 but returned when his wife became ill and before the rest of the family could also go to America .\nSentence2: His father emigrated to America in 1868 , but returned when his wife became ill and before the rest of the family could go to Missouri ."
+            }
+          ]
+        },
+        {
+          "uuid": "b9JGaTuGFUzi9RzCSaLTrF",
+          "span_id": "bb5c1509c21242a1bc404438dd7a486d",
+          "timestamp": "2026-03-11T00:16:18.937223+01:00",
+          "working_start": 0.0007301499972527381,
+          "event": "span_end",
+          "id": "bb5c1509c21242a1bc404438dd7a486d"
+        },
+        {
+          "uuid": "W4y8XJAXykuEMv35J2viT5",
+          "span_id": "72dcc0b2a9264bbe8ae56864e643b1c5",
+          "timestamp": "2026-03-11T00:16:18.937264+01:00",
+          "working_start": 0.0007714309977018274,
+          "event": "span_begin",
+          "id": "72dcc0b2a9264bbe8ae56864e643b1c5",
+          "parent_id": "b0f6627dd5c143f3acded323a613ce44",
+          "type": "solver",
+          "name": "generate"
+        },
+        {
+          "uuid": "PFu99gRYtHdrLY7HHqTypK",
+          "span_id": "72dcc0b2a9264bbe8ae56864e643b1c5",
+          "timestamp": "2026-03-11T00:16:18.937378+01:00",
+          "working_start": 0.0008854479965521023,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "TcjSHRLa2RuhnoCwpbUB6T",
+              "content": "\nAnswer Yes if the following two sentences are paraphrases. If they are not, answer No.\nDo not give any other answer other than Yes or No in your response.\nSentence1: His father emigrated to Missouri in 1868 but returned when his wife became ill and before the rest of the family could also go to America .\nSentence2: His father emigrated to America in 1868 , but returned when his wife became ill and before the rest of the family could go to Missouri .\n",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 2048
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "4DeJFfYHj8onrqvsntgNBz",
+                  "content": "No",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "No",
+            "usage": {
+              "input_tokens": 160,
+              "output_tokens": 2,
+              "total_tokens": 162
+            },
+            "time": 1.0168401310002082,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-11T00:16:19.955495+01:00",
+          "working_time": 1.0168401310002082
+        },
+        {
+          "uuid": "fc75dMzYWTV9p5Mizfm9Gr",
+          "span_id": "72dcc0b2a9264bbe8ae56864e643b1c5",
+          "timestamp": "2026-03-11T00:16:19.955687+01:00",
+          "working_start": 1.0179916609959037,
+          "event": "state",
+          "changes": [
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "4DeJFfYHj8onrqvsntgNBz",
+                "content": "No",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 160,
+                "output_tokens": 2,
+                "total_tokens": 162
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 1.0168401310002082
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "4DeJFfYHj8onrqvsntgNBz",
+                  "content": "No",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "No",
+              "replaced": ""
+            }
+          ]
+        },
+        {
+          "uuid": "XWXrWJoMDjzK54TX4wH5wS",
+          "span_id": "72dcc0b2a9264bbe8ae56864e643b1c5",
+          "timestamp": "2026-03-11T00:16:19.955735+01:00",
+          "working_start": 1.01803870099684,
+          "event": "span_end",
+          "id": "72dcc0b2a9264bbe8ae56864e643b1c5"
+        },
+        {
+          "uuid": "oFBa82MKPXQ8mPRJTJh2Xc",
+          "span_id": "b0f6627dd5c143f3acded323a613ce44",
+          "timestamp": "2026-03-11T00:16:19.955780+01:00",
+          "working_start": 1.0180835009959992,
+          "event": "span_end",
+          "id": "b0f6627dd5c143f3acded323a613ce44"
+        },
+        {
+          "uuid": "LUyF56NeY8mfbz7WdLcj4s",
+          "span_id": "1966f79bfe274bca851009c75fb56832",
+          "timestamp": "2026-03-11T00:16:19.956310+01:00",
+          "working_start": 1.0186147699969297,
+          "event": "span_begin",
+          "id": "1966f79bfe274bca851009c75fb56832",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "9irjfnNb4rEppsMWzvNhCX",
+          "span_id": "cac3c83e5f9a46b286ad368e8e07ea78",
+          "timestamp": "2026-03-11T00:16:19.956353+01:00",
+          "working_start": 1.0186566579977807,
+          "event": "span_begin",
+          "id": "cac3c83e5f9a46b286ad368e8e07ea78",
+          "parent_id": "1966f79bfe274bca851009c75fb56832",
+          "type": "scorer",
+          "name": "includes"
+        },
+        {
+          "uuid": "4dKoAic4tHSy3DV7yexqXX",
+          "span_id": "cac3c83e5f9a46b286ad368e8e07ea78",
+          "timestamp": "2026-03-11T00:16:19.956379+01:00",
+          "working_start": 1.018682802998228,
+          "event": "score",
+          "score": {
+            "value": "C",
+            "answer": "no",
+            "explanation": "No",
+            "history": []
+          },
+          "target": "No",
+          "intermediate": false
+        },
+        {
+          "uuid": "gzqVN9VfdZAQvZyB5JjDpK",
+          "span_id": "cac3c83e5f9a46b286ad368e8e07ea78",
+          "timestamp": "2026-03-11T00:16:19.956411+01:00",
+          "working_start": 1.0187143229959474,
+          "event": "span_end",
+          "id": "cac3c83e5f9a46b286ad368e8e07ea78"
+        },
+        {
+          "uuid": "SkjkT6e3zVqY4Vqj7ShCz5",
+          "span_id": "1966f79bfe274bca851009c75fb56832",
+          "timestamp": "2026-03-11T00:16:19.956431+01:00",
+          "working_start": 1.0187343869947654,
+          "event": "span_end",
+          "id": "1966f79bfe274bca851009c75fb56832"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 160,
+          "output_tokens": 2,
+          "total_tokens": 162
+        }
+      },
+      "total_time": 1.02,
+      "working_time": 1.019,
+      "uuid": "9JgqRNyn55nxeeKzwcMhKp",
+      "error_retries": [],
+      "attachments": {
+        "a28154b10a0217cb9e515effd29b6fc2": "Sentence1: His father emigrated to Missouri in 1868 but returned when his wife became ill and before the rest of the family could also go to America .\nSentence2: His father emigrated to America in 1868 , but returned when his wife became ill and before the rest of the family could go to Missouri .",
+        "2bb5dd13cfccbeecfc0405bb220fb39a": "\nAnswer Yes if the following two sentences are paraphrases. If they are not, answer No.\nDo not give any other answer other than Yes or No in your response.\nSentence1: His father emigrated to Missouri in 1868 but returned when his wife became ill and before the rest of the family could also go to America .\nSentence2: His father emigrated to America in 1868 , but returned when his wife became ill and before the rest of the family could go to Missouri .\n"
+      }
+    },
+    {
+      "id": 3,
+      "epoch": 1,
+      "input": "Sentence1: In January 2011 , the Deputy Secretary General of FIBA Asia , Hagop Khajirian , inspected the venue together with SBP - President Manuel V. Pangilinan .\nSentence2: In January 2011 , FIBA Asia deputy secretary general Hagop Khajirian along with SBP president Manuel V. Pangilinan inspected the venue .",
+      "target": "Yes",
+      "messages": [
+        {
+          "id": "YTVPAjkygiNiSk2uGLDUiv",
+          "content": "\nAnswer Yes if the following two sentences are paraphrases. If they are not, answer No.\nDo not give any other answer other than Yes or No in your response.\nSentence1: In January 2011 , the Deputy Secretary General of FIBA Asia , Hagop Khajirian , inspected the venue together with SBP - President Manuel V. Pangilinan .\nSentence2: In January 2011 , FIBA Asia deputy secretary general Hagop Khajirian along with SBP president Manuel V. Pangilinan inspected the venue .\n",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "QrWVVzpfpQQmYaM5g9LBfD",
+          "content": "Yes",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "QrWVVzpfpQQmYaM5g9LBfD",
+              "content": "Yes",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "Yes",
+        "usage": {
+          "input_tokens": 166,
+          "output_tokens": 2,
+          "total_tokens": 168
+        },
+        "time": 1.0142846199996711,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "includes": {
+          "value": "C",
+          "answer": "yes",
+          "explanation": "Yes",
+          "history": []
+        }
+      },
+      "metadata": {},
+      "store": {},
+      "events": [
+        {
+          "uuid": "SZmUnTuPodDqF9Vuqnz5Sd",
+          "span_id": "686ad17e5b9d4e629ab7f28bb5f338b1",
+          "timestamp": "2026-03-11T00:13:47.617551+01:00",
+          "working_start": 21661.663892286,
+          "event": "span_begin",
+          "id": "686ad17e5b9d4e629ab7f28bb5f338b1",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "NMiCUnJ5RBppqsVZSLvoZp",
+          "span_id": "686ad17e5b9d4e629ab7f28bb5f338b1",
+          "timestamp": "2026-03-11T00:13:47.617595+01:00",
+          "working_start": 21661.663936094,
+          "event": "sample_init",
+          "sample": {
+            "input": "attachment://394086ac331f0671c40c101440c2da48",
+            "target": "Yes",
+            "id": 3
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "YTVPAjkygiNiSk2uGLDUiv",
+                "content": "attachment://394086ac331f0671c40c101440c2da48",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {}
+          }
+        },
+        {
+          "uuid": "7DGZv3P6R5U6j4t2dkFCu9",
+          "span_id": "686ad17e5b9d4e629ab7f28bb5f338b1",
+          "timestamp": "2026-03-11T00:13:47.617634+01:00",
+          "working_start": 21661.663974878,
+          "event": "span_end",
+          "id": "686ad17e5b9d4e629ab7f28bb5f338b1"
+        },
+        {
+          "uuid": "BWSNWUhbP93iEDFRPkaYeR",
+          "span_id": "21dcb0e185d04895a4e05ae04b8071ce",
+          "timestamp": "2026-03-11T00:13:47.618092+01:00",
+          "working_start": 0.00044547600191435777,
+          "event": "span_begin",
+          "id": "21dcb0e185d04895a4e05ae04b8071ce",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "DuUaEGLEmgTYvWEzMWpWAy",
+          "span_id": "4049d1a782cb4206962fae144620febc",
+          "timestamp": "2026-03-11T00:13:47.618131+01:00",
+          "working_start": 0.00048493299982510507,
+          "event": "span_begin",
+          "id": "4049d1a782cb4206962fae144620febc",
+          "parent_id": "21dcb0e185d04895a4e05ae04b8071ce",
+          "type": "solver",
+          "name": "prompt_template"
+        },
+        {
+          "uuid": "FtrUYnfxQPRW4vpAhHUQtu",
+          "span_id": "4049d1a782cb4206962fae144620febc",
+          "timestamp": "2026-03-11T00:13:47.618283+01:00",
+          "working_start": 0.0006374780023179483,
+          "event": "state",
+          "changes": [
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "attachment://261d33abcdc256aff4a866eef0ffacf8",
+              "replaced": "Sentence1: In January 2011 , the Deputy Secretary General of FIBA Asia , Hagop Khajirian , inspected the venue together with SBP - President Manuel V. Pangilinan .\nSentence2: In January 2011 , FIBA Asia deputy secretary general Hagop Khajirian along with SBP president Manuel V. Pangilinan inspected the venue ."
+            }
+          ]
+        },
+        {
+          "uuid": "2NYG8r7gLsp8hWxtMAVfJh",
+          "span_id": "4049d1a782cb4206962fae144620febc",
+          "timestamp": "2026-03-11T00:13:47.618313+01:00",
+          "working_start": 0.0006661820007138886,
+          "event": "span_end",
+          "id": "4049d1a782cb4206962fae144620febc"
+        },
+        {
+          "uuid": "2kmDwviZjmuPtupjD8oc7n",
+          "span_id": "bffadd7f3d754a6f9467d1e39aed70a9",
+          "timestamp": "2026-03-11T00:13:47.618340+01:00",
+          "working_start": 0.0006933820004633162,
+          "event": "span_begin",
+          "id": "bffadd7f3d754a6f9467d1e39aed70a9",
+          "parent_id": "21dcb0e185d04895a4e05ae04b8071ce",
+          "type": "solver",
+          "name": "generate"
+        },
+        {
+          "uuid": "Pd2e69Cgn3MefD6SJXsAkH",
+          "span_id": "bffadd7f3d754a6f9467d1e39aed70a9",
+          "timestamp": "2026-03-11T00:13:47.618447+01:00",
+          "working_start": 0.0008007750002434477,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "YTVPAjkygiNiSk2uGLDUiv",
+              "content": "\nAnswer Yes if the following two sentences are paraphrases. If they are not, answer No.\nDo not give any other answer other than Yes or No in your response.\nSentence1: In January 2011 , the Deputy Secretary General of FIBA Asia , Hagop Khajirian , inspected the venue together with SBP - President Manuel V. Pangilinan .\nSentence2: In January 2011 , FIBA Asia deputy secretary general Hagop Khajirian along with SBP president Manuel V. Pangilinan inspected the venue .\n",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 2048
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "QrWVVzpfpQQmYaM5g9LBfD",
+                  "content": "Yes",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "Yes",
+            "usage": {
+              "input_tokens": 166,
+              "output_tokens": 2,
+              "total_tokens": 168
+            },
+            "time": 1.0142846199996711,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-11T00:13:48.633923+01:00",
+          "working_time": 1.0142846199996711
+        },
+        {
+          "uuid": "DJ3p6hBsXkgGkfAkKziGyG",
+          "span_id": "bffadd7f3d754a6f9467d1e39aed70a9",
+          "timestamp": "2026-03-11T00:13:48.634086+01:00",
+          "working_start": 1.0153177809988847,
+          "event": "state",
+          "changes": [
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "QrWVVzpfpQQmYaM5g9LBfD",
+                "content": "Yes",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 166,
+                "output_tokens": 2,
+                "total_tokens": 168
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 1.0142846199996711
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "QrWVVzpfpQQmYaM5g9LBfD",
+                  "content": "Yes",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "Yes",
+              "replaced": ""
+            }
+          ]
+        },
+        {
+          "uuid": "AfsuEg6yJAeLfB6xupFfo5",
+          "span_id": "bffadd7f3d754a6f9467d1e39aed70a9",
+          "timestamp": "2026-03-11T00:13:48.634127+01:00",
+          "working_start": 1.0153589969995664,
+          "event": "span_end",
+          "id": "bffadd7f3d754a6f9467d1e39aed70a9"
+        },
+        {
+          "uuid": "JsJx3aLJSgvagggsAaHtYB",
+          "span_id": "21dcb0e185d04895a4e05ae04b8071ce",
+          "timestamp": "2026-03-11T00:13:48.634157+01:00",
+          "working_start": 1.0153883099992527,
+          "event": "span_end",
+          "id": "21dcb0e185d04895a4e05ae04b8071ce"
+        },
+        {
+          "uuid": "WdiRTsQTzB44XtYjASSyiQ",
+          "span_id": "88ec9b46df5843d285e8fc6974ced72a",
+          "timestamp": "2026-03-11T00:13:48.634581+01:00",
+          "working_start": 1.0158138810002129,
+          "event": "span_begin",
+          "id": "88ec9b46df5843d285e8fc6974ced72a",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "oYTL73ZYAStYe2tkrjNjNN",
+          "span_id": "3660b8cfb7d84a9a90a6f0ec607c3d93",
+          "timestamp": "2026-03-11T00:13:48.634621+01:00",
+          "working_start": 1.0158530500011693,
+          "event": "span_begin",
+          "id": "3660b8cfb7d84a9a90a6f0ec607c3d93",
+          "parent_id": "88ec9b46df5843d285e8fc6974ced72a",
+          "type": "scorer",
+          "name": "includes"
+        },
+        {
+          "uuid": "ZugmJHZtxUDjx6Tv5DbAmc",
+          "span_id": "3660b8cfb7d84a9a90a6f0ec607c3d93",
+          "timestamp": "2026-03-11T00:13:48.634647+01:00",
+          "working_start": 1.015878842001257,
+          "event": "score",
+          "score": {
+            "value": "C",
+            "answer": "yes",
+            "explanation": "Yes",
+            "history": []
+          },
+          "target": "Yes",
+          "intermediate": false
+        },
+        {
+          "uuid": "jT58ckxyGquAa9d2eEL3Bx",
+          "span_id": "3660b8cfb7d84a9a90a6f0ec607c3d93",
+          "timestamp": "2026-03-11T00:13:48.634703+01:00",
+          "working_start": 1.0159348099987255,
+          "event": "span_end",
+          "id": "3660b8cfb7d84a9a90a6f0ec607c3d93"
+        },
+        {
+          "uuid": "as37iRXSway63XhuoPQPqn",
+          "span_id": "88ec9b46df5843d285e8fc6974ced72a",
+          "timestamp": "2026-03-11T00:13:48.634726+01:00",
+          "working_start": 1.0159574019999127,
+          "event": "span_end",
+          "id": "88ec9b46df5843d285e8fc6974ced72a"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 166,
+          "output_tokens": 2,
+          "total_tokens": 168
+        }
+      },
+      "total_time": 1.018,
+      "working_time": 1.016,
+      "uuid": "9Jaz4qbngjRqfawhCJTueL",
+      "error_retries": [],
+      "attachments": {
+        "394086ac331f0671c40c101440c2da48": "Sentence1: In January 2011 , the Deputy Secretary General of FIBA Asia , Hagop Khajirian , inspected the venue together with SBP - President Manuel V. Pangilinan .\nSentence2: In January 2011 , FIBA Asia deputy secretary general Hagop Khajirian along with SBP president Manuel V. Pangilinan inspected the venue .",
+        "261d33abcdc256aff4a866eef0ffacf8": "\nAnswer Yes if the following two sentences are paraphrases. If they are not, answer No.\nDo not give any other answer other than Yes or No in your response.\nSentence1: In January 2011 , the Deputy Secretary General of FIBA Asia , Hagop Khajirian , inspected the venue together with SBP - President Manuel V. Pangilinan .\nSentence2: In January 2011 , FIBA Asia deputy secretary general Hagop Khajirian along with SBP president Manuel V. Pangilinan inspected the venue .\n"
+      }
+    },
+    {
+      "id": 4,
+      "epoch": 1,
+      "input": "Sentence1: Steiner argued that , in the right circumstances , the spiritual world can be explored through direct experience by practicing ethical and cognitive forms of rigorous self-discipline .\nSentence2: Steiner held that the spiritual world can be researched in the right circumstances through direct experience , by persons practicing rigorous forms of ethical and cognitive self-discipline .",
+      "target": "No",
+      "messages": [
+        {
+          "id": "F3wyzbUAsbnnppmhkozWvB",
+          "content": "\nAnswer Yes if the following two sentences are paraphrases. If they are not, answer No.\nDo not give any other answer other than Yes or No in your response.\nSentence1: Steiner argued that , in the right circumstances , the spiritual world can be explored through direct experience by practicing ethical and cognitive forms of rigorous self-discipline .\nSentence2: Steiner held that the spiritual world can be researched in the right circumstances through direct experience , by persons practicing rigorous forms of ethical and cognitive self-discipline .\n",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "7bJBsXEt5BgNrXTFQDhN2z",
+          "content": "Yes",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "7bJBsXEt5BgNrXTFQDhN2z",
+              "content": "Yes",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "Yes",
+        "usage": {
+          "input_tokens": 184,
+          "output_tokens": 2,
+          "total_tokens": 186
+        },
+        "time": 1.0137841039977502,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "includes": {
+          "value": "I",
+          "answer": "yes",
+          "explanation": "Yes",
+          "history": []
+        }
+      },
+      "metadata": {},
+      "store": {},
+      "events": [
+        {
+          "uuid": "ayk3rZzsbmLVoCenPoEPWh",
+          "span_id": "bbb0cfa8fbde41c7afdd9123563f6212",
+          "timestamp": "2026-03-11T00:14:56.521733+01:00",
+          "working_start": 21730.568081746,
+          "event": "span_begin",
+          "id": "bbb0cfa8fbde41c7afdd9123563f6212",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "nUduih3ELjSHuBLb74dwSY",
+          "span_id": "bbb0cfa8fbde41c7afdd9123563f6212",
+          "timestamp": "2026-03-11T00:14:56.521792+01:00",
+          "working_start": 21730.568132499,
+          "event": "sample_init",
+          "sample": {
+            "input": "attachment://80cdaaeea1cf2763bc6e49be94a381a4",
+            "target": "No",
+            "id": 4
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "F3wyzbUAsbnnppmhkozWvB",
+                "content": "attachment://80cdaaeea1cf2763bc6e49be94a381a4",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {}
+          }
+        },
+        {
+          "uuid": "7SXDu7QtCCSgz3FrZ2WwT8",
+          "span_id": "bbb0cfa8fbde41c7afdd9123563f6212",
+          "timestamp": "2026-03-11T00:14:56.521837+01:00",
+          "working_start": 21730.568178003,
+          "event": "span_end",
+          "id": "bbb0cfa8fbde41c7afdd9123563f6212"
+        },
+        {
+          "uuid": "4KTLgKzb4KwqAVqNaEuw5X",
+          "span_id": "417241bd57f341ab8478ff199bd091ae",
+          "timestamp": "2026-03-11T00:14:56.522303+01:00",
+          "working_start": 0.00045011600013822317,
+          "event": "span_begin",
+          "id": "417241bd57f341ab8478ff199bd091ae",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "QcycPoKnkkTEGXyw8gp2nP",
+          "span_id": "ff193baa59ed4f649baf43b926229c72",
+          "timestamp": "2026-03-11T00:14:56.522345+01:00",
+          "working_start": 0.0004920370010950137,
+          "event": "span_begin",
+          "id": "ff193baa59ed4f649baf43b926229c72",
+          "parent_id": "417241bd57f341ab8478ff199bd091ae",
+          "type": "solver",
+          "name": "prompt_template"
+        },
+        {
+          "uuid": "Zep2cx5Fq8CCvJQAMHaTHu",
+          "span_id": "ff193baa59ed4f649baf43b926229c72",
+          "timestamp": "2026-03-11T00:14:56.522488+01:00",
+          "working_start": 0.0006351740012178198,
+          "event": "state",
+          "changes": [
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "attachment://8b80865a9e6c6df2cda2cbc56a51a889",
+              "replaced": "Sentence1: Steiner argued that , in the right circumstances , the spiritual world can be explored through direct experience by practicing ethical and cognitive forms of rigorous self-discipline .\nSentence2: Steiner held that the spiritual world can be researched in the right circumstances through direct experience , by persons practicing rigorous forms of ethical and cognitive self-discipline ."
+            }
+          ]
+        },
+        {
+          "uuid": "ZwZT5gH569uDV2WGZtKeCK",
+          "span_id": "ff193baa59ed4f649baf43b926229c72",
+          "timestamp": "2026-03-11T00:14:56.522517+01:00",
+          "working_start": 0.0006636540019826498,
+          "event": "span_end",
+          "id": "ff193baa59ed4f649baf43b926229c72"
+        },
+        {
+          "uuid": "ensdg6bYRMbHYtkSJ3FEL3",
+          "span_id": "e7f5826e6c6a489e8b7619485adc126f",
+          "timestamp": "2026-03-11T00:14:56.522544+01:00",
+          "working_start": 0.0006902780005475506,
+          "event": "span_begin",
+          "id": "e7f5826e6c6a489e8b7619485adc126f",
+          "parent_id": "417241bd57f341ab8478ff199bd091ae",
+          "type": "solver",
+          "name": "generate"
+        },
+        {
+          "uuid": "cikDempgkMa8MoPrcjSPnL",
+          "span_id": "e7f5826e6c6a489e8b7619485adc126f",
+          "timestamp": "2026-03-11T00:14:56.522649+01:00",
+          "working_start": 0.0007953670028655324,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "F3wyzbUAsbnnppmhkozWvB",
+              "content": "\nAnswer Yes if the following two sentences are paraphrases. If they are not, answer No.\nDo not give any other answer other than Yes or No in your response.\nSentence1: Steiner argued that , in the right circumstances , the spiritual world can be explored through direct experience by practicing ethical and cognitive forms of rigorous self-discipline .\nSentence2: Steiner held that the spiritual world can be researched in the right circumstances through direct experience , by persons practicing rigorous forms of ethical and cognitive self-discipline .\n",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 2048
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "7bJBsXEt5BgNrXTFQDhN2z",
+                  "content": "Yes",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "Yes",
+            "usage": {
+              "input_tokens": 184,
+              "output_tokens": 2,
+              "total_tokens": 186
+            },
+            "time": 1.0137841039977502,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-11T00:14:57.537616+01:00",
+          "working_time": 1.0137841039977502
+        },
+        {
+          "uuid": "HVihEf5qgfvYvMSFaWyr7S",
+          "span_id": "e7f5826e6c6a489e8b7619485adc126f",
+          "timestamp": "2026-03-11T00:14:57.537818+01:00",
+          "working_start": 1.0148715059985989,
+          "event": "state",
+          "changes": [
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "7bJBsXEt5BgNrXTFQDhN2z",
+                "content": "Yes",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 184,
+                "output_tokens": 2,
+                "total_tokens": 186
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 1.0137841039977502
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "7bJBsXEt5BgNrXTFQDhN2z",
+                  "content": "Yes",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "Yes",
+              "replaced": ""
+            }
+          ]
+        },
+        {
+          "uuid": "VCM6dXWgdFgYbpP3ULthMF",
+          "span_id": "e7f5826e6c6a489e8b7619485adc126f",
+          "timestamp": "2026-03-11T00:14:57.537860+01:00",
+          "working_start": 1.0149133630002325,
+          "event": "span_end",
+          "id": "e7f5826e6c6a489e8b7619485adc126f"
+        },
+        {
+          "uuid": "UDEV7cWthkHvDKg3DPoEgL",
+          "span_id": "417241bd57f341ab8478ff199bd091ae",
+          "timestamp": "2026-03-11T00:14:57.537891+01:00",
+          "working_start": 1.0149443070004054,
+          "event": "span_end",
+          "id": "417241bd57f341ab8478ff199bd091ae"
+        },
+        {
+          "uuid": "mCBcuGdxCqiFtEXnp5fdbf",
+          "span_id": "930dd42142614befaecebbf0063ce539",
+          "timestamp": "2026-03-11T00:14:57.538276+01:00",
+          "working_start": 1.0153294619994995,
+          "event": "span_begin",
+          "id": "930dd42142614befaecebbf0063ce539",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "2uEkP25qLpgSJ5QZebrxvM",
+          "span_id": "ee9cf128e78f4b1caa712ecd872d0fc7",
+          "timestamp": "2026-03-11T00:14:57.538314+01:00",
+          "working_start": 1.015366551000625,
+          "event": "span_begin",
+          "id": "ee9cf128e78f4b1caa712ecd872d0fc7",
+          "parent_id": "930dd42142614befaecebbf0063ce539",
+          "type": "scorer",
+          "name": "includes"
+        },
+        {
+          "uuid": "3o8VXKt8QKgE33ystMAbcB",
+          "span_id": "ee9cf128e78f4b1caa712ecd872d0fc7",
+          "timestamp": "2026-03-11T00:14:57.538337+01:00",
+          "working_start": 1.015389686999697,
+          "event": "score",
+          "score": {
+            "value": "I",
+            "answer": "yes",
+            "explanation": "Yes",
+            "history": []
+          },
+          "target": "No",
+          "intermediate": false
+        },
+        {
+          "uuid": "jE2xuQeSTFxzQwZwT6gRxU",
+          "span_id": "ee9cf128e78f4b1caa712ecd872d0fc7",
+          "timestamp": "2026-03-11T00:14:57.538366+01:00",
+          "working_start": 1.0154187430016464,
+          "event": "span_end",
+          "id": "ee9cf128e78f4b1caa712ecd872d0fc7"
+        },
+        {
+          "uuid": "DNtL6KYNPtPTz3we6HDEpV",
+          "span_id": "930dd42142614befaecebbf0063ce539",
+          "timestamp": "2026-03-11T00:14:57.538384+01:00",
+          "working_start": 1.0154368549992796,
+          "event": "span_end",
+          "id": "930dd42142614befaecebbf0063ce539"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 184,
+          "output_tokens": 2,
+          "total_tokens": 186
+        }
+      },
+      "total_time": 1.017,
+      "working_time": 1.016,
+      "uuid": "nNteJptPVsEYGQpeeFi953",
+      "error_retries": [],
+      "attachments": {
+        "80cdaaeea1cf2763bc6e49be94a381a4": "Sentence1: Steiner argued that , in the right circumstances , the spiritual world can be explored through direct experience by practicing ethical and cognitive forms of rigorous self-discipline .\nSentence2: Steiner held that the spiritual world can be researched in the right circumstances through direct experience , by persons practicing rigorous forms of ethical and cognitive self-discipline .",
+        "8b80865a9e6c6df2cda2cbc56a51a889": "\nAnswer Yes if the following two sentences are paraphrases. If they are not, answer No.\nDo not give any other answer other than Yes or No in your response.\nSentence1: Steiner argued that , in the right circumstances , the spiritual world can be explored through direct experience by practicing ethical and cognitive forms of rigorous self-discipline .\nSentence2: Steiner held that the spiritual world can be researched in the right circumstances through direct experience , by persons practicing rigorous forms of ethical and cognitive self-discipline .\n"
+      }
+    },
+    {
+      "id": 5,
+      "epoch": 1,
+      "input": "Sentence1: Luciano Williames Dias ( born July 25 , 1970 ) is a Brazilian football coach and former player .\nSentence2: Luciano Williames Dias ( born 25 July 1970 ) is a former football coach and Brazilian player .",
+      "target": "No",
+      "messages": [
+        {
+          "id": "bQq6bDRPGDt69Ynn3PMvns",
+          "content": "\nAnswer Yes if the following two sentences are paraphrases. If they are not, answer No.\nDo not give any other answer other than Yes or No in your response.\nSentence1: Luciano Williames Dias ( born July 25 , 1970 ) is a Brazilian football coach and former player .\nSentence2: Luciano Williames Dias ( born 25 July 1970 ) is a former football coach and Brazilian player .\n",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "U5i8kVMd6FwvyeJ5Z4MQWs",
+          "content": "No",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "U5i8kVMd6FwvyeJ5Z4MQWs",
+              "content": "No",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "No",
+        "usage": {
+          "input_tokens": 158,
+          "output_tokens": 2,
+          "total_tokens": 160
+        },
+        "time": 1.0133135719988786,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "includes": {
+          "value": "C",
+          "answer": "no",
+          "explanation": "No",
+          "history": []
+        }
+      },
+      "metadata": {},
+      "store": {},
+      "events": [
+        {
+          "uuid": "YxpaWDPvnxMhHVF3p6h7hj",
+          "span_id": "b97e9875462249dca93bc85de67a0ab0",
+          "timestamp": "2026-03-11T00:15:51.400243+01:00",
+          "working_start": 21785.446584615,
+          "event": "span_begin",
+          "id": "b97e9875462249dca93bc85de67a0ab0",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "AFog8qLV4XuMR3YqvtbKMW",
+          "span_id": "b97e9875462249dca93bc85de67a0ab0",
+          "timestamp": "2026-03-11T00:15:51.400288+01:00",
+          "working_start": 21785.446628711,
+          "event": "sample_init",
+          "sample": {
+            "input": "attachment://d58abbf861a6ad421f33a0287f2acaed",
+            "target": "No",
+            "id": 5
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "bQq6bDRPGDt69Ynn3PMvns",
+                "content": "attachment://d58abbf861a6ad421f33a0287f2acaed",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {}
+          }
+        },
+        {
+          "uuid": "VR7Ly7f7HcLiEw59eKEUjz",
+          "span_id": "b97e9875462249dca93bc85de67a0ab0",
+          "timestamp": "2026-03-11T00:15:51.400327+01:00",
+          "working_start": 21785.446667847,
+          "event": "span_end",
+          "id": "b97e9875462249dca93bc85de67a0ab0"
+        },
+        {
+          "uuid": "8wsWehxyE8CTJsFugs9FnR",
+          "span_id": "eb4a4e1c7db046efba3fde7f941a951c",
+          "timestamp": "2026-03-11T00:15:51.400789+01:00",
+          "working_start": 0.00045050000335322693,
+          "event": "span_begin",
+          "id": "eb4a4e1c7db046efba3fde7f941a951c",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "HcpC4P2rcTogq5RZV268NB",
+          "span_id": "9da7345bf6e04d2b87293375f66078e9",
+          "timestamp": "2026-03-11T00:15:51.400829+01:00",
+          "working_start": 0.0004893490004178602,
+          "event": "span_begin",
+          "id": "9da7345bf6e04d2b87293375f66078e9",
+          "parent_id": "eb4a4e1c7db046efba3fde7f941a951c",
+          "type": "solver",
+          "name": "prompt_template"
+        },
+        {
+          "uuid": "BX58dFPyiNKirxFWsUyf2G",
+          "span_id": "9da7345bf6e04d2b87293375f66078e9",
+          "timestamp": "2026-03-11T00:15:51.400968+01:00",
+          "working_start": 0.0006290300007094629,
+          "event": "state",
+          "changes": [
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "attachment://b1aa5e6a484dab7b0b7d3fc7c4298bbf",
+              "replaced": "Sentence1: Luciano Williames Dias ( born July 25 , 1970 ) is a Brazilian football coach and former player .\nSentence2: Luciano Williames Dias ( born 25 July 1970 ) is a former football coach and Brazilian player ."
+            }
+          ]
+        },
+        {
+          "uuid": "aqhnZ5JkHA3HJNDvxA3eqJ",
+          "span_id": "9da7345bf6e04d2b87293375f66078e9",
+          "timestamp": "2026-03-11T00:15:51.400996+01:00",
+          "working_start": 0.0006563580027432181,
+          "event": "span_end",
+          "id": "9da7345bf6e04d2b87293375f66078e9"
+        },
+        {
+          "uuid": "TXFtXmC6HWRrA7k7MtTw4p",
+          "span_id": "009d229514504653ab41b2b135fa994c",
+          "timestamp": "2026-03-11T00:15:51.401022+01:00",
+          "working_start": 0.000682214002154069,
+          "event": "span_begin",
+          "id": "009d229514504653ab41b2b135fa994c",
+          "parent_id": "eb4a4e1c7db046efba3fde7f941a951c",
+          "type": "solver",
+          "name": "generate"
+        },
+        {
+          "uuid": "FAaFRvhMje3Gb4CTQtVuE7",
+          "span_id": "009d229514504653ab41b2b135fa994c",
+          "timestamp": "2026-03-11T00:15:51.401129+01:00",
+          "working_start": 0.000790087000495987,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "bQq6bDRPGDt69Ynn3PMvns",
+              "content": "\nAnswer Yes if the following two sentences are paraphrases. If they are not, answer No.\nDo not give any other answer other than Yes or No in your response.\nSentence1: Luciano Williames Dias ( born July 25 , 1970 ) is a Brazilian football coach and former player .\nSentence2: Luciano Williames Dias ( born 25 July 1970 ) is a former football coach and Brazilian player .\n",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 2048
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "U5i8kVMd6FwvyeJ5Z4MQWs",
+                  "content": "No",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "No",
+            "usage": {
+              "input_tokens": 158,
+              "output_tokens": 2,
+              "total_tokens": 160
+            },
+            "time": 1.0133135719988786,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-11T00:15:52.415577+01:00",
+          "working_time": 1.0133135719988786
+        },
+        {
+          "uuid": "4ZGqAxEfUfdR2oCScCVDhM",
+          "span_id": "009d229514504653ab41b2b135fa994c",
+          "timestamp": "2026-03-11T00:15:52.415785+01:00",
+          "working_start": 1.014381934000994,
+          "event": "state",
+          "changes": [
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "U5i8kVMd6FwvyeJ5Z4MQWs",
+                "content": "No",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 158,
+                "output_tokens": 2,
+                "total_tokens": 160
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 1.0133135719988786
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "U5i8kVMd6FwvyeJ5Z4MQWs",
+                  "content": "No",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "No",
+              "replaced": ""
+            }
+          ]
+        },
+        {
+          "uuid": "dZUDALYrr7K3KowTdcjM2X",
+          "span_id": "009d229514504653ab41b2b135fa994c",
+          "timestamp": "2026-03-11T00:15:52.415828+01:00",
+          "working_start": 1.0144246540003223,
+          "event": "span_end",
+          "id": "009d229514504653ab41b2b135fa994c"
+        },
+        {
+          "uuid": "T6a2CME7qmtFySKyWqkgGX",
+          "span_id": "eb4a4e1c7db046efba3fde7f941a951c",
+          "timestamp": "2026-03-11T00:15:52.415858+01:00",
+          "working_start": 1.0144534860010026,
+          "event": "span_end",
+          "id": "eb4a4e1c7db046efba3fde7f941a951c"
+        },
+        {
+          "uuid": "Bc5PNtNHPQMmoE8QjEuwi7",
+          "span_id": "0d8a1e01afe7423881fbe950aa172068",
+          "timestamp": "2026-03-11T00:15:52.416244+01:00",
+          "working_start": 1.0148408819986798,
+          "event": "span_begin",
+          "id": "0d8a1e01afe7423881fbe950aa172068",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "LFKzoZr2RRwBrE9uFcUCi5",
+          "span_id": "ce8b29f838e343ebb50cf848b1b77424",
+          "timestamp": "2026-03-11T00:15:52.416285+01:00",
+          "working_start": 1.0148810419996153,
+          "event": "span_begin",
+          "id": "ce8b29f838e343ebb50cf848b1b77424",
+          "parent_id": "0d8a1e01afe7423881fbe950aa172068",
+          "type": "scorer",
+          "name": "includes"
+        },
+        {
+          "uuid": "e6MVeV7zws8vE2R5ofj78r",
+          "span_id": "ce8b29f838e343ebb50cf848b1b77424",
+          "timestamp": "2026-03-11T00:15:52.416310+01:00",
+          "working_start": 1.0149057140006335,
+          "event": "score",
+          "score": {
+            "value": "C",
+            "answer": "no",
+            "explanation": "No",
+            "history": []
+          },
+          "target": "No",
+          "intermediate": false
+        },
+        {
+          "uuid": "ZXoGFVR7BBnNLYuYA2R5Ft",
+          "span_id": "ce8b29f838e343ebb50cf848b1b77424",
+          "timestamp": "2026-03-11T00:15:52.416339+01:00",
+          "working_start": 1.0149349620005523,
+          "event": "span_end",
+          "id": "ce8b29f838e343ebb50cf848b1b77424"
+        },
+        {
+          "uuid": "DjADLC6ZfmscB8WQMoAJv5",
+          "span_id": "0d8a1e01afe7423881fbe950aa172068",
+          "timestamp": "2026-03-11T00:15:52.416358+01:00",
+          "working_start": 1.014953203000914,
+          "event": "span_end",
+          "id": "0d8a1e01afe7423881fbe950aa172068"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 158,
+          "output_tokens": 2,
+          "total_tokens": 160
+        }
+      },
+      "total_time": 1.016,
+      "working_time": 1.015,
+      "uuid": "jxzzsiXyLSwcxkWWKsswTo",
+      "error_retries": [],
+      "attachments": {
+        "d58abbf861a6ad421f33a0287f2acaed": "Sentence1: Luciano Williames Dias ( born July 25 , 1970 ) is a Brazilian football coach and former player .\nSentence2: Luciano Williames Dias ( born 25 July 1970 ) is a former football coach and Brazilian player .",
+        "b1aa5e6a484dab7b0b7d3fc7c4298bbf": "\nAnswer Yes if the following two sentences are paraphrases. If they are not, answer No.\nDo not give any other answer other than Yes or No in your response.\nSentence1: Luciano Williames Dias ( born July 25 , 1970 ) is a Brazilian football coach and former player .\nSentence2: Luciano Williames Dias ( born 25 July 1970 ) is a former football coach and Brazilian player .\n"
+      }
+    }
+  ],
+  "reductions": [
+    {
+      "scorer": "includes",
+      "samples": [
+        {
+          "value": 1.0,
+          "answer": "yes",
+          "explanation": "Yes",
+          "history": [],
+          "sample_id": 3
+        },
+        {
+          "value": 1.0,
+          "answer": "no",
+          "explanation": "No",
+          "history": [],
+          "sample_id": 1
+        },
+        {
+          "value": 0,
+          "answer": "yes",
+          "explanation": "Yes",
+          "history": [],
+          "sample_id": 4
+        },
+        {
+          "value": 1.0,
+          "answer": "no",
+          "explanation": "No",
+          "history": [],
+          "sample_id": 5
+        },
+        {
+          "value": 1.0,
+          "answer": "no",
+          "explanation": "No",
+          "history": [],
+          "sample_id": 2
+        }
+      ]
+    }
+  ]
+}

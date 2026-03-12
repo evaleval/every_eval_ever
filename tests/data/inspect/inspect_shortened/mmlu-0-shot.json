@@ -1,0 +1,1946 @@
+{
+  "version": 2,
+  "status": "success",
+  "eval": {
+    "eval_id": "nuAeS9oQSzfFjMMnt6S3TW",
+    "run_id": "A8eRjff32gnRfk9vWcD4nc",
+    "created": "2026-03-11T16:19:12+00:00",
+    "task": "inspect_evals/mmlu_0_shot",
+    "task_id": "YtBXJoutxuLhL5AJqJSdzK",
+    "task_version": 2,
+    "task_display_name": "mmlu_0_shot",
+    "task_registry_name": "inspect_evals/mmlu_0_shot",
+    "task_attribs": {},
+    "task_args": {
+      "language": "EN_US",
+      "subjects": [],
+      "cot": false,
+      "shuffle": true,
+      "max_non_cot_tokens": 16
+    },
+    "task_args_passed": {},
+    "dataset": {
+      "name": "cais/mmlu",
+      "location": "cais/mmlu",
+      "samples": 5,
+      "sample_ids": [
+        "mmlu_00052344",
+        "mmlu_000ee83d",
+        "mmlu_00121de2",
+        "mmlu_00171cdb",
+        "mmlu_001f3893"
+      ],
+      "shuffled": false
+    },
+    "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+    "model_generate_config": {
+      "temperature": 0.001
+    },
+    "model_args": {},
+    "model_roles": {},
+    "config": {
+      "epochs": 1,
+      "epochs_reducer": [
+        "mean"
+      ],
+      "fail_on_error": true,
+      "continue_on_fail": false,
+      "sandbox_cleanup": true,
+      "log_samples": true,
+      "log_realtime": false,
+      "log_images": true,
+      "log_buffer": 1393,
+      "log_shared": 0,
+      "score_display": false
+    },
+    "revision": {
+      "type": "git",
+      "origin": "https://github.com/MIMIR-AI-ROUTER/inspect_evals.git",
+      "commit": "26ee9b93"
+    },
+    "packages": {
+      "inspect_ai": "0.3.180.dev77+gb34c521b",
+      "inspect_evals": "0.0.1.dev2141+unknown.g26ee9b93d"
+    },
+    "metadata": {
+      "full_task_version": "2-A",
+      "task_interface_version": "A",
+      "task_comparability_version": 2
+    },
+    "scorers": [
+      {
+        "name": "choice",
+        "options": {},
+        "metrics": [
+          {
+            "name": "inspect_ai/accuracy",
+            "options": {}
+          },
+          {
+            "name": "inspect_ai/stderr",
+            "options": {}
+          }
+        ],
+        "metadata": {}
+      }
+    ]
+  },
+  "plan": {
+    "name": "plan",
+    "steps": [
+      {
+        "solver": "inspect_evals/mmlu_multiple_choice",
+        "params": {
+          "cot": false,
+          "max_non_cot_tokens": 16
+        }
+      }
+    ],
+    "config": {
+      "temperature": 0.001
+    }
+  },
+  "results": {
+    "total_samples": 5,
+    "completed_samples": 5,
+    "scores": [
+      {
+        "name": "choice",
+        "scorer": "choice",
+        "scored_samples": 5,
+        "unscored_samples": 0,
+        "params": {},
+        "metrics": {
+          "accuracy": {
+            "name": "accuracy",
+            "value": 0.8,
+            "params": {}
+          },
+          "stderr": {
+            "name": "stderr",
+            "value": 0.2,
+            "params": {}
+          }
+        }
+      }
+    ]
+  },
+  "stats": {
+    "started_at": "2026-03-11T16:19:12+00:00",
+    "completed_at": "2026-03-11T16:30:28+00:00",
+    "model_usage": {
+      "hf/Qwen/Qwen2.5-7B-Instruct": {
+        "input_tokens": 2392,
+        "output_tokens": 25,
+        "total_tokens": 2417
+      }
+    }
+  },
+  "samples": [
+    {
+      "id": "mmlu_00052344",
+      "epoch": 1,
+      "input": "The European Union (EU) replaced which of the following organizations?",
+      "choices": [
+        "NATO",
+        "EEC",
+        "UN",
+        "ASEAN"
+      ],
+      "target": "B",
+      "messages": [
+        {
+          "id": "L6DTCTBCmmaUri7bWXEbmu",
+          "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nThe European Union (EU) replaced which of the following organizations?\n\nA) NATO\nB) EEC\nC) UN\nD) ASEAN",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "9aiC4V3gYNyRUGYwj5YJHY",
+          "content": "ANSWER: B",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "9aiC4V3gYNyRUGYwj5YJHY",
+              "content": "ANSWER: B",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "ANSWER: B",
+        "usage": {
+          "input_tokens": 391,
+          "output_tokens": 5,
+          "total_tokens": 396
+        },
+        "time": 1.0126398239954142,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "choice": {
+          "value": "C",
+          "answer": "B",
+          "explanation": "ANSWER: B",
+          "history": []
+        }
+      },
+      "metadata": {
+        "subject": "high_school_geography"
+      },
+      "store": {},
+      "events": [
+        {
+          "uuid": "85Cm9N26sAudnVuVd55zVH",
+          "span_id": "3082418315d542c78ad9857407895180",
+          "timestamp": "2026-03-11T17:26:23.755886+01:00",
+          "working_start": 83617.802226654,
+          "event": "span_begin",
+          "id": "3082418315d542c78ad9857407895180",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "ksFZvJbSDdGaPGsTyfnsHq",
+          "span_id": "3082418315d542c78ad9857407895180",
+          "timestamp": "2026-03-11T17:26:23.755931+01:00",
+          "working_start": 83617.802271967,
+          "event": "sample_init",
+          "sample": {
+            "input": "The European Union (EU) replaced which of the following organizations?",
+            "choices": [
+              "NATO",
+              "EEC",
+              "UN",
+              "ASEAN"
+            ],
+            "target": "B",
+            "id": "mmlu_00052344",
+            "metadata": {
+              "subject": "high_school_geography"
+            }
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "L6DTCTBCmmaUri7bWXEbmu",
+                "content": "The European Union (EU) replaced which of the following organizations?",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {
+              "subject": "high_school_geography"
+            }
+          }
+        },
+        {
+          "uuid": "aAAAsgEs8oe9tzbSQhi2MH",
+          "span_id": "3082418315d542c78ad9857407895180",
+          "timestamp": "2026-03-11T17:26:23.755970+01:00",
+          "working_start": 83617.802310623,
+          "event": "span_end",
+          "id": "3082418315d542c78ad9857407895180"
+        },
+        {
+          "uuid": "JWTnb8t2rHsvHh7eCp7o2C",
+          "span_id": "b0d619a3568844cd8a5e2eb73e26524f",
+          "timestamp": "2026-03-11T17:26:23.756422+01:00",
+          "working_start": 0.00044032398727722466,
+          "event": "span_begin",
+          "id": "b0d619a3568844cd8a5e2eb73e26524f",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "jiLxqtz69aXhNd6J9Ye85j",
+          "span_id": "5063b196a602498388ea8a44505d3502",
+          "timestamp": "2026-03-11T17:26:23.756461+01:00",
+          "working_start": 0.0004796839930349961,
+          "event": "span_begin",
+          "id": "5063b196a602498388ea8a44505d3502",
+          "parent_id": "b0d619a3568844cd8a5e2eb73e26524f",
+          "type": "solver",
+          "name": "inspect_evals/mmlu_multiple_choice"
+        },
+        {
+          "uuid": "Q45MZpceutTTWAottAUpKk",
+          "span_id": "5063b196a602498388ea8a44505d3502",
+          "timestamp": "2026-03-11T17:26:23.756783+01:00",
+          "working_start": 0.0008027909934753552,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "L6DTCTBCmmaUri7bWXEbmu",
+              "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nThe European Union (EU) replaced which of the following organizations?\n\nA) NATO\nB) EEC\nC) UN\nD) ASEAN",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 16,
+            "temperature": 0.001
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "9aiC4V3gYNyRUGYwj5YJHY",
+                  "content": "ANSWER: B",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "ANSWER: B",
+            "usage": {
+              "input_tokens": 391,
+              "output_tokens": 5,
+              "total_tokens": 396
+            },
+            "time": 1.0126398239954142,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-11T17:26:24.770572+01:00",
+          "working_time": 1.0126398239954142
+        },
+        {
+          "uuid": "mM77oKkxmYi43it4PnQjKD",
+          "span_id": "5063b196a602498388ea8a44505d3502",
+          "timestamp": "2026-03-11T17:26:24.770809+01:00",
+          "working_start": 1.0137488249893067,
+          "event": "state",
+          "changes": [
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 391,
+                "output_tokens": 5,
+                "total_tokens": 396
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 1.0126398239954142
+            },
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "ANSWER: B",
+              "replaced": ""
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "9aiC4V3gYNyRUGYwj5YJHY",
+                  "content": "ANSWER: B",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "attachment://81d0f840aa99ceed1bd35ff1b55d114f",
+              "replaced": "The European Union (EU) replaced which of the following organizations?"
+            },
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "9aiC4V3gYNyRUGYwj5YJHY",
+                "content": "ANSWER: B",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "Gwtw3EtYsjn9QNyT7CFMhb",
+          "span_id": "5063b196a602498388ea8a44505d3502",
+          "timestamp": "2026-03-11T17:26:24.770862+01:00",
+          "working_start": 1.0138009539950872,
+          "event": "span_end",
+          "id": "5063b196a602498388ea8a44505d3502"
+        },
+        {
+          "uuid": "FsXFqVTSLUgpu7wU8ZxKUg",
+          "span_id": "b0d619a3568844cd8a5e2eb73e26524f",
+          "timestamp": "2026-03-11T17:26:24.770899+01:00",
+          "working_start": 1.013837849983247,
+          "event": "span_end",
+          "id": "b0d619a3568844cd8a5e2eb73e26524f"
+        },
+        {
+          "uuid": "ARpTsTbTpR2mN92pdSxzmt",
+          "span_id": "1de6a054f2f1436ba9914c058c1e5f28",
+          "timestamp": "2026-03-11T17:26:24.771310+01:00",
+          "working_start": 1.0142501099908259,
+          "event": "span_begin",
+          "id": "1de6a054f2f1436ba9914c058c1e5f28",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "gWB85ZupZzCjdtKNPUevFw",
+          "span_id": "0c43ece6172143348a80a93a7e14706b",
+          "timestamp": "2026-03-11T17:26:24.771369+01:00",
+          "working_start": 1.0143084779847413,
+          "event": "span_begin",
+          "id": "0c43ece6172143348a80a93a7e14706b",
+          "parent_id": "1de6a054f2f1436ba9914c058c1e5f28",
+          "type": "scorer",
+          "name": "choice"
+        },
+        {
+          "uuid": "corD3Ru43DNSxGmgRVrE9E",
+          "span_id": "0c43ece6172143348a80a93a7e14706b",
+          "timestamp": "2026-03-11T17:26:24.771407+01:00",
+          "working_start": 1.014346301992191,
+          "event": "score",
+          "score": {
+            "value": "C",
+            "answer": "B",
+            "explanation": "ANSWER: B",
+            "history": []
+          },
+          "target": "B",
+          "intermediate": false
+        },
+        {
+          "uuid": "U55ndGdt682W6toZwHz4qB",
+          "span_id": "0c43ece6172143348a80a93a7e14706b",
+          "timestamp": "2026-03-11T17:26:24.771442+01:00",
+          "working_start": 1.0143812469905242,
+          "event": "span_end",
+          "id": "0c43ece6172143348a80a93a7e14706b"
+        },
+        {
+          "uuid": "MWFfUzb7CGvwih7QgEiUcb",
+          "span_id": "1de6a054f2f1436ba9914c058c1e5f28",
+          "timestamp": "2026-03-11T17:26:24.771465+01:00",
+          "working_start": 1.0144041269959416,
+          "event": "span_end",
+          "id": "1de6a054f2f1436ba9914c058c1e5f28"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 391,
+          "output_tokens": 5,
+          "total_tokens": 396
+        }
+      },
+      "total_time": 1.016,
+      "working_time": 1.015,
+      "uuid": "SqFCFxYkB7BYLvKoAA4HBp",
+      "error_retries": [],
+      "attachments": {
+        "81d0f840aa99ceed1bd35ff1b55d114f": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nThe European Union (EU) replaced which of the following organizations?\n\nA) NATO\nB) EEC\nC) UN\nD) ASEAN"
+      }
+    },
+    {
+      "id": "mmlu_000ee83d",
+      "epoch": 1,
+      "input": "Which of the following is an important consideration when deciding the nature of tests to use in a financial statement audit?",
+      "choices": [
+        "Tests of details typically provide a low level of assurance.",
+        "Analytical procedures are an inefficient means of obtaining assurance.",
+        "The procedures to be applied on a particular engagement are a matter of the auditor\u2019s professional judgment.",
+        "The use of tests of controls should be considered without regard to the level of assurance required."
+      ],
+      "target": "C",
+      "messages": [
+        {
+          "id": "VhMJkGRrtxgiog7N2Kzbub",
+          "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nWhich of the following is an important consideration when deciding the nature of tests to use in a financial statement audit?\n\nA) Tests of details typically provide a low level of assurance.\nB) Analytical procedures are an inefficient means of obtaining assurance.\nC) The procedures to be applied on a particular engagement are a matter of the auditor\u2019s professional judgment.\nD) The use of tests of controls should be considered without regard to the level of assurance required.",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "CDim2JaB8wbw7qTzzH5w7G",
+          "content": "ANSWER: C",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "CDim2JaB8wbw7qTzzH5w7G",
+              "content": "ANSWER: C",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "ANSWER: C",
+        "usage": {
+          "input_tokens": 425,
+          "output_tokens": 5,
+          "total_tokens": 430
+        },
+        "time": 2.0243304570030887,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "choice": {
+          "value": "C",
+          "answer": "C",
+          "explanation": "ANSWER: C",
+          "history": []
+        }
+      },
+      "metadata": {
+        "subject": "professional_accounting"
+      },
+      "store": {},
+      "events": [
+        {
+          "uuid": "WHR5B7ZQbLgDwqhr7pbcWu",
+          "span_id": "164dbe7e2c584d158485a2b80a06e806",
+          "timestamp": "2026-03-11T17:23:14.311433+01:00",
+          "working_start": 83428.357774334,
+          "event": "span_begin",
+          "id": "164dbe7e2c584d158485a2b80a06e806",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "UV2tmvs5VR7eN4DTxhXiYg",
+          "span_id": "164dbe7e2c584d158485a2b80a06e806",
+          "timestamp": "2026-03-11T17:23:14.311479+01:00",
+          "working_start": 83428.357819806,
+          "event": "sample_init",
+          "sample": {
+            "input": "attachment://8fee0de5f6c0bc2fccd3e35fcf604783",
+            "choices": [
+              "Tests of details typically provide a low level of assurance.",
+              "Analytical procedures are an inefficient means of obtaining assurance.",
+              "The procedures to be applied on a particular engagement are a matter of the auditor\u2019s professional judgment.",
+              "The use of tests of controls should be considered without regard to the level of assurance required."
+            ],
+            "target": "C",
+            "id": "mmlu_000ee83d",
+            "metadata": {
+              "subject": "professional_accounting"
+            }
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "VhMJkGRrtxgiog7N2Kzbub",
+                "content": "attachment://8fee0de5f6c0bc2fccd3e35fcf604783",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {
+              "subject": "professional_accounting"
+            }
+          }
+        },
+        {
+          "uuid": "7ooU8mJXE5QnfjufejwfYS",
+          "span_id": "164dbe7e2c584d158485a2b80a06e806",
+          "timestamp": "2026-03-11T17:23:14.311520+01:00",
+          "working_start": 83428.357860575,
+          "event": "span_end",
+          "id": "164dbe7e2c584d158485a2b80a06e806"
+        },
+        {
+          "uuid": "XSHN56VvhX3DdYdD4WgBjE",
+          "span_id": "1383765cdf2c4e12b2fb85429ca3ee84",
+          "timestamp": "2026-03-11T17:23:14.311984+01:00",
+          "working_start": 0.00045200399472378194,
+          "event": "span_begin",
+          "id": "1383765cdf2c4e12b2fb85429ca3ee84",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "mBvxJPL4MUE7XGWSiq8pDc",
+          "span_id": "a60f729d7d31427eb27fa87bf0f53d4a",
+          "timestamp": "2026-03-11T17:23:14.312022+01:00",
+          "working_start": 0.0004897959879599512,
+          "event": "span_begin",
+          "id": "a60f729d7d31427eb27fa87bf0f53d4a",
+          "parent_id": "1383765cdf2c4e12b2fb85429ca3ee84",
+          "type": "solver",
+          "name": "inspect_evals/mmlu_multiple_choice"
+        },
+        {
+          "uuid": "3yF7bEDyZjMPUs2mg4BsoX",
+          "span_id": "a60f729d7d31427eb27fa87bf0f53d4a",
+          "timestamp": "2026-03-11T17:23:14.312338+01:00",
+          "working_start": 0.0008065349975368008,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "VhMJkGRrtxgiog7N2Kzbub",
+              "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nWhich of the following is an important consideration when deciding the nature of tests to use in a financial statement audit?\n\nA) Tests of details typically provide a low level of assurance.\nB) Analytical procedures are an inefficient means of obtaining assurance.\nC) The procedures to be applied on a particular engagement are a matter of the auditor\u2019s professional judgment.\nD) The use of tests of controls should be considered without regard to the level of assurance required.",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 16,
+            "temperature": 0.001
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "CDim2JaB8wbw7qTzzH5w7G",
+                  "content": "ANSWER: C",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "ANSWER: C",
+            "usage": {
+              "input_tokens": 425,
+              "output_tokens": 5,
+              "total_tokens": 430
+            },
+            "time": 2.0243304570030887,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-11T17:23:16.337856+01:00",
+          "working_time": 2.0243304570030887
+        },
+        {
+          "uuid": "bJwZeV54pBvzaVDMAu6xXZ",
+          "span_id": "a60f729d7d31427eb27fa87bf0f53d4a",
+          "timestamp": "2026-03-11T17:23:16.338072+01:00",
+          "working_start": 2.0254208340047626,
+          "event": "state",
+          "changes": [
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 425,
+                "output_tokens": 5,
+                "total_tokens": 430
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 2.0243304570030887
+            },
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "ANSWER: C",
+              "replaced": ""
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "CDim2JaB8wbw7qTzzH5w7G",
+                  "content": "ANSWER: C",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "attachment://f889b5e6ecfe660289fa672310cc37cf",
+              "replaced": "Which of the following is an important consideration when deciding the nature of tests to use in a financial statement audit?"
+            },
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "CDim2JaB8wbw7qTzzH5w7G",
+                "content": "ANSWER: C",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "BJJWvu8F3xLJogRmXMcaEr",
+          "span_id": "a60f729d7d31427eb27fa87bf0f53d4a",
+          "timestamp": "2026-03-11T17:23:16.338114+01:00",
+          "working_start": 2.0254624980007065,
+          "event": "span_end",
+          "id": "a60f729d7d31427eb27fa87bf0f53d4a"
+        },
+        {
+          "uuid": "mmSZRWMNacXj9hiuFoALNE",
+          "span_id": "1383765cdf2c4e12b2fb85429ca3ee84",
+          "timestamp": "2026-03-11T17:23:16.338143+01:00",
+          "working_start": 2.02549078600714,
+          "event": "span_end",
+          "id": "1383765cdf2c4e12b2fb85429ca3ee84"
+        },
+        {
+          "uuid": "2fM7sHvMYp2EBy7zPukZpA",
+          "span_id": "b8b275fc21f44c54a642fafaab646ca3",
+          "timestamp": "2026-03-11T17:23:16.339198+01:00",
+          "working_start": 2.026546891007456,
+          "event": "span_begin",
+          "id": "b8b275fc21f44c54a642fafaab646ca3",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "NyzQwtrDa73oSHCDqpthYR",
+          "span_id": "861f3bde1d374c03aca19eb9da8f5aad",
+          "timestamp": "2026-03-11T17:23:16.339244+01:00",
+          "working_start": 2.02659226799733,
+          "event": "span_begin",
+          "id": "861f3bde1d374c03aca19eb9da8f5aad",
+          "parent_id": "b8b275fc21f44c54a642fafaab646ca3",
+          "type": "scorer",
+          "name": "choice"
+        },
+        {
+          "uuid": "kfkBZ68epe9s795iZUK9Co",
+          "span_id": "861f3bde1d374c03aca19eb9da8f5aad",
+          "timestamp": "2026-03-11T17:23:16.339278+01:00",
+          "working_start": 2.0266264759993646,
+          "event": "score",
+          "score": {
+            "value": "C",
+            "answer": "C",
+            "explanation": "ANSWER: C",
+            "history": []
+          },
+          "target": "C",
+          "intermediate": false
+        },
+        {
+          "uuid": "oF5SKFfeJGH2nCDWEetELA",
+          "span_id": "861f3bde1d374c03aca19eb9da8f5aad",
+          "timestamp": "2026-03-11T17:23:16.339312+01:00",
+          "working_start": 2.0266597239969997,
+          "event": "span_end",
+          "id": "861f3bde1d374c03aca19eb9da8f5aad"
+        },
+        {
+          "uuid": "fMTJWRLHKURcm9PAiJ9yPm",
+          "span_id": "b8b275fc21f44c54a642fafaab646ca3",
+          "timestamp": "2026-03-11T17:23:16.339333+01:00",
+          "working_start": 2.026680428010877,
+          "event": "span_end",
+          "id": "b8b275fc21f44c54a642fafaab646ca3"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 425,
+          "output_tokens": 5,
+          "total_tokens": 430
+        }
+      },
+      "total_time": 2.028,
+      "working_time": 2.027,
+      "uuid": "4LNY7qqdgkeqqtTvmPxxHN",
+      "error_retries": [],
+      "attachments": {
+        "8fee0de5f6c0bc2fccd3e35fcf604783": "Which of the following is an important consideration when deciding the nature of tests to use in a financial statement audit?",
+        "f889b5e6ecfe660289fa672310cc37cf": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nWhich of the following is an important consideration when deciding the nature of tests to use in a financial statement audit?\n\nA) Tests of details typically provide a low level of assurance.\nB) Analytical procedures are an inefficient means of obtaining assurance.\nC) The procedures to be applied on a particular engagement are a matter of the auditor\u2019s professional judgment.\nD) The use of tests of controls should be considered without regard to the level of assurance required."
+      }
+    },
+    {
+      "id": "mmlu_00121de2",
+      "epoch": 1,
+      "input": "Which of the following language features requires that stack-based storage allocation be used rather than static allocation?",
+      "choices": [
+        "Recursive procedures",
+        "Arbitrary goto's",
+        "Two-dimensional arrays",
+        "Integer-valued functions"
+      ],
+      "target": "A",
+      "messages": [
+        {
+          "id": "FEVvbG5gVX8GgruRLEbKC2",
+          "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nWhich of the following language features requires that stack-based storage allocation be used rather than static allocation?\n\nA) Recursive procedures\nB) Arbitrary goto's\nC) Two-dimensional arrays\nD) Integer-valued functions",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "AU3RobX2teqCHEHpKp8m5Q",
+          "content": "ANSWER: A",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "AU3RobX2teqCHEHpKp8m5Q",
+              "content": "ANSWER: A",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "ANSWER: A",
+        "usage": {
+          "input_tokens": 450,
+          "output_tokens": 5,
+          "total_tokens": 455
+        },
+        "time": 1.5953667069989024,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "choice": {
+          "value": "C",
+          "answer": "A",
+          "explanation": "ANSWER: A",
+          "history": []
+        }
+      },
+      "metadata": {
+        "subject": "college_computer_science"
+      },
+      "store": {},
+      "events": [
+        {
+          "uuid": "ieYP6Aq8AKcjdpEQXNYy8j",
+          "span_id": "6ecc2645231a410ebf8db23f593aa81e",
+          "timestamp": "2026-03-11T17:22:12.805974+01:00",
+          "working_start": 83366.852315076,
+          "event": "span_begin",
+          "id": "6ecc2645231a410ebf8db23f593aa81e",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "NCxWADbKVkonhLZuA2aBgs",
+          "span_id": "6ecc2645231a410ebf8db23f593aa81e",
+          "timestamp": "2026-03-11T17:22:12.806017+01:00",
+          "working_start": 83366.852358244,
+          "event": "sample_init",
+          "sample": {
+            "input": "attachment://9955322ca0ccdba561e30b68f358b02f",
+            "choices": [
+              "Recursive procedures",
+              "Arbitrary goto's",
+              "Two-dimensional arrays",
+              "Integer-valued functions"
+            ],
+            "target": "A",
+            "id": "mmlu_00121de2",
+            "metadata": {
+              "subject": "college_computer_science"
+            }
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "FEVvbG5gVX8GgruRLEbKC2",
+                "content": "attachment://9955322ca0ccdba561e30b68f358b02f",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {
+              "subject": "college_computer_science"
+            }
+          }
+        },
+        {
+          "uuid": "ELx4YT7FBXYv3cvwwgdvD8",
+          "span_id": "6ecc2645231a410ebf8db23f593aa81e",
+          "timestamp": "2026-03-11T17:22:12.806055+01:00",
+          "working_start": 83366.852395876,
+          "event": "span_end",
+          "id": "6ecc2645231a410ebf8db23f593aa81e"
+        },
+        {
+          "uuid": "Kc7weHJ7LW7SoYSUtAhmPG",
+          "span_id": "7c7180aba70e4b1aad13cd657fa433ae",
+          "timestamp": "2026-03-11T17:22:12.806501+01:00",
+          "working_start": 0.00043446799099911004,
+          "event": "span_begin",
+          "id": "7c7180aba70e4b1aad13cd657fa433ae",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "SZab8vPpMrt6hYjyRXHmnY",
+          "span_id": "a3f4b490cd9b4eb6964bf75aead38958",
+          "timestamp": "2026-03-11T17:22:12.806538+01:00",
+          "working_start": 0.00047120399540290236,
+          "event": "span_begin",
+          "id": "a3f4b490cd9b4eb6964bf75aead38958",
+          "parent_id": "7c7180aba70e4b1aad13cd657fa433ae",
+          "type": "solver",
+          "name": "inspect_evals/mmlu_multiple_choice"
+        },
+        {
+          "uuid": "na6Sk5nYbqaSA9aJJGqKpa",
+          "span_id": "a3f4b490cd9b4eb6964bf75aead38958",
+          "timestamp": "2026-03-11T17:22:12.806846+01:00",
+          "working_start": 0.0007805829955032095,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "FEVvbG5gVX8GgruRLEbKC2",
+              "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nWhich of the following language features requires that stack-based storage allocation be used rather than static allocation?\n\nA) Recursive procedures\nB) Arbitrary goto's\nC) Two-dimensional arrays\nD) Integer-valued functions",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 16,
+            "temperature": 0.001
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "AU3RobX2teqCHEHpKp8m5Q",
+                  "content": "ANSWER: A",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "ANSWER: A",
+            "usage": {
+              "input_tokens": 450,
+              "output_tokens": 5,
+              "total_tokens": 455
+            },
+            "time": 1.5953667069989024,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-11T17:22:14.403462+01:00",
+          "working_time": 1.5953667069989024
+        },
+        {
+          "uuid": "K3Ug2fWXcEXZzsjRwUPx56",
+          "span_id": "a3f4b490cd9b4eb6964bf75aead38958",
+          "timestamp": "2026-03-11T17:22:14.403734+01:00",
+          "working_start": 1.5964889879833208,
+          "event": "state",
+          "changes": [
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 450,
+                "output_tokens": 5,
+                "total_tokens": 455
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 1.5953667069989024
+            },
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "ANSWER: A",
+              "replaced": ""
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "AU3RobX2teqCHEHpKp8m5Q",
+                  "content": "ANSWER: A",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "attachment://743287f6dfc3ee1b175dbf92f47e526d",
+              "replaced": "Which of the following language features requires that stack-based storage allocation be used rather than static allocation?"
+            },
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "AU3RobX2teqCHEHpKp8m5Q",
+                "content": "ANSWER: A",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "d3LfEsiBAAXMb7Gdmh2EcU",
+          "span_id": "a3f4b490cd9b4eb6964bf75aead38958",
+          "timestamp": "2026-03-11T17:22:14.403783+01:00",
+          "working_start": 1.5965367969911313,
+          "event": "span_end",
+          "id": "a3f4b490cd9b4eb6964bf75aead38958"
+        },
+        {
+          "uuid": "neaAr5FCFDa4ph8Ko5n7HM",
+          "span_id": "7c7180aba70e4b1aad13cd657fa433ae",
+          "timestamp": "2026-03-11T17:22:14.403825+01:00",
+          "working_start": 1.5965791969792917,
+          "event": "span_end",
+          "id": "7c7180aba70e4b1aad13cd657fa433ae"
+        },
+        {
+          "uuid": "UJjp8LarbTWZwNBXMzytrq",
+          "span_id": "09b8151620474aa5b6f9a5cacff3b873",
+          "timestamp": "2026-03-11T17:22:14.437753+01:00",
+          "working_start": 1.630507421985385,
+          "event": "span_begin",
+          "id": "09b8151620474aa5b6f9a5cacff3b873",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "CGEp7whq5MLmeyWJRgTpXN",
+          "span_id": "a3bf72d2f3f54ffd8cb926831ac3c644",
+          "timestamp": "2026-03-11T17:22:14.437794+01:00",
+          "working_start": 1.6305481259914814,
+          "event": "span_begin",
+          "id": "a3bf72d2f3f54ffd8cb926831ac3c644",
+          "parent_id": "09b8151620474aa5b6f9a5cacff3b873",
+          "type": "scorer",
+          "name": "choice"
+        },
+        {
+          "uuid": "8bQJTaVNzjHBvsLfSTF7Ja",
+          "span_id": "a3bf72d2f3f54ffd8cb926831ac3c644",
+          "timestamp": "2026-03-11T17:22:14.437825+01:00",
+          "working_start": 1.630578878990491,
+          "event": "score",
+          "score": {
+            "value": "C",
+            "answer": "A",
+            "explanation": "ANSWER: A",
+            "history": []
+          },
+          "target": "A",
+          "intermediate": false
+        },
+        {
+          "uuid": "eSa8aopmqFGr3oFcMCRRPa",
+          "span_id": "a3bf72d2f3f54ffd8cb926831ac3c644",
+          "timestamp": "2026-03-11T17:22:14.437857+01:00",
+          "working_start": 1.630610814987449,
+          "event": "span_end",
+          "id": "a3bf72d2f3f54ffd8cb926831ac3c644"
+        },
+        {
+          "uuid": "ToXJaJ7foQznRPmsMoBVn4",
+          "span_id": "09b8151620474aa5b6f9a5cacff3b873",
+          "timestamp": "2026-03-11T17:22:14.437878+01:00",
+          "working_start": 1.630631486987113,
+          "event": "span_end",
+          "id": "09b8151620474aa5b6f9a5cacff3b873"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 450,
+          "output_tokens": 5,
+          "total_tokens": 455
+        }
+      },
+      "total_time": 1.654,
+      "working_time": 1.653,
+      "uuid": "8E8LWnEQ4agRm4sy9qpYFq",
+      "error_retries": [],
+      "attachments": {
+        "9955322ca0ccdba561e30b68f358b02f": "Which of the following language features requires that stack-based storage allocation be used rather than static allocation?",
+        "743287f6dfc3ee1b175dbf92f47e526d": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nWhich of the following language features requires that stack-based storage allocation be used rather than static allocation?\n\nA) Recursive procedures\nB) Arbitrary goto's\nC) Two-dimensional arrays\nD) Integer-valued functions"
+      }
+    },
+    {
+      "id": "mmlu_00171cdb",
+      "epoch": 1,
+      "input": "Robert makes the following statement while negotiating the sale of his car, 'This is the sharpest car on the market.' His statement may support a claim for:",
+      "choices": [
+        "misrepresentation",
+        "fraud",
+        "fraud and misrepresentation",
+        "none of the above"
+      ],
+      "target": "D",
+      "messages": [
+        {
+          "id": "ExvVTMJjHUqqWputZgrpfc",
+          "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nRobert makes the following statement while negotiating the sale of his car, 'This is the sharpest car on the market.' His statement may support a claim for:\n\nA) misrepresentation\nB) fraud\nC) fraud and misrepresentation\nD) none of the above",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "ZzUXuQpedQrBknzUTX8BTs",
+          "content": "ANSWER: A",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "ZzUXuQpedQrBknzUTX8BTs",
+              "content": "ANSWER: A",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "ANSWER: A",
+        "usage": {
+          "input_tokens": 530,
+          "output_tokens": 5,
+          "total_tokens": 535
+        },
+        "time": 1.0135635120095685,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "choice": {
+          "value": "I",
+          "answer": "A",
+          "explanation": "ANSWER: A",
+          "history": []
+        }
+      },
+      "metadata": {
+        "subject": "jurisprudence"
+      },
+      "store": {},
+      "events": [
+        {
+          "uuid": "G6fW6gJSgC3tcLC8zkbUPe",
+          "span_id": "b4f1b80912b74715bd6ee2fdef576b15",
+          "timestamp": "2026-03-11T17:29:58.123170+01:00",
+          "working_start": 83832.169510852,
+          "event": "span_begin",
+          "id": "b4f1b80912b74715bd6ee2fdef576b15",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "Uar4wvwpQNrGsq8Qmwpj34",
+          "span_id": "b4f1b80912b74715bd6ee2fdef576b15",
+          "timestamp": "2026-03-11T17:29:58.123218+01:00",
+          "working_start": 83832.169558436,
+          "event": "sample_init",
+          "sample": {
+            "input": "attachment://391b5b4843929ceee2dd68004ef25438",
+            "choices": [
+              "misrepresentation",
+              "fraud",
+              "fraud and misrepresentation",
+              "none of the above"
+            ],
+            "target": "D",
+            "id": "mmlu_00171cdb",
+            "metadata": {
+              "subject": "jurisprudence"
+            }
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "ExvVTMJjHUqqWputZgrpfc",
+                "content": "attachment://391b5b4843929ceee2dd68004ef25438",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {
+              "subject": "jurisprudence"
+            }
+          }
+        },
+        {
+          "uuid": "72tMvRsXSAWiAAb6tsejEs",
+          "span_id": "b4f1b80912b74715bd6ee2fdef576b15",
+          "timestamp": "2026-03-11T17:29:58.123262+01:00",
+          "working_start": 83832.169602916,
+          "event": "span_end",
+          "id": "b4f1b80912b74715bd6ee2fdef576b15"
+        },
+        {
+          "uuid": "g2d2GYRz2mYyh57PWWMTGj",
+          "span_id": "9d9581690bde4bb29b1d7164c44e14b3",
+          "timestamp": "2026-03-11T17:29:58.123754+01:00",
+          "working_start": 0.0004758449940709397,
+          "event": "span_begin",
+          "id": "9d9581690bde4bb29b1d7164c44e14b3",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "gSBoZDHthqejchz5m53xFZ",
+          "span_id": "3dd6e7b7ea314c439512545bb0ac9a16",
+          "timestamp": "2026-03-11T17:29:58.123801+01:00",
+          "working_start": 0.0005230130045674741,
+          "event": "span_begin",
+          "id": "3dd6e7b7ea314c439512545bb0ac9a16",
+          "parent_id": "9d9581690bde4bb29b1d7164c44e14b3",
+          "type": "solver",
+          "name": "inspect_evals/mmlu_multiple_choice"
+        },
+        {
+          "uuid": "MYxFDXRKw8kMoj4ofHwpUk",
+          "span_id": "3dd6e7b7ea314c439512545bb0ac9a16",
+          "timestamp": "2026-03-11T17:29:58.124132+01:00",
+          "working_start": 0.0008550799975637347,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "ExvVTMJjHUqqWputZgrpfc",
+              "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nRobert makes the following statement while negotiating the sale of his car, 'This is the sharpest car on the market.' His statement may support a claim for:\n\nA) misrepresentation\nB) fraud\nC) fraud and misrepresentation\nD) none of the above",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 16,
+            "temperature": 0.001
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "ZzUXuQpedQrBknzUTX8BTs",
+                  "content": "ANSWER: A",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "ANSWER: A",
+            "usage": {
+              "input_tokens": 530,
+              "output_tokens": 5,
+              "total_tokens": 535
+            },
+            "time": 1.0135635120095685,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-11T17:29:59.138880+01:00",
+          "working_time": 1.0135635120095685
+        },
+        {
+          "uuid": "HczSM6gaN44DthhmswCCd3",
+          "span_id": "3dd6e7b7ea314c439512545bb0ac9a16",
+          "timestamp": "2026-03-11T17:29:59.139093+01:00",
+          "working_start": 1.0147019220312359,
+          "event": "state",
+          "changes": [
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 530,
+                "output_tokens": 5,
+                "total_tokens": 535
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 1.0135635120095685
+            },
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "ANSWER: A",
+              "replaced": ""
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "ZzUXuQpedQrBknzUTX8BTs",
+                  "content": "ANSWER: A",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "attachment://ec82e9190f1bc4a9a8c760f9ad9b8bbf",
+              "replaced": "Robert makes the following statement while negotiating the sale of his car, 'This is the sharpest car on the market.' His statement may support a claim for:"
+            },
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "ZzUXuQpedQrBknzUTX8BTs",
+                "content": "ANSWER: A",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "bsyZRm7GF4MpKTrodiYyDv",
+          "span_id": "3dd6e7b7ea314c439512545bb0ac9a16",
+          "timestamp": "2026-03-11T17:29:59.139134+01:00",
+          "working_start": 1.0147418580309022,
+          "event": "span_end",
+          "id": "3dd6e7b7ea314c439512545bb0ac9a16"
+        },
+        {
+          "uuid": "4rv84ukN6VYMY6uY87L75T",
+          "span_id": "9d9581690bde4bb29b1d7164c44e14b3",
+          "timestamp": "2026-03-11T17:29:59.139163+01:00",
+          "working_start": 1.014770595022128,
+          "event": "span_end",
+          "id": "9d9581690bde4bb29b1d7164c44e14b3"
+        },
+        {
+          "uuid": "KovjhV4NE2CYKFDms55w3B",
+          "span_id": "dca23d1db2c64241999188e6d66bbb0e",
+          "timestamp": "2026-03-11T17:29:59.139590+01:00",
+          "working_start": 1.0151987900171662,
+          "event": "span_begin",
+          "id": "dca23d1db2c64241999188e6d66bbb0e",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "CpaqohBtLS43vvoYVX7Gmi",
+          "span_id": "b21af650834540b3b14f9dd636e2b32c",
+          "timestamp": "2026-03-11T17:29:59.139630+01:00",
+          "working_start": 1.0152385670226067,
+          "event": "span_begin",
+          "id": "b21af650834540b3b14f9dd636e2b32c",
+          "parent_id": "dca23d1db2c64241999188e6d66bbb0e",
+          "type": "scorer",
+          "name": "choice"
+        },
+        {
+          "uuid": "92v9T7uFrsCgzcWXj44Pko",
+          "span_id": "b21af650834540b3b14f9dd636e2b32c",
+          "timestamp": "2026-03-11T17:29:59.139687+01:00",
+          "working_start": 1.0152955270168604,
+          "event": "score",
+          "score": {
+            "value": "I",
+            "answer": "A",
+            "explanation": "ANSWER: A",
+            "history": []
+          },
+          "target": "D",
+          "intermediate": false
+        },
+        {
+          "uuid": "bS8mU8MSm2kkVQnaFbZfhB",
+          "span_id": "b21af650834540b3b14f9dd636e2b32c",
+          "timestamp": "2026-03-11T17:29:59.139725+01:00",
+          "working_start": 1.0153328390297247,
+          "event": "span_end",
+          "id": "b21af650834540b3b14f9dd636e2b32c"
+        },
+        {
+          "uuid": "CRjaG9rcNZx2NTJo8RaQCP",
+          "span_id": "dca23d1db2c64241999188e6d66bbb0e",
+          "timestamp": "2026-03-11T17:29:59.139746+01:00",
+          "working_start": 1.0153535760182422,
+          "event": "span_end",
+          "id": "dca23d1db2c64241999188e6d66bbb0e"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 530,
+          "output_tokens": 5,
+          "total_tokens": 535
+        }
+      },
+      "total_time": 1.017,
+      "working_time": 1.016,
+      "uuid": "GPuanwmEfFcAqciGR2tSKf",
+      "error_retries": [],
+      "attachments": {
+        "391b5b4843929ceee2dd68004ef25438": "Robert makes the following statement while negotiating the sale of his car, 'This is the sharpest car on the market.' His statement may support a claim for:",
+        "ec82e9190f1bc4a9a8c760f9ad9b8bbf": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nRobert makes the following statement while negotiating the sale of his car, 'This is the sharpest car on the market.' His statement may support a claim for:\n\nA) misrepresentation\nB) fraud\nC) fraud and misrepresentation\nD) none of the above"
+      }
+    },
+    {
+      "id": "mmlu_001f3893",
+      "epoch": 1,
+      "input": "Are most developing-country farmers engaged in subsistence or commercial production?\n",
+      "choices": [
+        "Almost all are subsistence farmers.",
+        "Very few engage in subsistence production, instead selling almost all of their produce on the market.",
+        "Virtually all small-scale producers are engage in some self-provisioning and market sales.",
+        "37% engage in pure subsistence production."
+      ],
+      "target": "C",
+      "messages": [
+        {
+          "id": "Mx4DqegN469g4VVR2XTXBy",
+          "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nAre most developing-country farmers engaged in subsistence or commercial production?\n\n\nA) Almost all are subsistence farmers.\nB) Very few engage in subsistence production, instead selling almost all of their produce on the market.\nC) Virtually all small-scale producers are engage in some self-provisioning and market sales.\nD) 37% engage in pure subsistence production.",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "QXTCrwR7L8aD4uSUDv4HvS",
+          "content": "ANSWER: C",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "QXTCrwR7L8aD4uSUDv4HvS",
+              "content": "ANSWER: C",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "ANSWER: C",
+        "usage": {
+          "input_tokens": 596,
+          "output_tokens": 5,
+          "total_tokens": 601
+        },
+        "time": 1.672356483002659,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "choice": {
+          "value": "C",
+          "answer": "C",
+          "explanation": "ANSWER: C",
+          "history": []
+        }
+      },
+      "metadata": {
+        "subject": "nutrition"
+      },
+      "store": {},
+      "events": [
+        {
+          "uuid": "cGG9iEHE6LQmpVmutVvjVc",
+          "span_id": "84c7a1cd9bff4ca593edda9e3c6d77b4",
+          "timestamp": "2026-03-11T17:28:11.404316+01:00",
+          "working_start": 83725.45065775,
+          "event": "span_begin",
+          "id": "84c7a1cd9bff4ca593edda9e3c6d77b4",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "aVYawzpG2aYoAMVP6Q3Kbx",
+          "span_id": "84c7a1cd9bff4ca593edda9e3c6d77b4",
+          "timestamp": "2026-03-11T17:28:11.404362+01:00",
+          "working_start": 83725.450702679,
+          "event": "sample_init",
+          "sample": {
+            "input": "Are most developing-country farmers engaged in subsistence or commercial production?\n",
+            "choices": [
+              "Almost all are subsistence farmers.",
+              "Very few engage in subsistence production, instead selling almost all of their produce on the market.",
+              "Virtually all small-scale producers are engage in some self-provisioning and market sales.",
+              "37% engage in pure subsistence production."
+            ],
+            "target": "C",
+            "id": "mmlu_001f3893",
+            "metadata": {
+              "subject": "nutrition"
+            }
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "Mx4DqegN469g4VVR2XTXBy",
+                "content": "Are most developing-country farmers engaged in subsistence or commercial production?\n",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {
+              "subject": "nutrition"
+            }
+          }
+        },
+        {
+          "uuid": "hVdoxgGpEzwoR6s5BCWKWH",
+          "span_id": "84c7a1cd9bff4ca593edda9e3c6d77b4",
+          "timestamp": "2026-03-11T17:28:11.404404+01:00",
+          "working_start": 83725.450744599,
+          "event": "span_end",
+          "id": "84c7a1cd9bff4ca593edda9e3c6d77b4"
+        },
+        {
+          "uuid": "bqYBoBeWB6XRpDoKCb7oQn",
+          "span_id": "97c681df8ad84056abca0ba541f21af7",
+          "timestamp": "2026-03-11T17:28:11.405110+01:00",
+          "working_start": 0.0006946619978407398,
+          "event": "span_begin",
+          "id": "97c681df8ad84056abca0ba541f21af7",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "Z6rKRKbS6QX7t84LGgwEPn",
+          "span_id": "e9b61dec80b34635b5d843dd7af6fd4c",
+          "timestamp": "2026-03-11T17:28:11.405152+01:00",
+          "working_start": 0.0007363259937847033,
+          "event": "span_begin",
+          "id": "e9b61dec80b34635b5d843dd7af6fd4c",
+          "parent_id": "97c681df8ad84056abca0ba541f21af7",
+          "type": "solver",
+          "name": "inspect_evals/mmlu_multiple_choice"
+        },
+        {
+          "uuid": "ksEgLxKWKPamqZLstRu8bT",
+          "span_id": "e9b61dec80b34635b5d843dd7af6fd4c",
+          "timestamp": "2026-03-11T17:28:11.405444+01:00",
+          "working_start": 0.0010291929938830435,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "Mx4DqegN469g4VVR2XTXBy",
+              "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nAre most developing-country farmers engaged in subsistence or commercial production?\n\n\nA) Almost all are subsistence farmers.\nB) Very few engage in subsistence production, instead selling almost all of their produce on the market.\nC) Virtually all small-scale producers are engage in some self-provisioning and market sales.\nD) 37% engage in pure subsistence production.",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 16,
+            "temperature": 0.001
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "QXTCrwR7L8aD4uSUDv4HvS",
+                  "content": "ANSWER: C",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "ANSWER: C",
+            "usage": {
+              "input_tokens": 596,
+              "output_tokens": 5,
+              "total_tokens": 601
+            },
+            "time": 1.672356483002659,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-11T17:28:13.079392+01:00",
+          "working_time": 1.672356483002659
+        },
+        {
+          "uuid": "GfLK2NGkR7YC8ktFew46vq",
+          "span_id": "e9b61dec80b34635b5d843dd7af6fd4c",
+          "timestamp": "2026-03-11T17:28:13.079626+01:00",
+          "working_start": 1.6736928470054409,
+          "event": "state",
+          "changes": [
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 596,
+                "output_tokens": 5,
+                "total_tokens": 601
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 1.672356483002659
+            },
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "ANSWER: C",
+              "replaced": ""
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "QXTCrwR7L8aD4uSUDv4HvS",
+                  "content": "ANSWER: C",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "attachment://8acd8071960fecaf9c8d5974e5b683db",
+              "replaced": "Are most developing-country farmers engaged in subsistence or commercial production?\n"
+            },
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "QXTCrwR7L8aD4uSUDv4HvS",
+                "content": "ANSWER: C",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "YPGBTdCNrw3NMC2Gs4FxuJ",
+          "span_id": "e9b61dec80b34635b5d843dd7af6fd4c",
+          "timestamp": "2026-03-11T17:28:13.079701+01:00",
+          "working_start": 1.6737673430034192,
+          "event": "span_end",
+          "id": "e9b61dec80b34635b5d843dd7af6fd4c"
+        },
+        {
+          "uuid": "fQeCUkP9hcWNQsMgyAbQcd",
+          "span_id": "97c681df8ad84056abca0ba541f21af7",
+          "timestamp": "2026-03-11T17:28:13.079743+01:00",
+          "working_start": 1.6738091680017533,
+          "event": "span_end",
+          "id": "97c681df8ad84056abca0ba541f21af7"
+        },
+        {
+          "uuid": "kWbBhpLEcFzntEiZqbsmrz",
+          "span_id": "0e28818cbf624e8b8d8e24c17efa8a9b",
+          "timestamp": "2026-03-11T17:28:13.109175+01:00",
+          "working_start": 1.7032421540061478,
+          "event": "span_begin",
+          "id": "0e28818cbf624e8b8d8e24c17efa8a9b",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "5kYfHmRVCAWBB9eUjRTYYM",
+          "span_id": "605a60cdac144d2abdf51f63023ba283",
+          "timestamp": "2026-03-11T17:28:13.109214+01:00",
+          "working_start": 1.7032801390014356,
+          "event": "span_begin",
+          "id": "605a60cdac144d2abdf51f63023ba283",
+          "parent_id": "0e28818cbf624e8b8d8e24c17efa8a9b",
+          "type": "scorer",
+          "name": "choice"
+        },
+        {
+          "uuid": "ERsLRKnMZt3XVAeFxUCKpt",
+          "span_id": "605a60cdac144d2abdf51f63023ba283",
+          "timestamp": "2026-03-11T17:28:13.109244+01:00",
+          "working_start": 1.7033106349990703,
+          "event": "score",
+          "score": {
+            "value": "C",
+            "answer": "C",
+            "explanation": "ANSWER: C",
+            "history": []
+          },
+          "target": "C",
+          "intermediate": false
+        },
+        {
+          "uuid": "AmxQvKUqN8dRcdkpDVv6uU",
+          "span_id": "605a60cdac144d2abdf51f63023ba283",
+          "timestamp": "2026-03-11T17:28:13.109275+01:00",
+          "working_start": 1.7033413229946746,
+          "event": "span_end",
+          "id": "605a60cdac144d2abdf51f63023ba283"
+        },
+        {
+          "uuid": "ABGQFEj6cG4QV76Hp9ZCak",
+          "span_id": "0e28818cbf624e8b8d8e24c17efa8a9b",
+          "timestamp": "2026-03-11T17:28:13.109296+01:00",
+          "working_start": 1.7033616749977227,
+          "event": "span_end",
+          "id": "0e28818cbf624e8b8d8e24c17efa8a9b"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 596,
+          "output_tokens": 5,
+          "total_tokens": 601
+        }
+      },
+      "total_time": 1.723,
+      "working_time": 1.722,
+      "uuid": "NAcB36L8y6Wb5YBPwCEivP",
+      "error_retries": [],
+      "attachments": {
+        "8acd8071960fecaf9c8d5974e5b683db": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nAre most developing-country farmers engaged in subsistence or commercial production?\n\n\nA) Almost all are subsistence farmers.\nB) Very few engage in subsistence production, instead selling almost all of their produce on the market.\nC) Virtually all small-scale producers are engage in some self-provisioning and market sales.\nD) 37% engage in pure subsistence production."
+      }
+    }
+  ],
+  "reductions": [
+    {
+      "scorer": "choice",
+      "samples": [
+        {
+          "value": 1.0,
+          "answer": "A",
+          "explanation": "ANSWER: A",
+          "history": [],
+          "sample_id": "mmlu_00121de2"
+        },
+        {
+          "value": 1.0,
+          "answer": "C",
+          "explanation": "ANSWER: C",
+          "history": [],
+          "sample_id": "mmlu_000ee83d"
+        },
+        {
+          "value": 1.0,
+          "answer": "B",
+          "explanation": "ANSWER: B",
+          "history": [],
+          "sample_id": "mmlu_00052344"
+        },
+        {
+          "value": 1.0,
+          "answer": "C",
+          "explanation": "ANSWER: C",
+          "history": [],
+          "sample_id": "mmlu_001f3893"
+        },
+        {
+          "value": 0,
+          "answer": "A",
+          "explanation": "ANSWER: A",
+          "history": [],
+          "sample_id": "mmlu_00171cdb"
+        }
+      ]
+    }
+  ]
+}

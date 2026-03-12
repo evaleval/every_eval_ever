@@ -1,0 +1,1933 @@
+{
+  "version": 2,
+  "status": "success",
+  "eval": {
+    "eval_id": "gspaEKknwG6qGGk5Z2QirJ",
+    "run_id": "DBjcF572KRubPD7WToE9df",
+    "created": "2026-03-10T18:57:37+00:00",
+    "task": "inspect_evals/lab_bench_litqa",
+    "task_id": "hKGCZmd5JMLjfUkKDYzHV2",
+    "task_version": 2,
+    "task_display_name": "lab_bench_litqa",
+    "task_registry_name": "inspect_evals/lab_bench_litqa",
+    "task_attribs": {},
+    "task_args": {},
+    "task_args_passed": {},
+    "dataset": {
+      "name": "futurehouse/lab-bench",
+      "location": "futurehouse/lab-bench",
+      "samples": 5,
+      "sample_ids": [
+        "04dbe07d-8b2c-4daf-b5b2-ef0e93f1fd2a",
+        "0708b62f-9652-49eb-8ba6-28878afa7445",
+        "08397294-3d99-4790-915c-b8bcb1e9e661",
+        "0a9d6516-95ef-4d7b-a28d-d7cde27b7b55",
+        "0b1d5537-db47-420c-984b-9b56d38e6d98"
+      ],
+      "shuffled": false
+    },
+    "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+    "model_generate_config": {},
+    "model_args": {},
+    "model_roles": {},
+    "config": {
+      "epochs": 1,
+      "epochs_reducer": [
+        "mode"
+      ],
+      "fail_on_error": true,
+      "continue_on_fail": false,
+      "sandbox_cleanup": true,
+      "log_samples": true,
+      "log_realtime": true,
+      "log_images": true,
+      "log_shared": 0,
+      "score_display": true
+    },
+    "revision": {
+      "type": "git",
+      "origin": "https://github.com/MIMIR-AI-ROUTER/inspect_evals.git",
+      "commit": "26ee9b93"
+    },
+    "packages": {
+      "inspect_ai": "0.3.180.dev77+gb34c521b",
+      "inspect_evals": "0.0.1.dev2141+unknown.g26ee9b93d"
+    },
+    "metadata": {
+      "full_task_version": "2-A",
+      "task_interface_version": "A",
+      "task_comparability_version": 2
+    },
+    "scorers": [
+      {
+        "name": "precision_choice",
+        "options": {
+          "no_answer": "Insufficient information to answer the question."
+        },
+        "metrics": [
+          {
+            "name": "inspect_ai/accuracy",
+            "options": {}
+          },
+          {
+            "name": "inspect_evals/precision",
+            "options": {}
+          },
+          {
+            "name": "inspect_evals/coverage",
+            "options": {}
+          },
+          {
+            "name": "inspect_ai/stderr",
+            "options": {}
+          }
+        ],
+        "metadata": {}
+      }
+    ]
+  },
+  "plan": {
+    "name": "plan",
+    "steps": [
+      {
+        "solver": "multiple_choice",
+        "params": {
+          "template": "\nThe following is a multiple choice question about biology.\nPlease answer by responding with the letter of the correct answer.\n\nThink step by step.\n\nQuestion: {question}\nOptions:\n{choices}\n\nYou MUST include the letter of the correct answer within the following format: 'ANSWER: $LETTER' (without quotes). For example, \u2019ANSWER: <answer>\u2019, where <answer> is the correct letter. Always answer in exactly this format of a single letter, even if you are unsure. We require this because we use automatic parsing.\n",
+          "cot": true,
+          "multiple_correct": false,
+          "max_tokens": null,
+          "kwargs": {}
+        }
+      }
+    ],
+    "config": {}
+  },
+  "results": {
+    "total_samples": 5,
+    "completed_samples": 5,
+    "scores": [
+      {
+        "name": "precision_choice",
+        "scorer": "precision_choice",
+        "reducer": "mode",
+        "scored_samples": 5,
+        "unscored_samples": 0,
+        "params": {
+          "no_answer": "Insufficient information to answer the question."
+        },
+        "metrics": {
+          "accuracy": {
+            "name": "accuracy",
+            "value": 0.1457286432160804,
+            "params": {}
+          },
+          "precision": {
+            "name": "inspect_evals/precision",
+            "value": 0.31868131868131866,
+            "params": {}
+          },
+          "coverage": {
+            "name": "inspect_evals/coverage",
+            "value": 0.457286432160804,
+            "params": {}
+          },
+          "stderr": {
+            "name": "stderr",
+            "value": 0.025074817920573277,
+            "params": {}
+          }
+        }
+      }
+    ]
+  },
+  "stats": {
+    "started_at": "2026-03-10T18:57:37+00:00",
+    "completed_at": "2026-03-10T18:57:50+00:00",
+    "model_usage": {
+      "hf/Qwen/Qwen2.5-7B-Instruct": {
+        "input_tokens": 1233,
+        "output_tokens": 25,
+        "total_tokens": 1258
+      }
+    }
+  },
+  "samples": [
+    {
+      "id": "04dbe07d-8b2c-4daf-b5b2-ef0e93f1fd2a",
+      "epoch": 1,
+      "input": "Which of the following residues of KBTBD4-PR contributes to the expansion of the 2b-2c loops and is inserted into the narrow tunnel leading to the HDAC1 catalytic site?",
+      "choices": [
+        "Tyr312",
+        "Thr310",
+        "Thr311",
+        "Arg312",
+        "Leu314",
+        "Insufficient information to answer the question."
+      ],
+      "target": "D",
+      "messages": [
+        {
+          "id": "4i6vCFNFJU7PAArVk5crah",
+          "content": "\nThe following is a multiple choice question about biology.\nPlease answer by responding with the letter of the correct answer.\n\nThink step by step.\n\nQuestion: Which of the following residues of KBTBD4-PR contributes to the expansion of the 2b-2c loops and is inserted into the narrow tunnel leading to the HDAC1 catalytic site?\nOptions:\nA) Tyr312\nB) Thr310\nC) Thr311\nD) Arg312\nE) Leu314\nF) Insufficient information to answer the question.\n\nYou MUST include the letter of the correct answer within the following format: 'ANSWER: $LETTER' (without quotes). For example, \u2019ANSWER: <answer>\u2019, where <answer> is the correct letter. Always answer in exactly this format of a single letter, even if you are unsure. We require this because we use automatic parsing.\n",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "P3vaZxMFSxBEMkLo2M9FDa",
+          "content": "ANSWER: A",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "P3vaZxMFSxBEMkLo2M9FDa",
+              "content": "ANSWER: A",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "ANSWER: A",
+        "usage": {
+          "input_tokens": 230,
+          "output_tokens": 5,
+          "total_tokens": 235
+        },
+        "time": 1.0174550960000488,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "precision_choice": {
+          "value": "I",
+          "answer": "A",
+          "explanation": "ANSWER: A",
+          "history": []
+        }
+      },
+      "metadata": {},
+      "store": {},
+      "events": [
+        {
+          "uuid": "Zdx8cviG4rmN9ckuGaMgTR",
+          "span_id": "618e12c2ff254ccba955f78080b270dd",
+          "timestamp": "2026-03-10T19:57:42.505971+01:00",
+          "working_start": 6296.552313026,
+          "event": "span_begin",
+          "id": "618e12c2ff254ccba955f78080b270dd",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "RwP2umkK8w6ABqdB3Kb7X6",
+          "span_id": "618e12c2ff254ccba955f78080b270dd",
+          "timestamp": "2026-03-10T19:57:42.506431+01:00",
+          "working_start": 6296.552772774,
+          "event": "sample_init",
+          "sample": {
+            "input": "attachment://c84253ab486c836be97d896bde3e2513",
+            "choices": [
+              "Tyr312",
+              "Thr310",
+              "Thr311",
+              "Arg312",
+              "Leu314",
+              "Insufficient information to answer the question."
+            ],
+            "target": "D",
+            "id": "04dbe07d-8b2c-4daf-b5b2-ef0e93f1fd2a"
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "4i6vCFNFJU7PAArVk5crah",
+                "content": "attachment://c84253ab486c836be97d896bde3e2513",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {}
+          }
+        },
+        {
+          "uuid": "dGpTHGNStTxWDfVke5w8i7",
+          "span_id": "618e12c2ff254ccba955f78080b270dd",
+          "timestamp": "2026-03-10T19:57:42.506932+01:00",
+          "working_start": 6296.55327377,
+          "event": "span_end",
+          "id": "618e12c2ff254ccba955f78080b270dd"
+        },
+        {
+          "uuid": "AjMspG7mbUEGaZZDp4hgSK",
+          "span_id": "f8c5bc93849346a5931505bcf895a013",
+          "timestamp": "2026-03-10T19:57:42.508090+01:00",
+          "working_start": 0.0007974150003065006,
+          "event": "span_begin",
+          "id": "f8c5bc93849346a5931505bcf895a013",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "QUDZq6KRNsW8UAj6L3AQbo",
+          "span_id": "43a3cc53f4bf4ee3b018c6cb657eba0c",
+          "timestamp": "2026-03-10T19:57:42.508526+01:00",
+          "working_start": 0.0012335139999777311,
+          "event": "span_begin",
+          "id": "43a3cc53f4bf4ee3b018c6cb657eba0c",
+          "parent_id": "f8c5bc93849346a5931505bcf895a013",
+          "type": "solver",
+          "name": "multiple_choice"
+        },
+        {
+          "uuid": "Cm7ABTHK2Wm2LUTxGfUKDw",
+          "span_id": "43a3cc53f4bf4ee3b018c6cb657eba0c",
+          "timestamp": "2026-03-10T19:57:42.509049+01:00",
+          "working_start": 0.001756175000082294,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "4i6vCFNFJU7PAArVk5crah",
+              "content": "\nThe following is a multiple choice question about biology.\nPlease answer by responding with the letter of the correct answer.\n\nThink step by step.\n\nQuestion: Which of the following residues of KBTBD4-PR contributes to the expansion of the 2b-2c loops and is inserted into the narrow tunnel leading to the HDAC1 catalytic site?\nOptions:\nA) Tyr312\nB) Thr310\nC) Thr311\nD) Arg312\nE) Leu314\nF) Insufficient information to answer the question.\n\nYou MUST include the letter of the correct answer within the following format: 'ANSWER: $LETTER' (without quotes). For example, \u2019ANSWER: <answer>\u2019, where <answer> is the correct letter. Always answer in exactly this format of a single letter, even if you are unsure. We require this because we use automatic parsing.\n",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 2048
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "P3vaZxMFSxBEMkLo2M9FDa",
+                  "content": "ANSWER: A",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "ANSWER: A",
+            "usage": {
+              "input_tokens": 230,
+              "output_tokens": 5,
+              "total_tokens": 235
+            },
+            "time": 1.0174550960000488,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-10T19:57:43.528701+01:00",
+          "working_time": 1.0174550960000488
+        },
+        {
+          "uuid": "Th7cRuDUAnDEm8uTggJP68",
+          "span_id": "43a3cc53f4bf4ee3b018c6cb657eba0c",
+          "timestamp": "2026-03-10T19:57:43.528922+01:00",
+          "working_start": 1.0195063769997432,
+          "event": "state",
+          "changes": [
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "attachment://1108d7debfef5b7ae4fa2a1f80e722a2",
+              "replaced": "Which of the following residues of KBTBD4-PR contributes to the expansion of the 2b-2c loops and is inserted into the narrow tunnel leading to the HDAC1 catalytic site?"
+            },
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "P3vaZxMFSxBEMkLo2M9FDa",
+                "content": "ANSWER: A",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 1.0174550960000488
+            },
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 230,
+                "output_tokens": 5,
+                "total_tokens": 235
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "P3vaZxMFSxBEMkLo2M9FDa",
+                  "content": "ANSWER: A",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "ANSWER: A",
+              "replaced": ""
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            }
+          ]
+        },
+        {
+          "uuid": "XpbeqsEp5LdMzZxxcyf8s3",
+          "span_id": "43a3cc53f4bf4ee3b018c6cb657eba0c",
+          "timestamp": "2026-03-10T19:57:43.529488+01:00",
+          "working_start": 1.020073644999684,
+          "event": "span_end",
+          "id": "43a3cc53f4bf4ee3b018c6cb657eba0c"
+        },
+        {
+          "uuid": "TqhYYGUJnfFyjSyPUnugFw",
+          "span_id": "f8c5bc93849346a5931505bcf895a013",
+          "timestamp": "2026-03-10T19:57:43.529999+01:00",
+          "working_start": 1.0205841460001466,
+          "event": "span_end",
+          "id": "f8c5bc93849346a5931505bcf895a013"
+        },
+        {
+          "uuid": "ecwxQFK5ATCEqv73bB3g3K",
+          "span_id": "60de34a667794280b90ac8e6b9a8aef0",
+          "timestamp": "2026-03-10T19:57:43.531942+01:00",
+          "working_start": 1.0225266580000607,
+          "event": "span_begin",
+          "id": "60de34a667794280b90ac8e6b9a8aef0",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "3WWfUDQTm9Tpqu8c2Nm3oi",
+          "span_id": "84c57b709c8a489eb38e78c0184ed113",
+          "timestamp": "2026-03-10T19:57:43.532430+01:00",
+          "working_start": 1.0230153020002035,
+          "event": "span_begin",
+          "id": "84c57b709c8a489eb38e78c0184ed113",
+          "parent_id": "60de34a667794280b90ac8e6b9a8aef0",
+          "type": "scorer",
+          "name": "precision_choice"
+        },
+        {
+          "uuid": "d2z9QjZNcvpcDKBcoZUJ9h",
+          "span_id": "84c57b709c8a489eb38e78c0184ed113",
+          "timestamp": "2026-03-10T19:57:43.532883+01:00",
+          "working_start": 1.0234681699994326,
+          "event": "score",
+          "score": {
+            "value": "I",
+            "answer": "A",
+            "explanation": "ANSWER: A",
+            "history": []
+          },
+          "target": "D",
+          "intermediate": false
+        },
+        {
+          "uuid": "Gida2pxPLFXXcXkcigwuus",
+          "span_id": "84c57b709c8a489eb38e78c0184ed113",
+          "timestamp": "2026-03-10T19:57:43.533320+01:00",
+          "working_start": 1.0239051660000769,
+          "event": "span_end",
+          "id": "84c57b709c8a489eb38e78c0184ed113"
+        },
+        {
+          "uuid": "fD43t4WNHjaDT4k5ZonhLM",
+          "span_id": "60de34a667794280b90ac8e6b9a8aef0",
+          "timestamp": "2026-03-10T19:57:43.533801+01:00",
+          "working_start": 1.0243859379997957,
+          "event": "span_end",
+          "id": "60de34a667794280b90ac8e6b9a8aef0"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 230,
+          "output_tokens": 5,
+          "total_tokens": 235
+        }
+      },
+      "total_time": 1.033,
+      "working_time": 1.03,
+      "uuid": "VMU3PELUCEnjEx8MjbhfZ7",
+      "error_retries": [],
+      "attachments": {
+        "c84253ab486c836be97d896bde3e2513": "Which of the following residues of KBTBD4-PR contributes to the expansion of the 2b-2c loops and is inserted into the narrow tunnel leading to the HDAC1 catalytic site?",
+        "1108d7debfef5b7ae4fa2a1f80e722a2": "\nThe following is a multiple choice question about biology.\nPlease answer by responding with the letter of the correct answer.\n\nThink step by step.\n\nQuestion: Which of the following residues of KBTBD4-PR contributes to the expansion of the 2b-2c loops and is inserted into the narrow tunnel leading to the HDAC1 catalytic site?\nOptions:\nA) Tyr312\nB) Thr310\nC) Thr311\nD) Arg312\nE) Leu314\nF) Insufficient information to answer the question.\n\nYou MUST include the letter of the correct answer within the following format: 'ANSWER: $LETTER' (without quotes). For example, \u2019ANSWER: <answer>\u2019, where <answer> is the correct letter. Always answer in exactly this format of a single letter, even if you are unsure. We require this because we use automatic parsing.\n"
+      }
+    },
+    {
+      "id": "0708b62f-9652-49eb-8ba6-28878afa7445",
+      "epoch": 1,
+      "input": "The NCAN-ELS domain has been shown to interact with what percent of inhibitory synapses?",
+      "choices": [
+        "57%",
+        "0%",
+        "40%",
+        "Insufficient information to answer the question.",
+        "75%"
+      ],
+      "target": "E",
+      "messages": [
+        {
+          "id": "BqKoE6xZcyHhL8QZoZeLSv",
+          "content": "\nThe following is a multiple choice question about biology.\nPlease answer by responding with the letter of the correct answer.\n\nThink step by step.\n\nQuestion: The NCAN-ELS domain has been shown to interact with what percent of inhibitory synapses?\nOptions:\nA) 57%\nB) 0%\nC) 40%\nD) Insufficient information to answer the question.\nE) 75%\n\nYou MUST include the letter of the correct answer within the following format: 'ANSWER: $LETTER' (without quotes). For example, \u2019ANSWER: <answer>\u2019, where <answer> is the correct letter. Always answer in exactly this format of a single letter, even if you are unsure. We require this because we use automatic parsing.\n",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "YUZ4aLWVZwQqRKke7MAJJs",
+          "content": "ANSWER: D",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "YUZ4aLWVZwQqRKke7MAJJs",
+              "content": "ANSWER: D",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "ANSWER: D",
+        "usage": {
+          "input_tokens": 274,
+          "output_tokens": 5,
+          "total_tokens": 279
+        },
+        "time": 1.0195796890002384,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "precision_choice": {
+          "value": "N",
+          "answer": "D",
+          "explanation": "ANSWER: D",
+          "history": []
+        }
+      },
+      "metadata": {},
+      "store": {},
+      "events": [
+        {
+          "uuid": "he692BfjaEwc4NL2Ex8pRK",
+          "span_id": "60225bafa8f34c26af6e7271436dcb95",
+          "timestamp": "2026-03-10T19:57:41.099320+01:00",
+          "working_start": 6295.145661177,
+          "event": "span_begin",
+          "id": "60225bafa8f34c26af6e7271436dcb95",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "HSStN7vcZKi3NdsCCSJXam",
+          "span_id": "60225bafa8f34c26af6e7271436dcb95",
+          "timestamp": "2026-03-10T19:57:41.099808+01:00",
+          "working_start": 6295.146149565,
+          "event": "sample_init",
+          "sample": {
+            "input": "The NCAN-ELS domain has been shown to interact with what percent of inhibitory synapses?",
+            "choices": [
+              "57%",
+              "0%",
+              "40%",
+              "Insufficient information to answer the question.",
+              "75%"
+            ],
+            "target": "E",
+            "id": "0708b62f-9652-49eb-8ba6-28878afa7445"
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "BqKoE6xZcyHhL8QZoZeLSv",
+                "content": "The NCAN-ELS domain has been shown to interact with what percent of inhibitory synapses?",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {}
+          }
+        },
+        {
+          "uuid": "X3WwPZ2aJiCeT9gLZjC2kM",
+          "span_id": "60225bafa8f34c26af6e7271436dcb95",
+          "timestamp": "2026-03-10T19:57:41.100237+01:00",
+          "working_start": 6295.146578049,
+          "event": "span_end",
+          "id": "60225bafa8f34c26af6e7271436dcb95"
+        },
+        {
+          "uuid": "kMBa34eVi6L8d9wQysv8mC",
+          "span_id": "90d05c4a44c54b2985c12f4f17161f42",
+          "timestamp": "2026-03-10T19:57:41.104329+01:00",
+          "working_start": 0.003728095000042231,
+          "event": "span_begin",
+          "id": "90d05c4a44c54b2985c12f4f17161f42",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "cHcgUhEaxybuYYFaxqpCTx",
+          "span_id": "6a978aa7bcb942d49b5861f3f18b4dc3",
+          "timestamp": "2026-03-10T19:57:41.104857+01:00",
+          "working_start": 0.004257219999999506,
+          "event": "span_begin",
+          "id": "6a978aa7bcb942d49b5861f3f18b4dc3",
+          "parent_id": "90d05c4a44c54b2985c12f4f17161f42",
+          "type": "solver",
+          "name": "multiple_choice"
+        },
+        {
+          "uuid": "ei4BvjReSCaMJWAHEUZncJ",
+          "span_id": "6a978aa7bcb942d49b5861f3f18b4dc3",
+          "timestamp": "2026-03-10T19:57:41.105766+01:00",
+          "working_start": 0.005165739999938523,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "BqKoE6xZcyHhL8QZoZeLSv",
+              "content": "\nThe following is a multiple choice question about biology.\nPlease answer by responding with the letter of the correct answer.\n\nThink step by step.\n\nQuestion: The NCAN-ELS domain has been shown to interact with what percent of inhibitory synapses?\nOptions:\nA) 57%\nB) 0%\nC) 40%\nD) Insufficient information to answer the question.\nE) 75%\n\nYou MUST include the letter of the correct answer within the following format: 'ANSWER: $LETTER' (without quotes). For example, \u2019ANSWER: <answer>\u2019, where <answer> is the correct letter. Always answer in exactly this format of a single letter, even if you are unsure. We require this because we use automatic parsing.\n",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 2048
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "YUZ4aLWVZwQqRKke7MAJJs",
+                  "content": "ANSWER: D",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "ANSWER: D",
+            "usage": {
+              "input_tokens": 274,
+              "output_tokens": 5,
+              "total_tokens": 279
+            },
+            "time": 1.0195796890002384,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-10T19:57:42.127419+01:00",
+          "working_time": 1.0195796890002384
+        },
+        {
+          "uuid": "ARAgfXgdxQpWZXTSbFbKGe",
+          "span_id": "6a978aa7bcb942d49b5861f3f18b4dc3",
+          "timestamp": "2026-03-10T19:57:42.127631+01:00",
+          "working_start": 1.0250301349997244,
+          "event": "state",
+          "changes": [
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "attachment://e802ddf1b3d1d067e48cdb49834e15fe",
+              "replaced": "The NCAN-ELS domain has been shown to interact with what percent of inhibitory synapses?"
+            },
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "YUZ4aLWVZwQqRKke7MAJJs",
+                "content": "ANSWER: D",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 1.0195796890002384
+            },
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 274,
+                "output_tokens": 5,
+                "total_tokens": 279
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "YUZ4aLWVZwQqRKke7MAJJs",
+                  "content": "ANSWER: D",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "ANSWER: D",
+              "replaced": ""
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            }
+          ]
+        },
+        {
+          "uuid": "myzyQowdnPBB5XqSAEX72e",
+          "span_id": "6a978aa7bcb942d49b5861f3f18b4dc3",
+          "timestamp": "2026-03-10T19:57:42.128197+01:00",
+          "working_start": 1.0255953559999398,
+          "event": "span_end",
+          "id": "6a978aa7bcb942d49b5861f3f18b4dc3"
+        },
+        {
+          "uuid": "PY2pCpnyEXsaZZXtQHbfiC",
+          "span_id": "90d05c4a44c54b2985c12f4f17161f42",
+          "timestamp": "2026-03-10T19:57:42.128619+01:00",
+          "working_start": 1.0260174400000324,
+          "event": "span_end",
+          "id": "90d05c4a44c54b2985c12f4f17161f42"
+        },
+        {
+          "uuid": "nCaysnfdBFbhyicCgp5be6",
+          "span_id": "c8ab300d80f740f5a83467603add6314",
+          "timestamp": "2026-03-10T19:57:42.133068+01:00",
+          "working_start": 1.0304672060001394,
+          "event": "span_begin",
+          "id": "c8ab300d80f740f5a83467603add6314",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "cRqA5t9SJaeR4yanrp9MuY",
+          "span_id": "3ca152b8a34049e589d03f4ae5822bd5",
+          "timestamp": "2026-03-10T19:57:42.133557+01:00",
+          "working_start": 1.030955754000388,
+          "event": "span_begin",
+          "id": "3ca152b8a34049e589d03f4ae5822bd5",
+          "parent_id": "c8ab300d80f740f5a83467603add6314",
+          "type": "scorer",
+          "name": "precision_choice"
+        },
+        {
+          "uuid": "dNwwqNUjWyYLtx8Hd67snQ",
+          "span_id": "3ca152b8a34049e589d03f4ae5822bd5",
+          "timestamp": "2026-03-10T19:57:42.133990+01:00",
+          "working_start": 1.03138935700008,
+          "event": "score",
+          "score": {
+            "value": "N",
+            "answer": "D",
+            "explanation": "ANSWER: D",
+            "history": []
+          },
+          "target": "E",
+          "intermediate": false
+        },
+        {
+          "uuid": "GVNAQ4xZtpSZXTyvX7tWGh",
+          "span_id": "3ca152b8a34049e589d03f4ae5822bd5",
+          "timestamp": "2026-03-10T19:57:42.134403+01:00",
+          "working_start": 1.0318013610003618,
+          "event": "span_end",
+          "id": "3ca152b8a34049e589d03f4ae5822bd5"
+        },
+        {
+          "uuid": "gbtQUkh8ZbjvvxyMYDUmPd",
+          "span_id": "c8ab300d80f740f5a83467603add6314",
+          "timestamp": "2026-03-10T19:57:42.134803+01:00",
+          "working_start": 1.03220194000005,
+          "event": "span_end",
+          "id": "c8ab300d80f740f5a83467603add6314"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 274,
+          "output_tokens": 5,
+          "total_tokens": 279
+        }
+      },
+      "total_time": 1.036,
+      "working_time": 1.034,
+      "uuid": "YjJapZxm8E48Ep8JivhsiC",
+      "error_retries": [],
+      "attachments": {
+        "e802ddf1b3d1d067e48cdb49834e15fe": "\nThe following is a multiple choice question about biology.\nPlease answer by responding with the letter of the correct answer.\n\nThink step by step.\n\nQuestion: The NCAN-ELS domain has been shown to interact with what percent of inhibitory synapses?\nOptions:\nA) 57%\nB) 0%\nC) 40%\nD) Insufficient information to answer the question.\nE) 75%\n\nYou MUST include the letter of the correct answer within the following format: 'ANSWER: $LETTER' (without quotes). For example, \u2019ANSWER: <answer>\u2019, where <answer> is the correct letter. Always answer in exactly this format of a single letter, even if you are unsure. We require this because we use automatic parsing.\n"
+      }
+    },
+    {
+      "id": "08397294-3d99-4790-915c-b8bcb1e9e661",
+      "epoch": 1,
+      "input": "Which of the following subunits of the Rev1 protein, when knocked out in Drosophila that also lack the Rev3 domain of polymerase zeta, lead to the greatest increase in sensitivity to DNA alkylation induced by methyl methanesulfonate?",
+      "choices": [
+        "Insufficient information to answer the question.",
+        "UBM",
+        "BRCT",
+        "DTD"
+      ],
+      "target": "D",
+      "messages": [
+        {
+          "id": "no83W2gnpQ6hMit8GUvSWe",
+          "content": "\nThe following is a multiple choice question about biology.\nPlease answer by responding with the letter of the correct answer.\n\nThink step by step.\n\nQuestion: Which of the following subunits of the Rev1 protein, when knocked out in Drosophila that also lack the Rev3 domain of polymerase zeta, lead to the greatest increase in sensitivity to DNA alkylation induced by methyl methanesulfonate?\nOptions:\nA) Insufficient information to answer the question.\nB) UBM\nC) BRCT\nD) DTD\n\nYou MUST include the letter of the correct answer within the following format: 'ANSWER: $LETTER' (without quotes). For example, \u2019ANSWER: <answer>\u2019, where <answer> is the correct letter. Always answer in exactly this format of a single letter, even if you are unsure. We require this because we use automatic parsing.\n",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "Z8ZswcLL56HXg8AVRHqq6J",
+          "content": "ANSWER: A",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "Z8ZswcLL56HXg8AVRHqq6J",
+              "content": "ANSWER: A",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "ANSWER: A",
+        "usage": {
+          "input_tokens": 253,
+          "output_tokens": 5,
+          "total_tokens": 258
+        },
+        "time": 2.0239317610003127,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "precision_choice": {
+          "value": "N",
+          "answer": "A",
+          "explanation": "ANSWER: A",
+          "history": []
+        }
+      },
+      "metadata": {},
+      "store": {},
+      "events": [
+        {
+          "uuid": "CdsiPpBF3aGgG8t4pr3arq",
+          "span_id": "a212499e9935495e9ab64bf2a4b353e6",
+          "timestamp": "2026-03-10T19:57:43.804498+01:00",
+          "working_start": 6297.850839154,
+          "event": "span_begin",
+          "id": "a212499e9935495e9ab64bf2a4b353e6",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "doxmSueDix9mErqeFNAxWv",
+          "span_id": "a212499e9935495e9ab64bf2a4b353e6",
+          "timestamp": "2026-03-10T19:57:43.804968+01:00",
+          "working_start": 6297.851309846,
+          "event": "sample_init",
+          "sample": {
+            "input": "attachment://4a86ee1d72debeee0cf51923545d2c75",
+            "choices": [
+              "Insufficient information to answer the question.",
+              "UBM",
+              "BRCT",
+              "DTD"
+            ],
+            "target": "D",
+            "id": "08397294-3d99-4790-915c-b8bcb1e9e661"
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "no83W2gnpQ6hMit8GUvSWe",
+                "content": "attachment://4a86ee1d72debeee0cf51923545d2c75",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {}
+          }
+        },
+        {
+          "uuid": "FbddyfeDkvdnb9fXSUXKin",
+          "span_id": "a212499e9935495e9ab64bf2a4b353e6",
+          "timestamp": "2026-03-10T19:57:43.805479+01:00",
+          "working_start": 6297.851821562,
+          "event": "span_end",
+          "id": "a212499e9935495e9ab64bf2a4b353e6"
+        },
+        {
+          "uuid": "QvXMk3o3iU75gw5UVQAYod",
+          "span_id": "0b25250705cc46ceac7136f666a4a5b0",
+          "timestamp": "2026-03-10T19:57:43.808439+01:00",
+          "working_start": 0.0025634460007495363,
+          "event": "span_begin",
+          "id": "0b25250705cc46ceac7136f666a4a5b0",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "iJrz9JakQSMnxvAaNCpmTb",
+          "span_id": "2f75ef75de0c4a119c42038985b330f8",
+          "timestamp": "2026-03-10T19:57:43.808928+01:00",
+          "working_start": 0.003053338000427175,
+          "event": "span_begin",
+          "id": "2f75ef75de0c4a119c42038985b330f8",
+          "parent_id": "0b25250705cc46ceac7136f666a4a5b0",
+          "type": "solver",
+          "name": "multiple_choice"
+        },
+        {
+          "uuid": "HfN9cfrwn48NCNZ6gjTx5d",
+          "span_id": "2f75ef75de0c4a119c42038985b330f8",
+          "timestamp": "2026-03-10T19:57:43.809463+01:00",
+          "working_start": 0.003588510000554379,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "no83W2gnpQ6hMit8GUvSWe",
+              "content": "\nThe following is a multiple choice question about biology.\nPlease answer by responding with the letter of the correct answer.\n\nThink step by step.\n\nQuestion: Which of the following subunits of the Rev1 protein, when knocked out in Drosophila that also lack the Rev3 domain of polymerase zeta, lead to the greatest increase in sensitivity to DNA alkylation induced by methyl methanesulfonate?\nOptions:\nA) Insufficient information to answer the question.\nB) UBM\nC) BRCT\nD) DTD\n\nYou MUST include the letter of the correct answer within the following format: 'ANSWER: $LETTER' (without quotes). For example, \u2019ANSWER: <answer>\u2019, where <answer> is the correct letter. Always answer in exactly this format of a single letter, even if you are unsure. We require this because we use automatic parsing.\n",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 2048
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "Z8ZswcLL56HXg8AVRHqq6J",
+                  "content": "ANSWER: A",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "ANSWER: A",
+            "usage": {
+              "input_tokens": 253,
+              "output_tokens": 5,
+              "total_tokens": 258
+            },
+            "time": 2.0239317610003127,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-10T19:57:45.835556+01:00",
+          "working_time": 2.0239317610003127
+        },
+        {
+          "uuid": "384bT5DMt7zMyaa2WJQ4Cm",
+          "span_id": "2f75ef75de0c4a119c42038985b330f8",
+          "timestamp": "2026-03-10T19:57:45.835803+01:00",
+          "working_start": 2.0278626100007386,
+          "event": "state",
+          "changes": [
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "attachment://83d2ac6f1b3b68781bccc570cae419e4",
+              "replaced": "Which of the following subunits of the Rev1 protein, when knocked out in Drosophila that also lack the Rev3 domain of polymerase zeta, lead to the greatest increase in sensitivity to DNA alkylation induced by methyl methanesulfonate?"
+            },
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "Z8ZswcLL56HXg8AVRHqq6J",
+                "content": "ANSWER: A",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 2.0239317610003127
+            },
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 253,
+                "output_tokens": 5,
+                "total_tokens": 258
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "Z8ZswcLL56HXg8AVRHqq6J",
+                  "content": "ANSWER: A",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "ANSWER: A",
+              "replaced": ""
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            }
+          ]
+        },
+        {
+          "uuid": "bjTTg3hdMRWqLWtrHQPakR",
+          "span_id": "2f75ef75de0c4a119c42038985b330f8",
+          "timestamp": "2026-03-10T19:57:45.836336+01:00",
+          "working_start": 2.028396086000612,
+          "event": "span_end",
+          "id": "2f75ef75de0c4a119c42038985b330f8"
+        },
+        {
+          "uuid": "aCRtJpJjnWnvhDiEXdpzAZ",
+          "span_id": "0b25250705cc46ceac7136f666a4a5b0",
+          "timestamp": "2026-03-10T19:57:45.836813+01:00",
+          "working_start": 2.0288721860006262,
+          "event": "span_end",
+          "id": "0b25250705cc46ceac7136f666a4a5b0"
+        },
+        {
+          "uuid": "LHE38HF4Zpa8j7PVKeLVGK",
+          "span_id": "d4b05035ce9944f98ccb4a6f91ff1ade",
+          "timestamp": "2026-03-10T19:57:45.839299+01:00",
+          "working_start": 2.031358607000584,
+          "event": "span_begin",
+          "id": "d4b05035ce9944f98ccb4a6f91ff1ade",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "e3c9jZKddrWJ2iHvHmD4a8",
+          "span_id": "3c933bd8d7b94ec1880ba6620b6ce8ae",
+          "timestamp": "2026-03-10T19:57:45.839840+01:00",
+          "working_start": 2.0319000200006485,
+          "event": "span_begin",
+          "id": "3c933bd8d7b94ec1880ba6620b6ce8ae",
+          "parent_id": "d4b05035ce9944f98ccb4a6f91ff1ade",
+          "type": "scorer",
+          "name": "precision_choice"
+        },
+        {
+          "uuid": "Eotnzf8fMPdgCZeepeBMfd",
+          "span_id": "3c933bd8d7b94ec1880ba6620b6ce8ae",
+          "timestamp": "2026-03-10T19:57:45.840255+01:00",
+          "working_start": 2.032314839000719,
+          "event": "score",
+          "score": {
+            "value": "N",
+            "answer": "A",
+            "explanation": "ANSWER: A",
+            "history": []
+          },
+          "target": "D",
+          "intermediate": false
+        },
+        {
+          "uuid": "5JHmWqVXLMT6weyiCqF4RY",
+          "span_id": "3c933bd8d7b94ec1880ba6620b6ce8ae",
+          "timestamp": "2026-03-10T19:57:45.840705+01:00",
+          "working_start": 2.032764283000688,
+          "event": "span_end",
+          "id": "3c933bd8d7b94ec1880ba6620b6ce8ae"
+        },
+        {
+          "uuid": "VkhUs74e9m54Wfhjc6Peen",
+          "span_id": "d4b05035ce9944f98ccb4a6f91ff1ade",
+          "timestamp": "2026-03-10T19:57:45.841108+01:00",
+          "working_start": 2.0331676470004822,
+          "event": "span_end",
+          "id": "d4b05035ce9944f98ccb4a6f91ff1ade"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 253,
+          "output_tokens": 5,
+          "total_tokens": 258
+        }
+      },
+      "total_time": 2.052,
+      "working_time": 2.05,
+      "uuid": "9VLCvBoXCTfCEruUCaY5qH",
+      "error_retries": [],
+      "attachments": {
+        "4a86ee1d72debeee0cf51923545d2c75": "Which of the following subunits of the Rev1 protein, when knocked out in Drosophila that also lack the Rev3 domain of polymerase zeta, lead to the greatest increase in sensitivity to DNA alkylation induced by methyl methanesulfonate?",
+        "83d2ac6f1b3b68781bccc570cae419e4": "\nThe following is a multiple choice question about biology.\nPlease answer by responding with the letter of the correct answer.\n\nThink step by step.\n\nQuestion: Which of the following subunits of the Rev1 protein, when knocked out in Drosophila that also lack the Rev3 domain of polymerase zeta, lead to the greatest increase in sensitivity to DNA alkylation induced by methyl methanesulfonate?\nOptions:\nA) Insufficient information to answer the question.\nB) UBM\nC) BRCT\nD) DTD\n\nYou MUST include the letter of the correct answer within the following format: 'ANSWER: $LETTER' (without quotes). For example, \u2019ANSWER: <answer>\u2019, where <answer> is the correct letter. Always answer in exactly this format of a single letter, even if you are unsure. We require this because we use automatic parsing.\n"
+      }
+    },
+    {
+      "id": "0a9d6516-95ef-4d7b-a28d-d7cde27b7b55",
+      "epoch": 1,
+      "input": "In pre-commitment myeloid progenitor cells, for how many hours can estrogen be withdrawn before the cells can no longer return to their progenitor state?",
+      "choices": [
+        "72 hours",
+        "Insufficient information to answer the question.",
+        "96 hours",
+        "24 hours",
+        "40 hours"
+      ],
+      "target": "A",
+      "messages": [
+        {
+          "id": "g4QtUVjPLpLJTZKzRjXydT",
+          "content": "\nThe following is a multiple choice question about biology.\nPlease answer by responding with the letter of the correct answer.\n\nThink step by step.\n\nQuestion: In pre-commitment myeloid progenitor cells, for how many hours can estrogen be withdrawn before the cells can no longer return to their progenitor state?\nOptions:\nA) 72 hours\nB) Insufficient information to answer the question.\nC) 96 hours\nD) 24 hours\nE) 40 hours\n\nYou MUST include the letter of the correct answer within the following format: 'ANSWER: $LETTER' (without quotes). For example, \u2019ANSWER: <answer>\u2019, where <answer> is the correct letter. Always answer in exactly this format of a single letter, even if you are unsure. We require this because we use automatic parsing.\n",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "nWsmxZ4jgrXXFFBp45FPKi",
+          "content": "ANSWER: B",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "nWsmxZ4jgrXXFFBp45FPKi",
+              "content": "ANSWER: B",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "ANSWER: B",
+        "usage": {
+          "input_tokens": 246,
+          "output_tokens": 5,
+          "total_tokens": 251
+        },
+        "time": 2.034642284000256,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "precision_choice": {
+          "value": "N",
+          "answer": "B",
+          "explanation": "ANSWER: B",
+          "history": []
+        }
+      },
+      "metadata": {},
+      "store": {},
+      "events": [
+        {
+          "uuid": "CGyFg5LGZHL9pKURHhfbsy",
+          "span_id": "8bad6f4633f64430b9b3a77490bdbe9b",
+          "timestamp": "2026-03-10T19:57:37.848509+01:00",
+          "working_start": 6291.894850746,
+          "event": "span_begin",
+          "id": "8bad6f4633f64430b9b3a77490bdbe9b",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "8JfTjpf6JSfru9HkhJNvKq",
+          "span_id": "8bad6f4633f64430b9b3a77490bdbe9b",
+          "timestamp": "2026-03-10T19:57:37.848977+01:00",
+          "working_start": 6291.89531907,
+          "event": "sample_init",
+          "sample": {
+            "input": "attachment://440b4f421572c5d6b1573f5789c357df",
+            "choices": [
+              "72 hours",
+              "Insufficient information to answer the question.",
+              "96 hours",
+              "24 hours",
+              "40 hours"
+            ],
+            "target": "A",
+            "id": "0a9d6516-95ef-4d7b-a28d-d7cde27b7b55"
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "g4QtUVjPLpLJTZKzRjXydT",
+                "content": "attachment://440b4f421572c5d6b1573f5789c357df",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {}
+          }
+        },
+        {
+          "uuid": "fUyBrUZuzhZBURihARKktP",
+          "span_id": "8bad6f4633f64430b9b3a77490bdbe9b",
+          "timestamp": "2026-03-10T19:57:37.849468+01:00",
+          "working_start": 6291.895809058,
+          "event": "span_end",
+          "id": "8bad6f4633f64430b9b3a77490bdbe9b"
+        },
+        {
+          "uuid": "KdpuRHE4qmDppyqjcR7Ufj",
+          "span_id": "959a441a3d654c8a8f77e38820f31771",
+          "timestamp": "2026-03-10T19:57:37.908815+01:00",
+          "working_start": 0.058957046000614355,
+          "event": "span_begin",
+          "id": "959a441a3d654c8a8f77e38820f31771",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "J7Q3nW6FH9kFk5aWFNHKDd",
+          "span_id": "9f7c7878a67d402ca55b013caec7d957",
+          "timestamp": "2026-03-10T19:57:37.909226+01:00",
+          "working_start": 0.059368986000663426,
+          "event": "span_begin",
+          "id": "9f7c7878a67d402ca55b013caec7d957",
+          "parent_id": "959a441a3d654c8a8f77e38820f31771",
+          "type": "solver",
+          "name": "multiple_choice"
+        },
+        {
+          "uuid": "T8JB7DyK58sq3xqB79namL",
+          "span_id": "9f7c7878a67d402ca55b013caec7d957",
+          "timestamp": "2026-03-10T19:57:37.909718+01:00",
+          "working_start": 0.05986114999996062,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "g4QtUVjPLpLJTZKzRjXydT",
+              "content": "\nThe following is a multiple choice question about biology.\nPlease answer by responding with the letter of the correct answer.\n\nThink step by step.\n\nQuestion: In pre-commitment myeloid progenitor cells, for how many hours can estrogen be withdrawn before the cells can no longer return to their progenitor state?\nOptions:\nA) 72 hours\nB) Insufficient information to answer the question.\nC) 96 hours\nD) 24 hours\nE) 40 hours\n\nYou MUST include the letter of the correct answer within the following format: 'ANSWER: $LETTER' (without quotes). For example, \u2019ANSWER: <answer>\u2019, where <answer> is the correct letter. Always answer in exactly this format of a single letter, even if you are unsure. We require this because we use automatic parsing.\n",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 2048
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "nWsmxZ4jgrXXFFBp45FPKi",
+                  "content": "ANSWER: B",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "ANSWER: B",
+            "usage": {
+              "input_tokens": 246,
+              "output_tokens": 5,
+              "total_tokens": 251
+            },
+            "time": 2.034642284000256,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-10T19:57:39.995607+01:00",
+          "working_time": 2.034642284000256
+        },
+        {
+          "uuid": "CURawjSGYa583Sq8LJNdEE",
+          "span_id": "9f7c7878a67d402ca55b013caec7d957",
+          "timestamp": "2026-03-10T19:57:39.995843+01:00",
+          "working_start": 2.0948344770013136,
+          "event": "state",
+          "changes": [
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "attachment://5801cdff52d335e03469df08c9c916e5",
+              "replaced": "In pre-commitment myeloid progenitor cells, for how many hours can estrogen be withdrawn before the cells can no longer return to their progenitor state?"
+            },
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "nWsmxZ4jgrXXFFBp45FPKi",
+                "content": "ANSWER: B",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 2.034642284000256
+            },
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 246,
+                "output_tokens": 5,
+                "total_tokens": 251
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "nWsmxZ4jgrXXFFBp45FPKi",
+                  "content": "ANSWER: B",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "ANSWER: B",
+              "replaced": ""
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            }
+          ]
+        },
+        {
+          "uuid": "Yv2cUSru6SF5ugsVeQu9Zm",
+          "span_id": "9f7c7878a67d402ca55b013caec7d957",
+          "timestamp": "2026-03-10T19:57:39.996334+01:00",
+          "working_start": 2.0953261290005685,
+          "event": "span_end",
+          "id": "9f7c7878a67d402ca55b013caec7d957"
+        },
+        {
+          "uuid": "GGumj5SgCiHW9HsgM4yAHn",
+          "span_id": "959a441a3d654c8a8f77e38820f31771",
+          "timestamp": "2026-03-10T19:57:39.996781+01:00",
+          "working_start": 2.095772917001341,
+          "event": "span_end",
+          "id": "959a441a3d654c8a8f77e38820f31771"
+        },
+        {
+          "uuid": "RVnRTxZnhNtQCYucUCyDWg",
+          "span_id": "bc06596a27f341d4836b82d63a732cf5",
+          "timestamp": "2026-03-10T19:57:40.000422+01:00",
+          "working_start": 2.0994135880009708,
+          "event": "span_begin",
+          "id": "bc06596a27f341d4836b82d63a732cf5",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "WP4YJdW8e7z3cxFq9pgFjz",
+          "span_id": "7f9ed3b8a5a24598bc03a2726092d834",
+          "timestamp": "2026-03-10T19:57:40.000861+01:00",
+          "working_start": 2.099852504001319,
+          "event": "span_begin",
+          "id": "7f9ed3b8a5a24598bc03a2726092d834",
+          "parent_id": "bc06596a27f341d4836b82d63a732cf5",
+          "type": "scorer",
+          "name": "precision_choice"
+        },
+        {
+          "uuid": "RBpzgMZNZZgEtZ2kHNbV2J",
+          "span_id": "7f9ed3b8a5a24598bc03a2726092d834",
+          "timestamp": "2026-03-10T19:57:40.001223+01:00",
+          "working_start": 2.100214395000876,
+          "event": "score",
+          "score": {
+            "value": "N",
+            "answer": "B",
+            "explanation": "ANSWER: B",
+            "history": []
+          },
+          "target": "A",
+          "intermediate": false
+        },
+        {
+          "uuid": "UEhPAng9yNPt2CTCCZxS64",
+          "span_id": "7f9ed3b8a5a24598bc03a2726092d834",
+          "timestamp": "2026-03-10T19:57:40.001624+01:00",
+          "working_start": 2.10061558200141,
+          "event": "span_end",
+          "id": "7f9ed3b8a5a24598bc03a2726092d834"
+        },
+        {
+          "uuid": "nmN39XiJpPCpkFScvP8xfd",
+          "span_id": "bc06596a27f341d4836b82d63a732cf5",
+          "timestamp": "2026-03-10T19:57:40.002007+01:00",
+          "working_start": 2.100998690000779,
+          "event": "span_end",
+          "id": "bc06596a27f341d4836b82d63a732cf5"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 246,
+          "output_tokens": 5,
+          "total_tokens": 251
+        }
+      },
+      "total_time": 2.163,
+      "working_time": 2.112,
+      "uuid": "o8mjbxRSmSd4qnWZMeS5tU",
+      "error_retries": [],
+      "attachments": {
+        "440b4f421572c5d6b1573f5789c357df": "In pre-commitment myeloid progenitor cells, for how many hours can estrogen be withdrawn before the cells can no longer return to their progenitor state?",
+        "5801cdff52d335e03469df08c9c916e5": "\nThe following is a multiple choice question about biology.\nPlease answer by responding with the letter of the correct answer.\n\nThink step by step.\n\nQuestion: In pre-commitment myeloid progenitor cells, for how many hours can estrogen be withdrawn before the cells can no longer return to their progenitor state?\nOptions:\nA) 72 hours\nB) Insufficient information to answer the question.\nC) 96 hours\nD) 24 hours\nE) 40 hours\n\nYou MUST include the letter of the correct answer within the following format: 'ANSWER: $LETTER' (without quotes). For example, \u2019ANSWER: <answer>\u2019, where <answer> is the correct letter. Always answer in exactly this format of a single letter, even if you are unsure. We require this because we use automatic parsing.\n"
+      }
+    },
+    {
+      "id": "0b1d5537-db47-420c-984b-9b56d38e6d98",
+      "epoch": 1,
+      "input": "The human proteasome core subunit \u03b16 can functionally replace a knockout of it's yeast ortholog when co-expressed with which other human proteasome subunit?",
+      "choices": [
+        "Hs \u03b19",
+        "Insufficient information to answer the question.",
+        "Sc \u03b12",
+        "Hs \u03b17",
+        "Hs \u03b11"
+      ],
+      "target": "D",
+      "messages": [
+        {
+          "id": "EQZzAaR5dnMA8baAgwGTgz",
+          "content": "\nThe following is a multiple choice question about biology.\nPlease answer by responding with the letter of the correct answer.\n\nThink step by step.\n\nQuestion: The human proteasome core subunit \u03b16 can functionally replace a knockout of it's yeast ortholog when co-expressed with which other human proteasome subunit?\nOptions:\nA) Hs \u03b19\nB) Insufficient information to answer the question.\nC) Sc \u03b12\nD) Hs \u03b17\nE) Hs \u03b11\n\nYou MUST include the letter of the correct answer within the following format: 'ANSWER: $LETTER' (without quotes). For example, \u2019ANSWER: <answer>\u2019, where <answer> is the correct letter. Always answer in exactly this format of a single letter, even if you are unsure. We require this because we use automatic parsing.\n",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "ny6etAE98eBoDXGvs2pGQK",
+          "content": "ANSWER: B",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "ny6etAE98eBoDXGvs2pGQK",
+              "content": "ANSWER: B",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "ANSWER: B",
+        "usage": {
+          "input_tokens": 230,
+          "output_tokens": 5,
+          "total_tokens": 235
+        },
+        "time": 1.1716298789997381,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "precision_choice": {
+          "value": "N",
+          "answer": "B",
+          "explanation": "ANSWER: B",
+          "history": []
+        }
+      },
+      "metadata": {},
+      "store": {},
+      "events": [
+        {
+          "uuid": "J7kdagQKXiRQfxLKjKfmms",
+          "span_id": "34a828bd3d564b15ac1f2d62f382f706",
+          "timestamp": "2026-03-10T19:57:42.914261+01:00",
+          "working_start": 6296.96060255,
+          "event": "span_begin",
+          "id": "34a828bd3d564b15ac1f2d62f382f706",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "JJV2Xi7eb2XHZVmsBgiVWE",
+          "span_id": "34a828bd3d564b15ac1f2d62f382f706",
+          "timestamp": "2026-03-10T19:57:42.914775+01:00",
+          "working_start": 6296.961116826,
+          "event": "sample_init",
+          "sample": {
+            "input": "attachment://489c21fbb0a9f5175836bee0084aff66",
+            "choices": [
+              "Hs \u03b19",
+              "Insufficient information to answer the question.",
+              "Sc \u03b12",
+              "Hs \u03b17",
+              "Hs \u03b11"
+            ],
+            "target": "D",
+            "id": "0b1d5537-db47-420c-984b-9b56d38e6d98"
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "EQZzAaR5dnMA8baAgwGTgz",
+                "content": "attachment://489c21fbb0a9f5175836bee0084aff66",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {}
+          }
+        },
+        {
+          "uuid": "JvpEkn6NMgvDat2Pjdngbj",
+          "span_id": "34a828bd3d564b15ac1f2d62f382f706",
+          "timestamp": "2026-03-10T19:57:42.915257+01:00",
+          "working_start": 6296.961599167,
+          "event": "span_end",
+          "id": "34a828bd3d564b15ac1f2d62f382f706"
+        },
+        {
+          "uuid": "Xzpcvgtfw87ZULirkv4MGu",
+          "span_id": "24f867cb93fe40d098ef2e3e017dc630",
+          "timestamp": "2026-03-10T19:57:42.916540+01:00",
+          "working_start": 0.000907175000065763,
+          "event": "span_begin",
+          "id": "24f867cb93fe40d098ef2e3e017dc630",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "JYjgcoMCioE7X4XbNct323",
+          "span_id": "e41db7893ced4c2bb234374665756ae9",
+          "timestamp": "2026-03-10T19:57:42.916982+01:00",
+          "working_start": 0.0013503789996320847,
+          "event": "span_begin",
+          "id": "e41db7893ced4c2bb234374665756ae9",
+          "parent_id": "24f867cb93fe40d098ef2e3e017dc630",
+          "type": "solver",
+          "name": "multiple_choice"
+        },
+        {
+          "uuid": "RLjkz79Dh8NRchrKeqpmKm",
+          "span_id": "e41db7893ced4c2bb234374665756ae9",
+          "timestamp": "2026-03-10T19:57:42.917472+01:00",
+          "working_start": 0.0018395990000499296,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "EQZzAaR5dnMA8baAgwGTgz",
+              "content": "\nThe following is a multiple choice question about biology.\nPlease answer by responding with the letter of the correct answer.\n\nThink step by step.\n\nQuestion: The human proteasome core subunit \u03b16 can functionally replace a knockout of it's yeast ortholog when co-expressed with which other human proteasome subunit?\nOptions:\nA) Hs \u03b19\nB) Insufficient information to answer the question.\nC) Sc \u03b12\nD) Hs \u03b17\nE) Hs \u03b11\n\nYou MUST include the letter of the correct answer within the following format: 'ANSWER: $LETTER' (without quotes). For example, \u2019ANSWER: <answer>\u2019, where <answer> is the correct letter. Always answer in exactly this format of a single letter, even if you are unsure. We require this because we use automatic parsing.\n",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 2048
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "ny6etAE98eBoDXGvs2pGQK",
+                  "content": "ANSWER: B",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "ANSWER: B",
+            "usage": {
+              "input_tokens": 230,
+              "output_tokens": 5,
+              "total_tokens": 235
+            },
+            "time": 1.1716298789997381,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-10T19:57:44.091130+01:00",
+          "working_time": 1.1716298789997381
+        },
+        {
+          "uuid": "4zxB4bmSvgECrKYefnQBdC",
+          "span_id": "e41db7893ced4c2bb234374665756ae9",
+          "timestamp": "2026-03-10T19:57:44.091325+01:00",
+          "working_start": 1.173736104999989,
+          "event": "state",
+          "changes": [
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "attachment://69061d94fb3d7da6fc7ceee48380236c",
+              "replaced": "The human proteasome core subunit \u03b16 can functionally replace a knockout of it's yeast ortholog when co-expressed with which other human proteasome subunit?"
+            },
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "ny6etAE98eBoDXGvs2pGQK",
+                "content": "ANSWER: B",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 1.1716298789997381
+            },
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 230,
+                "output_tokens": 5,
+                "total_tokens": 235
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "ny6etAE98eBoDXGvs2pGQK",
+                  "content": "ANSWER: B",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "ANSWER: B",
+              "replaced": ""
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            }
+          ]
+        },
+        {
+          "uuid": "cBmFSZVdTbmoBm3UErby8e",
+          "span_id": "e41db7893ced4c2bb234374665756ae9",
+          "timestamp": "2026-03-10T19:57:44.091932+01:00",
+          "working_start": 1.1743434059999345,
+          "event": "span_end",
+          "id": "e41db7893ced4c2bb234374665756ae9"
+        },
+        {
+          "uuid": "bgQ2uxBpunZHTozrUfL5sY",
+          "span_id": "24f867cb93fe40d098ef2e3e017dc630",
+          "timestamp": "2026-03-10T19:57:44.092341+01:00",
+          "working_start": 1.1747524339998563,
+          "event": "span_end",
+          "id": "24f867cb93fe40d098ef2e3e017dc630"
+        },
+        {
+          "uuid": "f7iEzPUgXbkcEXMgkdjE8w",
+          "span_id": "4cd27c24cb8b4e31b50cfd291cf77d94",
+          "timestamp": "2026-03-10T19:57:44.101893+01:00",
+          "working_start": 1.1843033949999153,
+          "event": "span_begin",
+          "id": "4cd27c24cb8b4e31b50cfd291cf77d94",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "g9aZwoZ99Tvo2HSoxY5Q5f",
+          "span_id": "796b29c070864081a5c9606d896b8ffd",
+          "timestamp": "2026-03-10T19:57:44.102318+01:00",
+          "working_start": 1.184729094999966,
+          "event": "span_begin",
+          "id": "796b29c070864081a5c9606d896b8ffd",
+          "parent_id": "4cd27c24cb8b4e31b50cfd291cf77d94",
+          "type": "scorer",
+          "name": "precision_choice"
+        },
+        {
+          "uuid": "UECDB7U7TLoQbqDN3y4uSH",
+          "span_id": "796b29c070864081a5c9606d896b8ffd",
+          "timestamp": "2026-03-10T19:57:44.102766+01:00",
+          "working_start": 1.185177451000527,
+          "event": "score",
+          "score": {
+            "value": "N",
+            "answer": "B",
+            "explanation": "ANSWER: B",
+            "history": []
+          },
+          "target": "D",
+          "intermediate": false
+        },
+        {
+          "uuid": "mdrdgXZbSZxfLRSVBbKFLE",
+          "span_id": "796b29c070864081a5c9606d896b8ffd",
+          "timestamp": "2026-03-10T19:57:44.103177+01:00",
+          "working_start": 1.185587533999751,
+          "event": "span_end",
+          "id": "796b29c070864081a5c9606d896b8ffd"
+        },
+        {
+          "uuid": "4khKMmLWCxQHQnampmocQc",
+          "span_id": "4cd27c24cb8b4e31b50cfd291cf77d94",
+          "timestamp": "2026-03-10T19:57:44.103587+01:00",
+          "working_start": 1.1859980340004768,
+          "event": "span_end",
+          "id": "4cd27c24cb8b4e31b50cfd291cf77d94"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 230,
+          "output_tokens": 5,
+          "total_tokens": 235
+        }
+      },
+      "total_time": 1.197,
+      "working_time": 1.195,
+      "uuid": "JFWPpbiEVWaFeNajjz66LW",
+      "error_retries": [],
+      "attachments": {
+        "489c21fbb0a9f5175836bee0084aff66": "The human proteasome core subunit \u03b16 can functionally replace a knockout of it's yeast ortholog when co-expressed with which other human proteasome subunit?",
+        "69061d94fb3d7da6fc7ceee48380236c": "\nThe following is a multiple choice question about biology.\nPlease answer by responding with the letter of the correct answer.\n\nThink step by step.\n\nQuestion: The human proteasome core subunit \u03b16 can functionally replace a knockout of it's yeast ortholog when co-expressed with which other human proteasome subunit?\nOptions:\nA) Hs \u03b19\nB) Insufficient information to answer the question.\nC) Sc \u03b12\nD) Hs \u03b17\nE) Hs \u03b11\n\nYou MUST include the letter of the correct answer within the following format: 'ANSWER: $LETTER' (without quotes). For example, \u2019ANSWER: <answer>\u2019, where <answer> is the correct letter. Always answer in exactly this format of a single letter, even if you are unsure. We require this because we use automatic parsing.\n"
+      }
+    }
+  ],
+  "reductions": [
+    {
+      "scorer": "precision_choice",
+      "reducer": "mode",
+      "samples": [
+        {
+          "value": "N",
+          "answer": "B",
+          "explanation": "ANSWER: B",
+          "history": [],
+          "sample_id": "0a9d6516-95ef-4d7b-a28d-d7cde27b7b55"
+        },
+        {
+          "value": "N",
+          "answer": "D",
+          "explanation": "ANSWER: D",
+          "history": [],
+          "sample_id": "0708b62f-9652-49eb-8ba6-28878afa7445"
+        },
+        {
+          "value": "I",
+          "answer": "A",
+          "explanation": "ANSWER: A",
+          "history": [],
+          "sample_id": "04dbe07d-8b2c-4daf-b5b2-ef0e93f1fd2a"
+        },
+        {
+          "value": "N",
+          "answer": "B",
+          "explanation": "ANSWER: B",
+          "history": [],
+          "sample_id": "0b1d5537-db47-420c-984b-9b56d38e6d98"
+        },
+        {
+          "value": "N",
+          "answer": "A",
+          "explanation": "ANSWER: A",
+          "history": [],
+          "sample_id": "08397294-3d99-4790-915c-b8bcb1e9e661"
+        }
+      ]
+    }
+  ]
+}

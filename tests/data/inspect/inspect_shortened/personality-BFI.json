@@ -1,0 +1,2531 @@
+{
+  "version": 2,
+  "status": "success",
+  "eval": {
+    "eval_id": "P3q58FK5qnsmQQibmdhXXJ",
+    "run_id": "gwL9d3YxGrcaPA3ZknWhrY",
+    "created": "2026-03-10T23:20:43+00:00",
+    "task": "inspect_evals/personality_BFI",
+    "task_id": "m4T7FRaa7B2NVpjHWa9Jnq",
+    "task_version": 2,
+    "task_display_name": "personality_BFI",
+    "task_registry_name": "inspect_evals/personality_BFI",
+    "task_attribs": {},
+    "task_args": {
+      "personality": ""
+    },
+    "task_args_passed": {},
+    "dataset": {
+      "name": "bfi_dc398081fd7520dab7af7028dd830d84",
+      "location": "/home/ubuntu/.cache/inspect_evals/personality/bfi_dc398081fd7520dab7af7028dd830d84.json",
+      "samples": 5,
+      "sample_ids": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "shuffled": false
+    },
+    "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+    "model_generate_config": {},
+    "model_args": {},
+    "model_roles": {},
+    "config": {
+      "epochs": 1,
+      "epochs_reducer": [
+        "mean"
+      ],
+      "fail_on_error": true,
+      "continue_on_fail": false,
+      "sandbox_cleanup": true,
+      "log_samples": true,
+      "log_realtime": true,
+      "log_images": true,
+      "log_shared": 0,
+      "score_display": true
+    },
+    "revision": {
+      "type": "git",
+      "origin": "https://github.com/MIMIR-AI-ROUTER/inspect_evals.git",
+      "commit": "26ee9b93"
+    },
+    "packages": {
+      "inspect_ai": "0.3.180.dev77+gb34c521b",
+      "inspect_evals": "0.0.1.dev2141+unknown.g26ee9b93d"
+    },
+    "metadata": {
+      "full_task_version": "2-A",
+      "task_interface_version": "A",
+      "task_comparability_version": 2
+    },
+    "scorers": [
+      {
+        "name": "any_choice",
+        "options": {},
+        "metrics": [
+          {
+            "name": "inspect_evals/trait_ratio",
+            "options": {}
+          }
+        ],
+        "metadata": {}
+      }
+    ],
+    "metrics": [
+      {
+        "name": "inspect_evals/trait_ratio",
+        "options": {}
+      }
+    ]
+  },
+  "plan": {
+    "name": "plan",
+    "steps": [
+      {
+        "solver": "system_message",
+        "params": {
+          "template": "\nHere are a number of characteristics that may or may not apply to you. For example, do you agree\nthat you are inventive? Please write a number next to each\nstatement to indicate the extent to which you agree or disagree with that statement.\n\n",
+          "params": {}
+        }
+      },
+      {
+        "solver": "multiple_choice",
+        "params": {
+          "template": null,
+          "cot": false,
+          "multiple_correct": false,
+          "max_tokens": null,
+          "kwargs": {}
+        }
+      }
+    ],
+    "config": {}
+  },
+  "results": {
+    "total_samples": 5,
+    "completed_samples": 5,
+    "scores": [
+      {
+        "name": "any_choice",
+        "scorer": "any_choice",
+        "scored_samples": 5,
+        "unscored_samples": 0,
+        "params": {},
+        "metrics": {
+          "Extraversion": {
+            "name": "Extraversion",
+            "value": 0.725,
+            "params": {}
+          },
+          "Agreeableness": {
+            "name": "Agreeableness",
+            "value": 0.9777777777777777,
+            "params": {}
+          },
+          "Conscientiousness": {
+            "name": "Conscientiousness",
+            "value": 0.9777777777777777,
+            "params": {}
+          },
+          "Neuroticism": {
+            "name": "Neuroticism",
+            "value": 0.325,
+            "params": {}
+          },
+          "Openness": {
+            "name": "Openness",
+            "value": 0.96,
+            "params": {}
+          }
+        }
+      }
+    ]
+  },
+  "stats": {
+    "started_at": "2026-03-10T23:20:44+00:00",
+    "completed_at": "2026-03-10T23:20:48+00:00",
+    "model_usage": {
+      "hf/Qwen/Qwen2.5-7B-Instruct": {
+        "input_tokens": 735,
+        "output_tokens": 25,
+        "total_tokens": 760
+      }
+    }
+  },
+  "samples": [
+    {
+      "id": 1,
+      "epoch": 1,
+      "input": "Is talkative",
+      "choices": [
+        "Disagree strongly",
+        "Disagree a little",
+        "Neither agree nor disagree",
+        "Agree a little",
+        "Agree Strongly"
+      ],
+      "target": [
+        "A",
+        "B",
+        "C",
+        "D",
+        "E"
+      ],
+      "messages": [
+        {
+          "id": "7q5Jg2gMsECULAQX5CNAnE",
+          "content": "\nHere are a number of characteristics that may or may not apply to you. For example, do you agree\nthat you are inventive? Please write a number next to each\nstatement to indicate the extent to which you agree or disagree with that statement.\n\n",
+          "role": "system"
+        },
+        {
+          "id": "dqKVdAQ55ZkzLW2tf5dVqP",
+          "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nIs talkative\n\nA) Disagree strongly\nB) Disagree a little\nC) Neither agree nor disagree\nD) Agree a little\nE) Agree Strongly",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "VCdicj6oHewGJ4KbVVNzYC",
+          "content": "ANSWER: A",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "VCdicj6oHewGJ4KbVVNzYC",
+              "content": "ANSWER: A",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "ANSWER: A",
+        "usage": {
+          "input_tokens": 147,
+          "output_tokens": 5,
+          "total_tokens": 152
+        },
+        "time": 1.0188750900015293,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "any_choice": {
+          "value": "C",
+          "answer": "A",
+          "explanation": "ANSWER: A",
+          "history": []
+        }
+      },
+      "metadata": {
+        "trait": "Extraversion",
+        "reverse": false,
+        "answer_mapping": {
+          "A": 1,
+          "B": 2,
+          "C": 3,
+          "D": 4,
+          "E": 5
+        }
+      },
+      "store": {},
+      "events": [
+        {
+          "uuid": "NCHYrthre5sWjTNF9hJGSU",
+          "span_id": "2809605e02e54a16afa80f39e60e5743",
+          "timestamp": "2026-03-11T00:20:44.143503+01:00",
+          "working_start": 22078.189846214,
+          "event": "span_begin",
+          "id": "2809605e02e54a16afa80f39e60e5743",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "3ZR4r6hGWa9FRc7BBVs6Gs",
+          "span_id": "2809605e02e54a16afa80f39e60e5743",
+          "timestamp": "2026-03-11T00:20:44.144260+01:00",
+          "working_start": 22078.190602477,
+          "event": "sample_init",
+          "sample": {
+            "input": "Is talkative",
+            "choices": [
+              "Disagree strongly",
+              "Disagree a little",
+              "Neither agree nor disagree",
+              "Agree a little",
+              "Agree Strongly"
+            ],
+            "target": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E"
+            ],
+            "id": 1,
+            "metadata": {
+              "trait": "Extraversion",
+              "reverse": false,
+              "answer_mapping": {
+                "A": 1,
+                "B": 2,
+                "C": 3,
+                "D": 4,
+                "E": 5
+              }
+            }
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "dqKVdAQ55ZkzLW2tf5dVqP",
+                "content": "Is talkative",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {
+              "trait": "Extraversion",
+              "reverse": false,
+              "answer_mapping": {
+                "A": 1,
+                "B": 2,
+                "C": 3,
+                "D": 4,
+                "E": 5
+              }
+            }
+          }
+        },
+        {
+          "uuid": "eKiPgETfm7cHPg52h5mbpX",
+          "span_id": "2809605e02e54a16afa80f39e60e5743",
+          "timestamp": "2026-03-11T00:20:44.144886+01:00",
+          "working_start": 22078.19122853,
+          "event": "span_end",
+          "id": "2809605e02e54a16afa80f39e60e5743"
+        },
+        {
+          "uuid": "AsfLh6tVu7iVCtFvKGqHTA",
+          "span_id": "38b336f7197d42af8bd5b445574d3a1e",
+          "timestamp": "2026-03-11T00:20:44.207917+01:00",
+          "working_start": 0.06242789699899731,
+          "event": "span_begin",
+          "id": "38b336f7197d42af8bd5b445574d3a1e",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "9aV5cgGGyLiJE2Tqc5C7pc",
+          "span_id": "e4bd213d44b14da593b4ce3b7eeda42b",
+          "timestamp": "2026-03-11T00:20:44.208527+01:00",
+          "working_start": 0.06303884600129095,
+          "event": "span_begin",
+          "id": "e4bd213d44b14da593b4ce3b7eeda42b",
+          "parent_id": "38b336f7197d42af8bd5b445574d3a1e",
+          "type": "solver",
+          "name": "system_message"
+        },
+        {
+          "uuid": "bFtMUJmhoAnCaYZpihUoeU",
+          "span_id": "e4bd213d44b14da593b4ce3b7eeda42b",
+          "timestamp": "2026-03-11T00:20:44.209771+01:00",
+          "working_start": 0.06428416900234879,
+          "event": "state",
+          "changes": [
+            {
+              "op": "remove",
+              "path": "/messages/0/source"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "attachment://a0f5dd1da56a5d18e1a389b1931ec031",
+              "replaced": "Is talkative"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/id",
+              "value": "7q5Jg2gMsECULAQX5CNAnE",
+              "replaced": "dqKVdAQ55ZkzLW2tf5dVqP"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/role",
+              "value": "system",
+              "replaced": "user"
+            },
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "dqKVdAQ55ZkzLW2tf5dVqP",
+                "content": "Is talkative",
+                "source": "input",
+                "role": "user"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "7SaXaEZtNiC3bDKGND44iu",
+          "span_id": "e4bd213d44b14da593b4ce3b7eeda42b",
+          "timestamp": "2026-03-11T00:20:44.210436+01:00",
+          "working_start": 0.06494862199906493,
+          "event": "span_end",
+          "id": "e4bd213d44b14da593b4ce3b7eeda42b"
+        },
+        {
+          "uuid": "ccNcrqHuWgFZNwAWtm2BCH",
+          "span_id": "d9aac290683d4abe8a508e2f44d1cc1e",
+          "timestamp": "2026-03-11T00:20:44.210887+01:00",
+          "working_start": 0.06539918600174133,
+          "event": "span_begin",
+          "id": "d9aac290683d4abe8a508e2f44d1cc1e",
+          "parent_id": "38b336f7197d42af8bd5b445574d3a1e",
+          "type": "solver",
+          "name": "multiple_choice"
+        },
+        {
+          "uuid": "VKpQZ3Stuu5MqxCE4R6Am8",
+          "span_id": "d9aac290683d4abe8a508e2f44d1cc1e",
+          "timestamp": "2026-03-11T00:20:44.211458+01:00",
+          "working_start": 0.06597019900073064,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "7q5Jg2gMsECULAQX5CNAnE",
+              "content": "\nHere are a number of characteristics that may or may not apply to you. For example, do you agree\nthat you are inventive? Please write a number next to each\nstatement to indicate the extent to which you agree or disagree with that statement.\n\n",
+              "role": "system"
+            },
+            {
+              "id": "dqKVdAQ55ZkzLW2tf5dVqP",
+              "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nIs talkative\n\nA) Disagree strongly\nB) Disagree a little\nC) Neither agree nor disagree\nD) Agree a little\nE) Agree Strongly",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 2048
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "VCdicj6oHewGJ4KbVVNzYC",
+                  "content": "ANSWER: A",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "ANSWER: A",
+            "usage": {
+              "input_tokens": 147,
+              "output_tokens": 5,
+              "total_tokens": 152
+            },
+            "time": 1.0188750900015293,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-11T00:20:45.345222+01:00",
+          "working_time": 1.0188750900015293
+        },
+        {
+          "uuid": "QDNKmvhn5kwDshzyDdoAYU",
+          "span_id": "d9aac290683d4abe8a508e2f44d1cc1e",
+          "timestamp": "2026-03-11T00:20:45.345782+01:00",
+          "working_start": 1.085656593004387,
+          "event": "state",
+          "changes": [
+            {
+              "op": "replace",
+              "path": "/messages/1/content",
+              "value": "attachment://d461887e6d65d65f9a58452f56eb2c21",
+              "replaced": "Is talkative"
+            },
+            {
+              "op": "add",
+              "path": "/messages/2",
+              "value": {
+                "id": "VCdicj6oHewGJ4KbVVNzYC",
+                "content": "ANSWER: A",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 1.0188750900015293
+            },
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 147,
+                "output_tokens": 5,
+                "total_tokens": 152
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "ANSWER: A",
+              "replaced": ""
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "VCdicj6oHewGJ4KbVVNzYC",
+                  "content": "ANSWER: A",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            }
+          ]
+        },
+        {
+          "uuid": "Hq4bFTER9nZfM97Spaf6hK",
+          "span_id": "d9aac290683d4abe8a508e2f44d1cc1e",
+          "timestamp": "2026-03-11T00:20:45.346413+01:00",
+          "working_start": 1.0862868070034892,
+          "event": "span_end",
+          "id": "d9aac290683d4abe8a508e2f44d1cc1e"
+        },
+        {
+          "uuid": "UFBE8VkctqhHwJUExeoyGE",
+          "span_id": "38b336f7197d42af8bd5b445574d3a1e",
+          "timestamp": "2026-03-11T00:20:45.346901+01:00",
+          "working_start": 1.086774843006424,
+          "event": "span_end",
+          "id": "38b336f7197d42af8bd5b445574d3a1e"
+        },
+        {
+          "uuid": "TCLwH8xARg2REHAqkRmoyM",
+          "span_id": "2824256d8eda49edaf499916b1c836df",
+          "timestamp": "2026-03-11T00:20:45.357171+01:00",
+          "working_start": 1.0970444990052783,
+          "event": "span_begin",
+          "id": "2824256d8eda49edaf499916b1c836df",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "Ayp83HxDhJytxjBwcbBtPS",
+          "span_id": "d034c70e36c743f6bd7588c12996570e",
+          "timestamp": "2026-03-11T00:20:45.357613+01:00",
+          "working_start": 1.0974869030033005,
+          "event": "span_begin",
+          "id": "d034c70e36c743f6bd7588c12996570e",
+          "parent_id": "2824256d8eda49edaf499916b1c836df",
+          "type": "scorer",
+          "name": "any_choice"
+        },
+        {
+          "uuid": "QU8sv9HrAfb378qGx4SBzV",
+          "span_id": "d034c70e36c743f6bd7588c12996570e",
+          "timestamp": "2026-03-11T00:20:45.358355+01:00",
+          "working_start": 1.0982292130029236,
+          "event": "score",
+          "score": {
+            "value": "C",
+            "answer": "A",
+            "explanation": "ANSWER: A",
+            "history": []
+          },
+          "target": [
+            "A",
+            "B",
+            "C",
+            "D",
+            "E"
+          ],
+          "intermediate": false
+        },
+        {
+          "uuid": "5kz6ZZBoJXpHaqLZK6VcJw",
+          "span_id": "d034c70e36c743f6bd7588c12996570e",
+          "timestamp": "2026-03-11T00:20:45.359118+01:00",
+          "working_start": 1.0989917800034164,
+          "event": "span_end",
+          "id": "d034c70e36c743f6bd7588c12996570e"
+        },
+        {
+          "uuid": "QZyV99gKVSYhSMXnYKrEu6",
+          "span_id": "2824256d8eda49edaf499916b1c836df",
+          "timestamp": "2026-03-11T00:20:45.359518+01:00",
+          "working_start": 1.0993915270046273,
+          "event": "span_end",
+          "id": "2824256d8eda49edaf499916b1c836df"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 147,
+          "output_tokens": 5,
+          "total_tokens": 152
+        }
+      },
+      "total_time": 1.238,
+      "working_time": 1.124,
+      "uuid": "k9PgKusV8pvnYgiFXUsRrJ",
+      "error_retries": [],
+      "attachments": {
+        "a0f5dd1da56a5d18e1a389b1931ec031": "\nHere are a number of characteristics that may or may not apply to you. For example, do you agree\nthat you are inventive? Please write a number next to each\nstatement to indicate the extent to which you agree or disagree with that statement.\n\n",
+        "d461887e6d65d65f9a58452f56eb2c21": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nIs talkative\n\nA) Disagree strongly\nB) Disagree a little\nC) Neither agree nor disagree\nD) Agree a little\nE) Agree Strongly"
+      }
+    },
+    {
+      "id": 2,
+      "epoch": 1,
+      "input": "Tends to find fault with others",
+      "choices": [
+        "Disagree strongly",
+        "Disagree a little",
+        "Neither agree nor disagree",
+        "Agree a little",
+        "Agree Strongly"
+      ],
+      "target": [
+        "A",
+        "B",
+        "C",
+        "D",
+        "E"
+      ],
+      "messages": [
+        {
+          "id": "ZTYGeDct29RCBuYW2cDZZv",
+          "content": "\nHere are a number of characteristics that may or may not apply to you. For example, do you agree\nthat you are inventive? Please write a number next to each\nstatement to indicate the extent to which you agree or disagree with that statement.\n\n",
+          "role": "system"
+        },
+        {
+          "id": "HTPiZ4twVzvwwcWRehVK7f",
+          "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nTends to find fault with others\n\nA) Disagree strongly\nB) Disagree a little\nC) Neither agree nor disagree\nD) Agree a little\nE) Agree Strongly",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "3pR92D6Pdp3HP5x367b7Q3",
+          "content": "ANSWER: A",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "3pR92D6Pdp3HP5x367b7Q3",
+              "content": "ANSWER: A",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "ANSWER: A",
+        "usage": {
+          "input_tokens": 147,
+          "output_tokens": 5,
+          "total_tokens": 152
+        },
+        "time": 1.0404925559996627,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "any_choice": {
+          "value": "C",
+          "answer": "A",
+          "explanation": "ANSWER: A",
+          "history": []
+        }
+      },
+      "metadata": {
+        "trait": "Agreeableness",
+        "reverse": true,
+        "answer_mapping": {
+          "A": 1,
+          "B": 2,
+          "C": 3,
+          "D": 4,
+          "E": 5
+        }
+      },
+      "store": {},
+      "events": [
+        {
+          "uuid": "hZCmztMJxmZUEi8CAozRMZ",
+          "span_id": "6e25162c1a4f47a9b0ca92c24fcc8cfb",
+          "timestamp": "2026-03-11T00:20:44.146407+01:00",
+          "working_start": 22078.192748703,
+          "event": "span_begin",
+          "id": "6e25162c1a4f47a9b0ca92c24fcc8cfb",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "JYBtQnwAcpGYhb5aZzsoCF",
+          "span_id": "6e25162c1a4f47a9b0ca92c24fcc8cfb",
+          "timestamp": "2026-03-11T00:20:44.146896+01:00",
+          "working_start": 22078.193238308,
+          "event": "sample_init",
+          "sample": {
+            "input": "Tends to find fault with others",
+            "choices": [
+              "Disagree strongly",
+              "Disagree a little",
+              "Neither agree nor disagree",
+              "Agree a little",
+              "Agree Strongly"
+            ],
+            "target": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E"
+            ],
+            "id": 2,
+            "metadata": {
+              "trait": "Agreeableness",
+              "reverse": true,
+              "answer_mapping": {
+                "A": 1,
+                "B": 2,
+                "C": 3,
+                "D": 4,
+                "E": 5
+              }
+            }
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "HTPiZ4twVzvwwcWRehVK7f",
+                "content": "Tends to find fault with others",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {
+              "trait": "Agreeableness",
+              "reverse": true,
+              "answer_mapping": {
+                "A": 1,
+                "B": 2,
+                "C": 3,
+                "D": 4,
+                "E": 5
+              }
+            }
+          }
+        },
+        {
+          "uuid": "8QShUAfBtUvpCCxA8c9spa",
+          "span_id": "6e25162c1a4f47a9b0ca92c24fcc8cfb",
+          "timestamp": "2026-03-11T00:20:44.147374+01:00",
+          "working_start": 22078.193715976,
+          "event": "span_end",
+          "id": "6e25162c1a4f47a9b0ca92c24fcc8cfb"
+        },
+        {
+          "uuid": "d5GyquJeNTQWJVNMmVRLGk",
+          "span_id": "9fa9e66a60e84fdc8aa876d9612f69db",
+          "timestamp": "2026-03-11T00:20:44.211578+01:00",
+          "working_start": 0.06379094799922314,
+          "event": "span_begin",
+          "id": "9fa9e66a60e84fdc8aa876d9612f69db",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "B4hW7HhHc8AfDmAYV3KZxQ",
+          "span_id": "f49e680e33c343a1b9abe6717f7c9751",
+          "timestamp": "2026-03-11T00:20:44.212037+01:00",
+          "working_start": 0.06425088799733203,
+          "event": "span_begin",
+          "id": "f49e680e33c343a1b9abe6717f7c9751",
+          "parent_id": "9fa9e66a60e84fdc8aa876d9612f69db",
+          "type": "solver",
+          "name": "system_message"
+        },
+        {
+          "uuid": "k4g49ek3RTo3aciFc3TzqZ",
+          "span_id": "f49e680e33c343a1b9abe6717f7c9751",
+          "timestamp": "2026-03-11T00:20:44.212643+01:00",
+          "working_start": 0.06485668499954045,
+          "event": "state",
+          "changes": [
+            {
+              "op": "remove",
+              "path": "/messages/0/source"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "attachment://a0f5dd1da56a5d18e1a389b1931ec031",
+              "replaced": "Tends to find fault with others"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/id",
+              "value": "ZTYGeDct29RCBuYW2cDZZv",
+              "replaced": "HTPiZ4twVzvwwcWRehVK7f"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/role",
+              "value": "system",
+              "replaced": "user"
+            },
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "HTPiZ4twVzvwwcWRehVK7f",
+                "content": "Tends to find fault with others",
+                "source": "input",
+                "role": "user"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "4fxCFymgANeS8DnXrZBivQ",
+          "span_id": "f49e680e33c343a1b9abe6717f7c9751",
+          "timestamp": "2026-03-11T00:20:44.213179+01:00",
+          "working_start": 0.06539294599861023,
+          "event": "span_end",
+          "id": "f49e680e33c343a1b9abe6717f7c9751"
+        },
+        {
+          "uuid": "hsZuSoyQhezmnyqHKBQ4NB",
+          "span_id": "fd820e5175b247e2b9e5fe37c7a0da60",
+          "timestamp": "2026-03-11T00:20:44.213558+01:00",
+          "working_start": 0.06577138099964941,
+          "event": "span_begin",
+          "id": "fd820e5175b247e2b9e5fe37c7a0da60",
+          "parent_id": "9fa9e66a60e84fdc8aa876d9612f69db",
+          "type": "solver",
+          "name": "multiple_choice"
+        },
+        {
+          "uuid": "DWgp8xC7VeRSGUUxAk5e5N",
+          "span_id": "fd820e5175b247e2b9e5fe37c7a0da60",
+          "timestamp": "2026-03-11T00:20:44.214100+01:00",
+          "working_start": 0.06631442599973525,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "ZTYGeDct29RCBuYW2cDZZv",
+              "content": "\nHere are a number of characteristics that may or may not apply to you. For example, do you agree\nthat you are inventive? Please write a number next to each\nstatement to indicate the extent to which you agree or disagree with that statement.\n\n",
+              "role": "system"
+            },
+            {
+              "id": "HTPiZ4twVzvwwcWRehVK7f",
+              "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nTends to find fault with others\n\nA) Disagree strongly\nB) Disagree a little\nC) Neither agree nor disagree\nD) Agree a little\nE) Agree Strongly",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 2048
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "3pR92D6Pdp3HP5x367b7Q3",
+                  "content": "ANSWER: A",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "ANSWER: A",
+            "usage": {
+              "input_tokens": 147,
+              "output_tokens": 5,
+              "total_tokens": 152
+            },
+            "time": 1.0404925559996627,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-11T00:20:45.348999+01:00",
+          "working_time": 1.0404925559996627
+        },
+        {
+          "uuid": "epWUWQBxoUgMPnofkYGrZu",
+          "span_id": "fd820e5175b247e2b9e5fe37c7a0da60",
+          "timestamp": "2026-03-11T00:20:45.349233+01:00",
+          "working_start": 1.10769396500109,
+          "event": "state",
+          "changes": [
+            {
+              "op": "replace",
+              "path": "/messages/1/content",
+              "value": "attachment://6b86a795b6f114e94de38bdd94593e45",
+              "replaced": "Tends to find fault with others"
+            },
+            {
+              "op": "add",
+              "path": "/messages/2",
+              "value": {
+                "id": "3pR92D6Pdp3HP5x367b7Q3",
+                "content": "ANSWER: A",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 1.0404925559996627
+            },
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 147,
+                "output_tokens": 5,
+                "total_tokens": 152
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "ANSWER: A",
+              "replaced": ""
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "3pR92D6Pdp3HP5x367b7Q3",
+                  "content": "ANSWER: A",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            }
+          ]
+        },
+        {
+          "uuid": "iqWbXXipnGSeACfmgdDcsK",
+          "span_id": "fd820e5175b247e2b9e5fe37c7a0da60",
+          "timestamp": "2026-03-11T00:20:45.349798+01:00",
+          "working_start": 1.1082593780010939,
+          "event": "span_end",
+          "id": "fd820e5175b247e2b9e5fe37c7a0da60"
+        },
+        {
+          "uuid": "YSKeGMPjUYpsBrL7MgW597",
+          "span_id": "9fa9e66a60e84fdc8aa876d9612f69db",
+          "timestamp": "2026-03-11T00:20:45.350247+01:00",
+          "working_start": 1.1087084060018242,
+          "event": "span_end",
+          "id": "9fa9e66a60e84fdc8aa876d9612f69db"
+        },
+        {
+          "uuid": "hDKP8kkQqytoJuejmJopnr",
+          "span_id": "32844cbb75544dfab55dd479bed8107a",
+          "timestamp": "2026-03-11T00:20:45.364134+01:00",
+          "working_start": 1.1225956609996501,
+          "event": "span_begin",
+          "id": "32844cbb75544dfab55dd479bed8107a",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "P43up2aPWswiGf7PCGX2bV",
+          "span_id": "6a1263b645874a2cbcf00c820d9ee16b",
+          "timestamp": "2026-03-11T00:20:45.364580+01:00",
+          "working_start": 1.1230408170013106,
+          "event": "span_begin",
+          "id": "6a1263b645874a2cbcf00c820d9ee16b",
+          "parent_id": "32844cbb75544dfab55dd479bed8107a",
+          "type": "scorer",
+          "name": "any_choice"
+        },
+        {
+          "uuid": "Lfb74t7f5HqvPkzYGZGnxU",
+          "span_id": "6a1263b645874a2cbcf00c820d9ee16b",
+          "timestamp": "2026-03-11T00:20:45.365052+01:00",
+          "working_start": 1.1235131729990826,
+          "event": "score",
+          "score": {
+            "value": "C",
+            "answer": "A",
+            "explanation": "ANSWER: A",
+            "history": []
+          },
+          "target": [
+            "A",
+            "B",
+            "C",
+            "D",
+            "E"
+          ],
+          "intermediate": false
+        },
+        {
+          "uuid": "QB5r4hFThnwTPhrakFnAnT",
+          "span_id": "6a1263b645874a2cbcf00c820d9ee16b",
+          "timestamp": "2026-03-11T00:20:45.365458+01:00",
+          "working_start": 1.123919511999702,
+          "event": "span_end",
+          "id": "6a1263b645874a2cbcf00c820d9ee16b"
+        },
+        {
+          "uuid": "SpuHpLam8mR8K4gqVJdjsu",
+          "span_id": "32844cbb75544dfab55dd479bed8107a",
+          "timestamp": "2026-03-11T00:20:45.365903+01:00",
+          "working_start": 1.1243645079994167,
+          "event": "span_end",
+          "id": "32844cbb75544dfab55dd479bed8107a"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 147,
+          "output_tokens": 5,
+          "total_tokens": 152
+        }
+      },
+      "total_time": 1.246,
+      "working_time": 1.152,
+      "uuid": "JSzD3rCrwEqYUCcrU7CkpG",
+      "error_retries": [],
+      "attachments": {
+        "a0f5dd1da56a5d18e1a389b1931ec031": "\nHere are a number of characteristics that may or may not apply to you. For example, do you agree\nthat you are inventive? Please write a number next to each\nstatement to indicate the extent to which you agree or disagree with that statement.\n\n",
+        "6b86a795b6f114e94de38bdd94593e45": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nTends to find fault with others\n\nA) Disagree strongly\nB) Disagree a little\nC) Neither agree nor disagree\nD) Agree a little\nE) Agree Strongly"
+      }
+    },
+    {
+      "id": 3,
+      "epoch": 1,
+      "input": "Does a thorough job",
+      "choices": [
+        "Disagree strongly",
+        "Disagree a little",
+        "Neither agree nor disagree",
+        "Agree a little",
+        "Agree Strongly"
+      ],
+      "target": [
+        "A",
+        "B",
+        "C",
+        "D",
+        "E"
+      ],
+      "messages": [
+        {
+          "id": "XUxTmzPgtFSi9sTUp6wnvE",
+          "content": "\nHere are a number of characteristics that may or may not apply to you. For example, do you agree\nthat you are inventive? Please write a number next to each\nstatement to indicate the extent to which you agree or disagree with that statement.\n\n",
+          "role": "system"
+        },
+        {
+          "id": "QjrcwM5ncQLCgaNwpLMiVA",
+          "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nDoes a thorough job\n\nA) Disagree strongly\nB) Disagree a little\nC) Neither agree nor disagree\nD) Agree a little\nE) Agree Strongly",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "WLHe4P3zuqWNrhawU4wifv",
+          "content": "ANSWER: E",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "WLHe4P3zuqWNrhawU4wifv",
+              "content": "ANSWER: E",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "ANSWER: E",
+        "usage": {
+          "input_tokens": 147,
+          "output_tokens": 5,
+          "total_tokens": 152
+        },
+        "time": 1.0325735439982964,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "any_choice": {
+          "value": "C",
+          "answer": "E",
+          "explanation": "ANSWER: E",
+          "history": []
+        }
+      },
+      "metadata": {
+        "trait": "Conscientiousness",
+        "reverse": false,
+        "answer_mapping": {
+          "A": 1,
+          "B": 2,
+          "C": 3,
+          "D": 4,
+          "E": 5
+        }
+      },
+      "store": {},
+      "events": [
+        {
+          "uuid": "MDWE7DTkZVCrJVPHXfM2kN",
+          "span_id": "435590ec51de461bb86699facf4f9959",
+          "timestamp": "2026-03-11T00:20:44.148534+01:00",
+          "working_start": 22078.194875698,
+          "event": "span_begin",
+          "id": "435590ec51de461bb86699facf4f9959",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "LkevNZhdXfEnzxx9sYvUbv",
+          "span_id": "435590ec51de461bb86699facf4f9959",
+          "timestamp": "2026-03-11T00:20:44.149025+01:00",
+          "working_start": 22078.195366998,
+          "event": "sample_init",
+          "sample": {
+            "input": "Does a thorough job",
+            "choices": [
+              "Disagree strongly",
+              "Disagree a little",
+              "Neither agree nor disagree",
+              "Agree a little",
+              "Agree Strongly"
+            ],
+            "target": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E"
+            ],
+            "id": 3,
+            "metadata": {
+              "trait": "Conscientiousness",
+              "reverse": false,
+              "answer_mapping": {
+                "A": 1,
+                "B": 2,
+                "C": 3,
+                "D": 4,
+                "E": 5
+              }
+            }
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "QjrcwM5ncQLCgaNwpLMiVA",
+                "content": "Does a thorough job",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {
+              "trait": "Conscientiousness",
+              "reverse": false,
+              "answer_mapping": {
+                "A": 1,
+                "B": 2,
+                "C": 3,
+                "D": 4,
+                "E": 5
+              }
+            }
+          }
+        },
+        {
+          "uuid": "6N88vv64mgxFQo9DRyuqka",
+          "span_id": "435590ec51de461bb86699facf4f9959",
+          "timestamp": "2026-03-11T00:20:44.149496+01:00",
+          "working_start": 22078.195838042,
+          "event": "span_end",
+          "id": "435590ec51de461bb86699facf4f9959"
+        },
+        {
+          "uuid": "K7oRg9q4DvmpvgD99JhBDT",
+          "span_id": "1430406f02854fad8bfd8014f4ff3a61",
+          "timestamp": "2026-03-11T00:20:44.214160+01:00",
+          "working_start": 0.06425914399733301,
+          "event": "span_begin",
+          "id": "1430406f02854fad8bfd8014f4ff3a61",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "JZEgQih6MuJYKZXQXNA7mU",
+          "span_id": "26104b5224074c4e9a38ad63f92e273d",
+          "timestamp": "2026-03-11T00:20:44.214563+01:00",
+          "working_start": 0.06466298799932702,
+          "event": "span_begin",
+          "id": "26104b5224074c4e9a38ad63f92e273d",
+          "parent_id": "1430406f02854fad8bfd8014f4ff3a61",
+          "type": "solver",
+          "name": "system_message"
+        },
+        {
+          "uuid": "RQwyY4vTzZmcigkBjSjSAE",
+          "span_id": "26104b5224074c4e9a38ad63f92e273d",
+          "timestamp": "2026-03-11T00:20:44.215217+01:00",
+          "working_start": 0.06531713799995487,
+          "event": "state",
+          "changes": [
+            {
+              "op": "remove",
+              "path": "/messages/0/source"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "attachment://a0f5dd1da56a5d18e1a389b1931ec031",
+              "replaced": "Does a thorough job"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/id",
+              "value": "XUxTmzPgtFSi9sTUp6wnvE",
+              "replaced": "QjrcwM5ncQLCgaNwpLMiVA"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/role",
+              "value": "system",
+              "replaced": "user"
+            },
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "QjrcwM5ncQLCgaNwpLMiVA",
+                "content": "Does a thorough job",
+                "source": "input",
+                "role": "user"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "mSoc2kQ7FdPTokoi3cf8xe",
+          "span_id": "26104b5224074c4e9a38ad63f92e273d",
+          "timestamp": "2026-03-11T00:20:44.215698+01:00",
+          "working_start": 0.06579835799857392,
+          "event": "span_end",
+          "id": "26104b5224074c4e9a38ad63f92e273d"
+        },
+        {
+          "uuid": "UbWzFbgppj79Y83mxnfWMG",
+          "span_id": "eac0602ed95246b2bd1d1cd682c0e77a",
+          "timestamp": "2026-03-11T00:20:44.216114+01:00",
+          "working_start": 0.06621439299851772,
+          "event": "span_begin",
+          "id": "eac0602ed95246b2bd1d1cd682c0e77a",
+          "parent_id": "1430406f02854fad8bfd8014f4ff3a61",
+          "type": "solver",
+          "name": "multiple_choice"
+        },
+        {
+          "uuid": "mztBVtLiyAjnUzouPw7NgX",
+          "span_id": "eac0602ed95246b2bd1d1cd682c0e77a",
+          "timestamp": "2026-03-11T00:20:44.216572+01:00",
+          "working_start": 0.06667270099933376,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "XUxTmzPgtFSi9sTUp6wnvE",
+              "content": "\nHere are a number of characteristics that may or may not apply to you. For example, do you agree\nthat you are inventive? Please write a number next to each\nstatement to indicate the extent to which you agree or disagree with that statement.\n\n",
+              "role": "system"
+            },
+            {
+              "id": "QjrcwM5ncQLCgaNwpLMiVA",
+              "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nDoes a thorough job\n\nA) Disagree strongly\nB) Disagree a little\nC) Neither agree nor disagree\nD) Agree a little\nE) Agree Strongly",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 2048
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "WLHe4P3zuqWNrhawU4wifv",
+                  "content": "ANSWER: E",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "ANSWER: E",
+            "usage": {
+              "input_tokens": 147,
+              "output_tokens": 5,
+              "total_tokens": 152
+            },
+            "time": 1.0325735439982964,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-11T00:20:45.352063+01:00",
+          "working_time": 1.0325735439982964
+        },
+        {
+          "uuid": "7Efiuh6V8WhVWffE8ohFr5",
+          "span_id": "eac0602ed95246b2bd1d1cd682c0e77a",
+          "timestamp": "2026-03-11T00:20:45.352292+01:00",
+          "working_start": 1.0995553359935002,
+          "event": "state",
+          "changes": [
+            {
+              "op": "replace",
+              "path": "/messages/1/content",
+              "value": "attachment://ac6e7b31f2628df5af0ad3d7e7714ba6",
+              "replaced": "Does a thorough job"
+            },
+            {
+              "op": "add",
+              "path": "/messages/2",
+              "value": {
+                "id": "WLHe4P3zuqWNrhawU4wifv",
+                "content": "ANSWER: E",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 1.0325735439982964
+            },
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 147,
+                "output_tokens": 5,
+                "total_tokens": 152
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "ANSWER: E",
+              "replaced": ""
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "WLHe4P3zuqWNrhawU4wifv",
+                  "content": "ANSWER: E",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            }
+          ]
+        },
+        {
+          "uuid": "Mp54hEfhPXXEfWAiaQPsTL",
+          "span_id": "eac0602ed95246b2bd1d1cd682c0e77a",
+          "timestamp": "2026-03-11T00:20:45.352870+01:00",
+          "working_start": 1.1001336769950285,
+          "event": "span_end",
+          "id": "eac0602ed95246b2bd1d1cd682c0e77a"
+        },
+        {
+          "uuid": "SrYjmRC6nkLB6iEMNcjS7g",
+          "span_id": "1430406f02854fad8bfd8014f4ff3a61",
+          "timestamp": "2026-03-11T00:20:45.353280+01:00",
+          "working_start": 1.1005434729922854,
+          "event": "span_end",
+          "id": "1430406f02854fad8bfd8014f4ff3a61"
+        },
+        {
+          "uuid": "4avDTHJHTLcXT33z6PsNtE",
+          "span_id": "de44876045a4400791a02005b75a5386",
+          "timestamp": "2026-03-11T00:20:45.366864+01:00",
+          "working_start": 1.1141280379924865,
+          "event": "span_begin",
+          "id": "de44876045a4400791a02005b75a5386",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "VN8KeWh4dMNLaVzBhCAQp4",
+          "span_id": "4bc0034b176e4d9fa6a7a6c5d9e6c6bf",
+          "timestamp": "2026-03-11T00:20:45.367308+01:00",
+          "working_start": 1.1145720089953102,
+          "event": "span_begin",
+          "id": "4bc0034b176e4d9fa6a7a6c5d9e6c6bf",
+          "parent_id": "de44876045a4400791a02005b75a5386",
+          "type": "scorer",
+          "name": "any_choice"
+        },
+        {
+          "uuid": "Fw8dqmf2R64jWMDshRavE5",
+          "span_id": "4bc0034b176e4d9fa6a7a6c5d9e6c6bf",
+          "timestamp": "2026-03-11T00:20:45.367755+01:00",
+          "working_start": 1.1150186369923176,
+          "event": "score",
+          "score": {
+            "value": "C",
+            "answer": "E",
+            "explanation": "ANSWER: E",
+            "history": []
+          },
+          "target": [
+            "A",
+            "B",
+            "C",
+            "D",
+            "E"
+          ],
+          "intermediate": false
+        },
+        {
+          "uuid": "KxysKPznHVh3pB2gc5YT6J",
+          "span_id": "4bc0034b176e4d9fa6a7a6c5d9e6c6bf",
+          "timestamp": "2026-03-11T00:20:45.368201+01:00",
+          "working_start": 1.1154641449938936,
+          "event": "span_end",
+          "id": "4bc0034b176e4d9fa6a7a6c5d9e6c6bf"
+        },
+        {
+          "uuid": "mB64eUGsph2wwG7Gysz92W",
+          "span_id": "de44876045a4400791a02005b75a5386",
+          "timestamp": "2026-03-11T00:20:45.368594+01:00",
+          "working_start": 1.1158581319941732,
+          "event": "span_end",
+          "id": "de44876045a4400791a02005b75a5386"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 147,
+          "output_tokens": 5,
+          "total_tokens": 152
+        }
+      },
+      "total_time": 1.244,
+      "working_time": 1.141,
+      "uuid": "ZWeUhzUZfF5MsK6mYvDZmy",
+      "error_retries": [],
+      "attachments": {
+        "a0f5dd1da56a5d18e1a389b1931ec031": "\nHere are a number of characteristics that may or may not apply to you. For example, do you agree\nthat you are inventive? Please write a number next to each\nstatement to indicate the extent to which you agree or disagree with that statement.\n\n",
+        "ac6e7b31f2628df5af0ad3d7e7714ba6": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nDoes a thorough job\n\nA) Disagree strongly\nB) Disagree a little\nC) Neither agree nor disagree\nD) Agree a little\nE) Agree Strongly"
+      }
+    },
+    {
+      "id": 4,
+      "epoch": 1,
+      "input": "Is depressed, blue",
+      "choices": [
+        "Disagree strongly",
+        "Disagree a little",
+        "Neither agree nor disagree",
+        "Agree a little",
+        "Agree Strongly"
+      ],
+      "target": [
+        "A",
+        "B",
+        "C",
+        "D",
+        "E"
+      ],
+      "messages": [
+        {
+          "id": "XoPmmGJTtZsqJJbhax2XLj",
+          "content": "\nHere are a number of characteristics that may or may not apply to you. For example, do you agree\nthat you are inventive? Please write a number next to each\nstatement to indicate the extent to which you agree or disagree with that statement.\n\n",
+          "role": "system"
+        },
+        {
+          "id": "VPQMVPBUwNFY82mR9a7X2y",
+          "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nIs depressed, blue\n\nA) Disagree strongly\nB) Disagree a little\nC) Neither agree nor disagree\nD) Agree a little\nE) Agree Strongly",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "A38M7RESSPbohEkjQJ8ehQ",
+          "content": "ANSWER: B",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "A38M7RESSPbohEkjQJ8ehQ",
+              "content": "ANSWER: B",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "ANSWER: B",
+        "usage": {
+          "input_tokens": 147,
+          "output_tokens": 5,
+          "total_tokens": 152
+        },
+        "time": 1.0245493790025648,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "any_choice": {
+          "value": "C",
+          "answer": "B",
+          "explanation": "ANSWER: B",
+          "history": []
+        }
+      },
+      "metadata": {
+        "trait": "Neuroticism",
+        "reverse": false,
+        "answer_mapping": {
+          "A": 1,
+          "B": 2,
+          "C": 3,
+          "D": 4,
+          "E": 5
+        }
+      },
+      "store": {},
+      "events": [
+        {
+          "uuid": "kn4RbLBcXTWDUyMoCT2Ug5",
+          "span_id": "fc28680efe7e43eea7b4520400150ebb",
+          "timestamp": "2026-03-11T00:20:44.150607+01:00",
+          "working_start": 22078.196948835,
+          "event": "span_begin",
+          "id": "fc28680efe7e43eea7b4520400150ebb",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "GSzfgyCHhBWu4276ZM9ooV",
+          "span_id": "fc28680efe7e43eea7b4520400150ebb",
+          "timestamp": "2026-03-11T00:20:44.151074+01:00",
+          "working_start": 22078.197416359,
+          "event": "sample_init",
+          "sample": {
+            "input": "Is depressed, blue",
+            "choices": [
+              "Disagree strongly",
+              "Disagree a little",
+              "Neither agree nor disagree",
+              "Agree a little",
+              "Agree Strongly"
+            ],
+            "target": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E"
+            ],
+            "id": 4,
+            "metadata": {
+              "trait": "Neuroticism",
+              "reverse": false,
+              "answer_mapping": {
+                "A": 1,
+                "B": 2,
+                "C": 3,
+                "D": 4,
+                "E": 5
+              }
+            }
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "VPQMVPBUwNFY82mR9a7X2y",
+                "content": "Is depressed, blue",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {
+              "trait": "Neuroticism",
+              "reverse": false,
+              "answer_mapping": {
+                "A": 1,
+                "B": 2,
+                "C": 3,
+                "D": 4,
+                "E": 5
+              }
+            }
+          }
+        },
+        {
+          "uuid": "USbGRUpmjR7dRNVvFadDLy",
+          "span_id": "fc28680efe7e43eea7b4520400150ebb",
+          "timestamp": "2026-03-11T00:20:44.151519+01:00",
+          "working_start": 22078.197860299,
+          "event": "span_end",
+          "id": "fc28680efe7e43eea7b4520400150ebb"
+        },
+        {
+          "uuid": "F93zeTj8SHpYhaswk9KoHq",
+          "span_id": "eb78474f0945403ea820780564a90a57",
+          "timestamp": "2026-03-11T00:20:44.216626+01:00",
+          "working_start": 0.0647155959995871,
+          "event": "span_begin",
+          "id": "eb78474f0945403ea820780564a90a57",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "LTv8Mztay7qjdx8RKR9Mgp",
+          "span_id": "8c6e239e7a3b4671a89c92f5707ac877",
+          "timestamp": "2026-03-11T00:20:44.217083+01:00",
+          "working_start": 0.0651728800003184,
+          "event": "span_begin",
+          "id": "8c6e239e7a3b4671a89c92f5707ac877",
+          "parent_id": "eb78474f0945403ea820780564a90a57",
+          "type": "solver",
+          "name": "system_message"
+        },
+        {
+          "uuid": "8M3EdS9RngdTeHtkLHtuSu",
+          "span_id": "8c6e239e7a3b4671a89c92f5707ac877",
+          "timestamp": "2026-03-11T00:20:44.217702+01:00",
+          "working_start": 0.06579176499872119,
+          "event": "state",
+          "changes": [
+            {
+              "op": "remove",
+              "path": "/messages/0/source"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "attachment://a0f5dd1da56a5d18e1a389b1931ec031",
+              "replaced": "Is depressed, blue"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/id",
+              "value": "XoPmmGJTtZsqJJbhax2XLj",
+              "replaced": "VPQMVPBUwNFY82mR9a7X2y"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/role",
+              "value": "system",
+              "replaced": "user"
+            },
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "VPQMVPBUwNFY82mR9a7X2y",
+                "content": "Is depressed, blue",
+                "source": "input",
+                "role": "user"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "A9pZsd6hWe8wLfKPEr3T3M",
+          "span_id": "8c6e239e7a3b4671a89c92f5707ac877",
+          "timestamp": "2026-03-11T00:20:44.218207+01:00",
+          "working_start": 0.06629717699979665,
+          "event": "span_end",
+          "id": "8c6e239e7a3b4671a89c92f5707ac877"
+        },
+        {
+          "uuid": "A9ANJqCzJWQVujsDnGNW44",
+          "span_id": "1d57f6670249497a9d5bd1602c0ce1de",
+          "timestamp": "2026-03-11T00:20:44.218574+01:00",
+          "working_start": 0.06666358000074979,
+          "event": "span_begin",
+          "id": "1d57f6670249497a9d5bd1602c0ce1de",
+          "parent_id": "eb78474f0945403ea820780564a90a57",
+          "type": "solver",
+          "name": "multiple_choice"
+        },
+        {
+          "uuid": "hx2GtRdVpcK9sjHSWqA78q",
+          "span_id": "1d57f6670249497a9d5bd1602c0ce1de",
+          "timestamp": "2026-03-11T00:20:44.219084+01:00",
+          "working_start": 0.0671736010008317,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "XoPmmGJTtZsqJJbhax2XLj",
+              "content": "\nHere are a number of characteristics that may or may not apply to you. For example, do you agree\nthat you are inventive? Please write a number next to each\nstatement to indicate the extent to which you agree or disagree with that statement.\n\n",
+              "role": "system"
+            },
+            {
+              "id": "VPQMVPBUwNFY82mR9a7X2y",
+              "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nIs depressed, blue\n\nA) Disagree strongly\nB) Disagree a little\nC) Neither agree nor disagree\nD) Agree a little\nE) Agree Strongly",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 2048
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "A38M7RESSPbohEkjQJ8ehQ",
+                  "content": "ANSWER: B",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "ANSWER: B",
+            "usage": {
+              "input_tokens": 147,
+              "output_tokens": 5,
+              "total_tokens": 152
+            },
+            "time": 1.0245493790025648,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-11T00:20:45.355108+01:00",
+          "working_time": 1.0245493790025648
+        },
+        {
+          "uuid": "R3xiXLrodZVshbhzvvx33F",
+          "span_id": "1d57f6670249497a9d5bd1602c0ce1de",
+          "timestamp": "2026-03-11T00:20:45.355324+01:00",
+          "working_start": 1.0920097660018655,
+          "event": "state",
+          "changes": [
+            {
+              "op": "replace",
+              "path": "/messages/1/content",
+              "value": "attachment://be845899307b798131f1a01374488504",
+              "replaced": "Is depressed, blue"
+            },
+            {
+              "op": "add",
+              "path": "/messages/2",
+              "value": {
+                "id": "A38M7RESSPbohEkjQJ8ehQ",
+                "content": "ANSWER: B",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 1.0245493790025648
+            },
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 147,
+                "output_tokens": 5,
+                "total_tokens": 152
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "ANSWER: B",
+              "replaced": ""
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "A38M7RESSPbohEkjQJ8ehQ",
+                  "content": "ANSWER: B",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            }
+          ]
+        },
+        {
+          "uuid": "Kr3a4yRo5uvvJfACSgLnFn",
+          "span_id": "1d57f6670249497a9d5bd1602c0ce1de",
+          "timestamp": "2026-03-11T00:20:45.355892+01:00",
+          "working_start": 1.0925783470011083,
+          "event": "span_end",
+          "id": "1d57f6670249497a9d5bd1602c0ce1de"
+        },
+        {
+          "uuid": "2nJXuCT2eoCxCVCoCss2Dc",
+          "span_id": "eb78474f0945403ea820780564a90a57",
+          "timestamp": "2026-03-11T00:20:45.356300+01:00",
+          "working_start": 1.092986543000734,
+          "event": "span_end",
+          "id": "eb78474f0945403ea820780564a90a57"
+        },
+        {
+          "uuid": "9qZacT3zWLUmYP3iBPoHWp",
+          "span_id": "990e0da0303e42bda79763f64fb10020",
+          "timestamp": "2026-03-11T00:20:45.369505+01:00",
+          "working_start": 1.1061912000004668,
+          "event": "span_begin",
+          "id": "990e0da0303e42bda79763f64fb10020",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "THc2WcnHZCkY95twhotsNn",
+          "span_id": "e29e8256b7b740cbac8127ccc5052758",
+          "timestamp": "2026-03-11T00:20:45.369993+01:00",
+          "working_start": 1.1066793000027246,
+          "event": "span_begin",
+          "id": "e29e8256b7b740cbac8127ccc5052758",
+          "parent_id": "990e0da0303e42bda79763f64fb10020",
+          "type": "scorer",
+          "name": "any_choice"
+        },
+        {
+          "uuid": "RkiUGk8kfM35vMj9m85bja",
+          "span_id": "e29e8256b7b740cbac8127ccc5052758",
+          "timestamp": "2026-03-11T00:20:45.370381+01:00",
+          "working_start": 1.1070674320035323,
+          "event": "score",
+          "score": {
+            "value": "C",
+            "answer": "B",
+            "explanation": "ANSWER: B",
+            "history": []
+          },
+          "target": [
+            "A",
+            "B",
+            "C",
+            "D",
+            "E"
+          ],
+          "intermediate": false
+        },
+        {
+          "uuid": "Lk4h7d9UuzAPjdir8r88L4",
+          "span_id": "e29e8256b7b740cbac8127ccc5052758",
+          "timestamp": "2026-03-11T00:20:45.370807+01:00",
+          "working_start": 1.107493899002293,
+          "event": "span_end",
+          "id": "e29e8256b7b740cbac8127ccc5052758"
+        },
+        {
+          "uuid": "j7TT2YzUfGStnyYWdgvD4u",
+          "span_id": "990e0da0303e42bda79763f64fb10020",
+          "timestamp": "2026-03-11T00:20:45.371205+01:00",
+          "working_start": 1.1078914390018326,
+          "event": "span_end",
+          "id": "990e0da0303e42bda79763f64fb10020"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 147,
+          "output_tokens": 5,
+          "total_tokens": 152
+        }
+      },
+      "total_time": 1.242,
+      "working_time": 1.131,
+      "uuid": "5HLaDtmSB8iuKKwo5hrRy6",
+      "error_retries": [],
+      "attachments": {
+        "a0f5dd1da56a5d18e1a389b1931ec031": "\nHere are a number of characteristics that may or may not apply to you. For example, do you agree\nthat you are inventive? Please write a number next to each\nstatement to indicate the extent to which you agree or disagree with that statement.\n\n",
+        "be845899307b798131f1a01374488504": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nIs depressed, blue\n\nA) Disagree strongly\nB) Disagree a little\nC) Neither agree nor disagree\nD) Agree a little\nE) Agree Strongly"
+      }
+    },
+    {
+      "id": 5,
+      "epoch": 1,
+      "input": "Is original, comes up with new ideas",
+      "choices": [
+        "Disagree strongly",
+        "Disagree a little",
+        "Neither agree nor disagree",
+        "Agree a little",
+        "Agree Strongly"
+      ],
+      "target": [
+        "A",
+        "B",
+        "C",
+        "D",
+        "E"
+      ],
+      "messages": [
+        {
+          "id": "frR83Q9bp3e4tftteAeEKA",
+          "content": "\nHere are a number of characteristics that may or may not apply to you. For example, do you agree\nthat you are inventive? Please write a number next to each\nstatement to indicate the extent to which you agree or disagree with that statement.\n\n",
+          "role": "system"
+        },
+        {
+          "id": "dpbDowujdBpzzidqWd2sk7",
+          "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nIs original, comes up with new ideas\n\nA) Disagree strongly\nB) Disagree a little\nC) Neither agree nor disagree\nD) Agree a little\nE) Agree Strongly",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "MuFfRXAEWwXiwXtHe2aPcH",
+          "content": "ANSWER: E",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "MuFfRXAEWwXiwXtHe2aPcH",
+              "content": "ANSWER: E",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "ANSWER: E",
+        "usage": {
+          "input_tokens": 147,
+          "output_tokens": 5,
+          "total_tokens": 152
+        },
+        "time": 1.0202520300008473,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "any_choice": {
+          "value": "C",
+          "answer": "E",
+          "explanation": "ANSWER: E",
+          "history": []
+        }
+      },
+      "metadata": {
+        "trait": "Openness",
+        "reverse": false,
+        "answer_mapping": {
+          "A": 1,
+          "B": 2,
+          "C": 3,
+          "D": 4,
+          "E": 5
+        }
+      },
+      "store": {},
+      "events": [
+        {
+          "uuid": "cuBfs6HPtWQ48Da3U9YFR6",
+          "span_id": "467fadb6e26e4230a9d1e52b86a6f8b9",
+          "timestamp": "2026-03-11T00:20:44.152594+01:00",
+          "working_start": 22078.198935572,
+          "event": "span_begin",
+          "id": "467fadb6e26e4230a9d1e52b86a6f8b9",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "LA4zwhPPzy7fxnZHUmbVUB",
+          "span_id": "467fadb6e26e4230a9d1e52b86a6f8b9",
+          "timestamp": "2026-03-11T00:20:44.153053+01:00",
+          "working_start": 22078.19939484,
+          "event": "sample_init",
+          "sample": {
+            "input": "Is original, comes up with new ideas",
+            "choices": [
+              "Disagree strongly",
+              "Disagree a little",
+              "Neither agree nor disagree",
+              "Agree a little",
+              "Agree Strongly"
+            ],
+            "target": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E"
+            ],
+            "id": 5,
+            "metadata": {
+              "trait": "Openness",
+              "reverse": false,
+              "answer_mapping": {
+                "A": 1,
+                "B": 2,
+                "C": 3,
+                "D": 4,
+                "E": 5
+              }
+            }
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "dpbDowujdBpzzidqWd2sk7",
+                "content": "Is original, comes up with new ideas",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {
+              "trait": "Openness",
+              "reverse": false,
+              "answer_mapping": {
+                "A": 1,
+                "B": 2,
+                "C": 3,
+                "D": 4,
+                "E": 5
+              }
+            }
+          }
+        },
+        {
+          "uuid": "Wphn63uQv6RJCHquooHqxX",
+          "span_id": "467fadb6e26e4230a9d1e52b86a6f8b9",
+          "timestamp": "2026-03-11T00:20:44.153466+01:00",
+          "working_start": 22078.199807612,
+          "event": "span_end",
+          "id": "467fadb6e26e4230a9d1e52b86a6f8b9"
+        },
+        {
+          "uuid": "ifjG9S7EfbE4xVNUFUh6sc",
+          "span_id": "4c7d0745b7b1497fbf9a91d8a3deba55",
+          "timestamp": "2026-03-11T00:20:44.219137+01:00",
+          "working_start": 0.0652876650019607,
+          "event": "span_begin",
+          "id": "4c7d0745b7b1497fbf9a91d8a3deba55",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "UeQQmbF23zp7dw7gLq8vtT",
+          "span_id": "2fe10aabaff240039648c002f6fdff5d",
+          "timestamp": "2026-03-11T00:20:44.219625+01:00",
+          "working_start": 0.06577643700074987,
+          "event": "span_begin",
+          "id": "2fe10aabaff240039648c002f6fdff5d",
+          "parent_id": "4c7d0745b7b1497fbf9a91d8a3deba55",
+          "type": "solver",
+          "name": "system_message"
+        },
+        {
+          "uuid": "T2zmfieaUEDs8HXkUbMihi",
+          "span_id": "2fe10aabaff240039648c002f6fdff5d",
+          "timestamp": "2026-03-11T00:20:44.220259+01:00",
+          "working_start": 0.06641039500027546,
+          "event": "state",
+          "changes": [
+            {
+              "op": "remove",
+              "path": "/messages/0/source"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "attachment://a0f5dd1da56a5d18e1a389b1931ec031",
+              "replaced": "Is original, comes up with new ideas"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/id",
+              "value": "frR83Q9bp3e4tftteAeEKA",
+              "replaced": "dpbDowujdBpzzidqWd2sk7"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/role",
+              "value": "system",
+              "replaced": "user"
+            },
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "dpbDowujdBpzzidqWd2sk7",
+                "content": "Is original, comes up with new ideas",
+                "source": "input",
+                "role": "user"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "WPFvmTeWwJsdzczYFN5foV",
+          "span_id": "2fe10aabaff240039648c002f6fdff5d",
+          "timestamp": "2026-03-11T00:20:44.220755+01:00",
+          "working_start": 0.06690611100202659,
+          "event": "span_end",
+          "id": "2fe10aabaff240039648c002f6fdff5d"
+        },
+        {
+          "uuid": "9AW6fX5jWDww9frXheqwvN",
+          "span_id": "f1a42463dc8142ada9544c4e5076ba2a",
+          "timestamp": "2026-03-11T00:20:44.221142+01:00",
+          "working_start": 0.06729363400154398,
+          "event": "span_begin",
+          "id": "f1a42463dc8142ada9544c4e5076ba2a",
+          "parent_id": "4c7d0745b7b1497fbf9a91d8a3deba55",
+          "type": "solver",
+          "name": "multiple_choice"
+        },
+        {
+          "uuid": "CmrUEZV4CKDRd3vZoKSk79",
+          "span_id": "f1a42463dc8142ada9544c4e5076ba2a",
+          "timestamp": "2026-03-11T00:20:44.221607+01:00",
+          "working_start": 0.06775811800252995,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "frR83Q9bp3e4tftteAeEKA",
+              "content": "\nHere are a number of characteristics that may or may not apply to you. For example, do you agree\nthat you are inventive? Please write a number next to each\nstatement to indicate the extent to which you agree or disagree with that statement.\n\n",
+              "role": "system"
+            },
+            {
+              "id": "dpbDowujdBpzzidqWd2sk7",
+              "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nIs original, comes up with new ideas\n\nA) Disagree strongly\nB) Disagree a little\nC) Neither agree nor disagree\nD) Agree a little\nE) Agree Strongly",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 2048
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "MuFfRXAEWwXiwXtHe2aPcH",
+                  "content": "ANSWER: E",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "ANSWER: E",
+            "usage": {
+              "input_tokens": 147,
+              "output_tokens": 5,
+              "total_tokens": 152
+            },
+            "time": 1.0202520300008473,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-11T00:20:45.361939+01:00",
+          "working_time": 1.0202520300008473
+        },
+        {
+          "uuid": "HAj6aGFcsjqoUkZNyAWzr4",
+          "span_id": "f1a42463dc8142ada9544c4e5076ba2a",
+          "timestamp": "2026-03-11T00:20:45.362175+01:00",
+          "working_start": 1.0883281990027172,
+          "event": "state",
+          "changes": [
+            {
+              "op": "replace",
+              "path": "/messages/1/content",
+              "value": "attachment://6db8404abef4bb7bafbc6cf7825453c1",
+              "replaced": "Is original, comes up with new ideas"
+            },
+            {
+              "op": "add",
+              "path": "/messages/2",
+              "value": {
+                "id": "MuFfRXAEWwXiwXtHe2aPcH",
+                "content": "ANSWER: E",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 1.0202520300008473
+            },
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 147,
+                "output_tokens": 5,
+                "total_tokens": 152
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "ANSWER: E",
+              "replaced": ""
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "MuFfRXAEWwXiwXtHe2aPcH",
+                  "content": "ANSWER: E",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            }
+          ]
+        },
+        {
+          "uuid": "M7GVUXrqqCPJsiZoZn8K7g",
+          "span_id": "f1a42463dc8142ada9544c4e5076ba2a",
+          "timestamp": "2026-03-11T00:20:45.362760+01:00",
+          "working_start": 1.0889129720017081,
+          "event": "span_end",
+          "id": "f1a42463dc8142ada9544c4e5076ba2a"
+        },
+        {
+          "uuid": "X6zqWPjVv99oMAX5jUbuwr",
+          "span_id": "4c7d0745b7b1497fbf9a91d8a3deba55",
+          "timestamp": "2026-03-11T00:20:45.363200+01:00",
+          "working_start": 1.0893525600004068,
+          "event": "span_end",
+          "id": "4c7d0745b7b1497fbf9a91d8a3deba55"
+        },
+        {
+          "uuid": "G66evmAVH3KQc6bSeqpxjN",
+          "span_id": "9c559b4743984005a6a6f723403c79f0",
+          "timestamp": "2026-03-11T00:20:45.378162+01:00",
+          "working_start": 1.10431576100018,
+          "event": "span_begin",
+          "id": "9c559b4743984005a6a6f723403c79f0",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "4r3GYrm77NePVnJfX6yWWZ",
+          "span_id": "f20153424c854b5594e49ffd080d0e53",
+          "timestamp": "2026-03-11T00:20:45.378621+01:00",
+          "working_start": 1.1047740050016728,
+          "event": "span_begin",
+          "id": "f20153424c854b5594e49ffd080d0e53",
+          "parent_id": "9c559b4743984005a6a6f723403c79f0",
+          "type": "scorer",
+          "name": "any_choice"
+        },
+        {
+          "uuid": "EbxNNwunwqMChWUahYDg4W",
+          "span_id": "f20153424c854b5594e49ffd080d0e53",
+          "timestamp": "2026-03-11T00:20:45.379092+01:00",
+          "working_start": 1.1052454010023212,
+          "event": "score",
+          "score": {
+            "value": "C",
+            "answer": "E",
+            "explanation": "ANSWER: E",
+            "history": []
+          },
+          "target": [
+            "A",
+            "B",
+            "C",
+            "D",
+            "E"
+          ],
+          "intermediate": false
+        },
+        {
+          "uuid": "f4qQttPCSZ9Vxv3bHeLfRs",
+          "span_id": "f20153424c854b5594e49ffd080d0e53",
+          "timestamp": "2026-03-11T00:20:45.379513+01:00",
+          "working_start": 1.1056657240005734,
+          "event": "span_end",
+          "id": "f20153424c854b5594e49ffd080d0e53"
+        },
+        {
+          "uuid": "6s7m3kJFXRatH9eCKUJ6Tr",
+          "span_id": "9c559b4743984005a6a6f723403c79f0",
+          "timestamp": "2026-03-11T00:20:45.379967+01:00",
+          "working_start": 1.1061202560013044,
+          "event": "span_end",
+          "id": "9c559b4743984005a6a6f723403c79f0"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 147,
+          "output_tokens": 5,
+          "total_tokens": 152
+        }
+      },
+      "total_time": 1.265,
+      "working_time": 1.145,
+      "uuid": "4eywRt6j9CWYPA8SSdqPpm",
+      "error_retries": [],
+      "attachments": {
+        "a0f5dd1da56a5d18e1a389b1931ec031": "\nHere are a number of characteristics that may or may not apply to you. For example, do you agree\nthat you are inventive? Please write a number next to each\nstatement to indicate the extent to which you agree or disagree with that statement.\n\n",
+        "6db8404abef4bb7bafbc6cf7825453c1": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nIs original, comes up with new ideas\n\nA) Disagree strongly\nB) Disagree a little\nC) Neither agree nor disagree\nD) Agree a little\nE) Agree Strongly"
+      }
+    }
+  ],
+  "reductions": [
+    {
+      "scorer": "any_choice",
+      "samples": [
+        {
+          "value": 1.0,
+          "answer": "A",
+          "explanation": "ANSWER: A",
+          "history": [],
+          "sample_id": 1
+        },
+        {
+          "value": 1.0,
+          "answer": "A",
+          "explanation": "ANSWER: A",
+          "history": [],
+          "sample_id": 2
+        },
+        {
+          "value": 1.0,
+          "answer": "E",
+          "explanation": "ANSWER: E",
+          "history": [],
+          "sample_id": 3
+        },
+        {
+          "value": 1.0,
+          "answer": "B",
+          "explanation": "ANSWER: B",
+          "history": [],
+          "sample_id": 4
+        },
+        {
+          "value": 1.0,
+          "answer": "E",
+          "explanation": "ANSWER: E",
+          "history": [],
+          "sample_id": 5
+        }
+      ]
+    }
+  ]
+}

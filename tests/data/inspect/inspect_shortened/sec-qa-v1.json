@@ -1,0 +1,1895 @@
+{
+  "version": 2,
+  "status": "success",
+  "eval": {
+    "eval_id": "g32RZhfrvg35RkB8ZDw4se",
+    "run_id": "esU3gYsiXNKKXQSKQx3Yas",
+    "created": "2026-03-11T16:34:49+00:00",
+    "task": "inspect_evals/sec_qa_v1",
+    "task_id": "mSko4eDXiWXSQG2TGt3hq3",
+    "task_version": 2,
+    "task_display_name": "sec_qa_v1",
+    "task_registry_name": "inspect_evals/sec_qa_v1",
+    "task_attribs": {},
+    "task_args": {},
+    "task_args_passed": {},
+    "dataset": {
+      "name": "zefang-liu/secqa",
+      "location": "zefang-liu/secqa",
+      "samples": 5,
+      "sample_ids": [
+        "secqa_014e1752",
+        "secqa_02814b57",
+        "secqa_07ba671d",
+        "secqa_09a87f33",
+        "secqa_0b3b587a"
+      ],
+      "shuffled": false
+    },
+    "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+    "model_generate_config": {},
+    "model_args": {},
+    "model_roles": {},
+    "config": {
+      "epochs": 1,
+      "epochs_reducer": [
+        "mean"
+      ],
+      "fail_on_error": true,
+      "continue_on_fail": false,
+      "sandbox_cleanup": true,
+      "log_samples": true,
+      "log_realtime": true,
+      "log_images": true,
+      "log_shared": 0,
+      "score_display": true
+    },
+    "revision": {
+      "type": "git",
+      "origin": "https://github.com/MIMIR-AI-ROUTER/inspect_evals.git",
+      "commit": "26ee9b93"
+    },
+    "packages": {
+      "inspect_ai": "0.3.180.dev77+gb34c521b",
+      "inspect_evals": "0.0.1.dev2141+unknown.g26ee9b93d"
+    },
+    "metadata": {
+      "full_task_version": "2-A",
+      "task_interface_version": "A",
+      "task_comparability_version": 2
+    },
+    "scorers": [
+      {
+        "name": "choice",
+        "options": {},
+        "metrics": [
+          {
+            "name": "inspect_ai/accuracy",
+            "options": {}
+          },
+          {
+            "name": "inspect_ai/stderr",
+            "options": {}
+          }
+        ],
+        "metadata": {}
+      }
+    ]
+  },
+  "plan": {
+    "name": "plan",
+    "steps": [
+      {
+        "solver": "multiple_choice",
+        "params": {
+          "template": null,
+          "cot": false,
+          "multiple_correct": false,
+          "max_tokens": null,
+          "kwargs": {}
+        }
+      }
+    ],
+    "config": {}
+  },
+  "results": {
+    "total_samples": 5,
+    "completed_samples": 5,
+    "scores": [
+      {
+        "name": "choice",
+        "scorer": "choice",
+        "scored_samples": 5,
+        "unscored_samples": 0,
+        "params": {},
+        "metrics": {
+          "accuracy": {
+            "name": "accuracy",
+            "value": 1.0,
+            "params": {}
+          },
+          "stderr": {
+            "name": "stderr",
+            "value": 0.0,
+            "params": {}
+          }
+        }
+      }
+    ]
+  },
+  "stats": {
+    "started_at": "2026-03-11T16:34:49+00:00",
+    "completed_at": "2026-03-11T16:34:56+00:00",
+    "model_usage": {
+      "hf/Qwen/Qwen2.5-7B-Instruct": {
+        "input_tokens": 725,
+        "output_tokens": 25,
+        "total_tokens": 750
+      }
+    }
+  },
+  "samples": [
+    {
+      "id": "secqa_014e1752",
+      "epoch": 1,
+      "input": "Why is cryptography essential in the field of security?",
+      "choices": [
+        "To scramble data into non-readable text, preventing unauthorized access.",
+        "To make data storage more efficient.",
+        "To increase the speed of data transmission.",
+        "To improve the aesthetic appeal of digital content."
+      ],
+      "target": "A",
+      "messages": [
+        {
+          "id": "H6piFNh3qtbiLT9RkVBXGo",
+          "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nWhy is cryptography essential in the field of security?\n\nA) To scramble data into non-readable text, preventing unauthorized access.\nB) To make data storage more efficient.\nC) To increase the speed of data transmission.\nD) To improve the aesthetic appeal of digital content.",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "WBbLDwvYh2gfJatGfgC7qj",
+          "content": "ANSWER: A",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "WBbLDwvYh2gfJatGfgC7qj",
+              "content": "ANSWER: A",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "ANSWER: A",
+        "usage": {
+          "input_tokens": 145,
+          "output_tokens": 5,
+          "total_tokens": 150
+        },
+        "time": 1.0114550319995033,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "choice": {
+          "value": "C",
+          "answer": "A",
+          "explanation": "ANSWER: A",
+          "history": []
+        }
+      },
+      "metadata": {},
+      "store": {},
+      "events": [
+        {
+          "uuid": "RKYARhfQ4NujKBuNcbfLWf",
+          "span_id": "b837921aed404cda9e79960c4b788fb3",
+          "timestamp": "2026-03-11T17:34:50.994537+01:00",
+          "working_start": 84125.040878965,
+          "event": "span_begin",
+          "id": "b837921aed404cda9e79960c4b788fb3",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "BpFgBoL4Y7MAy9oDWCYetV",
+          "span_id": "b837921aed404cda9e79960c4b788fb3",
+          "timestamp": "2026-03-11T17:34:50.994999+01:00",
+          "working_start": 84125.041340825,
+          "event": "sample_init",
+          "sample": {
+            "input": "Why is cryptography essential in the field of security?",
+            "choices": [
+              "To scramble data into non-readable text, preventing unauthorized access.",
+              "To make data storage more efficient.",
+              "To increase the speed of data transmission.",
+              "To improve the aesthetic appeal of digital content."
+            ],
+            "target": "A",
+            "id": "secqa_014e1752"
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "H6piFNh3qtbiLT9RkVBXGo",
+                "content": "Why is cryptography essential in the field of security?",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {}
+          }
+        },
+        {
+          "uuid": "WLD7Ep8ZVbdvoLaUHZV6hJ",
+          "span_id": "b837921aed404cda9e79960c4b788fb3",
+          "timestamp": "2026-03-11T17:34:50.995416+01:00",
+          "working_start": 84125.041757692,
+          "event": "span_end",
+          "id": "b837921aed404cda9e79960c4b788fb3"
+        },
+        {
+          "uuid": "aNnXmaB8jFRKF2xiHVJhrL",
+          "span_id": "be7e6da99b4d43cf9bab071838db1b77",
+          "timestamp": "2026-03-11T17:34:51.005384+01:00",
+          "working_start": 0.009589422988938168,
+          "event": "span_begin",
+          "id": "be7e6da99b4d43cf9bab071838db1b77",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "FRGYipwuBcpeYkE9c74AXT",
+          "span_id": "5fd25f599ef2449da9ba2be0f756f6c1",
+          "timestamp": "2026-03-11T17:34:51.005832+01:00",
+          "working_start": 0.010038162989076227,
+          "event": "span_begin",
+          "id": "5fd25f599ef2449da9ba2be0f756f6c1",
+          "parent_id": "be7e6da99b4d43cf9bab071838db1b77",
+          "type": "solver",
+          "name": "multiple_choice"
+        },
+        {
+          "uuid": "hGpLFsiw5qAzmdvH8KWXWe",
+          "span_id": "5fd25f599ef2449da9ba2be0f756f6c1",
+          "timestamp": "2026-03-11T17:34:51.006305+01:00",
+          "working_start": 0.010511478991247714,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "H6piFNh3qtbiLT9RkVBXGo",
+              "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nWhy is cryptography essential in the field of security?\n\nA) To scramble data into non-readable text, preventing unauthorized access.\nB) To make data storage more efficient.\nC) To increase the speed of data transmission.\nD) To improve the aesthetic appeal of digital content.",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 2048
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "WBbLDwvYh2gfJatGfgC7qj",
+                  "content": "ANSWER: A",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "ANSWER: A",
+            "usage": {
+              "input_tokens": 145,
+              "output_tokens": 5,
+              "total_tokens": 150
+            },
+            "time": 1.0114550319995033,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-11T17:34:52.029932+01:00",
+          "working_time": 1.0114550319995033
+        },
+        {
+          "uuid": "7QVvMqUYmeXYAJuQqvdxWN",
+          "span_id": "5fd25f599ef2449da9ba2be0f756f6c1",
+          "timestamp": "2026-03-11T17:34:52.030138+01:00",
+          "working_start": 1.0222534559870837,
+          "event": "state",
+          "changes": [
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "attachment://b573ae29d3d22cc35115fd5ebb8e502e",
+              "replaced": "Why is cryptography essential in the field of security?"
+            },
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "WBbLDwvYh2gfJatGfgC7qj",
+                "content": "ANSWER: A",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 145,
+                "output_tokens": 5,
+                "total_tokens": 150
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 1.0114550319995033
+            },
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "WBbLDwvYh2gfJatGfgC7qj",
+                  "content": "ANSWER: A",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "ANSWER: A",
+              "replaced": ""
+            }
+          ]
+        },
+        {
+          "uuid": "CFHsxuVCAMAmeKE69WcGbz",
+          "span_id": "5fd25f599ef2449da9ba2be0f756f6c1",
+          "timestamp": "2026-03-11T17:34:52.030678+01:00",
+          "working_start": 1.0227934289869154,
+          "event": "span_end",
+          "id": "5fd25f599ef2449da9ba2be0f756f6c1"
+        },
+        {
+          "uuid": "Fh7kvrd2oRh6eVWoH6v4Ty",
+          "span_id": "be7e6da99b4d43cf9bab071838db1b77",
+          "timestamp": "2026-03-11T17:34:52.031114+01:00",
+          "working_start": 1.0232299759954913,
+          "event": "span_end",
+          "id": "be7e6da99b4d43cf9bab071838db1b77"
+        },
+        {
+          "uuid": "j29PiXsaekSS9wdPa9vwed",
+          "span_id": "33f1d2d9de78463bbd27bfd97e9136b4",
+          "timestamp": "2026-03-11T17:34:52.031899+01:00",
+          "working_start": 1.024014366994379,
+          "event": "span_begin",
+          "id": "33f1d2d9de78463bbd27bfd97e9136b4",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "jWTR9zuAz3rynxPmHdXK24",
+          "span_id": "90d5dd2423474ae8a3c137c520d639ae",
+          "timestamp": "2026-03-11T17:34:52.032326+01:00",
+          "working_start": 1.0244415699853562,
+          "event": "span_begin",
+          "id": "90d5dd2423474ae8a3c137c520d639ae",
+          "parent_id": "33f1d2d9de78463bbd27bfd97e9136b4",
+          "type": "scorer",
+          "name": "choice"
+        },
+        {
+          "uuid": "iNSozP8wjQg2bufw9TMf2U",
+          "span_id": "90d5dd2423474ae8a3c137c520d639ae",
+          "timestamp": "2026-03-11T17:34:52.032738+01:00",
+          "working_start": 1.0248539259919198,
+          "event": "score",
+          "score": {
+            "value": "C",
+            "answer": "A",
+            "explanation": "ANSWER: A",
+            "history": []
+          },
+          "target": "A",
+          "intermediate": false
+        },
+        {
+          "uuid": "AmkTw2B4iqqDXiSQhPoKny",
+          "span_id": "90d5dd2423474ae8a3c137c520d639ae",
+          "timestamp": "2026-03-11T17:34:52.033133+01:00",
+          "working_start": 1.0252484249940608,
+          "event": "span_end",
+          "id": "90d5dd2423474ae8a3c137c520d639ae"
+        },
+        {
+          "uuid": "nyLYzQJ6gqtufVdexpbZ9Y",
+          "span_id": "33f1d2d9de78463bbd27bfd97e9136b4",
+          "timestamp": "2026-03-11T17:34:52.033492+01:00",
+          "working_start": 1.0256079799873987,
+          "event": "span_end",
+          "id": "33f1d2d9de78463bbd27bfd97e9136b4"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 145,
+          "output_tokens": 5,
+          "total_tokens": 150
+        }
+      },
+      "total_time": 1.042,
+      "working_time": 1.03,
+      "uuid": "mKW4775qDNfdNatUouFaXH",
+      "error_retries": [],
+      "attachments": {
+        "b573ae29d3d22cc35115fd5ebb8e502e": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nWhy is cryptography essential in the field of security?\n\nA) To scramble data into non-readable text, preventing unauthorized access.\nB) To make data storage more efficient.\nC) To increase the speed of data transmission.\nD) To improve the aesthetic appeal of digital content."
+      }
+    },
+    {
+      "id": "secqa_02814b57",
+      "epoch": 1,
+      "input": "For ensuring secure access to cloud resources, which technology is most appropriate?",
+      "choices": [
+        "Allowing unlimited access attempts without lockout policies.",
+        "Employing multi-factor authentication (MFA).",
+        "Sharing a single user account among multiple team members.",
+        "Using simple passwords for all accounts."
+      ],
+      "target": "B",
+      "messages": [
+        {
+          "id": "Spox4EDztDUQ6z7j5Arrvi",
+          "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nFor ensuring secure access to cloud resources, which technology is most appropriate?\n\nA) Allowing unlimited access attempts without lockout policies.\nB) Employing multi-factor authentication (MFA).\nC) Sharing a single user account among multiple team members.\nD) Using simple passwords for all accounts.",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "A3rMvdptRRyYT7PsznS5tu",
+          "content": "ANSWER: B",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "A3rMvdptRRyYT7PsznS5tu",
+              "content": "ANSWER: B",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "ANSWER: B",
+        "usage": {
+          "input_tokens": 145,
+          "output_tokens": 5,
+          "total_tokens": 150
+        },
+        "time": 1.0108039550104877,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "choice": {
+          "value": "C",
+          "answer": "B",
+          "explanation": "ANSWER: B",
+          "history": []
+        }
+      },
+      "metadata": {},
+      "store": {},
+      "events": [
+        {
+          "uuid": "nWTSttprULdeZWzMSmQ54d",
+          "span_id": "0e5895188f534ba58ea37d41ab0b7513",
+          "timestamp": "2026-03-11T17:34:52.608252+01:00",
+          "working_start": 84126.65459389,
+          "event": "span_begin",
+          "id": "0e5895188f534ba58ea37d41ab0b7513",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "KUaV6TkQpXTG3kxXGYLquv",
+          "span_id": "0e5895188f534ba58ea37d41ab0b7513",
+          "timestamp": "2026-03-11T17:34:52.608734+01:00",
+          "working_start": 84126.655076838,
+          "event": "sample_init",
+          "sample": {
+            "input": "For ensuring secure access to cloud resources, which technology is most appropriate?",
+            "choices": [
+              "Allowing unlimited access attempts without lockout policies.",
+              "Employing multi-factor authentication (MFA).",
+              "Sharing a single user account among multiple team members.",
+              "Using simple passwords for all accounts."
+            ],
+            "target": "B",
+            "id": "secqa_02814b57"
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "Spox4EDztDUQ6z7j5Arrvi",
+                "content": "For ensuring secure access to cloud resources, which technology is most appropriate?",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {}
+          }
+        },
+        {
+          "uuid": "R6wA5ZKe6qHc7hruBambYf",
+          "span_id": "0e5895188f534ba58ea37d41ab0b7513",
+          "timestamp": "2026-03-11T17:34:52.609187+01:00",
+          "working_start": 84126.655529578,
+          "event": "span_end",
+          "id": "0e5895188f534ba58ea37d41ab0b7513"
+        },
+        {
+          "uuid": "gxwByZUebicN4zXUgqNwPB",
+          "span_id": "df4244396e0b4475aaa3d91453f27f9d",
+          "timestamp": "2026-03-11T17:34:52.613127+01:00",
+          "working_start": 0.0035710689990082756,
+          "event": "span_begin",
+          "id": "df4244396e0b4475aaa3d91453f27f9d",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "XTEwEEsLgN5tWQMU64QAqh",
+          "span_id": "da006c0e8c9b48e88fe0eb2a385ca9a7",
+          "timestamp": "2026-03-11T17:34:52.613538+01:00",
+          "working_start": 0.003982561000157148,
+          "event": "span_begin",
+          "id": "da006c0e8c9b48e88fe0eb2a385ca9a7",
+          "parent_id": "df4244396e0b4475aaa3d91453f27f9d",
+          "type": "solver",
+          "name": "multiple_choice"
+        },
+        {
+          "uuid": "bkgHgpvrg9F2HkJ93mPuUx",
+          "span_id": "da006c0e8c9b48e88fe0eb2a385ca9a7",
+          "timestamp": "2026-03-11T17:34:52.614059+01:00",
+          "working_start": 0.004503172996919602,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "Spox4EDztDUQ6z7j5Arrvi",
+              "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nFor ensuring secure access to cloud resources, which technology is most appropriate?\n\nA) Allowing unlimited access attempts without lockout policies.\nB) Employing multi-factor authentication (MFA).\nC) Sharing a single user account among multiple team members.\nD) Using simple passwords for all accounts.",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 2048
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "A3rMvdptRRyYT7PsznS5tu",
+                  "content": "ANSWER: B",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "ANSWER: B",
+            "usage": {
+              "input_tokens": 145,
+              "output_tokens": 5,
+              "total_tokens": 150
+            },
+            "time": 1.0108039550104877,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-11T17:34:53.630001+01:00",
+          "working_time": 1.0108039550104877
+        },
+        {
+          "uuid": "5wDBuSGbbYEBsYvP5MB7Br",
+          "span_id": "da006c0e8c9b48e88fe0eb2a385ca9a7",
+          "timestamp": "2026-03-11T17:34:53.630212+01:00",
+          "working_start": 1.0155882820108673,
+          "event": "state",
+          "changes": [
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "attachment://0db1f4b36f8531fef75e99d60a1ede9d",
+              "replaced": "For ensuring secure access to cloud resources, which technology is most appropriate?"
+            },
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "A3rMvdptRRyYT7PsznS5tu",
+                "content": "ANSWER: B",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 145,
+                "output_tokens": 5,
+                "total_tokens": 150
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 1.0108039550104877
+            },
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "A3rMvdptRRyYT7PsznS5tu",
+                  "content": "ANSWER: B",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "ANSWER: B",
+              "replaced": ""
+            }
+          ]
+        },
+        {
+          "uuid": "LAeYjvpWRGkRZFPXP3RpxG",
+          "span_id": "da006c0e8c9b48e88fe0eb2a385ca9a7",
+          "timestamp": "2026-03-11T17:34:53.630794+01:00",
+          "working_start": 1.0161705910140881,
+          "event": "span_end",
+          "id": "da006c0e8c9b48e88fe0eb2a385ca9a7"
+        },
+        {
+          "uuid": "QJUUNAEgzs99JYFsih9dtE",
+          "span_id": "df4244396e0b4475aaa3d91453f27f9d",
+          "timestamp": "2026-03-11T17:34:53.631217+01:00",
+          "working_start": 1.0165931230149,
+          "event": "span_end",
+          "id": "df4244396e0b4475aaa3d91453f27f9d"
+        },
+        {
+          "uuid": "LgzDrax2kWEN5f8ywwUbkc",
+          "span_id": "b252480cce9c4c97b587dd84d2f33029",
+          "timestamp": "2026-03-11T17:34:53.632007+01:00",
+          "working_start": 1.0173826330137672,
+          "event": "span_begin",
+          "id": "b252480cce9c4c97b587dd84d2f33029",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "8FbtSxcbx4nUBns2T6gSrs",
+          "span_id": "c87580d3538f493c8159107658b6635e",
+          "timestamp": "2026-03-11T17:34:53.632436+01:00",
+          "working_start": 1.0178127490216866,
+          "event": "span_begin",
+          "id": "c87580d3538f493c8159107658b6635e",
+          "parent_id": "b252480cce9c4c97b587dd84d2f33029",
+          "type": "scorer",
+          "name": "choice"
+        },
+        {
+          "uuid": "26Nh5QeaBFjmh4HBdwyaeu",
+          "span_id": "c87580d3538f493c8159107658b6635e",
+          "timestamp": "2026-03-11T17:34:53.632856+01:00",
+          "working_start": 1.0182324320194311,
+          "event": "score",
+          "score": {
+            "value": "C",
+            "answer": "B",
+            "explanation": "ANSWER: B",
+            "history": []
+          },
+          "target": "B",
+          "intermediate": false
+        },
+        {
+          "uuid": "dQ6m7ecm2xvheDdzcFZXwY",
+          "span_id": "c87580d3538f493c8159107658b6635e",
+          "timestamp": "2026-03-11T17:34:53.633230+01:00",
+          "working_start": 1.0186058430117555,
+          "event": "span_end",
+          "id": "c87580d3538f493c8159107658b6635e"
+        },
+        {
+          "uuid": "fuVdpPSGpPVib9Bs8VSAHV",
+          "span_id": "b252480cce9c4c97b587dd84d2f33029",
+          "timestamp": "2026-03-11T17:34:53.633598+01:00",
+          "working_start": 1.0189735580206616,
+          "event": "span_end",
+          "id": "b252480cce9c4c97b587dd84d2f33029"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 145,
+          "output_tokens": 5,
+          "total_tokens": 150
+        }
+      },
+      "total_time": 1.026,
+      "working_time": 1.021,
+      "uuid": "DpdcUn9STEjbujaC9fuHX2",
+      "error_retries": [],
+      "attachments": {
+        "0db1f4b36f8531fef75e99d60a1ede9d": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nFor ensuring secure access to cloud resources, which technology is most appropriate?\n\nA) Allowing unlimited access attempts without lockout policies.\nB) Employing multi-factor authentication (MFA).\nC) Sharing a single user account among multiple team members.\nD) Using simple passwords for all accounts."
+      }
+    },
+    {
+      "id": "secqa_07ba671d",
+      "epoch": 1,
+      "input": "What is a typical indicator of web-based attacks exploiting the trust of web technologies?",
+      "choices": [
+        "Elevated access requests from administrative accounts.",
+        "Implicit trust in scripts, commands, and cookies received by web pages.",
+        "A decrease in the number of active user sessions.",
+        "Unusual patterns in outgoing emails from the server."
+      ],
+      "target": "B",
+      "messages": [
+        {
+          "id": "3Uz6s3mUPD5ubdyVNrfAzE",
+          "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nWhat is a typical indicator of web-based attacks exploiting the trust of web technologies?\n\nA) Elevated access requests from administrative accounts.\nB) Implicit trust in scripts, commands, and cookies received by web pages.\nC) A decrease in the number of active user sessions.\nD) Unusual patterns in outgoing emails from the server.",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "T7TuVwXAJUXVkgGt6KARjS",
+          "content": "ANSWER: B",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "T7TuVwXAJUXVkgGt6KARjS",
+              "content": "ANSWER: B",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "ANSWER: B",
+        "usage": {
+          "input_tokens": 145,
+          "output_tokens": 5,
+          "total_tokens": 150
+        },
+        "time": 1.030523188994266,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "choice": {
+          "value": "C",
+          "answer": "B",
+          "explanation": "ANSWER: B",
+          "history": []
+        }
+      },
+      "metadata": {},
+      "store": {},
+      "events": [
+        {
+          "uuid": "WE3EdtySuwLtSvQ5tcu4QX",
+          "span_id": "aa193979691c4c69a6fd12f1558dacca",
+          "timestamp": "2026-03-11T17:34:51.205424+01:00",
+          "working_start": 84125.251767162,
+          "event": "span_begin",
+          "id": "aa193979691c4c69a6fd12f1558dacca",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "EyWXzbK5HEN6tT8pAHZTMd",
+          "span_id": "aa193979691c4c69a6fd12f1558dacca",
+          "timestamp": "2026-03-11T17:34:51.205882+01:00",
+          "working_start": 84125.25222467,
+          "event": "sample_init",
+          "sample": {
+            "input": "What is a typical indicator of web-based attacks exploiting the trust of web technologies?",
+            "choices": [
+              "Elevated access requests from administrative accounts.",
+              "Implicit trust in scripts, commands, and cookies received by web pages.",
+              "A decrease in the number of active user sessions.",
+              "Unusual patterns in outgoing emails from the server."
+            ],
+            "target": "B",
+            "id": "secqa_07ba671d"
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "3Uz6s3mUPD5ubdyVNrfAzE",
+                "content": "What is a typical indicator of web-based attacks exploiting the trust of web technologies?",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {}
+          }
+        },
+        {
+          "uuid": "A4tVhEQCS3STVXpsGuZ9dg",
+          "span_id": "aa193979691c4c69a6fd12f1558dacca",
+          "timestamp": "2026-03-11T17:34:51.206326+01:00",
+          "working_start": 84125.252668193,
+          "event": "span_end",
+          "id": "aa193979691c4c69a6fd12f1558dacca"
+        },
+        {
+          "uuid": "NVZn74hLDZzuAQXW8wE75W",
+          "span_id": "9b798d6d034d4ba081ea3497f8994878",
+          "timestamp": "2026-03-11T17:34:51.221593+01:00",
+          "working_start": 0.014888602003338747,
+          "event": "span_begin",
+          "id": "9b798d6d034d4ba081ea3497f8994878",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "jPRAornu56WLwDSmWAE3h8",
+          "span_id": "dd40a38532fe45a289fdfd7cf7313ce4",
+          "timestamp": "2026-03-11T17:34:51.222061+01:00",
+          "working_start": 0.015357053998741321,
+          "event": "span_begin",
+          "id": "dd40a38532fe45a289fdfd7cf7313ce4",
+          "parent_id": "9b798d6d034d4ba081ea3497f8994878",
+          "type": "solver",
+          "name": "multiple_choice"
+        },
+        {
+          "uuid": "fjHxxxWZiZ7H8oWcxUG9Js",
+          "span_id": "dd40a38532fe45a289fdfd7cf7313ce4",
+          "timestamp": "2026-03-11T17:34:51.222548+01:00",
+          "working_start": 0.01584409800125286,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "3Uz6s3mUPD5ubdyVNrfAzE",
+              "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nWhat is a typical indicator of web-based attacks exploiting the trust of web technologies?\n\nA) Elevated access requests from administrative accounts.\nB) Implicit trust in scripts, commands, and cookies received by web pages.\nC) A decrease in the number of active user sessions.\nD) Unusual patterns in outgoing emails from the server.",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 2048
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "T7TuVwXAJUXVkgGt6KARjS",
+                  "content": "ANSWER: B",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "ANSWER: B",
+            "usage": {
+              "input_tokens": 145,
+              "output_tokens": 5,
+              "total_tokens": 150
+            },
+            "time": 1.030523188994266,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-11T17:34:52.269022+01:00",
+          "working_time": 1.030523188994266
+        },
+        {
+          "uuid": "PDhPz2oLRGE6pTTBnDSj86",
+          "span_id": "dd40a38532fe45a289fdfd7cf7313ce4",
+          "timestamp": "2026-03-11T17:34:52.269216+01:00",
+          "working_start": 1.0466307460010285,
+          "event": "state",
+          "changes": [
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "attachment://5ce8deeb49ee05ca7f142484386da262",
+              "replaced": "What is a typical indicator of web-based attacks exploiting the trust of web technologies?"
+            },
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "T7TuVwXAJUXVkgGt6KARjS",
+                "content": "ANSWER: B",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 145,
+                "output_tokens": 5,
+                "total_tokens": 150
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 1.030523188994266
+            },
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "T7TuVwXAJUXVkgGt6KARjS",
+                  "content": "ANSWER: B",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "ANSWER: B",
+              "replaced": ""
+            }
+          ]
+        },
+        {
+          "uuid": "igQ75B4HvregtYh45TSbmi",
+          "span_id": "dd40a38532fe45a289fdfd7cf7313ce4",
+          "timestamp": "2026-03-11T17:34:52.269762+01:00",
+          "working_start": 1.0471783029934159,
+          "event": "span_end",
+          "id": "dd40a38532fe45a289fdfd7cf7313ce4"
+        },
+        {
+          "uuid": "jb3eZUKaazdLKqWUz33kJ9",
+          "span_id": "9b798d6d034d4ba081ea3497f8994878",
+          "timestamp": "2026-03-11T17:34:52.270181+01:00",
+          "working_start": 1.0475965779914986,
+          "event": "span_end",
+          "id": "9b798d6d034d4ba081ea3497f8994878"
+        },
+        {
+          "uuid": "6jaKmgmqHtDjZxYsfRiiL5",
+          "span_id": "c19514a8ddea4edd8d09e6add4c7ab03",
+          "timestamp": "2026-03-11T17:34:52.279868+01:00",
+          "working_start": 1.0572835700004362,
+          "event": "span_begin",
+          "id": "c19514a8ddea4edd8d09e6add4c7ab03",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "4AcLxuyXSSCd3Z2X3s5yud",
+          "span_id": "872f411899a54a408e9173394c754759",
+          "timestamp": "2026-03-11T17:34:52.280303+01:00",
+          "working_start": 1.057718580996152,
+          "event": "span_begin",
+          "id": "872f411899a54a408e9173394c754759",
+          "parent_id": "c19514a8ddea4edd8d09e6add4c7ab03",
+          "type": "scorer",
+          "name": "choice"
+        },
+        {
+          "uuid": "PNdp9Frkh3zqE7Nk23NUhE",
+          "span_id": "872f411899a54a408e9173394c754759",
+          "timestamp": "2026-03-11T17:34:52.280711+01:00",
+          "working_start": 1.0581265529908706,
+          "event": "score",
+          "score": {
+            "value": "C",
+            "answer": "B",
+            "explanation": "ANSWER: B",
+            "history": []
+          },
+          "target": "B",
+          "intermediate": false
+        },
+        {
+          "uuid": "W9LhtExp43TgYjMHfZCrA4",
+          "span_id": "872f411899a54a408e9173394c754759",
+          "timestamp": "2026-03-11T17:34:52.281124+01:00",
+          "working_start": 1.0585391639906447,
+          "event": "span_end",
+          "id": "872f411899a54a408e9173394c754759"
+        },
+        {
+          "uuid": "PX4CEqANKVxwUEotvCedAb",
+          "span_id": "c19514a8ddea4edd8d09e6add4c7ab03",
+          "timestamp": "2026-03-11T17:34:52.281487+01:00",
+          "working_start": 1.0589023029897362,
+          "event": "span_end",
+          "id": "c19514a8ddea4edd8d09e6add4c7ab03"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 145,
+          "output_tokens": 5,
+          "total_tokens": 150
+        }
+      },
+      "total_time": 1.116,
+      "working_time": 1.1,
+      "uuid": "2rUZjhqwGhUYbqtTH3h2GU",
+      "error_retries": [],
+      "attachments": {
+        "5ce8deeb49ee05ca7f142484386da262": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nWhat is a typical indicator of web-based attacks exploiting the trust of web technologies?\n\nA) Elevated access requests from administrative accounts.\nB) Implicit trust in scripts, commands, and cookies received by web pages.\nC) A decrease in the number of active user sessions.\nD) Unusual patterns in outgoing emails from the server."
+      }
+    },
+    {
+      "id": "secqa_09a87f33",
+      "epoch": 1,
+      "input": "Which control is most effective for ensuring that former employees cannot access company systems?",
+      "choices": [
+        "Immediate deactivation of user accounts upon termination.",
+        "Increasing network bandwidth.",
+        "Implementing biometric authentication systems.",
+        "Regular password rotation for active employees."
+      ],
+      "target": "A",
+      "messages": [
+        {
+          "id": "Wzw3NUk7ZeMibwArmSi743",
+          "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nWhich control is most effective for ensuring that former employees cannot access company systems?\n\nA) Immediate deactivation of user accounts upon termination.\nB) Increasing network bandwidth.\nC) Implementing biometric authentication systems.\nD) Regular password rotation for active employees.",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "ABxWkUV5FQK83VB3tTBC4f",
+          "content": "ANSWER: A",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "ABxWkUV5FQK83VB3tTBC4f",
+              "content": "ANSWER: A",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "ANSWER: A",
+        "usage": {
+          "input_tokens": 145,
+          "output_tokens": 5,
+          "total_tokens": 150
+        },
+        "time": 1.0253876259957906,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "choice": {
+          "value": "C",
+          "answer": "A",
+          "explanation": "ANSWER: A",
+          "history": []
+        }
+      },
+      "metadata": {},
+      "store": {},
+      "events": [
+        {
+          "uuid": "NJSZ4hRAMQxEgURWYRpXit",
+          "span_id": "d378c51b23a34bbfadddf2e335dd54dc",
+          "timestamp": "2026-03-11T17:34:51.137346+01:00",
+          "working_start": 84125.183687083,
+          "event": "span_begin",
+          "id": "d378c51b23a34bbfadddf2e335dd54dc",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "UtDcXcXpiFahnQqXM2yZwy",
+          "span_id": "d378c51b23a34bbfadddf2e335dd54dc",
+          "timestamp": "2026-03-11T17:34:51.137836+01:00",
+          "working_start": 84125.184178287,
+          "event": "sample_init",
+          "sample": {
+            "input": "Which control is most effective for ensuring that former employees cannot access company systems?",
+            "choices": [
+              "Immediate deactivation of user accounts upon termination.",
+              "Increasing network bandwidth.",
+              "Implementing biometric authentication systems.",
+              "Regular password rotation for active employees."
+            ],
+            "target": "A",
+            "id": "secqa_09a87f33"
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "Wzw3NUk7ZeMibwArmSi743",
+                "content": "Which control is most effective for ensuring that former employees cannot access company systems?",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {}
+          }
+        },
+        {
+          "uuid": "nwHGGCJwfDmFaxzWfDV4sv",
+          "span_id": "d378c51b23a34bbfadddf2e335dd54dc",
+          "timestamp": "2026-03-11T17:34:51.138300+01:00",
+          "working_start": 84125.184641682,
+          "event": "span_end",
+          "id": "d378c51b23a34bbfadddf2e335dd54dc"
+        },
+        {
+          "uuid": "ao7rTZXs8aqC4EwXEqVzNx",
+          "span_id": "a96f9ebfb4814b10a5f467cff719eb8a",
+          "timestamp": "2026-03-11T17:34:51.143421+01:00",
+          "working_start": 0.004766152007505298,
+          "event": "span_begin",
+          "id": "a96f9ebfb4814b10a5f467cff719eb8a",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "MagP4f8sv6xxhsT4QjKWid",
+          "span_id": "c7631f1662124caaa9f148dee0dc4eda",
+          "timestamp": "2026-03-11T17:34:51.143878+01:00",
+          "working_start": 0.005224363005254418,
+          "event": "span_begin",
+          "id": "c7631f1662124caaa9f148dee0dc4eda",
+          "parent_id": "a96f9ebfb4814b10a5f467cff719eb8a",
+          "type": "solver",
+          "name": "multiple_choice"
+        },
+        {
+          "uuid": "YvrtupBhuoZWc2M9dQkEnt",
+          "span_id": "c7631f1662124caaa9f148dee0dc4eda",
+          "timestamp": "2026-03-11T17:34:51.144364+01:00",
+          "working_start": 0.005710191006073728,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "Wzw3NUk7ZeMibwArmSi743",
+              "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nWhich control is most effective for ensuring that former employees cannot access company systems?\n\nA) Immediate deactivation of user accounts upon termination.\nB) Increasing network bandwidth.\nC) Implementing biometric authentication systems.\nD) Regular password rotation for active employees.",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 2048
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "ABxWkUV5FQK83VB3tTBC4f",
+                  "content": "ANSWER: A",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "ANSWER: A",
+            "usage": {
+              "input_tokens": 145,
+              "output_tokens": 5,
+              "total_tokens": 150
+            },
+            "time": 1.0253876259957906,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-11T17:34:52.187411+01:00",
+          "working_time": 1.0253876259957906
+        },
+        {
+          "uuid": "8FbKyeae7MxRmVCUV5vPEd",
+          "span_id": "c7631f1662124caaa9f148dee0dc4eda",
+          "timestamp": "2026-03-11T17:34:52.187610+01:00",
+          "working_start": 1.031626429015887,
+          "event": "state",
+          "changes": [
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "attachment://cea1cad9a5e3c2645aa50f72b15763ae",
+              "replaced": "Which control is most effective for ensuring that former employees cannot access company systems?"
+            },
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "ABxWkUV5FQK83VB3tTBC4f",
+                "content": "ANSWER: A",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 145,
+                "output_tokens": 5,
+                "total_tokens": 150
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 1.0253876259957906
+            },
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "ABxWkUV5FQK83VB3tTBC4f",
+                  "content": "ANSWER: A",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "ANSWER: A",
+              "replaced": ""
+            }
+          ]
+        },
+        {
+          "uuid": "biScYrGzhLshGaAiBsbqJf",
+          "span_id": "c7631f1662124caaa9f148dee0dc4eda",
+          "timestamp": "2026-03-11T17:34:52.188154+01:00",
+          "working_start": 1.0321706890244968,
+          "event": "span_end",
+          "id": "c7631f1662124caaa9f148dee0dc4eda"
+        },
+        {
+          "uuid": "Vd5m3zCP8qqCUgSGWmbDJi",
+          "span_id": "a96f9ebfb4814b10a5f467cff719eb8a",
+          "timestamp": "2026-03-11T17:34:52.188551+01:00",
+          "working_start": 1.0325683560222387,
+          "event": "span_end",
+          "id": "a96f9ebfb4814b10a5f467cff719eb8a"
+        },
+        {
+          "uuid": "JdYTjsa2N4yWhagLfe3AcG",
+          "span_id": "94f6ae73aaec41a1994397892b8b6ead",
+          "timestamp": "2026-03-11T17:34:52.194086+01:00",
+          "working_start": 1.0381023860245477,
+          "event": "span_begin",
+          "id": "94f6ae73aaec41a1994397892b8b6ead",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "WZ2BhwRLihWjTcLxVEkKsT",
+          "span_id": "037a6691888d4ab2a1cbd96b968b83be",
+          "timestamp": "2026-03-11T17:34:52.194510+01:00",
+          "working_start": 1.0385269970138324,
+          "event": "span_begin",
+          "id": "037a6691888d4ab2a1cbd96b968b83be",
+          "parent_id": "94f6ae73aaec41a1994397892b8b6ead",
+          "type": "scorer",
+          "name": "choice"
+        },
+        {
+          "uuid": "6yPR8Czq6kLBeQE9Ex7PPY",
+          "span_id": "037a6691888d4ab2a1cbd96b968b83be",
+          "timestamp": "2026-03-11T17:34:52.194951+01:00",
+          "working_start": 1.038967289016,
+          "event": "score",
+          "score": {
+            "value": "C",
+            "answer": "A",
+            "explanation": "ANSWER: A",
+            "history": []
+          },
+          "target": "A",
+          "intermediate": false
+        },
+        {
+          "uuid": "W6b6hWKeKm3q3jx2TPp7Vj",
+          "span_id": "037a6691888d4ab2a1cbd96b968b83be",
+          "timestamp": "2026-03-11T17:34:52.195334+01:00",
+          "working_start": 1.0393509400164476,
+          "event": "span_end",
+          "id": "037a6691888d4ab2a1cbd96b968b83be"
+        },
+        {
+          "uuid": "iD7uN7vDGQER6NNrWEH94c",
+          "span_id": "94f6ae73aaec41a1994397892b8b6ead",
+          "timestamp": "2026-03-11T17:34:52.195733+01:00",
+          "working_start": 1.0397496950172354,
+          "event": "span_end",
+          "id": "94f6ae73aaec41a1994397892b8b6ead"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 145,
+          "output_tokens": 5,
+          "total_tokens": 150
+        }
+      },
+      "total_time": 1.08,
+      "working_time": 1.063,
+      "uuid": "LfFUaicJvkvxwCSFu53nbn",
+      "error_retries": [],
+      "attachments": {
+        "cea1cad9a5e3c2645aa50f72b15763ae": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nWhich control is most effective for ensuring that former employees cannot access company systems?\n\nA) Immediate deactivation of user accounts upon termination.\nB) Increasing network bandwidth.\nC) Implementing biometric authentication systems.\nD) Regular password rotation for active employees."
+      }
+    },
+    {
+      "id": "secqa_0b3b587a",
+      "epoch": 1,
+      "input": "What is a key security implication for embedded systems?",
+      "choices": [
+        "They primarily focus on aesthetic aspects rather than security.",
+        "They are immune to all forms of cyber attacks.",
+        "They only require physical security measures.",
+        "They often have limited resources and computing power for security."
+      ],
+      "target": "D",
+      "messages": [
+        {
+          "id": "ZSeS8HLUNoSoC8zAA3b4gr",
+          "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nWhat is a key security implication for embedded systems?\n\nA) They primarily focus on aesthetic aspects rather than security.\nB) They are immune to all forms of cyber attacks.\nC) They only require physical security measures.\nD) They often have limited resources and computing power for security.",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "W3LrnsSyV3Gw4pE6H2rTZX",
+          "content": "ANSWER: D",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "W3LrnsSyV3Gw4pE6H2rTZX",
+              "content": "ANSWER: D",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "ANSWER: D",
+        "usage": {
+          "input_tokens": 145,
+          "output_tokens": 5,
+          "total_tokens": 150
+        },
+        "time": 1.013021380000282,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "choice": {
+          "value": "C",
+          "answer": "D",
+          "explanation": "ANSWER: D",
+          "history": []
+        }
+      },
+      "metadata": {},
+      "store": {},
+      "events": [
+        {
+          "uuid": "7eMLCZKaXgdEJYSzX3TfTD",
+          "span_id": "3f4c4ba63ea54ec5b7ab89511cc12a91",
+          "timestamp": "2026-03-11T17:34:50.799980+01:00",
+          "working_start": 84124.846321526,
+          "event": "span_begin",
+          "id": "3f4c4ba63ea54ec5b7ab89511cc12a91",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "ducvnDqvQQhFa76mHZcUFt",
+          "span_id": "3f4c4ba63ea54ec5b7ab89511cc12a91",
+          "timestamp": "2026-03-11T17:34:50.800400+01:00",
+          "working_start": 84124.846741498,
+          "event": "sample_init",
+          "sample": {
+            "input": "What is a key security implication for embedded systems?",
+            "choices": [
+              "They primarily focus on aesthetic aspects rather than security.",
+              "They are immune to all forms of cyber attacks.",
+              "They only require physical security measures.",
+              "They often have limited resources and computing power for security."
+            ],
+            "target": "D",
+            "id": "secqa_0b3b587a"
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "ZSeS8HLUNoSoC8zAA3b4gr",
+                "content": "What is a key security implication for embedded systems?",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {}
+          }
+        },
+        {
+          "uuid": "X9Z5fHiitpukXypuKjnMA3",
+          "span_id": "3f4c4ba63ea54ec5b7ab89511cc12a91",
+          "timestamp": "2026-03-11T17:34:50.800867+01:00",
+          "working_start": 84124.847208733,
+          "event": "span_end",
+          "id": "3f4c4ba63ea54ec5b7ab89511cc12a91"
+        },
+        {
+          "uuid": "mamkrwHZaz3qHshzPSzY5M",
+          "span_id": "36bc70687b9c4fd89122814566f5ecee",
+          "timestamp": "2026-03-11T17:34:50.808704+01:00",
+          "working_start": 0.007496318008634262,
+          "event": "span_begin",
+          "id": "36bc70687b9c4fd89122814566f5ecee",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "JTG8Z56TTtrcDCkWRh2fX2",
+          "span_id": "0e1994ac61a5497784116140681c254b",
+          "timestamp": "2026-03-11T17:34:50.809124+01:00",
+          "working_start": 0.007916801012470387,
+          "event": "span_begin",
+          "id": "0e1994ac61a5497784116140681c254b",
+          "parent_id": "36bc70687b9c4fd89122814566f5ecee",
+          "type": "solver",
+          "name": "multiple_choice"
+        },
+        {
+          "uuid": "2efQSNqSNfMxQsigZHrueP",
+          "span_id": "0e1994ac61a5497784116140681c254b",
+          "timestamp": "2026-03-11T17:34:50.809588+01:00",
+          "working_start": 0.00838038900110405,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "ZSeS8HLUNoSoC8zAA3b4gr",
+              "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nWhat is a key security implication for embedded systems?\n\nA) They primarily focus on aesthetic aspects rather than security.\nB) They are immune to all forms of cyber attacks.\nC) They only require physical security measures.\nD) They often have limited resources and computing power for security.",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 2048
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "W3LrnsSyV3Gw4pE6H2rTZX",
+                  "content": "ANSWER: D",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "ANSWER: D",
+            "usage": {
+              "input_tokens": 145,
+              "output_tokens": 5,
+              "total_tokens": 150
+            },
+            "time": 1.013021380000282,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-11T17:34:51.847734+01:00",
+          "working_time": 1.013021380000282
+        },
+        {
+          "uuid": "NjBt3piGDzsotRMNY4ZULT",
+          "span_id": "0e1994ac61a5497784116140681c254b",
+          "timestamp": "2026-03-11T17:34:51.847943+01:00",
+          "working_start": 1.0217136750143254,
+          "event": "state",
+          "changes": [
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "attachment://d6a1aee69787b6d65c24db89433465df",
+              "replaced": "What is a key security implication for embedded systems?"
+            },
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "W3LrnsSyV3Gw4pE6H2rTZX",
+                "content": "ANSWER: D",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 145,
+                "output_tokens": 5,
+                "total_tokens": 150
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 1.013021380000282
+            },
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "W3LrnsSyV3Gw4pE6H2rTZX",
+                  "content": "ANSWER: D",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "ANSWER: D",
+              "replaced": ""
+            }
+          ]
+        },
+        {
+          "uuid": "jGgbhNACRwoBq4oVnPFDLe",
+          "span_id": "0e1994ac61a5497784116140681c254b",
+          "timestamp": "2026-03-11T17:34:51.848481+01:00",
+          "working_start": 1.0222523040138185,
+          "event": "span_end",
+          "id": "0e1994ac61a5497784116140681c254b"
+        },
+        {
+          "uuid": "iqNxmykrvbW2kcyRPaDZXw",
+          "span_id": "36bc70687b9c4fd89122814566f5ecee",
+          "timestamp": "2026-03-11T17:34:51.848945+01:00",
+          "working_start": 1.022715891012922,
+          "event": "span_end",
+          "id": "36bc70687b9c4fd89122814566f5ecee"
+        },
+        {
+          "uuid": "JAy2QadoK3Tnkp8bMqyoWc",
+          "span_id": "bd06234abc6a4ebc9d91d61489c5e47e",
+          "timestamp": "2026-03-11T17:34:51.849725+01:00",
+          "working_start": 1.0234962820104556,
+          "event": "span_begin",
+          "id": "bd06234abc6a4ebc9d91d61489c5e47e",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "Rs6QAB2WxQRM3HkmNwy8VX",
+          "span_id": "1da5772d400b46838d08333431ebc929",
+          "timestamp": "2026-03-11T17:34:51.850164+01:00",
+          "working_start": 1.023935485020047,
+          "event": "span_begin",
+          "id": "1da5772d400b46838d08333431ebc929",
+          "parent_id": "bd06234abc6a4ebc9d91d61489c5e47e",
+          "type": "scorer",
+          "name": "choice"
+        },
+        {
+          "uuid": "NryazLKk3PYDHLcg8yQjpH",
+          "span_id": "1da5772d400b46838d08333431ebc929",
+          "timestamp": "2026-03-11T17:34:51.850551+01:00",
+          "working_start": 1.0243226890161168,
+          "event": "score",
+          "score": {
+            "value": "C",
+            "answer": "D",
+            "explanation": "ANSWER: D",
+            "history": []
+          },
+          "target": "D",
+          "intermediate": false
+        },
+        {
+          "uuid": "YYaNcBU8xY8rFRRyGe2Uqm",
+          "span_id": "1da5772d400b46838d08333431ebc929",
+          "timestamp": "2026-03-11T17:34:51.850996+01:00",
+          "working_start": 1.024767620008788,
+          "event": "span_end",
+          "id": "1da5772d400b46838d08333431ebc929"
+        },
+        {
+          "uuid": "8GeDgFUgcFhPrTdnE6fMiY",
+          "span_id": "bd06234abc6a4ebc9d91d61489c5e47e",
+          "timestamp": "2026-03-11T17:34:51.851381+01:00",
+          "working_start": 1.0251517190190498,
+          "event": "span_end",
+          "id": "bd06234abc6a4ebc9d91d61489c5e47e"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 145,
+          "output_tokens": 5,
+          "total_tokens": 150
+        }
+      },
+      "total_time": 1.053,
+      "working_time": 1.028,
+      "uuid": "M5smvVjar7pgEcJ8cfU3cU",
+      "error_retries": [],
+      "attachments": {
+        "d6a1aee69787b6d65c24db89433465df": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nWhat is a key security implication for embedded systems?\n\nA) They primarily focus on aesthetic aspects rather than security.\nB) They are immune to all forms of cyber attacks.\nC) They only require physical security measures.\nD) They often have limited resources and computing power for security."
+      }
+    }
+  ],
+  "reductions": [
+    {
+      "scorer": "choice",
+      "samples": [
+        {
+          "value": 1.0,
+          "answer": "D",
+          "explanation": "ANSWER: D",
+          "history": [],
+          "sample_id": "secqa_0b3b587a"
+        },
+        {
+          "value": 1.0,
+          "answer": "A",
+          "explanation": "ANSWER: A",
+          "history": [],
+          "sample_id": "secqa_014e1752"
+        },
+        {
+          "value": 1.0,
+          "answer": "A",
+          "explanation": "ANSWER: A",
+          "history": [],
+          "sample_id": "secqa_09a87f33"
+        },
+        {
+          "value": 1.0,
+          "answer": "B",
+          "explanation": "ANSWER: B",
+          "history": [],
+          "sample_id": "secqa_07ba671d"
+        },
+        {
+          "value": 1.0,
+          "answer": "B",
+          "explanation": "ANSWER: B",
+          "history": [],
+          "sample_id": "secqa_02814b57"
+        }
+      ]
+    }
+  ]
+}

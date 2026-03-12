@@ -1,0 +1,1951 @@
+{
+  "version": 2,
+  "status": "success",
+  "eval": {
+    "eval_id": "RKC349GTewAPUzWG47nuhk",
+    "run_id": "JX6o4hrRvKhNfHhku3RndC",
+    "created": "2026-03-06T12:20:37+00:00",
+    "task": "inspect_evals/commonsense_qa",
+    "task_id": "Usgh7g3socHuVp8YXaRwyU",
+    "task_version": 2,
+    "task_display_name": "commonsense_qa",
+    "task_registry_name": "inspect_evals/commonsense_qa",
+    "task_attribs": {},
+    "task_args": {
+      "shuffle": true
+    },
+    "task_args_passed": {},
+    "dataset": {
+      "name": "tau/commonsense_qa",
+      "location": "tau/commonsense_qa",
+      "samples": 5,
+      "sample_ids": [
+        "001b0f5a841fd81d13fbe67c7c7179d6",
+        "001cb999a61a5c8b4031ff53cf261714",
+        "004607228ad49b69eac932c1005d6106",
+        "008b7ba0c039f6d0d542c6c90aae173c",
+        "009a7aabffe0583fc2df46656b29c326"
+      ],
+      "shuffled": false
+    },
+    "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+    "model_generate_config": {
+      "temperature": 0.001
+    },
+    "model_args": {},
+    "config": {
+      "epochs": 1,
+      "epochs_reducer": [
+        "mean"
+      ],
+      "fail_on_error": true,
+      "continue_on_fail": false,
+      "sandbox_cleanup": true,
+      "log_samples": true,
+      "log_realtime": false,
+      "log_images": true,
+      "log_buffer": 122,
+      "score_display": false
+    },
+    "revision": {
+      "type": "git",
+      "origin": "https://github.com/MIMIR-AI-ROUTER/inspect_evals.git",
+      "commit": "d3c09098"
+    },
+    "packages": {
+      "inspect_ai": "0.3.180.dev77+gb34c521b",
+      "inspect_evals": "0.0.1.dev2104+unknown.gd3c09098a"
+    },
+    "metadata": {
+      "full_task_version": "2-A",
+      "task_interface_version": "A",
+      "task_comparability_version": 2
+    },
+    "scorers": [
+      {
+        "name": "choice",
+        "options": {},
+        "metrics": [
+          {
+            "name": "inspect_ai/accuracy",
+            "options": {}
+          },
+          {
+            "name": "inspect_ai/stderr",
+            "options": {}
+          }
+        ],
+        "metadata": {}
+      }
+    ]
+  },
+  "plan": {
+    "name": "plan",
+    "steps": [
+      {
+        "solver": "multiple_choice",
+        "params": {
+          "template": null,
+          "cot": false,
+          "multiple_correct": false,
+          "max_tokens": null,
+          "kwargs": {}
+        }
+      }
+    ],
+    "config": {
+      "temperature": 0.001
+    }
+  },
+  "results": {
+    "total_samples": 5,
+    "completed_samples": 5,
+    "scores": [
+      {
+        "name": "choice",
+        "scorer": "choice",
+        "scored_samples": 5,
+        "unscored_samples": 0,
+        "params": {},
+        "metrics": {
+          "accuracy": {
+            "name": "accuracy",
+            "value": 0.8,
+            "params": {}
+          },
+          "stderr": {
+            "name": "stderr",
+            "value": 0.2,
+            "params": {}
+          }
+        }
+      }
+    ]
+  },
+  "stats": {
+    "started_at": "2026-03-06T12:20:37+00:00",
+    "completed_at": "2026-03-06T12:21:37+00:00",
+    "model_usage": {
+      "hf/Qwen/Qwen2.5-7B-Instruct": {
+        "input_tokens": 638,
+        "output_tokens": 25,
+        "total_tokens": 663
+      }
+    }
+  },
+  "samples": [
+    {
+      "id": "001b0f5a841fd81d13fbe67c7c7179d6",
+      "epoch": 1,
+      "input": "Eating is part of living, but your body doesn't use it all and the next day you will be doing what?",
+      "choices": [
+        "reduced",
+        "getting full",
+        "becoming full",
+        "chewing",
+        "defecating"
+      ],
+      "target": "E",
+      "messages": [
+        {
+          "id": "QDiKXrMcGEMcpjKsFeNu7p",
+          "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nEating is part of living, but your body doesn't use it all and the next day you will be doing what?\n\nA) reduced\nB) getting full\nC) becoming full\nD) chewing\nE) defecating",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "5zYC3Yo4o55SVfhVpB36Kg",
+          "content": "ANSWER: E",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "5zYC3Yo4o55SVfhVpB36Kg",
+              "content": "ANSWER: E",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "ANSWER: E",
+        "usage": {
+          "input_tokens": 132,
+          "output_tokens": 5,
+          "total_tokens": 137
+        },
+        "time": 1.0231448039994575,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "choice": {
+          "value": "C",
+          "answer": "E",
+          "explanation": "ANSWER: E",
+          "history": []
+        }
+      },
+      "metadata": {
+        "question_concept": "eating"
+      },
+      "store": {},
+      "events": [
+        {
+          "uuid": "kCaB4M9JCWLEmcd9HzYrsT",
+          "span_id": "8a476149293d4f0fb890dcec88ee8736",
+          "timestamp": "2026-03-06T13:20:52.880575+01:00",
+          "working_start": 76514.471854919,
+          "event": "span_begin",
+          "id": "8a476149293d4f0fb890dcec88ee8736",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "FJqFpr2DtxjCW8xt4DpdTf",
+          "span_id": "8a476149293d4f0fb890dcec88ee8736",
+          "timestamp": "2026-03-06T13:20:52.880669+01:00",
+          "working_start": 76514.471948227,
+          "event": "sample_init",
+          "sample": {
+            "input": "Eating is part of living, but your body doesn't use it all and the next day you will be doing what?",
+            "choices": [
+              "reduced",
+              "getting full",
+              "becoming full",
+              "chewing",
+              "defecating"
+            ],
+            "target": "E",
+            "id": "001b0f5a841fd81d13fbe67c7c7179d6",
+            "metadata": {
+              "question_concept": "eating"
+            }
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "QDiKXrMcGEMcpjKsFeNu7p",
+                "content": "Eating is part of living, but your body doesn't use it all and the next day you will be doing what?",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {
+              "question_concept": "eating"
+            }
+          }
+        },
+        {
+          "uuid": "BLVwLKdEGUjC9SHFAvjMdr",
+          "span_id": "8a476149293d4f0fb890dcec88ee8736",
+          "timestamp": "2026-03-06T13:20:52.880819+01:00",
+          "working_start": 76514.472098805,
+          "event": "span_end",
+          "id": "8a476149293d4f0fb890dcec88ee8736"
+        },
+        {
+          "uuid": "iaE4Mpse9VhXMyLBHtBLSK",
+          "span_id": "f15d22bd6c8b4a959131b6c660d35b62",
+          "timestamp": "2026-03-06T13:20:52.885333+01:00",
+          "working_start": 0.004470676998607814,
+          "event": "span_begin",
+          "id": "f15d22bd6c8b4a959131b6c660d35b62",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "6wqUuCAhr9KCvSqaNwbwpz",
+          "span_id": "c12904bd9f534357b9d79aca6dabac7a",
+          "timestamp": "2026-03-06T13:20:52.885676+01:00",
+          "working_start": 0.004814296000404283,
+          "event": "span_begin",
+          "id": "c12904bd9f534357b9d79aca6dabac7a",
+          "parent_id": "f15d22bd6c8b4a959131b6c660d35b62",
+          "type": "solver",
+          "name": "multiple_choice"
+        },
+        {
+          "uuid": "ZKx4Qi8UqcxFA2JS3xgNDw",
+          "span_id": "c12904bd9f534357b9d79aca6dabac7a",
+          "timestamp": "2026-03-06T13:20:52.886014+01:00",
+          "working_start": 0.005152607001946308,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "QDiKXrMcGEMcpjKsFeNu7p",
+              "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nEating is part of living, but your body doesn't use it all and the next day you will be doing what?\n\nA) reduced\nB) getting full\nC) becoming full\nD) chewing\nE) defecating",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 2048,
+            "temperature": 0.001
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "5zYC3Yo4o55SVfhVpB36Kg",
+                  "content": "ANSWER: E",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "ANSWER: E",
+            "usage": {
+              "input_tokens": 132,
+              "output_tokens": 5,
+              "total_tokens": 137
+            },
+            "time": 1.0231448039994575,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-06T13:20:53.914652+01:00",
+          "working_time": 1.0231448039994575
+        },
+        {
+          "uuid": "PZbCgm6twAiCX9SoZMuuTV",
+          "span_id": "c12904bd9f534357b9d79aca6dabac7a",
+          "timestamp": "2026-03-06T13:20:53.915372+01:00",
+          "working_start": 1.029203113008407,
+          "event": "state",
+          "changes": [
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "attachment://95f7027433526e7fc3f01bf3329e23f5",
+              "replaced": "Eating is part of living, but your body doesn't use it all and the next day you will be doing what?"
+            },
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "5zYC3Yo4o55SVfhVpB36Kg",
+                "content": "ANSWER: E",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 132,
+                "output_tokens": 5,
+                "total_tokens": 137
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 1.0231448039994575
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "ANSWER: E",
+              "replaced": ""
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "5zYC3Yo4o55SVfhVpB36Kg",
+                  "content": "ANSWER: E",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "d5bGvhHschvtqVoWZyEjq5",
+          "span_id": "c12904bd9f534357b9d79aca6dabac7a",
+          "timestamp": "2026-03-06T13:20:53.915495+01:00",
+          "working_start": 1.0293224019987974,
+          "event": "span_end",
+          "id": "c12904bd9f534357b9d79aca6dabac7a"
+        },
+        {
+          "uuid": "9xoEmXWy4XkRAw54PqSZBw",
+          "span_id": "f15d22bd6c8b4a959131b6c660d35b62",
+          "timestamp": "2026-03-06T13:20:53.915606+01:00",
+          "working_start": 1.0294330300093861,
+          "event": "span_end",
+          "id": "f15d22bd6c8b4a959131b6c660d35b62"
+        },
+        {
+          "uuid": "LZicda8vTFVvPnjbACTAPK",
+          "span_id": "5141a7321af248e49d641006ae9ec3cf",
+          "timestamp": "2026-03-06T13:20:53.926484+01:00",
+          "working_start": 1.0403073110064724,
+          "event": "span_begin",
+          "id": "5141a7321af248e49d641006ae9ec3cf",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "iKXVemXkCrbc5MzFR3TnEo",
+          "span_id": "6547634530864c27a7773263efe37429",
+          "timestamp": "2026-03-06T13:20:53.926617+01:00",
+          "working_start": 1.040439450996928,
+          "event": "span_begin",
+          "id": "6547634530864c27a7773263efe37429",
+          "parent_id": "5141a7321af248e49d641006ae9ec3cf",
+          "type": "scorer",
+          "name": "choice"
+        },
+        {
+          "uuid": "3773MQ6GdaRXZBxvb4xP3a",
+          "span_id": "6547634530864c27a7773263efe37429",
+          "timestamp": "2026-03-06T13:20:53.926783+01:00",
+          "working_start": 1.0406051140016643,
+          "event": "score",
+          "score": {
+            "value": "C",
+            "answer": "E",
+            "explanation": "ANSWER: E",
+            "history": []
+          },
+          "target": "E",
+          "intermediate": false
+        },
+        {
+          "uuid": "84mZqxHaYSsffAfF5krnCB",
+          "span_id": "6547634530864c27a7773263efe37429",
+          "timestamp": "2026-03-06T13:20:53.926859+01:00",
+          "working_start": 1.0406819400086533,
+          "event": "span_end",
+          "id": "6547634530864c27a7773263efe37429"
+        },
+        {
+          "uuid": "VD4qHRT7imHXZPNq5BW5xx",
+          "span_id": "5141a7321af248e49d641006ae9ec3cf",
+          "timestamp": "2026-03-06T13:20:53.926922+01:00",
+          "working_start": 1.04074395900534,
+          "event": "span_end",
+          "id": "5141a7321af248e49d641006ae9ec3cf"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 132,
+          "output_tokens": 5,
+          "total_tokens": 137
+        }
+      },
+      "total_time": 1.049,
+      "working_time": 1.043,
+      "uuid": "Uzd5xZmSWi597xBUZcWTSN",
+      "error_retries": [],
+      "attachments": {
+        "95f7027433526e7fc3f01bf3329e23f5": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nEating is part of living, but your body doesn't use it all and the next day you will be doing what?\n\nA) reduced\nB) getting full\nC) becoming full\nD) chewing\nE) defecating"
+      }
+    },
+    {
+      "id": "001cb999a61a5c8b4031ff53cf261714",
+      "epoch": 1,
+      "input": "John needed a straight wire.  Unfortunately, this one had endured some abuse and had become what?",
+      "choices": [
+        "bent",
+        "bent",
+        "crooked",
+        "straightforth",
+        "curved"
+      ],
+      "target": "A",
+      "messages": [
+        {
+          "id": "ZU5EWqBTJLd3tpzsdm7psh",
+          "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nJohn needed a straight wire.  Unfortunately, this one had endured some abuse and had become what?\n\nA) bent\nB) bent\nC) crooked\nD) straightforth\nE) curved",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "k6MPoDGxMZUq85DQLisPF4",
+          "content": "ANSWER: A",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "k6MPoDGxMZUq85DQLisPF4",
+              "content": "ANSWER: A",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "ANSWER: A",
+        "usage": {
+          "input_tokens": 123,
+          "output_tokens": 5,
+          "total_tokens": 128
+        },
+        "time": 1.0347842809860595,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "choice": {
+          "value": "C",
+          "answer": "A",
+          "explanation": "ANSWER: A",
+          "history": []
+        }
+      },
+      "metadata": {
+        "question_concept": "straight"
+      },
+      "store": {},
+      "events": [
+        {
+          "uuid": "JxHaQesrWRP6CiY8ttPFSS",
+          "span_id": "e4041982524d4e7897efb00e15a4f9b6",
+          "timestamp": "2026-03-06T13:21:08.627526+01:00",
+          "working_start": 76530.218805044,
+          "event": "span_begin",
+          "id": "e4041982524d4e7897efb00e15a4f9b6",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "gvCFssCbwAbhpc8pZbiptg",
+          "span_id": "e4041982524d4e7897efb00e15a4f9b6",
+          "timestamp": "2026-03-06T13:21:08.627596+01:00",
+          "working_start": 76530.218875723,
+          "event": "sample_init",
+          "sample": {
+            "input": "John needed a straight wire.  Unfortunately, this one had endured some abuse and had become what?",
+            "choices": [
+              "bent",
+              "bent",
+              "crooked",
+              "straightforth",
+              "curved"
+            ],
+            "target": "A",
+            "id": "001cb999a61a5c8b4031ff53cf261714",
+            "metadata": {
+              "question_concept": "straight"
+            }
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "ZU5EWqBTJLd3tpzsdm7psh",
+                "content": "John needed a straight wire.  Unfortunately, this one had endured some abuse and had become what?",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {
+              "question_concept": "straight"
+            }
+          }
+        },
+        {
+          "uuid": "VSsRorDR6tpdQHbxJcNpx6",
+          "span_id": "e4041982524d4e7897efb00e15a4f9b6",
+          "timestamp": "2026-03-06T13:21:08.627671+01:00",
+          "working_start": 76530.218950313,
+          "event": "span_end",
+          "id": "e4041982524d4e7897efb00e15a4f9b6"
+        },
+        {
+          "uuid": "7o43BhEqY7VXZVULQpUkCb",
+          "span_id": "8ca45b2152ea410ab1743a7dda0d3522",
+          "timestamp": "2026-03-06T13:21:08.640295+01:00",
+          "working_start": 0.012596006999956444,
+          "event": "span_begin",
+          "id": "8ca45b2152ea410ab1743a7dda0d3522",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "dQXuJvo465sNkVH4DpiKr7",
+          "span_id": "0914be91770746d3bf46ab59fd0cca1c",
+          "timestamp": "2026-03-06T13:21:08.640381+01:00",
+          "working_start": 0.012682610002229922,
+          "event": "span_begin",
+          "id": "0914be91770746d3bf46ab59fd0cca1c",
+          "parent_id": "8ca45b2152ea410ab1743a7dda0d3522",
+          "type": "solver",
+          "name": "multiple_choice"
+        },
+        {
+          "uuid": "AxXer4fyhVvR8sEvutzAqf",
+          "span_id": "0914be91770746d3bf46ab59fd0cca1c",
+          "timestamp": "2026-03-06T13:21:08.640656+01:00",
+          "working_start": 0.0129580639913911,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "ZU5EWqBTJLd3tpzsdm7psh",
+              "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nJohn needed a straight wire.  Unfortunately, this one had endured some abuse and had become what?\n\nA) bent\nB) bent\nC) crooked\nD) straightforth\nE) curved",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 2048,
+            "temperature": 0.001
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "k6MPoDGxMZUq85DQLisPF4",
+                  "content": "ANSWER: A",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "ANSWER: A",
+            "usage": {
+              "input_tokens": 123,
+              "output_tokens": 5,
+              "total_tokens": 128
+            },
+            "time": 1.0347842809860595,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-06T13:21:09.679215+01:00",
+          "working_time": 1.0347842809860595
+        },
+        {
+          "uuid": "CCLpdoN6rAyfHH5py3EnuE",
+          "span_id": "0914be91770746d3bf46ab59fd0cca1c",
+          "timestamp": "2026-03-06T13:21:09.679672+01:00",
+          "working_start": 1.0483399059885414,
+          "event": "state",
+          "changes": [
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "attachment://bd4397c0e907d177679352bca9b92b9d",
+              "replaced": "John needed a straight wire.  Unfortunately, this one had endured some abuse and had become what?"
+            },
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "k6MPoDGxMZUq85DQLisPF4",
+                "content": "ANSWER: A",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 123,
+                "output_tokens": 5,
+                "total_tokens": 128
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 1.0347842809860595
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "ANSWER: A",
+              "replaced": ""
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "k6MPoDGxMZUq85DQLisPF4",
+                  "content": "ANSWER: A",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "KunSLXfriLsqCYdKGph3RK",
+          "span_id": "0914be91770746d3bf46ab59fd0cca1c",
+          "timestamp": "2026-03-06T13:21:09.679813+01:00",
+          "working_start": 1.0484793099894887,
+          "event": "span_end",
+          "id": "0914be91770746d3bf46ab59fd0cca1c"
+        },
+        {
+          "uuid": "MwvKNSCsDnU4d8QEy5PhgW",
+          "span_id": "8ca45b2152ea410ab1743a7dda0d3522",
+          "timestamp": "2026-03-06T13:21:09.679906+01:00",
+          "working_start": 1.048571778985206,
+          "event": "span_end",
+          "id": "8ca45b2152ea410ab1743a7dda0d3522"
+        },
+        {
+          "uuid": "NNCVeoWdLAsscgw3usGiGf",
+          "span_id": "6124f07f2fc844d99a7288fcfe6995ad",
+          "timestamp": "2026-03-06T13:21:09.700367+01:00",
+          "working_start": 1.0690321889851475,
+          "event": "span_begin",
+          "id": "6124f07f2fc844d99a7288fcfe6995ad",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "juHw33MzVyu56R4xYUBjeN",
+          "span_id": "bc05fd98d59a44fbbf8571801f055655",
+          "timestamp": "2026-03-06T13:21:09.700439+01:00",
+          "working_start": 1.0691039859957527,
+          "event": "span_begin",
+          "id": "bc05fd98d59a44fbbf8571801f055655",
+          "parent_id": "6124f07f2fc844d99a7288fcfe6995ad",
+          "type": "scorer",
+          "name": "choice"
+        },
+        {
+          "uuid": "WwT6MMKSw3z7qCvyN3dY8H",
+          "span_id": "bc05fd98d59a44fbbf8571801f055655",
+          "timestamp": "2026-03-06T13:21:09.700516+01:00",
+          "working_start": 1.0691808119881898,
+          "event": "score",
+          "score": {
+            "value": "C",
+            "answer": "A",
+            "explanation": "ANSWER: A",
+            "history": []
+          },
+          "target": "A",
+          "intermediate": false
+        },
+        {
+          "uuid": "ZuyPhKkaSmo5mm3v4xvW8g",
+          "span_id": "bc05fd98d59a44fbbf8571801f055655",
+          "timestamp": "2026-03-06T13:21:09.700593+01:00",
+          "working_start": 1.069257357987226,
+          "event": "span_end",
+          "id": "bc05fd98d59a44fbbf8571801f055655"
+        },
+        {
+          "uuid": "UiPoxHYhFSPHnVskA86sY6",
+          "span_id": "6124f07f2fc844d99a7288fcfe6995ad",
+          "timestamp": "2026-03-06T13:21:09.700644+01:00",
+          "working_start": 1.0693090399872744,
+          "event": "span_end",
+          "id": "6124f07f2fc844d99a7288fcfe6995ad"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 123,
+          "output_tokens": 5,
+          "total_tokens": 128
+        }
+      },
+      "total_time": 1.093,
+      "working_time": 1.089,
+      "uuid": "4WQjfndcZ2yb78PeL6h53r",
+      "error_retries": [],
+      "attachments": {
+        "bd4397c0e907d177679352bca9b92b9d": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nJohn needed a straight wire.  Unfortunately, this one had endured some abuse and had become what?\n\nA) bent\nB) bent\nC) crooked\nD) straightforth\nE) curved"
+      }
+    },
+    {
+      "id": "004607228ad49b69eac932c1005d6106",
+      "epoch": 1,
+      "input": "Where would you get a pen if you do not have one?",
+      "choices": [
+        "briefcase",
+        "desk drawer",
+        "friend's house",
+        "pocket",
+        "sidewalk"
+      ],
+      "target": "C",
+      "messages": [
+        {
+          "id": "YW8LDmdey6Kc5GXGvCJEhg",
+          "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nWhere would you get a pen if you do not have one?\n\nA) briefcase\nB) desk drawer\nC) friend's house\nD) pocket\nE) sidewalk",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "Xk2kMm3GZSfcxgoeqGq8Qh",
+          "content": "ANSWER: B",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "Xk2kMm3GZSfcxgoeqGq8Qh",
+              "content": "ANSWER: B",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "ANSWER: B",
+        "usage": {
+          "input_tokens": 128,
+          "output_tokens": 5,
+          "total_tokens": 133
+        },
+        "time": 1.0222947000002023,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "choice": {
+          "value": "I",
+          "answer": "B",
+          "explanation": "ANSWER: B",
+          "history": []
+        }
+      },
+      "metadata": {
+        "question_concept": "pen"
+      },
+      "store": {},
+      "events": [
+        {
+          "uuid": "c3wRRoKKkwaujA6ZCdjbfh",
+          "span_id": "d52a88991b2f41b7b54641d5cdc439ca",
+          "timestamp": "2026-03-06T13:20:55.997906+01:00",
+          "working_start": 76517.589187014,
+          "event": "span_begin",
+          "id": "d52a88991b2f41b7b54641d5cdc439ca",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "GRUVoibpdFSt99AUwQuErL",
+          "span_id": "d52a88991b2f41b7b54641d5cdc439ca",
+          "timestamp": "2026-03-06T13:20:55.998036+01:00",
+          "working_start": 76517.589317198,
+          "event": "sample_init",
+          "sample": {
+            "input": "Where would you get a pen if you do not have one?",
+            "choices": [
+              "briefcase",
+              "desk drawer",
+              "friend's house",
+              "pocket",
+              "sidewalk"
+            ],
+            "target": "C",
+            "id": "004607228ad49b69eac932c1005d6106",
+            "metadata": {
+              "question_concept": "pen"
+            }
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "YW8LDmdey6Kc5GXGvCJEhg",
+                "content": "Where would you get a pen if you do not have one?",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {
+              "question_concept": "pen"
+            }
+          }
+        },
+        {
+          "uuid": "axcMH5h22rU8n9f6Gz4ttw",
+          "span_id": "d52a88991b2f41b7b54641d5cdc439ca",
+          "timestamp": "2026-03-06T13:20:55.998139+01:00",
+          "working_start": 76517.589419446,
+          "event": "span_end",
+          "id": "d52a88991b2f41b7b54641d5cdc439ca"
+        },
+        {
+          "uuid": "5dwqvKFtgCLiLpnBLJYomq",
+          "span_id": "e3dad6efd9474863aca6c517d0889a3e",
+          "timestamp": "2026-03-06T13:20:55.999250+01:00",
+          "working_start": 0.0010733210074249655,
+          "event": "span_begin",
+          "id": "e3dad6efd9474863aca6c517d0889a3e",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "hdunRyEf8AjNvqH46VEcRh",
+          "span_id": "e508cb978fe840f4b0b87385c5a3391b",
+          "timestamp": "2026-03-06T13:20:55.999338+01:00",
+          "working_start": 0.001160762010840699,
+          "event": "span_begin",
+          "id": "e508cb978fe840f4b0b87385c5a3391b",
+          "parent_id": "e3dad6efd9474863aca6c517d0889a3e",
+          "type": "solver",
+          "name": "multiple_choice"
+        },
+        {
+          "uuid": "a4mszNY8PYazE2m6xxABSZ",
+          "span_id": "e508cb978fe840f4b0b87385c5a3391b",
+          "timestamp": "2026-03-06T13:20:55.999635+01:00",
+          "working_start": 0.0014582849980797619,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "YW8LDmdey6Kc5GXGvCJEhg",
+              "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nWhere would you get a pen if you do not have one?\n\nA) briefcase\nB) desk drawer\nC) friend's house\nD) pocket\nE) sidewalk",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 2048,
+            "temperature": 0.001
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "Xk2kMm3GZSfcxgoeqGq8Qh",
+                  "content": "ANSWER: B",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "ANSWER: B",
+            "usage": {
+              "input_tokens": 128,
+              "output_tokens": 5,
+              "total_tokens": 133
+            },
+            "time": 1.0222947000002023,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-06T13:20:57.024120+01:00",
+          "working_time": 1.0222947000002023
+        },
+        {
+          "uuid": "PfDVxmtEHofBcQX8dy4idw",
+          "span_id": "e508cb978fe840f4b0b87385c5a3391b",
+          "timestamp": "2026-03-06T13:20:57.024438+01:00",
+          "working_start": 1.0242446680058492,
+          "event": "state",
+          "changes": [
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "attachment://f5bd550a0be523f6dc40f8c5f09d179f",
+              "replaced": "Where would you get a pen if you do not have one?"
+            },
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "Xk2kMm3GZSfcxgoeqGq8Qh",
+                "content": "ANSWER: B",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 128,
+                "output_tokens": 5,
+                "total_tokens": 133
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 1.0222947000002023
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "ANSWER: B",
+              "replaced": ""
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "Xk2kMm3GZSfcxgoeqGq8Qh",
+                  "content": "ANSWER: B",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "iBDok7E2MWTv2CZjKCR5Bn",
+          "span_id": "e508cb978fe840f4b0b87385c5a3391b",
+          "timestamp": "2026-03-06T13:20:57.024515+01:00",
+          "working_start": 1.0243214939982863,
+          "event": "span_end",
+          "id": "e508cb978fe840f4b0b87385c5a3391b"
+        },
+        {
+          "uuid": "XqASW8AUQ58sfWhUS6JPVG",
+          "span_id": "e3dad6efd9474863aca6c517d0889a3e",
+          "timestamp": "2026-03-06T13:20:57.024581+01:00",
+          "working_start": 1.024386864999542,
+          "event": "span_end",
+          "id": "e3dad6efd9474863aca6c517d0889a3e"
+        },
+        {
+          "uuid": "YouDwnn5tTdiHM2X6fWoPy",
+          "span_id": "d1fb90ce4f264d01a914b4d7c3af9170",
+          "timestamp": "2026-03-06T13:20:57.025374+01:00",
+          "working_start": 1.0251802610000595,
+          "event": "span_begin",
+          "id": "d1fb90ce4f264d01a914b4d7c3af9170",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "hR9M2NiJK9C9rVQgXYChbC",
+          "span_id": "edd3c524964b4c719ca04a59137ead9b",
+          "timestamp": "2026-03-06T13:20:57.025446+01:00",
+          "working_start": 1.025251779006794,
+          "event": "span_begin",
+          "id": "edd3c524964b4c719ca04a59137ead9b",
+          "parent_id": "d1fb90ce4f264d01a914b4d7c3af9170",
+          "type": "scorer",
+          "name": "choice"
+        },
+        {
+          "uuid": "jPZkapyjHwqvQ2FY7CPDE9",
+          "span_id": "edd3c524964b4c719ca04a59137ead9b",
+          "timestamp": "2026-03-06T13:20:57.025507+01:00",
+          "working_start": 1.0253129600023385,
+          "event": "score",
+          "score": {
+            "value": "I",
+            "answer": "B",
+            "explanation": "ANSWER: B",
+            "history": []
+          },
+          "target": "C",
+          "intermediate": false
+        },
+        {
+          "uuid": "CYPmpo69XyXH8iWX7i2kWe",
+          "span_id": "edd3c524964b4c719ca04a59137ead9b",
+          "timestamp": "2026-03-06T13:20:57.025580+01:00",
+          "working_start": 1.0253864330006763,
+          "event": "span_end",
+          "id": "edd3c524964b4c719ca04a59137ead9b"
+        },
+        {
+          "uuid": "TiorY7HxCRjyaJZfomKUtH",
+          "span_id": "d1fb90ce4f264d01a914b4d7c3af9170",
+          "timestamp": "2026-03-06T13:20:57.025642+01:00",
+          "working_start": 1.0254473340028198,
+          "event": "span_end",
+          "id": "d1fb90ce4f264d01a914b4d7c3af9170"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 128,
+          "output_tokens": 5,
+          "total_tokens": 133
+        }
+      },
+      "total_time": 1.028,
+      "working_time": 1.026,
+      "uuid": "FMsqkvgvKfvPBqYuay5pjM",
+      "error_retries": [],
+      "attachments": {
+        "f5bd550a0be523f6dc40f8c5f09d179f": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nWhere would you get a pen if you do not have one?\n\nA) briefcase\nB) desk drawer\nC) friend's house\nD) pocket\nE) sidewalk"
+      }
+    },
+    {
+      "id": "008b7ba0c039f6d0d542c6c90aae173c",
+      "epoch": 1,
+      "input": "John is sitting in a toilet stall in a bathroom, outside he can hear cars going around in circles.  What is the function of the place he is most likely at?",
+      "choices": [
+        "eating food",
+        "public place",
+        "race track",
+        "at hotel",
+        "public building"
+      ],
+      "target": "C",
+      "messages": [
+        {
+          "id": "ea2iy8WoWXTaA6LC3XNg2w",
+          "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nJohn is sitting in a toilet stall in a bathroom, outside he can hear cars going around in circles.  What is the function of the place he is most likely at?\n\nA) eating food\nB) public place\nC) race track\nD) at hotel\nE) public building",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "iv5iDmB88yhaYRaU3HLwbP",
+          "content": "ANSWER: C",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "iv5iDmB88yhaYRaU3HLwbP",
+              "content": "ANSWER: C",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "ANSWER: C",
+        "usage": {
+          "input_tokens": 131,
+          "output_tokens": 5,
+          "total_tokens": 136
+        },
+        "time": 1.0194275979883969,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "choice": {
+          "value": "C",
+          "answer": "C",
+          "explanation": "ANSWER: C",
+          "history": []
+        }
+      },
+      "metadata": {
+        "question_concept": "bathroom"
+      },
+      "store": {},
+      "events": [
+        {
+          "uuid": "8yT4Q4sJJ2MwX4Wt8JiqLX",
+          "span_id": "2dec6e8adb184c65a85910e4f3305981",
+          "timestamp": "2026-03-06T13:21:16.423439+01:00",
+          "working_start": 76538.014719124,
+          "event": "span_begin",
+          "id": "2dec6e8adb184c65a85910e4f3305981",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "EecWq4V27RzfepE35PS4FG",
+          "span_id": "2dec6e8adb184c65a85910e4f3305981",
+          "timestamp": "2026-03-06T13:21:16.423510+01:00",
+          "working_start": 76538.014789524,
+          "event": "sample_init",
+          "sample": {
+            "input": "attachment://1874e942e68d59842a86fbaa8d8d683a",
+            "choices": [
+              "eating food",
+              "public place",
+              "race track",
+              "at hotel",
+              "public building"
+            ],
+            "target": "C",
+            "id": "008b7ba0c039f6d0d542c6c90aae173c",
+            "metadata": {
+              "question_concept": "bathroom"
+            }
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "ea2iy8WoWXTaA6LC3XNg2w",
+                "content": "attachment://1874e942e68d59842a86fbaa8d8d683a",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {
+              "question_concept": "bathroom"
+            }
+          }
+        },
+        {
+          "uuid": "3gmC9s9ansUnhrBDwdHNgZ",
+          "span_id": "2dec6e8adb184c65a85910e4f3305981",
+          "timestamp": "2026-03-06T13:21:16.423579+01:00",
+          "working_start": 76538.014857689,
+          "event": "span_end",
+          "id": "2dec6e8adb184c65a85910e4f3305981"
+        },
+        {
+          "uuid": "j3QBaVoyeGDf5y4HbRPy8u",
+          "span_id": "5d7b51f799cc4e4d84fbf2e811006900",
+          "timestamp": "2026-03-06T13:21:16.428496+01:00",
+          "working_start": 0.0048894450010266155,
+          "event": "span_begin",
+          "id": "5d7b51f799cc4e4d84fbf2e811006900",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "5xnsqhEThohtVF8oaENWt6",
+          "span_id": "73cc3e56372d44ad88bb18ed694c6b6c",
+          "timestamp": "2026-03-06T13:21:16.428562+01:00",
+          "working_start": 0.004955095995683223,
+          "event": "span_begin",
+          "id": "73cc3e56372d44ad88bb18ed694c6b6c",
+          "parent_id": "5d7b51f799cc4e4d84fbf2e811006900",
+          "type": "solver",
+          "name": "multiple_choice"
+        },
+        {
+          "uuid": "MQNviqdKKAmg3BsGTrMiiW",
+          "span_id": "73cc3e56372d44ad88bb18ed694c6b6c",
+          "timestamp": "2026-03-06T13:21:16.428808+01:00",
+          "working_start": 0.0052009369974257424,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "ea2iy8WoWXTaA6LC3XNg2w",
+              "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nJohn is sitting in a toilet stall in a bathroom, outside he can hear cars going around in circles.  What is the function of the place he is most likely at?\n\nA) eating food\nB) public place\nC) race track\nD) at hotel\nE) public building",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 2048,
+            "temperature": 0.001
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "iv5iDmB88yhaYRaU3HLwbP",
+                  "content": "ANSWER: C",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "ANSWER: C",
+            "usage": {
+              "input_tokens": 131,
+              "output_tokens": 5,
+              "total_tokens": 136
+            },
+            "time": 1.0194275979883969,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-06T13:21:17.469820+01:00",
+          "working_time": 1.0194275979883969
+        },
+        {
+          "uuid": "HznSuMJfxGQygtJ3mvbVDb",
+          "span_id": "73cc3e56372d44ad88bb18ed694c6b6c",
+          "timestamp": "2026-03-06T13:21:17.470173+01:00",
+          "working_start": 1.0250947949825786,
+          "event": "state",
+          "changes": [
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "attachment://8c9c1b4bc276bc048e0488b4d2627abc",
+              "replaced": "John is sitting in a toilet stall in a bathroom, outside he can hear cars going around in circles.  What is the function of the place he is most likely at?"
+            },
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "iv5iDmB88yhaYRaU3HLwbP",
+                "content": "ANSWER: C",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 131,
+                "output_tokens": 5,
+                "total_tokens": 136
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 1.0194275979883969
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "ANSWER: C",
+              "replaced": ""
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "iv5iDmB88yhaYRaU3HLwbP",
+                  "content": "ANSWER: C",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "7tC3HJqjsrHyc63CCFmYrE",
+          "span_id": "73cc3e56372d44ad88bb18ed694c6b6c",
+          "timestamp": "2026-03-06T13:21:17.470255+01:00",
+          "working_start": 1.025175810980727,
+          "event": "span_end",
+          "id": "73cc3e56372d44ad88bb18ed694c6b6c"
+        },
+        {
+          "uuid": "KpvbPXyWZc6GNxiLbWikim",
+          "span_id": "5d7b51f799cc4e4d84fbf2e811006900",
+          "timestamp": "2026-03-06T13:21:17.470331+01:00",
+          "working_start": 1.0252517979824916,
+          "event": "span_end",
+          "id": "5d7b51f799cc4e4d84fbf2e811006900"
+        },
+        {
+          "uuid": "QRP7fLrmaJ3jZKj3FXiR9h",
+          "span_id": "989698fa2d724c62b89567e357c37138",
+          "timestamp": "2026-03-06T13:21:17.483997+01:00",
+          "working_start": 1.038917493991903,
+          "event": "span_begin",
+          "id": "989698fa2d724c62b89567e357c37138",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "EcyH9y38hZbricNjtgEEc7",
+          "span_id": "b8428f3d4e5e469790acdd6a83e6bc8b",
+          "timestamp": "2026-03-06T13:21:17.484064+01:00",
+          "working_start": 1.0389842619915726,
+          "event": "span_begin",
+          "id": "b8428f3d4e5e469790acdd6a83e6bc8b",
+          "parent_id": "989698fa2d724c62b89567e357c37138",
+          "type": "scorer",
+          "name": "choice"
+        },
+        {
+          "uuid": "nNawKZbbvBXyDmFYSjF8GG",
+          "span_id": "b8428f3d4e5e469790acdd6a83e6bc8b",
+          "timestamp": "2026-03-06T13:21:17.484130+01:00",
+          "working_start": 1.0390501919900998,
+          "event": "score",
+          "score": {
+            "value": "C",
+            "answer": "C",
+            "explanation": "ANSWER: C",
+            "history": []
+          },
+          "target": "C",
+          "intermediate": false
+        },
+        {
+          "uuid": "6Un95P6KP7is5iPqfvzd7C",
+          "span_id": "b8428f3d4e5e469790acdd6a83e6bc8b",
+          "timestamp": "2026-03-06T13:21:17.484198+01:00",
+          "working_start": 1.0391183569881832,
+          "event": "span_end",
+          "id": "b8428f3d4e5e469790acdd6a83e6bc8b"
+        },
+        {
+          "uuid": "duHRP3tN2gRoTjK3umZLBU",
+          "span_id": "989698fa2d724c62b89567e357c37138",
+          "timestamp": "2026-03-06T13:21:17.484251+01:00",
+          "working_start": 1.0391714369907277,
+          "event": "span_end",
+          "id": "989698fa2d724c62b89567e357c37138"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 131,
+          "output_tokens": 5,
+          "total_tokens": 136
+        }
+      },
+      "total_time": 1.072,
+      "working_time": 1.051,
+      "uuid": "WnATfWVMKPrfEYoEpVZ5QN",
+      "error_retries": [],
+      "attachments": {
+        "1874e942e68d59842a86fbaa8d8d683a": "John is sitting in a toilet stall in a bathroom, outside he can hear cars going around in circles.  What is the function of the place he is most likely at?",
+        "8c9c1b4bc276bc048e0488b4d2627abc": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nJohn is sitting in a toilet stall in a bathroom, outside he can hear cars going around in circles.  What is the function of the place he is most likely at?\n\nA) eating food\nB) public place\nC) race track\nD) at hotel\nE) public building"
+      }
+    },
+    {
+      "id": "009a7aabffe0583fc2df46656b29c326",
+      "epoch": 1,
+      "input": "He came from old money and had a fortune, but he made new money making shrewd trades where?",
+      "choices": [
+        "eat cake",
+        "cookie",
+        "stock market",
+        "real estate",
+        "treasure chest"
+      ],
+      "target": "C",
+      "messages": [
+        {
+          "id": "Q4Cf4H6oDmJn4QjoGKGtRg",
+          "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nHe came from old money and had a fortune, but he made new money making shrewd trades where?\n\nA) eat cake\nB) cookie\nC) stock market\nD) real estate\nE) treasure chest",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "2MozknowQqckdLWXuAgJxC",
+          "content": "ANSWER: C",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "2MozknowQqckdLWXuAgJxC",
+              "content": "ANSWER: C",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "ANSWER: C",
+        "usage": {
+          "input_tokens": 124,
+          "output_tokens": 5,
+          "total_tokens": 129
+        },
+        "time": 1.012425289998646,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "choice": {
+          "value": "C",
+          "answer": "C",
+          "explanation": "ANSWER: C",
+          "history": []
+        }
+      },
+      "metadata": {
+        "question_concept": "fortune"
+      },
+      "store": {},
+      "events": [
+        {
+          "uuid": "NocUWGye89QMNqaBUEovab",
+          "span_id": "ad2d7562f03840c081f0b17220a5a82f",
+          "timestamp": "2026-03-06T13:20:51.619978+01:00",
+          "working_start": 76513.211259685,
+          "event": "span_begin",
+          "id": "ad2d7562f03840c081f0b17220a5a82f",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "WrCLNbk7wGnnkSNXYCfvjB",
+          "span_id": "ad2d7562f03840c081f0b17220a5a82f",
+          "timestamp": "2026-03-06T13:20:51.620102+01:00",
+          "working_start": 76513.211381209,
+          "event": "sample_init",
+          "sample": {
+            "input": "He came from old money and had a fortune, but he made new money making shrewd trades where?",
+            "choices": [
+              "eat cake",
+              "cookie",
+              "stock market",
+              "real estate",
+              "treasure chest"
+            ],
+            "target": "C",
+            "id": "009a7aabffe0583fc2df46656b29c326",
+            "metadata": {
+              "question_concept": "fortune"
+            }
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "Q4Cf4H6oDmJn4QjoGKGtRg",
+                "content": "He came from old money and had a fortune, but he made new money making shrewd trades where?",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {
+              "question_concept": "fortune"
+            }
+          }
+        },
+        {
+          "uuid": "gszy2t2M7f2sqCm8AuoVhF",
+          "span_id": "ad2d7562f03840c081f0b17220a5a82f",
+          "timestamp": "2026-03-06T13:20:51.620211+01:00",
+          "working_start": 76513.21149072,
+          "event": "span_end",
+          "id": "ad2d7562f03840c081f0b17220a5a82f"
+        },
+        {
+          "uuid": "gn5ZoMK8NFWivLn6c4dVYA",
+          "span_id": "08ac6c650965449595cd14d3facbba73",
+          "timestamp": "2026-03-06T13:20:51.644429+01:00",
+          "working_start": 0.02418462400964927,
+          "event": "span_begin",
+          "id": "08ac6c650965449595cd14d3facbba73",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "7KD8pHCmBN2sgWpNJ4gMuJ",
+          "span_id": "27c3664d35d7482faf3d8778e635808d",
+          "timestamp": "2026-03-06T13:20:51.644522+01:00",
+          "working_start": 0.024277373013319448,
+          "event": "span_begin",
+          "id": "27c3664d35d7482faf3d8778e635808d",
+          "parent_id": "08ac6c650965449595cd14d3facbba73",
+          "type": "solver",
+          "name": "multiple_choice"
+        },
+        {
+          "uuid": "UzViYsdfoZnjmnSuZvpMua",
+          "span_id": "27c3664d35d7482faf3d8778e635808d",
+          "timestamp": "2026-03-06T13:20:51.644853+01:00",
+          "working_start": 0.02460786201118026,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "Q4Cf4H6oDmJn4QjoGKGtRg",
+              "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nHe came from old money and had a fortune, but he made new money making shrewd trades where?\n\nA) eat cake\nB) cookie\nC) stock market\nD) real estate\nE) treasure chest",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 2048,
+            "temperature": 0.001
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "2MozknowQqckdLWXuAgJxC",
+                  "content": "ANSWER: C",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "ANSWER: C",
+            "usage": {
+              "input_tokens": 124,
+              "output_tokens": 5,
+              "total_tokens": 129
+            },
+            "time": 1.012425289998646,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-06T13:20:52.662962+01:00",
+          "working_time": 1.012425289998646
+        },
+        {
+          "uuid": "PV4Er87o4CRJyEfxEMhAP3",
+          "span_id": "27c3664d35d7482faf3d8778e635808d",
+          "timestamp": "2026-03-06T13:20:52.663597+01:00",
+          "working_start": 1.0378475009929389,
+          "event": "state",
+          "changes": [
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "attachment://fe25a0e16928c81f8a6ef8dfc66ac778",
+              "replaced": "He came from old money and had a fortune, but he made new money making shrewd trades where?"
+            },
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "2MozknowQqckdLWXuAgJxC",
+                "content": "ANSWER: C",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 124,
+                "output_tokens": 5,
+                "total_tokens": 129
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 1.012425289998646
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "ANSWER: C",
+              "replaced": ""
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "2MozknowQqckdLWXuAgJxC",
+                  "content": "ANSWER: C",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "XKLmr4s2cuwUFiw2FGfgvM",
+          "span_id": "27c3664d35d7482faf3d8778e635808d",
+          "timestamp": "2026-03-06T13:20:52.663716+01:00",
+          "working_start": 1.0379639960010536,
+          "event": "span_end",
+          "id": "27c3664d35d7482faf3d8778e635808d"
+        },
+        {
+          "uuid": "KTjds885JFa5DZskn686hy",
+          "span_id": "08ac6c650965449595cd14d3facbba73",
+          "timestamp": "2026-03-06T13:20:52.663856+01:00",
+          "working_start": 1.0381039579951903,
+          "event": "span_end",
+          "id": "08ac6c650965449595cd14d3facbba73"
+        },
+        {
+          "uuid": "9CbwVgejaYwBDGG4LDZp7B",
+          "span_id": "11045deebe7249c5a32cd1b6db1d2fe4",
+          "timestamp": "2026-03-06T13:20:52.665314+01:00",
+          "working_start": 1.0395614049921278,
+          "event": "span_begin",
+          "id": "11045deebe7249c5a32cd1b6db1d2fe4",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "HRggVpDLhbSvjg6rxqufJV",
+          "span_id": "0d8e801308094a3fbe9b518fa738cf46",
+          "timestamp": "2026-03-06T13:20:52.665413+01:00",
+          "working_start": 1.0396597420040052,
+          "event": "span_begin",
+          "id": "0d8e801308094a3fbe9b518fa738cf46",
+          "parent_id": "11045deebe7249c5a32cd1b6db1d2fe4",
+          "type": "scorer",
+          "name": "choice"
+        },
+        {
+          "uuid": "o3sSAHrLhuP7Rr4GNnKvqq",
+          "span_id": "0d8e801308094a3fbe9b518fa738cf46",
+          "timestamp": "2026-03-06T13:20:52.665521+01:00",
+          "working_start": 1.0397684149938868,
+          "event": "score",
+          "score": {
+            "value": "C",
+            "answer": "C",
+            "explanation": "ANSWER: C",
+            "history": []
+          },
+          "target": "C",
+          "intermediate": false
+        },
+        {
+          "uuid": "VYh8gC33HUHm72v754N2RH",
+          "span_id": "0d8e801308094a3fbe9b518fa738cf46",
+          "timestamp": "2026-03-06T13:20:52.665618+01:00",
+          "working_start": 1.039864516002126,
+          "event": "span_end",
+          "id": "0d8e801308094a3fbe9b518fa738cf46"
+        },
+        {
+          "uuid": "Xqz8kTHjb6sL8Gtd9x6Dh6",
+          "span_id": "11045deebe7249c5a32cd1b6db1d2fe4",
+          "timestamp": "2026-03-06T13:20:52.665682+01:00",
+          "working_start": 1.0399293289956404,
+          "event": "span_end",
+          "id": "11045deebe7249c5a32cd1b6db1d2fe4"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 124,
+          "output_tokens": 5,
+          "total_tokens": 129
+        }
+      },
+      "total_time": 1.052,
+      "working_time": 1.046,
+      "uuid": "JXeNgV6MZUnHiCPkEJGsDQ",
+      "error_retries": [],
+      "attachments": {
+        "fe25a0e16928c81f8a6ef8dfc66ac778": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nHe came from old money and had a fortune, but he made new money making shrewd trades where?\n\nA) eat cake\nB) cookie\nC) stock market\nD) real estate\nE) treasure chest"
+      }
+    }
+  ],
+  "reductions": [
+    {
+      "scorer": "choice",
+      "samples": [
+        {
+          "value": 1.0,
+          "answer": "C",
+          "explanation": "ANSWER: C",
+          "history": [],
+          "sample_id": "009a7aabffe0583fc2df46656b29c326"
+        },
+        {
+          "value": 1.0,
+          "answer": "E",
+          "explanation": "ANSWER: E",
+          "history": [],
+          "sample_id": "001b0f5a841fd81d13fbe67c7c7179d6"
+        },
+        {
+          "value": 0,
+          "answer": "B",
+          "explanation": "ANSWER: B",
+          "history": [],
+          "sample_id": "004607228ad49b69eac932c1005d6106"
+        },
+        {
+          "value": 1.0,
+          "answer": "A",
+          "explanation": "ANSWER: A",
+          "history": [],
+          "sample_id": "001cb999a61a5c8b4031ff53cf261714"
+        },
+        {
+          "value": 1.0,
+          "answer": "C",
+          "explanation": "ANSWER: C",
+          "history": [],
+          "sample_id": "008b7ba0c039f6d0d542c6c90aae173c"
+        }
+      ]
+    }
+  ]
+}

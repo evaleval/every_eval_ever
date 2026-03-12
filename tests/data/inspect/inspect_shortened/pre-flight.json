@@ -1,0 +1,1910 @@
+{
+  "version": 2,
+  "status": "success",
+  "eval": {
+    "eval_id": "FZV5yWBh82vTDH5x5L5Xqn",
+    "run_id": "UePRsPm6nRgeRqaXWEEhXo",
+    "created": "2026-03-10T23:33:53+00:00",
+    "task": "inspect_evals/pre_flight",
+    "task_id": "8y3wJG4vAo9BQaAwGePq92",
+    "task_version": 2,
+    "task_display_name": "pre_flight",
+    "task_registry_name": "inspect_evals/pre_flight",
+    "task_attribs": {},
+    "task_args": {},
+    "task_args_passed": {},
+    "dataset": {
+      "name": "AirsideLabs/pre-flight-06",
+      "location": "AirsideLabs/pre-flight-06",
+      "samples": 5,
+      "sample_ids": [
+        "q100",
+        "q101",
+        "q102",
+        "q103",
+        "q104"
+      ],
+      "shuffled": false
+    },
+    "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+    "model_generate_config": {},
+    "model_args": {},
+    "model_roles": {},
+    "config": {
+      "epochs": 1,
+      "epochs_reducer": [
+        "mean"
+      ],
+      "fail_on_error": true,
+      "continue_on_fail": false,
+      "sandbox_cleanup": true,
+      "log_samples": true,
+      "log_realtime": true,
+      "log_images": true,
+      "log_shared": 0,
+      "score_display": true
+    },
+    "revision": {
+      "type": "git",
+      "origin": "https://github.com/MIMIR-AI-ROUTER/inspect_evals.git",
+      "commit": "26ee9b93"
+    },
+    "packages": {
+      "inspect_ai": "0.3.180.dev77+gb34c521b",
+      "inspect_evals": "0.0.1.dev2141+unknown.g26ee9b93d"
+    },
+    "metadata": {
+      "full_task_version": "2-A",
+      "task_interface_version": "A",
+      "task_comparability_version": 2
+    },
+    "scorers": [
+      {
+        "name": "choice",
+        "options": {},
+        "metrics": [
+          {
+            "name": "inspect_ai/accuracy",
+            "options": {}
+          },
+          {
+            "name": "inspect_ai/stderr",
+            "options": {}
+          }
+        ],
+        "metadata": {}
+      }
+    ]
+  },
+  "plan": {
+    "name": "plan",
+    "steps": [
+      {
+        "solver": "multiple_choice",
+        "params": {
+          "template": null,
+          "cot": false,
+          "multiple_correct": false,
+          "max_tokens": null,
+          "kwargs": {}
+        }
+      }
+    ],
+    "config": {}
+  },
+  "results": {
+    "total_samples": 5,
+    "completed_samples": 5,
+    "scores": [
+      {
+        "name": "choice",
+        "scorer": "choice",
+        "scored_samples": 5,
+        "unscored_samples": 0,
+        "params": {},
+        "metrics": {
+          "accuracy": {
+            "name": "accuracy",
+            "value": 0.8,
+            "params": {}
+          },
+          "stderr": {
+            "name": "stderr",
+            "value": 0.2,
+            "params": {}
+          }
+        }
+      }
+    ]
+  },
+  "stats": {
+    "started_at": "2026-03-10T23:33:53+00:00",
+    "completed_at": "2026-03-10T23:34:10+00:00",
+    "model_usage": {
+      "hf/Qwen/Qwen2.5-7B-Instruct": {
+        "input_tokens": 848,
+        "output_tokens": 25,
+        "total_tokens": 873
+      }
+    }
+  },
+  "samples": [
+    {
+      "id": "q100",
+      "epoch": 1,
+      "input": "According to a typical international airport Ground Operations Safety Manual, what signal should the Headset Man give to the flight crew after eye contact is made?",
+      "choices": [
+        "A thumbs-up",
+        "The \u201cAll Clear to Taxi\u201d signal by waving the steering bypass pin",
+        "A verbal confirmation",
+        "A wave with both hands",
+        "no suitable option"
+      ],
+      "target": "B",
+      "messages": [
+        {
+          "id": "8wMoAbprAAwddj2VhdZxTf",
+          "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nAccording to a typical international airport Ground Operations Safety Manual, what signal should the Headset Man give to the flight crew after eye contact is made?\n\nA) A thumbs-up\nB) The \u201cAll Clear to Taxi\u201d signal by waving the steering bypass pin\nC) A verbal confirmation\nD) A wave with both hands\nE) no suitable option",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "7DNZe7ecBrXZLbpRiR9Xtg",
+          "content": "ANSWER: B",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "7DNZe7ecBrXZLbpRiR9Xtg",
+              "content": "ANSWER: B",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "ANSWER: B",
+        "usage": {
+          "input_tokens": 169,
+          "output_tokens": 5,
+          "total_tokens": 174
+        },
+        "time": 1.202267454998946,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "choice": {
+          "value": "C",
+          "answer": "B",
+          "explanation": "ANSWER: B",
+          "history": []
+        }
+      },
+      "metadata": {},
+      "store": {},
+      "events": [
+        {
+          "uuid": "jFWss4G5wtuQ3c5neqoWqY",
+          "span_id": "2ba04afde512474e9f86eadb23ea1f87",
+          "timestamp": "2026-03-11T00:33:55.677517+01:00",
+          "working_start": 22869.723858861,
+          "event": "span_begin",
+          "id": "2ba04afde512474e9f86eadb23ea1f87",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "U57B92fXq9Smex48Hj3JZC",
+          "span_id": "2ba04afde512474e9f86eadb23ea1f87",
+          "timestamp": "2026-03-11T00:33:55.678020+01:00",
+          "working_start": 22869.724361777,
+          "event": "sample_init",
+          "sample": {
+            "input": "attachment://8d5d25f01a975a6d7bde8baf5bbe0326",
+            "choices": [
+              "A thumbs-up",
+              "The \u201cAll Clear to Taxi\u201d signal by waving the steering bypass pin",
+              "A verbal confirmation",
+              "A wave with both hands",
+              "no suitable option"
+            ],
+            "target": "B",
+            "id": "q100"
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "8wMoAbprAAwddj2VhdZxTf",
+                "content": "attachment://8d5d25f01a975a6d7bde8baf5bbe0326",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {}
+          }
+        },
+        {
+          "uuid": "Wj7X7g6iBvZx8XobpC6GNC",
+          "span_id": "2ba04afde512474e9f86eadb23ea1f87",
+          "timestamp": "2026-03-11T00:33:55.678515+01:00",
+          "working_start": 22869.724856533,
+          "event": "span_end",
+          "id": "2ba04afde512474e9f86eadb23ea1f87"
+        },
+        {
+          "uuid": "buCtc6yyLCYdJ9i9bwJ8WL",
+          "span_id": "e967ce7b12244a2f895b22af10558c13",
+          "timestamp": "2026-03-11T00:33:55.692822+01:00",
+          "working_start": 0.013890551002987195,
+          "event": "span_begin",
+          "id": "e967ce7b12244a2f895b22af10558c13",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "WrJZkzHf3TRDNUMizPFdRs",
+          "span_id": "4455823341ab4b8992dd0b20d3c56591",
+          "timestamp": "2026-03-11T00:33:55.693272+01:00",
+          "working_start": 0.01434153100126423,
+          "event": "span_begin",
+          "id": "4455823341ab4b8992dd0b20d3c56591",
+          "parent_id": "e967ce7b12244a2f895b22af10558c13",
+          "type": "solver",
+          "name": "multiple_choice"
+        },
+        {
+          "uuid": "oSLEAE2DD2DH7peL7yQ3wJ",
+          "span_id": "4455823341ab4b8992dd0b20d3c56591",
+          "timestamp": "2026-03-11T00:33:55.693809+01:00",
+          "working_start": 0.0148784640005033,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "8wMoAbprAAwddj2VhdZxTf",
+              "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nAccording to a typical international airport Ground Operations Safety Manual, what signal should the Headset Man give to the flight crew after eye contact is made?\n\nA) A thumbs-up\nB) The \u201cAll Clear to Taxi\u201d signal by waving the steering bypass pin\nC) A verbal confirmation\nD) A wave with both hands\nE) no suitable option",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 2048
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "7DNZe7ecBrXZLbpRiR9Xtg",
+                  "content": "ANSWER: B",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "ANSWER: B",
+            "usage": {
+              "input_tokens": 169,
+              "output_tokens": 5,
+              "total_tokens": 174
+            },
+            "time": 1.202267454998946,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-11T00:33:56.911301+01:00",
+          "working_time": 1.202267454998946
+        },
+        {
+          "uuid": "LjkN6wjWNhpTJR4uZ5cSWV",
+          "span_id": "4455823341ab4b8992dd0b20d3c56591",
+          "timestamp": "2026-03-11T00:33:56.911490+01:00",
+          "working_start": 1.2174050879984861,
+          "event": "state",
+          "changes": [
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "attachment://86f432f3df2fc7253f28df8133f1df38",
+              "replaced": "According to a typical international airport Ground Operations Safety Manual, what signal should the Headset Man give to the flight crew after eye contact is made?"
+            },
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "7DNZe7ecBrXZLbpRiR9Xtg",
+                "content": "ANSWER: B",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 1.202267454998946
+            },
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 169,
+                "output_tokens": 5,
+                "total_tokens": 174
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "ANSWER: B",
+              "replaced": ""
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "7DNZe7ecBrXZLbpRiR9Xtg",
+                  "content": "ANSWER: B",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "4iaJSiJHfiPkSsthUWoYQi",
+          "span_id": "4455823341ab4b8992dd0b20d3c56591",
+          "timestamp": "2026-03-11T00:33:56.912053+01:00",
+          "working_start": 1.217968581997411,
+          "event": "span_end",
+          "id": "4455823341ab4b8992dd0b20d3c56591"
+        },
+        {
+          "uuid": "hqXjGZANzn5rQ9LeVNNib4",
+          "span_id": "e967ce7b12244a2f895b22af10558c13",
+          "timestamp": "2026-03-11T00:33:56.912465+01:00",
+          "working_start": 1.218380681999406,
+          "event": "span_end",
+          "id": "e967ce7b12244a2f895b22af10558c13"
+        },
+        {
+          "uuid": "7KkPMBPsipmS3Wpx8495qs",
+          "span_id": "01ea7a90cc6f458386134fa68b413e65",
+          "timestamp": "2026-03-11T00:33:56.948809+01:00",
+          "working_start": 1.254725058999611,
+          "event": "span_begin",
+          "id": "01ea7a90cc6f458386134fa68b413e65",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "2HaFMtcwYNb9UVgD6ae7SM",
+          "span_id": "58b9d2fbfa454a23aefc976eac7a5351",
+          "timestamp": "2026-03-11T00:33:56.949260+01:00",
+          "working_start": 1.2551761029972113,
+          "event": "span_begin",
+          "id": "58b9d2fbfa454a23aefc976eac7a5351",
+          "parent_id": "01ea7a90cc6f458386134fa68b413e65",
+          "type": "scorer",
+          "name": "choice"
+        },
+        {
+          "uuid": "jhoZrj3mpEyHpq2nf97L7P",
+          "span_id": "58b9d2fbfa454a23aefc976eac7a5351",
+          "timestamp": "2026-03-11T00:33:56.949690+01:00",
+          "working_start": 1.2556060589995468,
+          "event": "score",
+          "score": {
+            "value": "C",
+            "answer": "B",
+            "explanation": "ANSWER: B",
+            "history": []
+          },
+          "target": "B",
+          "intermediate": false
+        },
+        {
+          "uuid": "gWswgZ363m2WYJCYfP2xJV",
+          "span_id": "58b9d2fbfa454a23aefc976eac7a5351",
+          "timestamp": "2026-03-11T00:33:56.950137+01:00",
+          "working_start": 1.2560528149988386,
+          "event": "span_end",
+          "id": "58b9d2fbfa454a23aefc976eac7a5351"
+        },
+        {
+          "uuid": "9fCMBjMRFFRYxPQu9sdqUJ",
+          "span_id": "01ea7a90cc6f458386134fa68b413e65",
+          "timestamp": "2026-03-11T00:33:56.950520+01:00",
+          "working_start": 1.2564353149973613,
+          "event": "span_end",
+          "id": "01ea7a90cc6f458386134fa68b413e65"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 169,
+          "output_tokens": 5,
+          "total_tokens": 174
+        }
+      },
+      "total_time": 1.334,
+      "working_time": 1.319,
+      "uuid": "QVx4MiWbHxzeSyqoViyUbv",
+      "error_retries": [],
+      "attachments": {
+        "8d5d25f01a975a6d7bde8baf5bbe0326": "According to a typical international airport Ground Operations Safety Manual, what signal should the Headset Man give to the flight crew after eye contact is made?",
+        "86f432f3df2fc7253f28df8133f1df38": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nAccording to a typical international airport Ground Operations Safety Manual, what signal should the Headset Man give to the flight crew after eye contact is made?\n\nA) A thumbs-up\nB) The \u201cAll Clear to Taxi\u201d signal by waving the steering bypass pin\nC) A verbal confirmation\nD) A wave with both hands\nE) no suitable option"
+      }
+    },
+    {
+      "id": "q101",
+      "epoch": 1,
+      "input": "According to a typical international airport Ground Operations Safety Manual, after disconnecting the headset, what specific phrase should the Headset Man use to notify the flight crew?",
+      "choices": [
+        "\"Headset disconnected.\"",
+        "\"Headset man disconnecting now. See you on the left/right.\"",
+        "\"Disconnecting headset, all clear.\"",
+        "\"Headset removed, have a good flight.\"",
+        "no suitable option"
+      ],
+      "target": "B",
+      "messages": [
+        {
+          "id": "FAq9j3kDeZXpwXkh7fgFNB",
+          "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nAccording to a typical international airport Ground Operations Safety Manual, after disconnecting the headset, what specific phrase should the Headset Man use to notify the flight crew?\n\nA) \"Headset disconnected.\"\nB) \"Headset man disconnecting now. See you on the left/right.\"\nC) \"Disconnecting headset, all clear.\"\nD) \"Headset removed, have a good flight.\"\nE) no suitable option",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "UE69EmjtgRYastNcVm2Ymz",
+          "content": "ANSWER: C",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "UE69EmjtgRYastNcVm2Ymz",
+              "content": "ANSWER: C",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "ANSWER: C",
+        "usage": {
+          "input_tokens": 169,
+          "output_tokens": 5,
+          "total_tokens": 174
+        },
+        "time": 1.1857219390003593,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "choice": {
+          "value": "I",
+          "answer": "C",
+          "explanation": "ANSWER: C",
+          "history": []
+        }
+      },
+      "metadata": {},
+      "store": {},
+      "events": [
+        {
+          "uuid": "LpoXRTC22ZhMApLntQZsT3",
+          "span_id": "e9be66438cd742d7ad270507c81ed504",
+          "timestamp": "2026-03-11T00:33:55.705038+01:00",
+          "working_start": 22869.751379705,
+          "event": "span_begin",
+          "id": "e9be66438cd742d7ad270507c81ed504",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "d8es8RFT3bdADvedgf4P7u",
+          "span_id": "e9be66438cd742d7ad270507c81ed504",
+          "timestamp": "2026-03-11T00:33:55.705475+01:00",
+          "working_start": 22869.751817117,
+          "event": "sample_init",
+          "sample": {
+            "input": "attachment://799e10517869ec3834b5ec4e19030593",
+            "choices": [
+              "\"Headset disconnected.\"",
+              "\"Headset man disconnecting now. See you on the left/right.\"",
+              "\"Disconnecting headset, all clear.\"",
+              "\"Headset removed, have a good flight.\"",
+              "no suitable option"
+            ],
+            "target": "B",
+            "id": "q101"
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "FAq9j3kDeZXpwXkh7fgFNB",
+                "content": "attachment://799e10517869ec3834b5ec4e19030593",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {}
+          }
+        },
+        {
+          "uuid": "XALKTS4dBdNzXjuCBvbCt6",
+          "span_id": "e9be66438cd742d7ad270507c81ed504",
+          "timestamp": "2026-03-11T00:33:55.705986+01:00",
+          "working_start": 22869.752327553,
+          "event": "span_end",
+          "id": "e9be66438cd742d7ad270507c81ed504"
+        },
+        {
+          "uuid": "VNNsBcrcTZVvQQSvCiTsPM",
+          "span_id": "93dacec26d5047069c434063c2335ce8",
+          "timestamp": "2026-03-11T00:33:55.723624+01:00",
+          "working_start": 0.017270068998186616,
+          "event": "span_begin",
+          "id": "93dacec26d5047069c434063c2335ce8",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "PXyw5jMCUSjW3HU4Hg2MxM",
+          "span_id": "b853df9cd0b84f14a433b6f87679adae",
+          "timestamp": "2026-03-11T00:33:55.724135+01:00",
+          "working_start": 0.017782136997993803,
+          "event": "span_begin",
+          "id": "b853df9cd0b84f14a433b6f87679adae",
+          "parent_id": "93dacec26d5047069c434063c2335ce8",
+          "type": "solver",
+          "name": "multiple_choice"
+        },
+        {
+          "uuid": "JqjomPcNV6jDyRFqBFiTVV",
+          "span_id": "b853df9cd0b84f14a433b6f87679adae",
+          "timestamp": "2026-03-11T00:33:55.724629+01:00",
+          "working_start": 0.018275357000675285,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "FAq9j3kDeZXpwXkh7fgFNB",
+              "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nAccording to a typical international airport Ground Operations Safety Manual, after disconnecting the headset, what specific phrase should the Headset Man use to notify the flight crew?\n\nA) \"Headset disconnected.\"\nB) \"Headset man disconnecting now. See you on the left/right.\"\nC) \"Disconnecting headset, all clear.\"\nD) \"Headset removed, have a good flight.\"\nE) no suitable option",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 2048
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "UE69EmjtgRYastNcVm2Ymz",
+                  "content": "ANSWER: C",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "ANSWER: C",
+            "usage": {
+              "input_tokens": 169,
+              "output_tokens": 5,
+              "total_tokens": 174
+            },
+            "time": 1.1857219390003593,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-11T00:33:56.914345+01:00",
+          "working_time": 1.1857219390003593
+        },
+        {
+          "uuid": "kQHBBBHkdaNKmsrqSBxUn9",
+          "span_id": "b853df9cd0b84f14a433b6f87679adae",
+          "timestamp": "2026-03-11T00:33:56.914532+01:00",
+          "working_start": 1.2042783239994606,
+          "event": "state",
+          "changes": [
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "attachment://8b889f63623e2c87fa3c40ed93ced432",
+              "replaced": "According to a typical international airport Ground Operations Safety Manual, after disconnecting the headset, what specific phrase should the Headset Man use to notify the flight crew?"
+            },
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "UE69EmjtgRYastNcVm2Ymz",
+                "content": "ANSWER: C",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 1.1857219390003593
+            },
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 169,
+                "output_tokens": 5,
+                "total_tokens": 174
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "ANSWER: C",
+              "replaced": ""
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "UE69EmjtgRYastNcVm2Ymz",
+                  "content": "ANSWER: C",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "DoeVqgJBc3nAVWBqYZ8ayy",
+          "span_id": "b853df9cd0b84f14a433b6f87679adae",
+          "timestamp": "2026-03-11T00:33:56.915108+01:00",
+          "working_start": 1.2048542339980486,
+          "event": "span_end",
+          "id": "b853df9cd0b84f14a433b6f87679adae"
+        },
+        {
+          "uuid": "cdGNKQyaz4wddoVi6ZLvXi",
+          "span_id": "93dacec26d5047069c434063c2335ce8",
+          "timestamp": "2026-03-11T00:33:56.915515+01:00",
+          "working_start": 1.205261437997251,
+          "event": "span_end",
+          "id": "93dacec26d5047069c434063c2335ce8"
+        },
+        {
+          "uuid": "FVKQNNJrRohrQrg4scqDAG",
+          "span_id": "1777884c115e4bbaa869902b70c48f95",
+          "timestamp": "2026-03-11T00:33:56.951423+01:00",
+          "working_start": 1.2411699389995192,
+          "event": "span_begin",
+          "id": "1777884c115e4bbaa869902b70c48f95",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "CF9hVY5MsZonnVqtpGzTKZ",
+          "span_id": "ed06fb557b8e44be8d598529bf062beb",
+          "timestamp": "2026-03-11T00:33:56.951897+01:00",
+          "working_start": 1.2416438309992373,
+          "event": "span_begin",
+          "id": "ed06fb557b8e44be8d598529bf062beb",
+          "parent_id": "1777884c115e4bbaa869902b70c48f95",
+          "type": "scorer",
+          "name": "choice"
+        },
+        {
+          "uuid": "Rc467KF6sByrv5C9N3MmXr",
+          "span_id": "ed06fb557b8e44be8d598529bf062beb",
+          "timestamp": "2026-03-11T00:33:56.952291+01:00",
+          "working_start": 1.2420376269983535,
+          "event": "score",
+          "score": {
+            "value": "I",
+            "answer": "C",
+            "explanation": "ANSWER: C",
+            "history": []
+          },
+          "target": "B",
+          "intermediate": false
+        },
+        {
+          "uuid": "UenaebSb7EVv8sHZgHWFFy",
+          "span_id": "ed06fb557b8e44be8d598529bf062beb",
+          "timestamp": "2026-03-11T00:33:56.952712+01:00",
+          "working_start": 1.2424582069979806,
+          "event": "span_end",
+          "id": "ed06fb557b8e44be8d598529bf062beb"
+        },
+        {
+          "uuid": "m9QszneBuVa5iwfwLuWo9q",
+          "span_id": "1777884c115e4bbaa869902b70c48f95",
+          "timestamp": "2026-03-11T00:33:56.953131+01:00",
+          "working_start": 1.2428769629987073,
+          "event": "span_end",
+          "id": "1777884c115e4bbaa869902b70c48f95"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 169,
+          "output_tokens": 5,
+          "total_tokens": 174
+        }
+      },
+      "total_time": 1.307,
+      "working_time": 1.303,
+      "uuid": "BathHJVyNDoES8vdLR5D5d",
+      "error_retries": [],
+      "attachments": {
+        "799e10517869ec3834b5ec4e19030593": "According to a typical international airport Ground Operations Safety Manual, after disconnecting the headset, what specific phrase should the Headset Man use to notify the flight crew?",
+        "8b889f63623e2c87fa3c40ed93ced432": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nAccording to a typical international airport Ground Operations Safety Manual, after disconnecting the headset, what specific phrase should the Headset Man use to notify the flight crew?\n\nA) \"Headset disconnected.\"\nB) \"Headset man disconnecting now. See you on the left/right.\"\nC) \"Disconnecting headset, all clear.\"\nD) \"Headset removed, have a good flight.\"\nE) no suitable option"
+      }
+    },
+    {
+      "id": "q102",
+      "epoch": 1,
+      "input": "According to a typical international airport Ground Operations Safety Manual, prior to aircraft arrival, how many minutes before the Estimated Time of Arrival (ETA) should personnel arrive at the aircraft stand?",
+      "choices": [
+        "5 minutes",
+        "2 minutes",
+        "15 minutes",
+        "30 minutes",
+        "no suitable option"
+      ],
+      "target": "C",
+      "messages": [
+        {
+          "id": "VLJvxnPNpHKYs4pDeEB7Fs",
+          "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nAccording to a typical international airport Ground Operations Safety Manual, prior to aircraft arrival, how many minutes before the Estimated Time of Arrival (ETA) should personnel arrive at the aircraft stand?\n\nA) 5 minutes\nB) 2 minutes\nC) 15 minutes\nD) 30 minutes\nE) no suitable option",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "RanismopJqwReYERpQRCuY",
+          "content": "ANSWER: C",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "RanismopJqwReYERpQRCuY",
+              "content": "ANSWER: C",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "ANSWER: C",
+        "usage": {
+          "input_tokens": 170,
+          "output_tokens": 5,
+          "total_tokens": 175
+        },
+        "time": 2.061613522000698,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "choice": {
+          "value": "C",
+          "answer": "C",
+          "explanation": "ANSWER: C",
+          "history": []
+        }
+      },
+      "metadata": {},
+      "store": {},
+      "events": [
+        {
+          "uuid": "bi8zMywhdaN6DS3b7j7QPC",
+          "span_id": "9e8ed7bb98da44389f8afa37404ea3cc",
+          "timestamp": "2026-03-11T00:33:56.151536+01:00",
+          "working_start": 22870.197878133,
+          "event": "span_begin",
+          "id": "9e8ed7bb98da44389f8afa37404ea3cc",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "S9wswmdvUgggSFqoDiTN5Z",
+          "span_id": "9e8ed7bb98da44389f8afa37404ea3cc",
+          "timestamp": "2026-03-11T00:33:56.152021+01:00",
+          "working_start": 22870.198363098,
+          "event": "sample_init",
+          "sample": {
+            "input": "attachment://bdc694898eceef41e723e9a86655060a",
+            "choices": [
+              "5 minutes",
+              "2 minutes",
+              "15 minutes",
+              "30 minutes",
+              "no suitable option"
+            ],
+            "target": "C",
+            "id": "q102"
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "VLJvxnPNpHKYs4pDeEB7Fs",
+                "content": "attachment://bdc694898eceef41e723e9a86655060a",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {}
+          }
+        },
+        {
+          "uuid": "UefpDBzcV7obpKFi45Lo6t",
+          "span_id": "9e8ed7bb98da44389f8afa37404ea3cc",
+          "timestamp": "2026-03-11T00:33:56.152522+01:00",
+          "working_start": 22870.198863838,
+          "event": "span_end",
+          "id": "9e8ed7bb98da44389f8afa37404ea3cc"
+        },
+        {
+          "uuid": "L5SkTmdTFERd8HHbZC4oSo",
+          "span_id": "c66aa76e24e341cd9324f32fe9453abb",
+          "timestamp": "2026-03-11T00:33:56.153939+01:00",
+          "working_start": 0.0009708879988465924,
+          "event": "span_begin",
+          "id": "c66aa76e24e341cd9324f32fe9453abb",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "avRjGoD4vGH7WW2Fx7i7xb",
+          "span_id": "46b1bd176c8443f8bc5bcf19b37d161d",
+          "timestamp": "2026-03-11T00:33:56.154376+01:00",
+          "working_start": 0.0014087159979681019,
+          "event": "span_begin",
+          "id": "46b1bd176c8443f8bc5bcf19b37d161d",
+          "parent_id": "c66aa76e24e341cd9324f32fe9453abb",
+          "type": "solver",
+          "name": "multiple_choice"
+        },
+        {
+          "uuid": "E2w3jTHXBFDXNWW2ScTLY7",
+          "span_id": "46b1bd176c8443f8bc5bcf19b37d161d",
+          "timestamp": "2026-03-11T00:33:56.154930+01:00",
+          "working_start": 0.0019634089985629544,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "VLJvxnPNpHKYs4pDeEB7Fs",
+              "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nAccording to a typical international airport Ground Operations Safety Manual, prior to aircraft arrival, how many minutes before the Estimated Time of Arrival (ETA) should personnel arrive at the aircraft stand?\n\nA) 5 minutes\nB) 2 minutes\nC) 15 minutes\nD) 30 minutes\nE) no suitable option",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 2048
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "RanismopJqwReYERpQRCuY",
+                  "content": "ANSWER: C",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "ANSWER: C",
+            "usage": {
+              "input_tokens": 170,
+              "output_tokens": 5,
+              "total_tokens": 175
+            },
+            "time": 2.061613522000698,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-11T00:33:58.218734+01:00",
+          "working_time": 2.061613522000698
+        },
+        {
+          "uuid": "j74zE4WyowWhoiGYAEN9yi",
+          "span_id": "46b1bd176c8443f8bc5bcf19b37d161d",
+          "timestamp": "2026-03-11T00:33:58.218952+01:00",
+          "working_start": 2.0638765820003755,
+          "event": "state",
+          "changes": [
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "attachment://e6fb2cc3538edb207b3d0815aceda545",
+              "replaced": "According to a typical international airport Ground Operations Safety Manual, prior to aircraft arrival, how many minutes before the Estimated Time of Arrival (ETA) should personnel arrive at the aircraft stand?"
+            },
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "RanismopJqwReYERpQRCuY",
+                "content": "ANSWER: C",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 2.061613522000698
+            },
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 170,
+                "output_tokens": 5,
+                "total_tokens": 175
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "ANSWER: C",
+              "replaced": ""
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "RanismopJqwReYERpQRCuY",
+                  "content": "ANSWER: C",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "XgkKYMsUsZjErrWavjC3SL",
+          "span_id": "46b1bd176c8443f8bc5bcf19b37d161d",
+          "timestamp": "2026-03-11T00:33:58.219477+01:00",
+          "working_start": 2.064401611001813,
+          "event": "span_end",
+          "id": "46b1bd176c8443f8bc5bcf19b37d161d"
+        },
+        {
+          "uuid": "eN4Qx7BEVqFtjQLMGWU2Ad",
+          "span_id": "c66aa76e24e341cd9324f32fe9453abb",
+          "timestamp": "2026-03-11T00:33:58.219927+01:00",
+          "working_start": 2.0648516310029663,
+          "event": "span_end",
+          "id": "c66aa76e24e341cd9324f32fe9453abb"
+        },
+        {
+          "uuid": "f3v37dHSRxUqmTu6NAibKj",
+          "span_id": "ef61c1bcd0d94e1b92a42878106d715e",
+          "timestamp": "2026-03-11T00:33:58.242835+01:00",
+          "working_start": 2.087759657002607,
+          "event": "span_begin",
+          "id": "ef61c1bcd0d94e1b92a42878106d715e",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "oYv3EDxcgTxEZBbUn78RZg",
+          "span_id": "ead550e97d2d488f97a7d2fc7c901fb4",
+          "timestamp": "2026-03-11T00:33:58.243256+01:00",
+          "working_start": 2.0881805890021496,
+          "event": "span_begin",
+          "id": "ead550e97d2d488f97a7d2fc7c901fb4",
+          "parent_id": "ef61c1bcd0d94e1b92a42878106d715e",
+          "type": "scorer",
+          "name": "choice"
+        },
+        {
+          "uuid": "Tc8j7mkVWL7VJipByEkJ8Y",
+          "span_id": "ead550e97d2d488f97a7d2fc7c901fb4",
+          "timestamp": "2026-03-11T00:33:58.243624+01:00",
+          "working_start": 2.0885493280002265,
+          "event": "score",
+          "score": {
+            "value": "C",
+            "answer": "C",
+            "explanation": "ANSWER: C",
+            "history": []
+          },
+          "target": "C",
+          "intermediate": false
+        },
+        {
+          "uuid": "SsQJAo2PmzE4ExpjE7J7RH",
+          "span_id": "ead550e97d2d488f97a7d2fc7c901fb4",
+          "timestamp": "2026-03-11T00:33:58.244059+01:00",
+          "working_start": 2.0889840520030702,
+          "event": "span_end",
+          "id": "ead550e97d2d488f97a7d2fc7c901fb4"
+        },
+        {
+          "uuid": "AxQfpgUmYrHEN85dgeGMeX",
+          "span_id": "ef61c1bcd0d94e1b92a42878106d715e",
+          "timestamp": "2026-03-11T00:33:58.244420+01:00",
+          "working_start": 2.0893454320030287,
+          "event": "span_end",
+          "id": "ef61c1bcd0d94e1b92a42878106d715e"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 170,
+          "output_tokens": 5,
+          "total_tokens": 175
+        }
+      },
+      "total_time": 2.13,
+      "working_time": 2.128,
+      "uuid": "RMSNVkcNxqV6RUwrywtmHM",
+      "error_retries": [],
+      "attachments": {
+        "bdc694898eceef41e723e9a86655060a": "According to a typical international airport Ground Operations Safety Manual, prior to aircraft arrival, how many minutes before the Estimated Time of Arrival (ETA) should personnel arrive at the aircraft stand?",
+        "e6fb2cc3538edb207b3d0815aceda545": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nAccording to a typical international airport Ground Operations Safety Manual, prior to aircraft arrival, how many minutes before the Estimated Time of Arrival (ETA) should personnel arrive at the aircraft stand?\n\nA) 5 minutes\nB) 2 minutes\nC) 15 minutes\nD) 30 minutes\nE) no suitable option"
+      }
+    },
+    {
+      "id": "q103",
+      "epoch": 1,
+      "input": "According to a typical international airport Ground Operations Safety Manual, what should the ADGS operator do if the PLB wheels are extended beyond the designated parking box?",
+      "choices": [
+        "Retract the PLB immediately",
+        "Inform ADGS operator NOT to activate ADGS and DO NOT RETRACT THE PLB. Instead, alert FMC and the PLB maintenance staff will respond",
+        "Continue with the docking procedure",
+        "Ignore the issue and proceed as normal",
+        "no suitable option"
+      ],
+      "target": "B",
+      "messages": [
+        {
+          "id": "79fVwE43RwXBCsHv8pJzij",
+          "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nAccording to a typical international airport Ground Operations Safety Manual, what should the ADGS operator do if the PLB wheels are extended beyond the designated parking box?\n\nA) Retract the PLB immediately\nB) Inform ADGS operator NOT to activate ADGS and DO NOT RETRACT THE PLB. Instead, alert FMC and the PLB maintenance staff will respond\nC) Continue with the docking procedure\nD) Ignore the issue and proceed as normal\nE) no suitable option",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "LYXunZSXo5wPsskZoXssq7",
+          "content": "ANSWER: B",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "LYXunZSXo5wPsskZoXssq7",
+              "content": "ANSWER: B",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "ANSWER: B",
+        "usage": {
+          "input_tokens": 170,
+          "output_tokens": 5,
+          "total_tokens": 175
+        },
+        "time": 2.057610724001279,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "choice": {
+          "value": "C",
+          "answer": "B",
+          "explanation": "ANSWER: B",
+          "history": []
+        }
+      },
+      "metadata": {},
+      "store": {},
+      "events": [
+        {
+          "uuid": "GEEAEBKkjbkasA2c3Mj9nU",
+          "span_id": "bcd265b6d1334416b4724518c2cde73e",
+          "timestamp": "2026-03-11T00:33:56.177904+01:00",
+          "working_start": 22870.224244888,
+          "event": "span_begin",
+          "id": "bcd265b6d1334416b4724518c2cde73e",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "aWdsQjP4TizLAn6MoEQ8rc",
+          "span_id": "bcd265b6d1334416b4724518c2cde73e",
+          "timestamp": "2026-03-11T00:33:56.178327+01:00",
+          "working_start": 22870.224669308,
+          "event": "sample_init",
+          "sample": {
+            "input": "attachment://cf6463ebf3afd602990d1401fb76539a",
+            "choices": [
+              "Retract the PLB immediately",
+              "Inform ADGS operator NOT to activate ADGS and DO NOT RETRACT THE PLB. Instead, alert FMC and the PLB maintenance staff will respond",
+              "Continue with the docking procedure",
+              "Ignore the issue and proceed as normal",
+              "no suitable option"
+            ],
+            "target": "B",
+            "id": "q103"
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "79fVwE43RwXBCsHv8pJzij",
+                "content": "attachment://cf6463ebf3afd602990d1401fb76539a",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {}
+          }
+        },
+        {
+          "uuid": "Qmc4Hc5dJRzTHyjZ6Yu6Hk",
+          "span_id": "bcd265b6d1334416b4724518c2cde73e",
+          "timestamp": "2026-03-11T00:33:56.178835+01:00",
+          "working_start": 22870.225177024,
+          "event": "span_end",
+          "id": "bcd265b6d1334416b4724518c2cde73e"
+        },
+        {
+          "uuid": "HiL5xa7yxTYU5sTF3qeuTw",
+          "span_id": "499de7721fac4eb1967d44efe078afd6",
+          "timestamp": "2026-03-11T00:33:56.179987+01:00",
+          "working_start": 0.0008080709994828794,
+          "event": "span_begin",
+          "id": "499de7721fac4eb1967d44efe078afd6",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "8rXoft8QqbktvYxakHKSHW",
+          "span_id": "59472ee0d81741f0b7190387940715b9",
+          "timestamp": "2026-03-11T00:33:56.180398+01:00",
+          "working_start": 0.0012191460009489674,
+          "event": "span_begin",
+          "id": "59472ee0d81741f0b7190387940715b9",
+          "parent_id": "499de7721fac4eb1967d44efe078afd6",
+          "type": "solver",
+          "name": "multiple_choice"
+        },
+        {
+          "uuid": "gix6zn8E9piBXMzTFDPphH",
+          "span_id": "59472ee0d81741f0b7190387940715b9",
+          "timestamp": "2026-03-11T00:33:56.180907+01:00",
+          "working_start": 0.0017282070002693217,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "79fVwE43RwXBCsHv8pJzij",
+              "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nAccording to a typical international airport Ground Operations Safety Manual, what should the ADGS operator do if the PLB wheels are extended beyond the designated parking box?\n\nA) Retract the PLB immediately\nB) Inform ADGS operator NOT to activate ADGS and DO NOT RETRACT THE PLB. Instead, alert FMC and the PLB maintenance staff will respond\nC) Continue with the docking procedure\nD) Ignore the issue and proceed as normal\nE) no suitable option",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 2048
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "LYXunZSXo5wPsskZoXssq7",
+                  "content": "ANSWER: B",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "ANSWER: B",
+            "usage": {
+              "input_tokens": 170,
+              "output_tokens": 5,
+              "total_tokens": 175
+            },
+            "time": 2.057610724001279,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-11T00:33:58.240575+01:00",
+          "working_time": 2.057610724001279
+        },
+        {
+          "uuid": "W7mhQbmPUKwfSpKieTMuU5",
+          "span_id": "59472ee0d81741f0b7190387940715b9",
+          "timestamp": "2026-03-11T00:33:58.240814+01:00",
+          "working_start": 2.059651286002918,
+          "event": "state",
+          "changes": [
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "attachment://cf0626df4233e01d16f08a7c242dd897",
+              "replaced": "According to a typical international airport Ground Operations Safety Manual, what should the ADGS operator do if the PLB wheels are extended beyond the designated parking box?"
+            },
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "LYXunZSXo5wPsskZoXssq7",
+                "content": "ANSWER: B",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 2.057610724001279
+            },
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 170,
+                "output_tokens": 5,
+                "total_tokens": 175
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "ANSWER: B",
+              "replaced": ""
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "LYXunZSXo5wPsskZoXssq7",
+                  "content": "ANSWER: B",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "S9NSAUhndvqqf9qJfCMy6j",
+          "span_id": "59472ee0d81741f0b7190387940715b9",
+          "timestamp": "2026-03-11T00:33:58.241321+01:00",
+          "working_start": 2.0601591630038456,
+          "event": "span_end",
+          "id": "59472ee0d81741f0b7190387940715b9"
+        },
+        {
+          "uuid": "Ln8CUWdpU2CQqYCEwRp3ig",
+          "span_id": "499de7721fac4eb1967d44efe078afd6",
+          "timestamp": "2026-03-11T00:33:58.241736+01:00",
+          "working_start": 2.0605738860031124,
+          "event": "span_end",
+          "id": "499de7721fac4eb1967d44efe078afd6"
+        },
+        {
+          "uuid": "HLv95HfN5xwHQTJd8P7f6x",
+          "span_id": "a4f1b93dc50e4fd9b93b8db0b9e7ef47",
+          "timestamp": "2026-03-11T00:33:58.255467+01:00",
+          "working_start": 2.074304673002189,
+          "event": "span_begin",
+          "id": "a4f1b93dc50e4fd9b93b8db0b9e7ef47",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "guWZPNrz48jMFmYv54wHgm",
+          "span_id": "ee69248446604d3d90bd244b84ccc079",
+          "timestamp": "2026-03-11T00:33:58.255922+01:00",
+          "working_start": 2.074759877003089,
+          "event": "span_begin",
+          "id": "ee69248446604d3d90bd244b84ccc079",
+          "parent_id": "a4f1b93dc50e4fd9b93b8db0b9e7ef47",
+          "type": "scorer",
+          "name": "choice"
+        },
+        {
+          "uuid": "VYotFveMxugcL7iwxzymQg",
+          "span_id": "ee69248446604d3d90bd244b84ccc079",
+          "timestamp": "2026-03-11T00:33:58.256284+01:00",
+          "working_start": 2.0751220890051627,
+          "event": "score",
+          "score": {
+            "value": "C",
+            "answer": "B",
+            "explanation": "ANSWER: B",
+            "history": []
+          },
+          "target": "B",
+          "intermediate": false
+        },
+        {
+          "uuid": "aUVjRqXGLB32rkeD2duxft",
+          "span_id": "ee69248446604d3d90bd244b84ccc079",
+          "timestamp": "2026-03-11T00:33:58.256653+01:00",
+          "working_start": 2.0754909880051855,
+          "event": "span_end",
+          "id": "ee69248446604d3d90bd244b84ccc079"
+        },
+        {
+          "uuid": "fLvW8YDoETNADFkMaRXdhp",
+          "span_id": "a4f1b93dc50e4fd9b93b8db0b9e7ef47",
+          "timestamp": "2026-03-11T00:33:58.257070+01:00",
+          "working_start": 2.07590808000532,
+          "event": "span_end",
+          "id": "a4f1b93dc50e4fd9b93b8db0b9e7ef47"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 170,
+          "output_tokens": 5,
+          "total_tokens": 175
+        }
+      },
+      "total_time": 2.127,
+      "working_time": 2.125,
+      "uuid": "Ajy62DjqKZrzE8HTkbk8dX",
+      "error_retries": [],
+      "attachments": {
+        "cf6463ebf3afd602990d1401fb76539a": "According to a typical international airport Ground Operations Safety Manual, what should the ADGS operator do if the PLB wheels are extended beyond the designated parking box?",
+        "cf0626df4233e01d16f08a7c242dd897": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nAccording to a typical international airport Ground Operations Safety Manual, what should the ADGS operator do if the PLB wheels are extended beyond the designated parking box?\n\nA) Retract the PLB immediately\nB) Inform ADGS operator NOT to activate ADGS and DO NOT RETRACT THE PLB. Instead, alert FMC and the PLB maintenance staff will respond\nC) Continue with the docking procedure\nD) Ignore the issue and proceed as normal\nE) no suitable option"
+      }
+    },
+    {
+      "id": "q104",
+      "epoch": 1,
+      "input": "According to a typical international airport Ground Operations Safety Manual, what action should personnel take if the aircraft overshoots the designated stop line by more than 0.5 meters?",
+      "choices": [
+        "Use manual force to reposition the aircraft",
+        "Arrange for an airtug to reposition the aircraft",
+        "Ignore the overshoot if it's less than 1 meter",
+        "Instruct the flight crew to reverse the aircraft",
+        "no suitable option"
+      ],
+      "target": "B",
+      "messages": [
+        {
+          "id": "BdHQoftkj9yKF8heWkZvHm",
+          "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nAccording to a typical international airport Ground Operations Safety Manual, what action should personnel take if the aircraft overshoots the designated stop line by more than 0.5 meters?\n\nA) Use manual force to reposition the aircraft\nB) Arrange for an airtug to reposition the aircraft\nC) Ignore the overshoot if it's less than 1 meter\nD) Instruct the flight crew to reverse the aircraft\nE) no suitable option",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "NKhWJSJ4Pf4ZDghajc9pak",
+          "content": "ANSWER: B",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "NKhWJSJ4Pf4ZDghajc9pak",
+              "content": "ANSWER: B",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "ANSWER: B",
+        "usage": {
+          "input_tokens": 170,
+          "output_tokens": 5,
+          "total_tokens": 175
+        },
+        "time": 2.036929591002263,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "choice": {
+          "value": "C",
+          "answer": "B",
+          "explanation": "ANSWER: B",
+          "history": []
+        }
+      },
+      "metadata": {},
+      "store": {},
+      "events": [
+        {
+          "uuid": "H9pKzr3JEXU7Fq3ncnJsXF",
+          "span_id": "3690e9f6d9484838a00de37793fcc042",
+          "timestamp": "2026-03-11T00:33:56.204335+01:00",
+          "working_start": 22870.250676219,
+          "event": "span_begin",
+          "id": "3690e9f6d9484838a00de37793fcc042",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "Ykow7KhNHqt6QykKvnpF4W",
+          "span_id": "3690e9f6d9484838a00de37793fcc042",
+          "timestamp": "2026-03-11T00:33:56.204811+01:00",
+          "working_start": 22870.251152831,
+          "event": "sample_init",
+          "sample": {
+            "input": "attachment://897b80f4f785b94925a16580b2bfd9cf",
+            "choices": [
+              "Use manual force to reposition the aircraft",
+              "Arrange for an airtug to reposition the aircraft",
+              "Ignore the overshoot if it's less than 1 meter",
+              "Instruct the flight crew to reverse the aircraft",
+              "no suitable option"
+            ],
+            "target": "B",
+            "id": "q104"
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "BdHQoftkj9yKF8heWkZvHm",
+                "content": "attachment://897b80f4f785b94925a16580b2bfd9cf",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {}
+          }
+        },
+        {
+          "uuid": "SRt3jwvzAFs7nsQb5Uugo4",
+          "span_id": "3690e9f6d9484838a00de37793fcc042",
+          "timestamp": "2026-03-11T00:33:56.205277+01:00",
+          "working_start": 22870.251618339,
+          "event": "span_end",
+          "id": "3690e9f6d9484838a00de37793fcc042"
+        },
+        {
+          "uuid": "9cwfPZaNMTBTFHPY9LmXEc",
+          "span_id": "a60b7265d98e4e32b53b349dac855d1e",
+          "timestamp": "2026-03-11T00:33:56.206455+01:00",
+          "working_start": 0.0008323590009240434,
+          "event": "span_begin",
+          "id": "a60b7265d98e4e32b53b349dac855d1e",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "5KNp55K6A3sq5jGhPhZhPC",
+          "span_id": "020883ff4aef42249306e22930b5ed43",
+          "timestamp": "2026-03-11T00:33:56.206912+01:00",
+          "working_start": 0.0012907950003864244,
+          "event": "span_begin",
+          "id": "020883ff4aef42249306e22930b5ed43",
+          "parent_id": "a60b7265d98e4e32b53b349dac855d1e",
+          "type": "solver",
+          "name": "multiple_choice"
+        },
+        {
+          "uuid": "B7VWgi9u8y8DWqK5QDCpXm",
+          "span_id": "020883ff4aef42249306e22930b5ed43",
+          "timestamp": "2026-03-11T00:33:56.207386+01:00",
+          "working_start": 0.0017649750006967224,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "BdHQoftkj9yKF8heWkZvHm",
+              "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nAccording to a typical international airport Ground Operations Safety Manual, what action should personnel take if the aircraft overshoots the designated stop line by more than 0.5 meters?\n\nA) Use manual force to reposition the aircraft\nB) Arrange for an airtug to reposition the aircraft\nC) Ignore the overshoot if it's less than 1 meter\nD) Instruct the flight crew to reverse the aircraft\nE) no suitable option",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 2048
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "NKhWJSJ4Pf4ZDghajc9pak",
+                  "content": "ANSWER: B",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "ANSWER: B",
+            "usage": {
+              "input_tokens": 170,
+              "output_tokens": 5,
+              "total_tokens": 175
+            },
+            "time": 2.036929591002263,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-11T00:33:58.246343+01:00",
+          "working_time": 2.036929591002263
+        },
+        {
+          "uuid": "YD6wtba5jHYfcGfrNyw6jW",
+          "span_id": "020883ff4aef42249306e22930b5ed43",
+          "timestamp": "2026-03-11T00:33:58.246542+01:00",
+          "working_start": 2.038965352003288,
+          "event": "state",
+          "changes": [
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "attachment://c963e57a1dbff0e04186ea6d68a09b30",
+              "replaced": "According to a typical international airport Ground Operations Safety Manual, what action should personnel take if the aircraft overshoots the designated stop line by more than 0.5 meters?"
+            },
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "NKhWJSJ4Pf4ZDghajc9pak",
+                "content": "ANSWER: B",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 2.036929591002263
+            },
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 170,
+                "output_tokens": 5,
+                "total_tokens": 175
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "ANSWER: B",
+              "replaced": ""
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "NKhWJSJ4Pf4ZDghajc9pak",
+                  "content": "ANSWER: B",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "52rYjnTcA6ykkVzzMKHPTv",
+          "span_id": "020883ff4aef42249306e22930b5ed43",
+          "timestamp": "2026-03-11T00:33:58.247088+01:00",
+          "working_start": 2.0395115650026128,
+          "event": "span_end",
+          "id": "020883ff4aef42249306e22930b5ed43"
+        },
+        {
+          "uuid": "P3Kmhuaq23iDtDegwZUvvB",
+          "span_id": "a60b7265d98e4e32b53b349dac855d1e",
+          "timestamp": "2026-03-11T00:33:58.247475+01:00",
+          "working_start": 2.0398979370038433,
+          "event": "span_end",
+          "id": "a60b7265d98e4e32b53b349dac855d1e"
+        },
+        {
+          "uuid": "BC7y2PvobkRo9zsm7RnApn",
+          "span_id": "945c2500d3724e57ae2f15a5b3bfda78",
+          "timestamp": "2026-03-11T00:33:58.260281+01:00",
+          "working_start": 2.052704875004565,
+          "event": "span_begin",
+          "id": "945c2500d3724e57ae2f15a5b3bfda78",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "CgSfnxEbU9ZRqPAuUchaFZ",
+          "span_id": "85f093c629be4441bad57bb0ad833c93",
+          "timestamp": "2026-03-11T00:33:58.260746+01:00",
+          "working_start": 2.053169679002167,
+          "event": "span_begin",
+          "id": "85f093c629be4441bad57bb0ad833c93",
+          "parent_id": "945c2500d3724e57ae2f15a5b3bfda78",
+          "type": "scorer",
+          "name": "choice"
+        },
+        {
+          "uuid": "mQvLznh8b9SNESbuUFhLsE",
+          "span_id": "85f093c629be4441bad57bb0ad833c93",
+          "timestamp": "2026-03-11T00:33:58.261164+01:00",
+          "working_start": 2.0535879230046703,
+          "event": "score",
+          "score": {
+            "value": "C",
+            "answer": "B",
+            "explanation": "ANSWER: B",
+            "history": []
+          },
+          "target": "B",
+          "intermediate": false
+        },
+        {
+          "uuid": "HNEeKUeTqSkbK73MeRxfun",
+          "span_id": "85f093c629be4441bad57bb0ad833c93",
+          "timestamp": "2026-03-11T00:33:58.261547+01:00",
+          "working_start": 2.053970647004462,
+          "event": "span_end",
+          "id": "85f093c629be4441bad57bb0ad833c93"
+        },
+        {
+          "uuid": "398rgXBqVUXDtRmWSevmn8",
+          "span_id": "945c2500d3724e57ae2f15a5b3bfda78",
+          "timestamp": "2026-03-11T00:33:58.261960+01:00",
+          "working_start": 2.0543837700024596,
+          "event": "span_end",
+          "id": "945c2500d3724e57ae2f15a5b3bfda78"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 170,
+          "output_tokens": 5,
+          "total_tokens": 175
+        }
+      },
+      "total_time": 2.106,
+      "working_time": 2.104,
+      "uuid": "FkFydQuTvL75pVjfLQDvzx",
+      "error_retries": [],
+      "attachments": {
+        "897b80f4f785b94925a16580b2bfd9cf": "According to a typical international airport Ground Operations Safety Manual, what action should personnel take if the aircraft overshoots the designated stop line by more than 0.5 meters?",
+        "c963e57a1dbff0e04186ea6d68a09b30": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nAccording to a typical international airport Ground Operations Safety Manual, what action should personnel take if the aircraft overshoots the designated stop line by more than 0.5 meters?\n\nA) Use manual force to reposition the aircraft\nB) Arrange for an airtug to reposition the aircraft\nC) Ignore the overshoot if it's less than 1 meter\nD) Instruct the flight crew to reverse the aircraft\nE) no suitable option"
+      }
+    }
+  ],
+  "reductions": [
+    {
+      "scorer": "choice",
+      "samples": [
+        {
+          "value": 1.0,
+          "answer": "B",
+          "explanation": "ANSWER: B",
+          "history": [],
+          "sample_id": "q100"
+        },
+        {
+          "value": 0,
+          "answer": "C",
+          "explanation": "ANSWER: C",
+          "history": [],
+          "sample_id": "q101"
+        },
+        {
+          "value": 1.0,
+          "answer": "C",
+          "explanation": "ANSWER: C",
+          "history": [],
+          "sample_id": "q102"
+        },
+        {
+          "value": 1.0,
+          "answer": "B",
+          "explanation": "ANSWER: B",
+          "history": [],
+          "sample_id": "q103"
+        },
+        {
+          "value": 1.0,
+          "answer": "B",
+          "explanation": "ANSWER: B",
+          "history": [],
+          "sample_id": "q104"
+        }
+      ]
+    }
+  ]
+}
