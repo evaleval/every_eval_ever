@@ -41,8 +41,8 @@ def _require_inspect_dependencies() -> None:
             "Install with: pip install 'every_eval_ever[inspect]'"
         ) from _INSPECT_IMPORT_ERROR
 
-
 from every_eval_ever.converters import SCHEMA_VERSION
+
 from every_eval_ever.converters.common.adapter import (
     AdapterMetadata,
     BaseEvaluationAdapter,
@@ -54,12 +54,16 @@ from every_eval_ever.converters.common.utils import (
     get_current_unix_timestamp,
     sha256_file,
 )
+
 from every_eval_ever.converters.inspect.instance_level_adapter import (
-    InspectInstanceLevelDataAdapter,
+    InspectInstanceLevelDataAdapter
 )
 from every_eval_ever.converters.inspect.utils import (
+    apply_supplemental_eval_details,
     extract_model_info_from_model_path,
+    parse_supplemental_eval_details,
 )
+
 from every_eval_ever.eval_types import (
     AgenticEvalConfig,
     AvailableTool,
@@ -87,6 +91,7 @@ from every_eval_ever.eval_types import (
     StandardError,
     Uncertainty,
 )
+
 
 logger = logging.getLogger(__name__)
 
@@ -131,7 +136,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         llm_grader: LlmScoring,
         source_data: SourceDataHf,
         evaluation_timestamp: str,
-        generation_config: Dict[str, Any],
+        generation_config: GenerationConfig,
         stderr_value: float | None = None,
         stddev_value: float | None = None,
         num_samples: int = 0,
@@ -162,7 +167,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         evaluation_task_name: str,
         scores: List[EvalScore],
         source_data: SourceDataHf,
-        generation_config: Dict[str, Any],
+        generation_config: GenerationConfig,
         num_samples: int,
         timestamp: str,
     ) -> List[EvaluationResult]:
@@ -535,7 +540,17 @@ class InspectAIAdapter(BaseEvaluationAdapter):
             else []
         )
 
-        evaluation_id = f'{source_data.dataset_name}/{model_path.replace("/", "_")}/{evaluation_unix_timestamp}'
+        supplemental_eval_details = parse_supplemental_eval_details(
+            metadata_args.get("supplemental_eval_details")
+        )
+
+        apply_supplemental_eval_details(
+            model_info=model_info,
+            evaluation_results=evaluation_results,
+            supplemental_eval_details=supplemental_eval_details,
+        )
+
+        evaluation_id = f'{source_data.dataset_name}/{model_path.replace('/', '_')}/{evaluation_unix_timestamp}'
 
         parent_eval_output_dir = metadata_args.get(
             'parent_eval_output_dir', 'data'

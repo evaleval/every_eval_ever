@@ -66,7 +66,7 @@ def test_pubmedqa_instance_level():
         assert len(instance_logs) == 2
         log = instance_logs[0]
 
-        assert log.schema_version == '0.2.1'
+        assert log.schema_version == '0.2.2'
         assert log.model_id == 'openai/gpt-4o-mini-2024-07-18'
         assert log.interaction_type == InteractionType.single_turn
 
@@ -97,7 +97,7 @@ def test_arc_sonnet_instance_level():
         assert len(instance_logs) == 5
         log = instance_logs[0]
 
-        assert log.schema_version == '0.2.1'
+        assert log.schema_version == '0.2.2'
         assert log.model_id == 'anthropic/claude-sonnet-4-20250514'
         assert log.interaction_type == InteractionType.single_turn
 
@@ -133,7 +133,7 @@ def test_arc_qwen_instance_level():
         assert len(instance_logs) == 3
         log = instance_logs[0]
 
-        assert log.schema_version == '0.2.1'
+        assert log.schema_version == '0.2.2'
         assert log.model_id == 'ollama/qwen2.5-0.5b'
         assert log.interaction_type == InteractionType.single_turn
 
@@ -169,7 +169,7 @@ def test_gaia_instance_level():
         assert len(instance_logs) > 0
         log = instance_logs[0]
 
-        assert log.schema_version == '0.2.1'
+        assert log.schema_version == '0.2.2'
         assert log.model_id == 'openai/gpt-4.1-mini-2025-04-14'
 
         assert log.interaction_type == InteractionType.agentic

@@ -12,6 +12,7 @@ try:
     from inspect_ai.log import list_eval_logs
 
     from every_eval_ever.converters.inspect.adapter import InspectAIAdapter
+    from every_eval_ever.converters.inspect.supplemental_eval_details import SupplementalEvalDetails
 except ImportError as exc:
     raise SystemExit(
         "The 'inspect-ai' package is required to use the Inspect AI converter.\n"
@@ -62,6 +63,15 @@ def parse_args():
         type=str,
         default='unknown',
         help='Version of the evaluation library. It should be extracted in the adapter if available in the evaluation log.',
+    )
+    parser.add_argument(
+        '--supplemental_eval_details_path',
+        type=str,
+        default=None,
+        help=(
+            'Path to JSON file containing supplemental evaluation details to fill '
+            'missing fields in converted output.'
+        ),
     )
 
     args = parser.parse_args()
@@ -184,6 +194,11 @@ if __name__ == '__main__':
         'eval_library_name': args.eval_library_name,
         'eval_library_version': args.eval_library_version,
     }
+    if args.supplemental_eval_details_path:
+        with open(args.supplemental_eval_details_path, 'r', encoding='utf-8') as f:
+            base_metadata_args["supplemental_eval_details"] = (
+                SupplementalEvalDetails.model_validate(json.load(f))
+            )
 
     if inspect_converter.is_log_path_directory:
         log_paths: List[Path] = list_eval_logs(

@@ -1,11 +1,27 @@
+import json
 import re
 from pathlib import Path
-from typing import Dict, List, Type
 
 from pydantic import BaseModel
+from typing import Any, Dict, List, Type
 
+from every_eval_ever.eval_types import (
+    AgenticEvalConfig,
+    EvaluationResult,
+    GenerationArgs,
+    GenerationConfig,
+    InferenceEngine,
+    MetricConfig,
+    ModelInfo
+)
 from every_eval_ever.converters.common.utils import get_model_organization_info
-from every_eval_ever.eval_types import InferenceEngine, ModelInfo
+from every_eval_ever.converters.inspect.supplemental_eval_details import (
+    SupplementalAgenticEvalConfig,
+    SupplementalEvalDetails,
+    SupplementalForEvaluationResults,
+    SupplementalGenerationConfig,
+    SupplementalSourceData,
+)
 
 
 class ModelPathHandler:
@@ -326,3 +342,211 @@ def save_to_file(path: str, obj: BaseModel) -> bool:
 
     with open(obj_path, 'w') as json_file:
         json_file.write(json_str)
+
+
+SYNTHETIC_METRIC_CONFIG_FIELDS = {
+    "evaluation_description",
+    "lower_is_better",
+    "score_type",
+    "level_names",
+    "level_metadata",
+    "has_unknown_level",
+    "min_score",
+    "max_score",
+}
+
+
+def parse_supplemental_eval_details(
+    raw_supplemental_eval_details: Any,
+) -> SupplementalEvalDetails | None:
+    if raw_supplemental_eval_details is None:
+        return None
+
+    if isinstance(raw_supplemental_eval_details, SupplementalEvalDetails):
+        return raw_supplemental_eval_details
+
+    if isinstance(raw_supplemental_eval_details, dict):
+        return SupplementalEvalDetails.model_validate(raw_supplemental_eval_details)
+
+    raise ValueError(
+        "metadata_args['supplemental_eval_details'] must be a dict or SupplementalEvalDetails instance."
+    )
+
+
+def convert_to_string_dict(data: dict[str, Any] | None) -> dict[str, str] | None:
+    if data is None:
+        return None
+    return {
+        str(key): value if isinstance(value, str) else json.dumps(value)
+        for key, value in data.items()
+    }
+
+
+def extend_additional_details(
+    existing_details: dict[str, str] | None,
+    supplemental_details: dict[str, Any] | None,
+) -> dict[str, str] | None:
+    if supplemental_details is None:
+        return existing_details
+
+    supplemental_str = convert_to_string_dict(supplemental_details) or {}
+    if existing_details is None:
+        return supplemental_str or None
+
+    merged = dict(existing_details)
+    for key, value in supplemental_str.items():
+        if key not in merged:
+            merged[key] = value
+
+    return merged or None
+
+
+def apply_model_info_supplement(
+    model_info: ModelInfo,
+    supplemental_eval_details: SupplementalEvalDetails | None,
+) -> None:
+    if supplemental_eval_details is None or supplemental_eval_details.model_info is None:
+        return
+
+    model_info.additional_details = extend_additional_details(
+        model_info.additional_details,
+        supplemental_eval_details.model_info.additional_details,
+    )
+
+
+def apply_generation_config_supplement(
+    evaluation_result: EvaluationResult,
+    generation_supplement: SupplementalGenerationConfig | None,
+    agentic_supplement: SupplementalAgenticEvalConfig | None,
+) -> None:
+    if generation_supplement is None and agentic_supplement is None:
+        return
+
+    if evaluation_result.generation_config is None:
+        evaluation_result.generation_config = GenerationConfig()
+
+    generation_config = evaluation_result.generation_config
+    if generation_supplement is not None:
+        generation_config.additional_details = extend_additional_details(
+            generation_config.additional_details,
+            generation_supplement.additional_details,
+        )
+
+    if agentic_supplement is None:
+        return
+
+    if generation_config.generation_args is None:
+        generation_config.generation_args = GenerationArgs()
+
+    if generation_config.generation_args.agentic_eval_config is None:
+        generation_config.generation_args.agentic_eval_config = AgenticEvalConfig()
+
+    generation_config.generation_args.agentic_eval_config.additional_details = (
+        extend_additional_details(
+            generation_config.generation_args.agentic_eval_config.additional_details,
+            agentic_supplement.additional_details,
+        )
+    )
+
+
+def apply_source_data_supplement(
+    evaluation_result: EvaluationResult,
+    source_data_supplement: SupplementalSourceData | None,
+) -> None:
+    if source_data_supplement is None:
+        return
+
+    evaluation_result.source_data.additional_details = extend_additional_details(
+        evaluation_result.source_data.additional_details,
+        source_data_supplement.additional_details,
+    )
+
+
+def apply_metric_config_supplement(
+    evaluation_result: EvaluationResult,
+    supplement: SupplementalForEvaluationResults,
+) -> None:
+    metric_supplement = supplement.metric_config
+    if metric_supplement is None:
+        return
+
+    current = evaluation_result.metric_config.model_dump(mode="python")
+    supplemental = metric_supplement.model_dump(mode="python", exclude_none=True)
+
+    additional_details = supplemental.pop("additional_details", None)
+
+    for field_name, field_value in supplemental.items():
+        if (
+            field_name in SYNTHETIC_METRIC_CONFIG_FIELDS
+        ):
+            current[field_name] = field_value
+
+    current["additional_details"] = extend_additional_details(
+        current.get("additional_details"),
+        additional_details,
+    )
+
+    evaluation_result.metric_config = MetricConfig.model_validate(current)
+
+
+def apply_result_supplement(
+    evaluation_result: EvaluationResult,
+    supplement: SupplementalForEvaluationResults | None,
+) -> None:
+    if supplement is None:
+        return
+
+    if supplement.score_details is not None:
+        evaluation_result.score_details.details = extend_additional_details(
+            evaluation_result.score_details.details,
+            supplement.score_details.details,
+        )
+
+    apply_metric_config_supplement(evaluation_result, supplement)
+
+
+def apply_supplemental_eval_details(
+    model_info: ModelInfo,
+    evaluation_results: list[EvaluationResult],
+    supplemental_eval_details: SupplementalEvalDetails | None,
+) -> None:
+    if supplemental_eval_details is None:
+        return
+
+    apply_model_info_supplement(model_info, supplemental_eval_details)
+
+    for evaluation_result in evaluation_results:
+        apply_source_data_supplement(
+            evaluation_result,
+            supplemental_eval_details.source_data,
+        )
+        apply_generation_config_supplement(
+            evaluation_result,
+            supplemental_eval_details.generation_config,
+            supplemental_eval_details.agentic_eval_config,
+        )
+
+    result_supplements = supplemental_eval_details.supp_evaluation_results or []
+    named_supplements = {
+        supplement.evaluation_name: supplement
+        for supplement in result_supplements
+        if supplement.evaluation_name is not None
+    }
+    if len(named_supplements) != len(
+        [s for s in result_supplements if s.evaluation_name is not None]
+    ):
+        raise ValueError(
+            "Duplicate evaluation_name values in supplemental_eval_details.supp_evaluation_results."
+        )
+    unnamed_supplements = [
+        supplement for supplement in result_supplements if supplement.evaluation_name is None
+    ]
+    unnamed_idx = 0
+
+    for evaluation_result in evaluation_results:
+        supplement = named_supplements.get(evaluation_result.evaluation_name)
+        if supplement is None and unnamed_idx < len(unnamed_supplements):
+            supplement = unnamed_supplements[unnamed_idx]
+            unnamed_idx += 1
+
+        apply_result_supplement(evaluation_result, supplement)

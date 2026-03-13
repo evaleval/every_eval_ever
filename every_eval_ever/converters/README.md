@@ -27,6 +27,65 @@ The exact command for converting an example evaluation log is:
 uv run --extra inspect every_eval_ever convert inspect --log_path tests/data/inspect/2026-02-07T11-26-57+00-00_gaia_4V8zHbbRKpU5Yv2BMoBcjE.json
 ```
 
+Optional: pass `--supplemental_eval_details path/to/supplemental_eval_details.json` to enrich converted output. `additional_details` maps are extend-only (existing keys are preserved), while synthetic `metric_config` defaults can be overridden for these fields: `evaluation_description`, `lower_is_better`, `score_type`, `level_names`, `level_metadata`, `has_unknown_level`, `min_score`, `max_score`. Use top-level fields (`model_info`, `source_data`, `generation_config`, `agentic_eval_config`) for shared details and `supp_evaluation_results` for per-result metric/score details keyed by `evaluation_name`.
+
+Example `supplemental_eval_details.json`:
+
+```json
+{
+  "model_info": {
+    "additional_details": {
+      "num_parameters": 42000000000
+    }
+  },
+  "source_data": {
+    "additional_details": {
+      "subset": "full"
+    }
+  },
+  "generation_config": {
+    "additional_details": {
+      "runner": "inspect"
+    }
+  },
+  "agentic_eval_config": {
+    "additional_details": {
+      "agent_mode": "tool_use"
+    }
+  },
+  "supp_evaluation_results": [
+    {
+      "evaluation_name": "inspect_evals/pubmedqa - choice",
+      "score_details": {
+        "details": {
+          "notes": [
+            "internal-check"
+          ]
+        }
+      },
+      "metric_config": {
+        "evaluation_description": "custom-accuracy",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0,
+        "additional_details": {
+          "normalization": "none"
+        }
+      }
+    }
+  ]
+}
+```
+
+Use it with:
+
+```bash
+uv run python3 -m eval_converters.inspect \
+  --log_path tests/data/inspect/data_pubmedqa_gpt4o_mini.json \
+  --supplemental_eval_details path/to/supplemental_eval_details.json
+```
+
 
 Full manual for conversion of your own Inspect evaluation log into unified is available below:
 
