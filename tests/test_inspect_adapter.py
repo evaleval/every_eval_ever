@@ -2,11 +2,15 @@ import contextlib
 from pathlib import Path
 import tempfile
 
+import pytest
+
 from eval_converters.inspect.adapter import InspectAIAdapter
+from eval_converters.common.error import AdapterError
 from eval_converters.inspect.utils import extract_model_info_from_model_path
 from eval_types import (
     EvaluationLog,
     EvaluatorRelationship,
+    ScoreType,
     SourceDataHf,
     SourceMetadata
 )
@@ -298,3 +302,252 @@ def test_convert_model_path_to_standarized_model_ids():
     for model_path, model_id in model_path_to_standarized_id_map.items():
         model_info = extract_model_info_from_model_path(model_path)
         assert model_info.id == model_id
+
+
+def test_supplemental_eval_details_fill_only_top_level_fields():
+    adapter = InspectAIAdapter()
+    metadata_args = {
+        "source_organization_name": "TestOrg",
+        "evaluator_relationship": EvaluatorRelationship.first_party,
+        "supplemental_eval_details": {
+            "model_info": {
+                "additional_details": {
+                    "num_parameters": 42,
+                    "is_test_model": True,
+                }
+            },
+            "source_data": {
+                "additional_details": {
+                    "shuffled": "should_not_overwrite",
+                    "subset": {"name": "full"},
+                }
+            },
+            "generation_config": {
+                "additional_details": {
+                    "runner": "inspect",
+                },
+            },
+            "agentic_eval_config": {
+                "additional_details": {
+                    "agent_mode": "tool_use",
+                }
+            },
+            "supp_evaluation_results": [
+                {
+                    "evaluation_name": "inspect_evals/pubmedqa - choice",
+                    "score_details": {
+                        "details": {
+                            "notes": ["a", "b"],
+                        }
+                    },
+                    "metric_config": {
+                        "lower_is_better": True,
+                        "evaluation_description": "should_not_overwrite",
+                        "score_type": ScoreType.continuous,
+                        "min_score": 0.0,
+                        "max_score": 1.0,
+                        "additional_details": {
+                            "normalization": "none",
+                        },
+                    },
+                },
+            ],
+        },
+    }
+
+    converted_eval = _load_eval(
+        adapter,
+        "tests/data/inspect/data_pubmedqa_gpt4o_mini.json",
+        metadata_args,
+    )
+    result = converted_eval.evaluation_results[0]
+
+    assert converted_eval.model_info.additional_details == {
+        "num_parameters": "42",
+        "is_test_model": "true",
+    }
+    assert result.source_data.additional_details["shuffled"] == "False"
+    assert result.source_data.additional_details["subset"] == '{"name": "full"}'
+
+    assert result.generation_config is not None
+    assert result.generation_config.additional_details == {"runner": "inspect"}
+    assert result.generation_config.generation_args is not None
+    assert result.generation_config.generation_args.agentic_eval_config is not None
+    assert (
+        result.generation_config.generation_args.agentic_eval_config.additional_details
+        == {"agent_mode": "tool_use"}
+    )
+
+    assert result.score_details.details == {"notes": '["a", "b"]'}
+
+    # Converter-synthetic defaults are override-eligible.
+    assert result.metric_config.lower_is_better is True
+    assert result.metric_config.evaluation_description == "should_not_overwrite"
+    assert result.metric_config.additional_details == {"normalization": "none"}
+
+
+def test_supplemental_eval_details_applies_top_level_score_details():
+    adapter = InspectAIAdapter()
+    metadata_args = {
+        "source_organization_name": "TestOrg",
+        "evaluator_relationship": EvaluatorRelationship.first_party,
+        "supplemental_eval_details": {
+            "supp_evaluation_results": [
+                {
+                    "evaluation_name": "inspect_evals/pubmedqa - choice",
+                    "score_details": {
+                        "details": {
+                            "matched": 1,
+                        },
+                    },
+                }
+            ],
+        },
+    }
+
+    converted_eval = _load_eval(
+        adapter,
+        "tests/data/inspect/data_pubmedqa_gpt4o_mini.json",
+        metadata_args,
+    )
+    result = converted_eval.evaluation_results[0]
+
+    assert result.score_details.details == {"matched": "1"}
+
+
+def test_supplemental_eval_details_does_not_overwrite_existing_generation_details():
+    adapter = InspectAIAdapter()
+    metadata_args = {
+        "source_organization_name": "TestOrg",
+        "evaluator_relationship": EvaluatorRelationship.first_party,
+        "supplemental_eval_details": {
+            "generation_config": {
+                "additional_details": {
+                    "temperature": "999",
+                    "added_field": "yes",
+                }
+            },
+        },
+    }
+
+    converted_eval = _load_eval(
+        adapter,
+        "tests/data/inspect/2026-02-07T11-26-57+00-00_gaia_4V8zHbbRKpU5Yv2BMoBcjE.json",
+        metadata_args,
+    )
+    result = converted_eval.evaluation_results[0]
+    assert result.generation_config is not None
+    assert result.generation_config.additional_details is not None
+    # existing log value remains
+    assert result.generation_config.additional_details["temperature"] == "0.5"
+    # missing key gets filled
+    assert result.generation_config.additional_details["added_field"] == "yes"
+
+
+def test_supplemental_eval_details_does_not_apply_when_evaluation_name_does_not_match():
+    adapter = InspectAIAdapter()
+    metadata_args = {
+        "source_organization_name": "TestOrg",
+        "evaluator_relationship": EvaluatorRelationship.first_party,
+        "supplemental_eval_details": {
+            "supp_evaluation_results": [
+                {
+                    "evaluation_name": "some_other_eval - choice",
+                    "score_details": {"details": {"matched": 1}},
+                }
+            ],
+        },
+    }
+
+    converted_eval = _load_eval(
+        adapter,
+        "tests/data/inspect/data_pubmedqa_gpt4o_mini.json",
+        metadata_args,
+    )
+    result = converted_eval.evaluation_results[0]
+    assert result.score_details.details is None
+
+
+def test_supplemental_eval_details_fails_on_deprecated_per_result_schema():
+    adapter = InspectAIAdapter()
+    metadata_args = {
+        "source_organization_name": "TestOrg",
+        "evaluator_relationship": EvaluatorRelationship.first_party,
+        "supplemental_eval_details": {
+            "per_result": [
+                {
+                    "match": {
+                        "evaluation_name": "inspect_evals/pubmedqa - choice",
+                    },
+                    "score_details": {"details": {"matched": 1}},
+                },
+            ]
+        },
+    }
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        metadata_args = dict(metadata_args)
+        metadata_args["file_uuid"] = "test-file-uuid"
+        metadata_args["parent_eval_output_dir"] = tmpdir
+        with pytest.raises(AdapterError):
+            adapter.transform_from_file(
+                Path("tests/data/inspect/data_pubmedqa_gpt4o_mini.json"),
+                metadata_args=metadata_args,
+            )
+
+
+def test_supplemental_eval_details_fails_on_duplicate_evaluation_name():
+    adapter = InspectAIAdapter()
+    metadata_args = {
+        "source_organization_name": "TestOrg",
+        "evaluator_relationship": EvaluatorRelationship.first_party,
+        "supplemental_eval_details": {
+            "supp_evaluation_results": [
+                {
+                    "evaluation_name": "inspect_evals/pubmedqa - choice",
+                    "score_details": {"details": {"a": 1}},
+                },
+                {
+                    "evaluation_name": "inspect_evals/pubmedqa - choice",
+                    "score_details": {"details": {"b": 2}},
+                },
+            ]
+        },
+    }
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        metadata_args = dict(metadata_args)
+        metadata_args["file_uuid"] = "test-file-uuid"
+        metadata_args["parent_eval_output_dir"] = tmpdir
+        with pytest.raises(AdapterError):
+            adapter.transform_from_file(
+                Path("tests/data/inspect/data_pubmedqa_gpt4o_mini.json"),
+                metadata_args=metadata_args,
+            )
+
+
+def test_supplemental_eval_details_fails_on_invalid_schema():
+    adapter = InspectAIAdapter()
+    metadata_args = {
+        "source_organization_name": "TestOrg",
+        "evaluator_relationship": EvaluatorRelationship.first_party,
+        "supplemental_eval_details": {
+            "supp_evaluation_results": [
+                {
+                    "metric_config": {
+                        "unsupported_field": "x",
+                    }
+                }
+            ]
+        },
+    }
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        metadata_args = dict(metadata_args)
+        metadata_args["file_uuid"] = "test-file-uuid"
+        metadata_args["parent_eval_output_dir"] = tmpdir
+        with pytest.raises(AdapterError):
+            adapter.transform_from_file(
+                Path("tests/data/inspect/data_pubmedqa_gpt4o_mini.json"),
+                metadata_args=metadata_args,
+            )

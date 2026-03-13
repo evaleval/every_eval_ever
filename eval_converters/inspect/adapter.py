@@ -67,7 +67,9 @@ from eval_converters.inspect.instance_level_adapter import (
 )
 from eval_converters.common.utils import sha256_file
 from eval_converters.inspect.utils import (
-    extract_model_info_from_model_path
+    apply_supplemental_eval_details,
+    extract_model_info_from_model_path,
+    parse_supplemental_eval_details,
 )
 from eval_converters import SCHEMA_VERSION
 
@@ -113,7 +115,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         llm_grader: LlmScoring,
         source_data: SourceDataHf,
         evaluation_timestamp: str,
-        generation_config: Dict[str, Any],
+        generation_config: GenerationConfig,
         stderr_value: float | None = None,
         stddev_value: float | None = None,
         num_samples: int = 0
@@ -146,7 +148,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         evaluation_task_name: str,
         scores: List[EvalScore],
         source_data: SourceDataHf,
-        generation_config: Dict[str, Any],
+        generation_config: GenerationConfig,
         num_samples: int,
         timestamp: str
     ) -> List[EvaluationResult]:
@@ -488,6 +490,16 @@ class InspectAIAdapter(BaseEvaluationAdapter):
             )
             if results and results.scores
             else []
+        )
+
+        supplemental_eval_details = parse_supplemental_eval_details(
+            metadata_args.get("supplemental_eval_details")
+        )
+
+        apply_supplemental_eval_details(
+            model_info=model_info,
+            evaluation_results=evaluation_results,
+            supplemental_eval_details=supplemental_eval_details,
         )
 
         evaluation_id = f'{source_data.dataset_name}/{model_path.replace('/', '_')}/{evaluation_unix_timestamp}'
