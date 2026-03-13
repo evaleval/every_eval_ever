@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Tuple, Union
 
 from inspect_ai.log import list_eval_logs
 from eval_converters.inspect.adapter import InspectAIAdapter
+from eval_converters.inspect.supplemental_eval_details import SupplementalEvalDetails
 from eval_types import (
     EvaluatorRelationship,
     EvaluationLog
@@ -28,6 +29,15 @@ def parse_args():
     parser.add_argument('--source_organization_logo_url', type=str, default=None)
     parser.add_argument('--eval_library_name', type=str, default='inspect_ai', help='Name of the evaluation library (e.g. inspect_ai, lm_eval, helm)')
     parser.add_argument('--eval_library_version', type=str, default='unknown', help='Version of the evaluation library. It should be extracted in the adapter if available in the evaluation log.')
+    parser.add_argument(
+        '--supplemental_eval_details_path',
+        type=str,
+        default=None,
+        help=(
+            'Path to JSON file containing supplemental evaluation details to fill '
+            'missing fields in converted output.'
+        ),
+    )
 
 
     args = parser.parse_args()
@@ -140,6 +150,11 @@ if __name__ == '__main__':
         'eval_library_name': args.eval_library_name,
         'eval_library_version': args.eval_library_version,
     }
+    if args.supplemental_eval_details_path:
+        with open(args.supplemental_eval_details_path, 'r', encoding='utf-8') as f:
+            base_metadata_args["supplemental_eval_details"] = (
+                SupplementalEvalDetails.model_validate(json.load(f))
+            )
 
     if inspect_converter.is_log_path_directory:
         log_paths: List[Path] = list_eval_logs(inspect_converter.log_path.absolute().as_posix())
