@@ -1,41 +1,38 @@
-"""Detect duplicate evaluation JSON entries while ignoring scrape-specific keys."""
-
-from __future__ import annotations
-
 import argparse
 import hashlib
 import json
 import os
-from pathlib import Path
-from typing import Any, Dict, Iterable
+from typing import Any, Dict, List
 
 IGNORE_KEYS = {"retrieved_timestamp", "evaluation_id"}
 
 
-def expand_paths(paths: Iterable[str]) -> list[str]:
-    """Expand file or directory inputs into JSON file paths."""
-    file_paths: list[str] = []
+def expand_paths(paths: List[str]) -> List[str]:
+    """Expand folders to file paths."""
+    file_paths: List[str] = []
     for path in paths:
-        candidate = Path(path)
-        if candidate.is_file() and candidate.suffix == ".json":
-            file_paths.append(str(candidate))
-        elif candidate.is_dir():
-            for subpath in candidate.rglob("*.json"):
-                file_paths.append(str(subpath))
+        if os.path.isfile(path) and path.endswith(".json"):
+            file_paths.append(path)
+        elif os.path.isdir(path):
+            for root, _, file_names in os.walk(path):
+                for file_name in file_names:
+                    if file_name.endswith(".json"):
+                        file_paths.append(os.path.join(root, file_name))
         else:
             raise Exception(f"Could not find file or directory at path: {path}")
     return file_paths
 
 
-def annotate_error(file_path: str, message: str, **kwargs: object) -> None:
-    """Emit GitHub Actions error annotations when available."""
+def annotate_error(file_path: str, message: str, **kwargs) -> None:
+    """If run in GitHub Actions, annotate errors."""
     if os.environ.get("GITHUB_ACTION"):
         joined_kwargs = "".join(f",{key}={value}" for key, value in kwargs.items())
         print(f"::error file={file_path}{joined_kwargs}::{message}")
 
 
-def normalize_list(items: list[Any]) -> list[Any]:
+def normalize_list(items: List[Any]) -> List[Any]:
     normalized_items = [strip_ignored_keys(item) for item in items]
+    # Sort to avoid false negatives when scrapers emit the same items in different orders.
     return sorted(
         normalized_items,
         key=lambda item: json.dumps(
@@ -67,32 +64,38 @@ def normalized_hash(payload: Dict[str, Any]) -> str:
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: List[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="every_eval_ever check-duplicates",
-        description="Detect duplicate evaluation entries ignoring scrape timestamp fields.",
+        description="Detects duplicate evaluation entries ignoring scrape timestamp fields.",
     )
-    parser.add_argument("paths", nargs="+", type=str, help="File or folder paths to JSON data")
+    parser.add_argument(
+        "paths", nargs="+", type=str, help="File or folder paths to JSON data"
+    )
     args = parser.parse_args(argv)
 
     file_paths = expand_paths(args.paths)
-    print(f"\nChecking {len(file_paths)} JSON files for duplicates...\n")
+    print()
+    print(f"Checking {len(file_paths)} JSON files for duplicates...")
+    print()
 
-    groups: Dict[str, list[Dict[str, Any]]] = {}
+    groups: Dict[str, List[Dict[str, Any]]] = {}
     for file_path in file_paths:
         try:
             with open(file_path, "r", encoding="utf-8") as file:
                 payload = json.load(file)
-        except json.JSONDecodeError as ex:
-            message = f"JSONDecodeError: {str(ex)}"
+        except json.JSONDecodeError as e:
+            message = f"JSONDecodeError: {str(e)}"
             annotate_error(
                 file_path,
                 message,
                 title="JSONDecodeError",
-                col=ex.colno,
-                line=ex.lineno,
+                col=e.colno,
+                line=e.lineno,
             )
-            print(f"{file_path}\n  {message}\n")
+            print(f"{file_path}")
+            print("  " + message)
+            print()
             raise
 
         entry_hash = normalized_hash(payload)
@@ -106,11 +109,13 @@ def main(argv: list[str] | None = None) -> int:
 
     duplicate_groups = [entries for entries in groups.values() if len(entries) > 1]
     if not duplicate_groups:
-        print("No duplicates found.\n")
+        print("No duplicates found.")
+        print()
         return 0
 
     ignore_label = ", ".join(f"`{key}`" for key in sorted(IGNORE_KEYS))
-    print(f"Found duplicate entries (ignoring keys: {ignore_label}).\n")
+    print(f"Found duplicate entries (ignoring keys: {ignore_label}).")
+    print()
 
     for index, entries in enumerate(duplicate_groups, start=1):
         print(f"Duplicate group {index} ({len(entries)} files):")
