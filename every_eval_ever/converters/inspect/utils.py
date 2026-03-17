@@ -526,7 +526,7 @@ def apply_supplemental_eval_details(
             supplemental_eval_details.agentic_eval_config,
         )
 
-    result_supplements = supplemental_eval_details.supp_evaluation_results or []
+    result_supplements = supplemental_eval_details.evaluation_results or []
     named_supplements = {
         supplement.evaluation_name: supplement
         for supplement in result_supplements
@@ -536,7 +536,7 @@ def apply_supplemental_eval_details(
         [s for s in result_supplements if s.evaluation_name is not None]
     ):
         raise ValueError(
-            "Duplicate evaluation_name values in supplemental_eval_details.supp_evaluation_results."
+            "Duplicate evaluation_name values in supplemental_eval_details.evaluation_results."
         )
     unnamed_supplements = [
         supplement for supplement in result_supplements if supplement.evaluation_name is None

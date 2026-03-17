@@ -394,7 +394,7 @@ def test_supplemental_eval_details_fill_only_top_level_fields():
                     "agent_mode": "tool_use",
                 }
             },
-            "supp_evaluation_results": [
+            "evaluation_results": [
                 {
                     "evaluation_name": "inspect_evals/pubmedqa - choice",
                     "score_details": {
@@ -454,7 +454,7 @@ def test_supplemental_eval_details_applies_top_level_score_details():
         "source_organization_name": "TestOrg",
         "evaluator_relationship": EvaluatorRelationship.first_party,
         "supplemental_eval_details": {
-            "supp_evaluation_results": [
+            "evaluation_results": [
                 {
                     "evaluation_name": "inspect_evals/pubmedqa - choice",
                     "score_details": {
@@ -512,7 +512,7 @@ def test_supplemental_eval_details_does_not_apply_when_evaluation_name_does_not_
         "source_organization_name": "TestOrg",
         "evaluator_relationship": EvaluatorRelationship.first_party,
         "supplemental_eval_details": {
-            "supp_evaluation_results": [
+            "evaluation_results": [
                 {
                     "evaluation_name": "some_other_eval - choice",
                     "score_details": {"details": {"matched": 1}},
@@ -564,7 +564,7 @@ def test_supplemental_eval_details_fails_on_duplicate_evaluation_name():
         "source_organization_name": "TestOrg",
         "evaluator_relationship": EvaluatorRelationship.first_party,
         "supplemental_eval_details": {
-            "supp_evaluation_results": [
+            "evaluation_results": [
                 {
                     "evaluation_name": "inspect_evals/pubmedqa - choice",
                     "score_details": {"details": {"a": 1}},
@@ -594,7 +594,7 @@ def test_supplemental_eval_details_fails_on_invalid_schema():
         "source_organization_name": "TestOrg",
         "evaluator_relationship": EvaluatorRelationship.first_party,
         "supplemental_eval_details": {
-            "supp_evaluation_results": [
+            "evaluation_results": [
                 {
                     "metric_config": {
                         "unsupported_field": "x",

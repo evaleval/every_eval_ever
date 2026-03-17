@@ -46,4 +46,4 @@ class SupplementalEvalDetails(_StrictSupplementalModel):
     source_data: SupplementalSourceData | None = None
     generation_config: SupplementalGenerationConfig | None = None
     agentic_eval_config: SupplementalAgenticEvalConfig | None = None
-    supp_evaluation_results: List[SupplementalForEvaluationResults] | None = None
+    evaluation_results: List[SupplementalForEvaluationResults] | None = None
