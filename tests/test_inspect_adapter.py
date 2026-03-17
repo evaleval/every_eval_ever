@@ -8,6 +8,7 @@ pytest.importorskip(
 import contextlib
 import tempfile
 from pathlib import Path
+from types import SimpleNamespace
 
 from every_eval_ever.converters.inspect.adapter import InspectAIAdapter
 from every_eval_ever.converters.common.error import AdapterError
@@ -15,6 +16,7 @@ from every_eval_ever.converters.inspect.utils import (
     extract_model_info_from_model_path,
 )
 from every_eval_ever.eval_types import (
+    GenerationConfig,
     EvaluationLog,
     EvaluatorRelationship,
     ScoreType,
@@ -55,6 +57,14 @@ def _extract_file_uuid_from_detailed_results(
     return stem[: -len('_samples')]
 
 
+def _make_metric(name: str, value: float):
+    return SimpleNamespace(name=name, value=value)
+
+
+def _make_scorer(scorer_name: str, metrics: dict[str, object]):
+    return SimpleNamespace(name=scorer_name, scorer=scorer_name, params=None, metrics=metrics)
+
+
 def test_pubmedqa_eval():
     adapter = InspectAIAdapter()
     metadata_args = {
@@ -88,7 +98,7 @@ def test_pubmedqa_eval():
     assert converted_eval.model_info.inference_engine is None
 
     results = converted_eval.evaluation_results
-    assert results[0].evaluation_name == 'inspect_evals/pubmedqa - choice'
+    assert results[0].evaluation_name == 'accuracy on inspect_evals/pubmedqa for scorer choice'
     assert results[0].metric_config.evaluation_description == 'accuracy'
     assert results[0].score_details.score == 1.0
 
@@ -227,7 +237,7 @@ def test_arc_sonnet_eval():
     assert converted_eval.model_info.inference_engine is None
 
     results = converted_eval.evaluation_results
-    assert results[0].evaluation_name == 'arc_easy - choice'
+    assert results[0].evaluation_name == 'accuracy on arc_easy for scorer choice'
     assert results[0].metric_config.evaluation_description == 'accuracy'
     assert results[0].score_details.score == 1.0
 
@@ -267,7 +277,7 @@ def test_arc_qwen_eval():
     assert converted_eval.model_info.inference_engine.name == 'ollama'
 
     results = converted_eval.evaluation_results
-    assert results[0].evaluation_name == 'arc_easy - choice'
+    assert results[0].evaluation_name == 'accuracy on arc_easy for scorer choice'
     assert results[0].metric_config.evaluation_description == 'accuracy'
     assert results[0].score_details.score == 0.3333333333333333
 
@@ -306,7 +316,7 @@ def test_gaia_eval():
 
     results = converted_eval.evaluation_results
     assert len(results) > 0
-    assert results[0].evaluation_name == 'gaia - gaia_scorer'
+    assert results[0].evaluation_name == 'accuracy on gaia for scorer gaia_scorer'
     assert results[0].metric_config.evaluation_description == 'accuracy'
     assert results[0].score_details.score >= 0.0
 
@@ -328,6 +338,76 @@ def test_humaneval_eval():
         metadata_args,
     )
     assert converted_eval.detailed_evaluation_results is not None
+
+
+def test_extract_evaluation_results_one_scorer_with_two_metrics():
+    adapter = InspectAIAdapter()
+    source_data = SourceDataHf(dataset_name="synthetic_ds", source_type="hf_dataset")
+    generation_config = GenerationConfig()
+    scores = [
+        _make_scorer(
+            "choice",
+            {
+                "accuracy": _make_metric("accuracy", 0.75),
+                "f1": _make_metric("f1", 0.80),
+                "stderr": _make_metric("stderr", 0.05),
+            },
+        )
+    ]
+
+    results = adapter._extract_evaluation_results(
+        evaluation_task_name="synthetic/task",
+        scores=scores,
+        source_data=source_data,
+        generation_config=generation_config,
+        num_samples=10,
+        timestamp="1234567890",
+    )
+
+    assert len(results) == 2
+    assert {result.evaluation_name for result in results} == {
+        "accuracy on synthetic/task for scorer choice",
+        "f1 on synthetic/task for scorer choice",
+    }
+
+
+def test_extract_evaluation_results_two_scorers_two_metrics_each():
+    adapter = InspectAIAdapter()
+    source_data = SourceDataHf(dataset_name="synthetic_ds", source_type="hf_dataset")
+    generation_config = GenerationConfig()
+    scores = [
+        _make_scorer(
+            "scorer_a",
+            {
+                "accuracy": _make_metric("accuracy", 0.91),
+                "f1": _make_metric("f1", 0.90),
+            },
+        ),
+        _make_scorer(
+            "scorer_b",
+            {
+                "accuracy": _make_metric("accuracy", 0.88),
+                "f1": _make_metric("f1", 0.87),
+            },
+        ),
+    ]
+
+    results = adapter._extract_evaluation_results(
+        evaluation_task_name="synthetic/task",
+        scores=scores,
+        source_data=source_data,
+        generation_config=generation_config,
+        num_samples=10,
+        timestamp="1234567890",
+    )
+
+    assert len(results) == 4
+    assert {result.evaluation_name for result in results} == {
+        "accuracy on synthetic/task for scorer scorer_a",
+        "f1 on synthetic/task for scorer scorer_a",
+        "accuracy on synthetic/task for scorer scorer_b",
+        "f1 on synthetic/task for scorer scorer_b",
+    }
 
 
 def test_convert_model_path_to_standarized_model_ids():
@@ -396,7 +476,7 @@ def test_supplemental_eval_details_fill_only_top_level_fields():
             },
             "evaluation_results": [
                 {
-                    "evaluation_name": "inspect_evals/pubmedqa - choice",
+                    "evaluation_name": "accuracy on inspect_evals/pubmedqa for scorer choice",
                     "score_details": {
                         "details": {
                             "notes": ["a", "b"],
@@ -456,7 +536,7 @@ def test_supplemental_eval_details_applies_top_level_score_details():
         "supplemental_eval_details": {
             "evaluation_results": [
                 {
-                    "evaluation_name": "inspect_evals/pubmedqa - choice",
+                    "evaluation_name": "accuracy on inspect_evals/pubmedqa for scorer choice",
                     "score_details": {
                         "details": {
                             "matched": 1,
@@ -539,7 +619,7 @@ def test_supplemental_eval_details_fails_on_deprecated_per_result_schema():
             "per_result": [
                 {
                     "match": {
-                        "evaluation_name": "inspect_evals/pubmedqa - choice",
+                        "evaluation_name": "accuracy on inspect_evals/pubmedqa for scorer choice",
                     },
                     "score_details": {"details": {"matched": 1}},
                 },
@@ -566,11 +646,11 @@ def test_supplemental_eval_details_fails_on_duplicate_evaluation_name():
         "supplemental_eval_details": {
             "evaluation_results": [
                 {
-                    "evaluation_name": "inspect_evals/pubmedqa - choice",
+                    "evaluation_name": "accuracy on inspect_evals/pubmedqa for scorer choice",
                     "score_details": {"details": {"a": 1}},
                 },
                 {
-                    "evaluation_name": "inspect_evals/pubmedqa - choice",
+                    "evaluation_name": "accuracy on inspect_evals/pubmedqa for scorer choice",
                     "score_details": {"details": {"b": 2}},
                 },
             ]

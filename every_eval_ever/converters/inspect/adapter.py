@@ -142,7 +142,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         num_samples: int = 0,
     ) -> EvaluationResult:
         return EvaluationResult(
-            evaluation_name=f'{evaluation_task_name} - {scorer_name}',
+            evaluation_name=f"{metric_info.name} on {evaluation_task_name} for scorer {scorer_name}",
             source_data=source_data,
             evaluation_timestamp=evaluation_timestamp,
             metric_config=MetricConfig(
