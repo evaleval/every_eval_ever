@@ -162,7 +162,18 @@ def apply_discriminator_patch(patch: dict) -> None:
             content = add_import(content, "Discriminator")
 
     # Replace the target line
-    content = content.replace(patch["target_line"], patch["replacement"])
+    target_line = patch["target_line"]
+    occurrences = content.count(target_line)
+    if occurrences == 0:
+        raise ValueError(
+            f"Target line for discriminator patch not found in {patch['file']}"
+        )
+    if occurrences > 1:
+        print(
+            f"  {patch['file']}: warning: multiple ({occurrences}) occurrences of "
+            "target line found; patching all occurrences"
+        )
+    content = content.replace(target_line, patch["replacement"])
 
     path.write_text(content)
     print(f"  {patch['file']}: patched source_data with Discriminator")
