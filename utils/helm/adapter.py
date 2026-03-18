@@ -69,6 +69,18 @@ def parse_args():
             "groups/core_scenarios.json"
         ),
     )
+    parser.add_argument(
+        "--eval_library_name",
+        type=str,
+        default="helm",
+        help="Name of the evaluation library (e.g. helm, lm_eval, inspect_ai)",
+    )
+    parser.add_argument(
+        "--eval_library_version",
+        type=str,
+        default="unknown",
+        help="Version of the evaluation library",
+    )
     return parser.parse_args()
 
 
@@ -160,6 +172,8 @@ def find_column_ranges(tab_rows: List[List[Dict[str, Any]]]):
 def convert(
     leaderboard_name: str,
     leaderboard_data: List[Dict[str, Any]],
+    eval_library_name: str = "helm",
+    eval_library_version: str = "unknown",
 ):
     """Convert HELM leaderboard data into unified evaluation logs."""
     retrieved_timestamp = str(time.time())
@@ -293,7 +307,10 @@ def convert(
                 organization_name="crfm",
                 evaluator_relationship=EvaluatorRelationship.third_party,
             ),
-            eval_library=EvalLibrary(name="helm", version="unknown"),
+            eval_library=EvalLibrary(
+                name=eval_library_name,
+                version=eval_library_version,
+            ),
             model_info=model_info,
             evaluation_results=list(results_by_metric.values()),
         )
@@ -328,7 +345,9 @@ if __name__ == "__main__":
 
     convert(
         leaderboard_name=leaderboard_name,
-        leaderboard_data=leaderboard_data
+        leaderboard_data=leaderboard_data,
+        eval_library_name=args.eval_library_name,
+        eval_library_version=args.eval_library_version,
     )
 
     print("Done!")
