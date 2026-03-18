@@ -192,7 +192,7 @@ def validate_file(
     elif file_path.suffix == ".jsonl":
         return validate_instance_file(file_path, max_errors)
     else:
-        report = ValidationReport(file_path=file_path, valid=False)
+        report = ValidationReport(file_path=file_path, valid=False, file_type="unsupported")
         report.errors.append(
             {
                 "loc": "(file)",
