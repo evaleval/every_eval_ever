@@ -777,17 +777,27 @@ wheels = [
 
 [[package]]
 name = "every-eval-ever"
-version = "0.1.0"
+version = "0.2.2"
 source = { virtual = "." }
 dependencies = [
-    { name = "crfm-helm" },
     { name = "datamodel-code-generator", extra = ["ruff"] },
     { name = "huggingface-hub" },
-    { name = "inspect-ai" },
     { name = "jsonschema" },
     { name = "pydantic" },
     { name = "requests" },
     { name = "rich" },
+]
+
+[package.optional-dependencies]
+all = [
+    { name = "crfm-helm" },
+    { name = "inspect-ai" },
+]
+helm = [
+    { name = "crfm-helm" },
+]
+inspect = [
+    { name = "inspect-ai" },
 ]
 
 [package.dev-dependencies]
@@ -800,15 +810,18 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "crfm-helm", specifier = ">=0.5.12" },
+    { name = "crfm-helm", marker = "extra == 'helm'", specifier = ">=0.5.12" },
     { name = "datamodel-code-generator", extras = ["ruff"], specifier = ">=0.52.2" },
+    { name = "every-eval-ever", extras = ["helm"], marker = "extra == 'all'" },
+    { name = "every-eval-ever", extras = ["inspect"], marker = "extra == 'all'" },
     { name = "huggingface-hub", specifier = ">=0.36.0,<1.0.0" },
-    { name = "inspect-ai", specifier = ">=0.3.160,<0.4.0" },
+    { name = "inspect-ai", marker = "extra == 'inspect'", specifier = ">=0.3.160,<0.4.0" },
     { name = "jsonschema", specifier = ">=4.26.0,<5.0.0" },
     { name = "pydantic", specifier = ">=2.12.5,<3.0.0" },
     { name = "requests", specifier = ">=2.32.5,<3.0.0" },
     { name = "rich", specifier = ">=14.0.0,<15.0.0" },
 ]
+provides-extras = ["inspect", "helm", "all"]
 
 [package.metadata.requires-dev]
 dev = [
