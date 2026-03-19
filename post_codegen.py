@@ -1,12 +1,8 @@
 """
-Post-codegen patches for eval_types.py and instance_level_types.py.
+Post-codegen patches for every_eval_ever/eval_types.py and
+every_eval_ever/instance_level_types.py.
 
 Run after datamodel-codegen to re-apply model validators that codegen cannot generate.
-
-Usage:
-    uv run datamodel-codegen --input eval.schema.json --output eval_types.py ...
-    uv run datamodel-codegen --input instance_level_eval.schema.json --output instance_level_types.py ...
-    uv run python post_codegen.py
 """
 
 import re
@@ -19,7 +15,7 @@ from pathlib import Path
 
 PATCHES = [
     {
-        "file": "instance_level_types.py",
+        "file": "every_eval_ever/instance_level_types.py",
         "import_add": "model_validator",
         "class_name": "InstanceLevelEvaluationLog",
         "validator": '''
@@ -47,7 +43,7 @@ PATCHES = [
 ''',
     },
     {
-        "file": "eval_types.py",
+        "file": "every_eval_ever/eval_types.py",
         "import_add": "model_validator",
         "class_name": "MetricConfig",
         "validator": '''
@@ -69,6 +65,17 @@ PATCHES = [
 ''',
     },
 ]
+
+# ---------------------------------------------------------------------------
+# Discriminator patch for source_data union in EvaluationResult
+# ---------------------------------------------------------------------------
+
+DISCRIMINATOR_PATCH = {
+    "file": "every_eval_ever/eval_types.py",
+    "target_line": "    source_data: SourceDataUrl | SourceDataHf | SourceDataPrivate = Field(",
+    "replacement": '    source_data: Annotated[SourceDataUrl | SourceDataHf | SourceDataPrivate, Discriminator("source_type")] = Field(',
+    "imports": ["Annotated", "Discriminator"],
+}
 
 
 def add_import(content: str, symbol: str) -> str:
@@ -123,10 +130,53 @@ def patch_file(patch: dict) -> None:
     print(f"  {patch['file']}: patched {patch['class_name']}")
 
 
+def apply_discriminator_patch(patch: dict) -> None:
+    """Add Discriminator annotation to a union field for better error messages."""
+    path = Path(__file__).parent / patch["file"]
+    content = path.read_text()
+
+    if patch["replacement"] in content:
+        print(f"  {patch['file']}: discriminator already patched, skipping")
+        return
+
+    for symbol in patch["imports"]:
+        if symbol == "Annotated":
+            if "from typing import" in content:
+                if "Annotated" not in content:
+                    content = content.replace(
+                        "from typing import ",
+                        "from typing import Annotated, ",
+                    )
+            else:
+                content = content.replace(
+                    "from pydantic import ",
+                    "from typing import Annotated\nfrom pydantic import ",
+                )
+        elif symbol == "Discriminator":
+            content = add_import(content, "Discriminator")
+
+    target_line = patch["target_line"]
+    occurrences = content.count(target_line)
+    if occurrences == 0:
+        raise ValueError(
+            f"Target line for discriminator patch not found in {patch['file']}"
+        )
+    if occurrences > 1:
+        print(
+            f"  {patch['file']}: warning: multiple ({occurrences}) occurrences of "
+            "target line found; patching all occurrences"
+        )
+
+    content = content.replace(target_line, patch["replacement"])
+    path.write_text(content)
+    print(f"  {patch['file']}: patched source_data with Discriminator")
+
+
 def main():
     print("Applying post-codegen patches...")
     for patch in PATCHES:
         patch_file(patch)
+    apply_discriminator_patch(DISCRIMINATOR_PATCH)
     print("Done.")
 
 

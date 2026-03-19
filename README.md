@@ -36,7 +36,7 @@ Leaderboard/evaluation data is split-up into files by individual model, and data
 
 ### TL;DR How to successfully submit
 
-1. Data must conform to [`eval.schema.json`](every_eval_ever/schemas/eval.schema.json) (current version: `0.2.0`)
+1. Data must conform to [`eval.schema.json`](every_eval_ever/schemas/eval.schema.json) (current version: `0.2.2`)
 2. Convert local eval logs with [`every_eval_ever convert`](every_eval_ever/cli.py) when using a supported framework
 3. An EvalEval member will review and merge your submission
 
@@ -111,7 +111,7 @@ Note: Each file can contain multiple individual results related to one model. Se
 
 ### Instance-Level Data
 
-For evaluations that include per-sample results, the individual results should be stored in a companion `{uuid}.jsonl` file in the same folder (one JSONL per JSON, sharing the same UUID). The aggregate JSON file refers to its JSONL via the `detailed_evaluation_results` field. The instance-level schema ([`instance_level_eval.schema.json`](every_eval_ever/schemas/instance_level_eval.schema.json)) supports three interaction types:
+For evaluations that include per-sample results, the individual results should be stored in a companion `{uuid}_samples.jsonl` file in the same folder (one JSONL per JSON, sharing the same UUID). The aggregate JSON file refers to its JSONL via the `detailed_evaluation_results` field. The instance-level schema ([`instance_level_eval.schema.json`](every_eval_ever/schemas/instance_level_eval.schema.json)) supports three interaction types:
 
 - **`single_turn`**: Standard QA, MCQ, classification — uses `output` object
 - **`multi_turn`**: Conversational evaluations with multiple exchanges — uses `messages` array
@@ -123,7 +123,7 @@ Example `single_turn` instance:
 
 ```json
 {
-  "schema_version": "instance_level_eval_0.2.0",
+  "schema_version": "instance_level_eval_0.2.2",
   "evaluation_id": "math_eval/meta-llama/Llama-2-7b-chat/1706000000",
   "model_id": "meta-llama/Llama-2-7b-chat",
   "evaluation_name": "math_eval",
@@ -157,31 +157,47 @@ At the instance level, agentic evaluations use `interaction_type: "agentic"` wit
 
 ## ✅ Data Validation
 
-This repository has a pre-commit that will validate that JSON files conform to the JSON schema. The pre-commit requires using [uv](https://docs.astral.sh/uv/) for dependency management.
+Validation uses Pydantic models generated from the bundled schemas in [`every_eval_ever/schemas/`](every_eval_ever/schemas/). This validates aggregate `.json` files against `EvaluationLog` and instance-level `_samples.jsonl` files line-by-line against `InstanceLevelEvaluationLog`. Requires [uv](https://docs.astral.sh/uv/).
 
-To run the pre-commit on git staged files only:
-
-```sh
-uv run pre-commit run
-```
-
-To run the pre-commit on all files:
+### Validate files with the package CLI
 
 ```sh
-uv run pre-commit run --all-files
+# Single aggregate file
+uv run python -m every_eval_ever validate data/benchmark/dev/model/uuid.json
+
+# Instance-level JSONL
+uv run python -m every_eval_ever validate data/benchmark/dev/model/uuid_samples.jsonl
+
+# Entire directory (recurses into subdirectories)
+uv run python -m every_eval_ever validate data/benchmark/dev/model/
+
+# Multiple paths
+uv run python -m every_eval_ever validate file1.json file2_samples.jsonl data/
 ```
 
-To run the pre-commit on specific files:
+File type is determined by extension: `.json` validates against `EvaluationLog`, `.jsonl` validates each line against `InstanceLevelEvaluationLog`.
+
+#### Output formats
 
 ```sh
-uv run pre-commit run --files a.json b.json c.json
+# Rich terminal output (default)
+uv run python -m every_eval_ever validate data/
+
+# Machine-readable JSON
+uv run python -m every_eval_ever validate --format json data/
+
+# GitHub Actions annotations
+uv run python -m every_eval_ever validate --format github data/
 ```
 
-To install the pre-commit so that it will run before `git commit` (optional):
+#### Options
 
-```sh
-uv run pre-commit install
-```
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--format {rich,json,github}` | `rich` | Output format |
+| `--max-errors N` | `50` | Maximum errors reported per JSONL file |
+
+Exit code is `0` if all files pass and `1` if any fail.
 
 ## 🗂️ Data Structure
 
@@ -193,7 +209,7 @@ data/
     └── {developer_name}/
         └── {model_name}/
             ├── {uuid}.json          # aggregate results
-            └── {uuid}.jsonl         # instance-level results (optional)
+            └── {uuid}_samples.jsonl # instance-level results (optional)
 ```
 
 Example evaluations included in the schema v0.2 release:
@@ -212,7 +228,7 @@ Example evaluations included in the schema v0.2 release:
 
 Schemas: [`eval.schema.json`](every_eval_ever/schemas/eval.schema.json) (aggregate) · [`instance_level_eval.schema.json`](every_eval_ever/schemas/instance_level_eval.schema.json) (per-sample JSONL)
 
-Each evaluation has its own directory under [`data/`](https://huggingface.co/datasets/evaleval/EEE_datastore/tree/main/data) on the Hugging Face datastore. Within each evaluation, models are organized by developer and model name. Instance-level data is stored in optional `{uuid}.jsonl` files alongside aggregate `{uuid}.json` results.
+Each evaluation has its own directory under [`data/`](https://huggingface.co/datasets/evaleval/EEE_datastore/tree/main/data) on the Hugging Face datastore. Within each evaluation, models are organized by developer and model name. Instance-level data is stored in optional `{uuid}_samples.jsonl` files alongside aggregate `{uuid}.json` results.
 
 ## 📋 The Schema in Practice
 
@@ -265,11 +281,12 @@ The schema also supports **level-based metrics** (e.g. Low/Medium/High) and **un
 
 ## 🔧 Auto-generation of Pydantic Classes for Schema
 
-Run following bash commands to generate pydantic classes for `eval.schema.json` and `instance_level_eval.schema.json` (to easier use in data converter scripts):
+Run the following commands to generate the package-local Pydantic classes from the canonical package-local schemas:
 
 ```bash
-uv run datamodel-codegen --input every_eval_ever/schemas/eval.schema.json --output eval_types.py --class-name EvaluationLog --output-model-type pydantic_v2.BaseModel --input-file-type jsonschema --formatters ruff-format ruff-check
-uv run datamodel-codegen --input every_eval_ever/schemas/instance_level_eval.schema.json --output instance_level_types.py --class-name InstanceLevelEvaluationLog --output-model-type pydantic_v2.BaseModel --input-file-type jsonschema --formatters ruff-format ruff-check
+uv run datamodel-codegen --input every_eval_ever/schemas/eval.schema.json --output every_eval_ever/eval_types.py --class-name EvaluationLog --output-model-type pydantic_v2.BaseModel --input-file-type jsonschema --formatters ruff-format ruff-check
+uv run datamodel-codegen --input every_eval_ever/schemas/instance_level_eval.schema.json --output every_eval_ever/instance_level_types.py --class-name InstanceLevelEvaluationLog --output-model-type pydantic_v2.BaseModel --input-file-type jsonschema --formatters ruff-format ruff-check
+uv run python post_codegen.py
 ```
 
 ## 🔌 Eval Converters

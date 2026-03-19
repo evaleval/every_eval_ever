@@ -161,24 +161,29 @@ def build_parser() -> argparse.ArgumentParser:
 
     validate_parser = subparsers.add_parser(
         "validate",
-        help="Validate JSON files against schema",
-        description="Validate one or more JSON files/directories against the bundled schema.",
+        help="Validate JSON and JSONL files with Pydantic models",
+        description=(
+            "Validate aggregate .json and instance-level .jsonl files "
+            "using the bundled Pydantic models."
+        ),
     )
     validate_parser.add_argument(
         "paths",
         nargs="+",
-        help="One or more JSON files or directories containing JSON files.",
+        help="One or more files or directories containing .json/.jsonl files.",
     )
     validate_parser.add_argument(
-        "--schema-path",
-        default=None,
-        help="Optional explicit path to a JSON Schema file. Overrides --schema.",
+        "--max-errors",
+        type=int,
+        default=50,
+        help="Maximum errors to report per JSONL file.",
     )
     validate_parser.add_argument(
-        "--schema",
-        choices=["aggregate", "instance"],
-        default="aggregate",
-        help="Which bundled schema to use when --schema-path is not provided.",
+        "--format",
+        choices=["rich", "json", "github"],
+        default="rich",
+        dest="output_format",
+        help="Output format.",
     )
 
     check_duplicates_parser = subparsers.add_parser(
@@ -288,12 +293,15 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "validate":
         from every_eval_ever.validate import main as validate_main
 
-        return validate_main([
+        return validate_main(
+            [
             *args.paths,
-            "--schema",
-            args.schema,
-            *( ["--schema-path", args.schema_path] if args.schema_path else [] ),
-        ])
+                "--max-errors",
+                str(args.max_errors),
+                "--format",
+                args.output_format,
+            ]
+        )
 
     if args.command == "check-duplicates":
         from every_eval_ever.check_duplicate_entries import (
