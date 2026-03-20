@@ -1,11 +1,11 @@
 """
-Post-codegen patches for eval_types.py and instance_level_types.py.
+Post-codegen patches for every_eval_ever/eval_types.py and every_eval_ever/instance_level_types.py.
 
 Run after datamodel-codegen to re-apply model validators that codegen cannot generate.
 
 Usage:
-    uv run datamodel-codegen --input eval.schema.json --output eval_types.py ...
-    uv run datamodel-codegen --input instance_level_eval.schema.json --output instance_level_types.py ...
+    uv run datamodel-codegen --input every_eval_ever/schemas/eval.schema.json --output every_eval_ever/eval_types.py ...
+    uv run datamodel-codegen --input every_eval_ever/schemas/instance_level_eval.schema.json --output every_eval_ever/instance_level_types.py ...
     uv run python post_codegen.py
 """
 
@@ -19,7 +19,7 @@ from pathlib import Path
 
 PATCHES = [
     {
-        "file": "instance_level_types.py",
+        "file": "every_eval_ever/instance_level_types.py",
         "import_add": "model_validator",
         "class_name": "InstanceLevelEvaluationLog",
         "validator": '''
@@ -47,7 +47,7 @@ PATCHES = [
 ''',
     },
     {
-        "file": "eval_types.py",
+        "file": "every_eval_ever/eval_types.py",
         "import_add": "model_validator",
         "class_name": "MetricConfig",
         "validator": '''
@@ -75,7 +75,7 @@ PATCHES = [
 # ---------------------------------------------------------------------------
 
 DISCRIMINATOR_PATCH = {
-    "file": "eval_types.py",
+    "file": "every_eval_ever/eval_types.py",
     "target_line": "    source_data: SourceDataUrl | SourceDataHf | SourceDataPrivate = Field(",
     "replacement": '    source_data: Annotated[SourceDataUrl | SourceDataHf | SourceDataPrivate, Discriminator("source_type")] = Field(',
     "imports": ["Annotated", "Discriminator"],
@@ -140,7 +140,7 @@ def apply_discriminator_patch(patch: dict) -> None:
     content = path.read_text()
 
     # Check if the specific replacement has already been applied
-    if patch.get("replacement") and patch["replacement"] in content:
+    if patch["replacement"] in content:
         print(f"  {patch['file']}: discriminator already patched, skipping")
         return
 
@@ -174,8 +174,8 @@ def apply_discriminator_patch(patch: dict) -> None:
             f"  {patch['file']}: warning: multiple ({occurrences}) occurrences of "
             "target line found; patching all occurrences"
         )
-    content = content.replace(target_line, patch["replacement"])
 
+    content = content.replace(target_line, patch["replacement"])
     path.write_text(content)
     print(f"  {patch['file']}: patched source_data with Discriminator")
 

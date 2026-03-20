@@ -3,27 +3,42 @@ import os
 import uuid
 import logging
 
-from inspect_ai.log import (
-    EvalDataset,
-    EvalLog,
-    EvalMetric,
-    EvalResults,
-    EvalSample,
-    EvalSampleSummary,
-    EvalScore,
-    EvalStats,
-    EvalSpec,
-    list_eval_logs,
-    read_eval_log,
-    read_eval_log_sample,
-    read_eval_log_sample_summaries,
-)
-from inspect_ai.log import EvalPlan as InspectEvalPlan
 from pathlib import Path
 from typing import Any, Dict, List, Tuple, Union
 from urllib.parse import urlparse
 
-from eval_types import (
+_INSPECT_IMPORT_ERROR: Exception | None = None
+try:
+    from inspect_ai.log import (
+        EvalDataset,
+        EvalLog,
+        EvalMetric,
+        EvalResults,
+        EvalSample,
+        EvalSampleSummary,
+        EvalScore,
+        EvalStats,
+        EvalSpec,
+        list_eval_logs,
+        read_eval_log,
+        read_eval_log_sample,
+        read_eval_log_sample_summaries,
+    )
+    from inspect_ai.log import EvalPlan as InspectEvalPlan
+except Exception as ex:  # pragma: no cover - exercised only when optional deps missing
+    _INSPECT_IMPORT_ERROR = ex
+    EvalDataset = EvalLog = EvalMetric = EvalResults = EvalSample = EvalSampleSummary = EvalScore = EvalStats = EvalSpec = Any  # type: ignore[assignment]
+    InspectEvalPlan = Any  # type: ignore[assignment]
+
+
+def _require_inspect_dependencies() -> None:
+    if _INSPECT_IMPORT_ERROR is not None:
+        raise ImportError(
+            "Inspect converter dependencies are missing. "
+            "Install with: pip install 'every_eval_ever[inspect]'"
+        ) from _INSPECT_IMPORT_ERROR
+
+from every_eval_ever.eval_types import (
     AgenticEvalConfig,
     AvailableTool,
     DetailedEvaluationResults,
@@ -51,25 +66,25 @@ from eval_types import (
     Uncertainty
 )
 
-from eval_converters.common.adapter import (
+from every_eval_ever.converters.common.adapter import (
     AdapterMetadata, 
     BaseEvaluationAdapter, 
     SupportedLibrary
 )
 
-from eval_converters.common.error import AdapterError
-from eval_converters.common.utils import (
+from every_eval_ever.converters.common.error import AdapterError
+from every_eval_ever.converters.common.utils import (
     convert_timestamp_to_unix_format, 
     get_current_unix_timestamp
 )
-from eval_converters.inspect.instance_level_adapter import (
+from every_eval_ever.converters.inspect.instance_level_adapter import (
     InspectInstanceLevelDataAdapter
 )
-from eval_converters.common.utils import sha256_file
-from eval_converters.inspect.utils import (
+from every_eval_ever.converters.common.utils import sha256_file
+from every_eval_ever.converters.inspect.utils import (
     extract_model_info_from_model_path
 )
-from eval_converters import SCHEMA_VERSION
+from every_eval_ever.converters import SCHEMA_VERSION
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +93,10 @@ class InspectAIAdapter(BaseEvaluationAdapter):
     """
     Adapter for transforming evaluation outputs from the Inspect AI library into the unified schema format.
     """
+
+    def __init__(self, strict_validation: bool = True):
+        _require_inspect_dependencies()
+        super().__init__(strict_validation)
 
     @property
     def metadata(self) -> AdapterMetadata:

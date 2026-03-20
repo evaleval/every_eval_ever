@@ -1,26 +1,15 @@
-import importlib.util
 import json
-import sys
 from pathlib import Path
 
 import pytest
 
+from every_eval_ever import check_duplicate_entries as check_module
 
-MODULE_PATH = Path(__file__).resolve().parents[1] / "utils" / "check_duplicate_entries.py"
 DATA_ROOT = Path(__file__).resolve().parents[1] / "data"
 SAMPLE_FILES = [
     Path(__file__).resolve().parent / "data" / "98ea850e-7019-4728-a558-8b1819ec47c2.json",
     Path(__file__).resolve().parent / "data" / "98ea850e-7019-4728-a558-8b1819ec47c2.json"
 ]
-
-
-@pytest.fixture(scope="module")
-def check_module():
-    spec = importlib.util.spec_from_file_location("check_duplicate_entries", MODULE_PATH)
-    module = importlib.util.module_from_spec(spec)
-    assert spec.loader is not None
-    spec.loader.exec_module(module)
-    return module
 
 
 @pytest.fixture(scope="module")
@@ -48,7 +37,7 @@ def simulate_rescrape(payload: dict) -> dict:
     return cloned
 
 
-def test_normalized_hash_ignores_keys_and_list_order(check_module, sample_payloads):
+def test_normalized_hash_ignores_keys_and_list_order(sample_payloads):
     payload_a = clone_payload(sample_payloads[0])
     payload_b = simulate_rescrape(sample_payloads[0])
 
@@ -57,7 +46,7 @@ def test_normalized_hash_ignores_keys_and_list_order(check_module, sample_payloa
     )
 
 
-def test_normalized_hash_detects_real_changes(check_module, sample_payloads):
+def test_normalized_hash_detects_real_changes(sample_payloads):
     payload_a = clone_payload(sample_payloads[0])
     payload_c = clone_payload(sample_payloads[0])
     payload_c["evaluation_id"] = "eval-c"
@@ -72,7 +61,7 @@ def test_normalized_hash_detects_real_changes(check_module, sample_payloads):
     )
 
 
-def test_expand_paths_returns_json_files(check_module, tmp_path):
+def test_expand_paths_returns_json_files(tmp_path):
     top = tmp_path / "top.json"
     nested_dir = tmp_path / "nested"
     nested_dir.mkdir()
@@ -94,7 +83,7 @@ def test_expand_paths_returns_json_files(check_module, tmp_path):
 
 
 def test_main_reports_duplicates(
-    check_module, sample_payloads, tmp_path, capsys, monkeypatch
+    sample_payloads, tmp_path, capsys
 ):
     payload = sample_payloads[0]
     file_a = tmp_path / "a.json"
@@ -103,9 +92,6 @@ def test_main_reports_duplicates(
 
     write_json(file_b, simulate_rescrape(payload))
 
-    monkeypatch.setattr(sys, "argv", ["check_duplicate_entries", str(file_a), str(file_b)])
-    with pytest.raises(SystemExit) as excinfo:
-        check_module.main()
-    assert excinfo.value.code == 1
+    assert check_module.main([str(file_a), str(file_b)]) == 1
     captured = capsys.readouterr().out
     assert "Found duplicate entries" in captured

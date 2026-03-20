@@ -9,18 +9,15 @@ from typing import Any, Dict, List, Tuple, Union
 
 try:
     from inspect_ai.log import list_eval_logs
-    from eval_converters.inspect.adapter import InspectAIAdapter
+    from every_eval_ever.converters.inspect.adapter import InspectAIAdapter
 except ImportError as exc:
     raise SystemExit(
         "The 'inspect-ai' package is required to use the Inspect AI converter.\n"
         "Install it with: uv sync --extra inspect"
     ) from exc
 
-from eval_types import (
-    EvaluatorRelationship,
-    EvaluationLog
-)
-from instance_level_types import InstanceLevelEvaluationLog
+from every_eval_ever.eval_types import EvaluatorRelationship, EvaluationLog
+from every_eval_ever.instance_level_types import InstanceLevelEvaluationLog
 
 logger = logging.getLogger(__name__)
 

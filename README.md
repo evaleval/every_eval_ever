@@ -6,7 +6,21 @@
 
 - 📋 **A metadata schema** ([`eval.schema.json`](eval.schema.json)) that defines the information needed for meaningful comparison of evaluation results, including [instance-level data](instance_level_eval.schema.json)
 - 🔧 **Validation** that checks data against the schema before it enters the repository
-- 🔌 **Converters** for [Inspect AI](eval_converters/inspect/), [HELM](eval_converters/helm/), and [lm-eval-harness](eval_converters/lm_eval/), so you can transform your existing evaluation logs into the standard format
+- 🔌 **Converters** for [Inspect AI](every_eval_ever/converters/inspect/), [HELM](every_eval_ever/converters/helm/), and [lm-eval-harness](every_eval_ever/converters/lm_eval/), so you can transform your existing evaluation logs into the standard format
+
+Install the package:
+
+```bash
+pip install every-eval-ever
+```
+
+Optional converter dependencies:
+
+```bash
+pip install 'every-eval-ever[inspect]'
+pip install 'every-eval-ever[helm]'
+pip install 'every-eval-ever[all]'
+```
 
 ### Terminology
 
@@ -23,8 +37,8 @@ Leaderboard/evaluation data is split-up into files by individual model, and data
 
 ### TL;DR How to successfully submit
 
-1. Data must conform to [`eval.schema.json`](eval.schema.json) (current version: `0.2.0`)
-2. Validation runs automatically on every PR via [`validate_data.py`](utils/validate_data.py)
+1. Data must conform to [`eval.schema.json`](eval.schema.json) (current version: `0.2.2`)
+2. Validation runs automatically on every PR via [`.github/workflows/validate-data.yml`](.github/workflows/validate-data.yml)
 3. An EvalEval member will review and merge your submission
 
 ### PR Naming Convention
@@ -57,7 +71,7 @@ Note: Each file can contain multiple individual results related to one model. Se
 2. For each model, use the Hugging Face (`developer_name/model_name`) naming convention to create a 2-tier folder structure.
 3. Add a JSON file with results for each model and name it `{uuid}.json`.
 4. [Optional] Include a [`utils/`](utils/) folder in your benchmark name folder with any scripts used to generate the data (see e.g. [`utils/global-mmlu-lite/adapter.py`](utils/global-mmlu-lite/adapter.py)).
-5. [Validate] Validation runs automatically via [`validate-data.yml`](.github/workflows/validate-data.yml) using [`validate_data.py`](utils/validate_data.py) to check JSON files against the schema before merging.
+5. [Validate] Validation runs automatically via [`validate-data.yml`](.github/workflows/validate-data.yml) using the package-local validator to check JSON files against the schema before merging.
 6. [Submit] Two ways to submit your evaluation data:
    - **Option A: Drag & drop via Hugging Face** — Go to [evaleval/EEE_datastore](https://huggingface.co/datasets/evaleval/EEE_datastore) → click "Files and versions" → "Contribute" → "Upload files" → drag and drop your data → select "Open as a pull request to the main branch". See [step-by-step screenshots](https://docs.google.com/document/d/1dxTQF8ncGCzaAOIj0RX7E9Hg4THmUBzezDOYUp_XdCY/edit?usp=sharing).
    - **Option B: Clone & PR** — Clone the [Hugging Face repository](https://huggingface.co/datasets/evaleval/EEE_datastore), add your data under `data/`, and open a pull request
@@ -104,13 +118,13 @@ For evaluations that include per-sample results, the individual results should b
 - **`multi_turn`**: Conversational evaluations with multiple exchanges — uses `messages` array
 - **`agentic`**: Tool-using evaluations with function calls and sandbox execution — uses `messages` array with `tool_calls`
 
-Each instance captures: `input` (raw question + reference answer), `answer_attribution` (how the answer was extracted), `evaluation` (score, is_correct), and optional `token_usage` and `performance` metrics. Instance-level JSONL files are produced automatically by the [eval converters](eval_converters/README.md).
+Each instance captures: `input` (raw question + reference answer), `answer_attribution` (how the answer was extracted), `evaluation` (score, is_correct), and optional `token_usage` and `performance` metrics. Instance-level JSONL files are produced automatically by the [eval converters](every_eval_ever/converters/README.md).
 
 Example `single_turn` instance:
 
 ```json
 {
-  "schema_version": "instance_level_eval_0.2.0",
+  "schema_version": "instance_level_eval_0.2.2",
   "evaluation_id": "math_eval/meta-llama/Llama-2-7b-chat/1706000000",
   "model_id": "meta-llama/Llama-2-7b-chat",
   "evaluation_name": "math_eval",
@@ -144,24 +158,22 @@ At the instance level, agentic evaluations use `interaction_type: "agentic"` wit
 
 ## ✅ Data Validation
 
-Validation uses Pydantic models generated from the JSON schemas. This enforces both structural constraints and custom validators (e.g. `score_type: "levels"` requires `level_names`). Requires [uv](https://docs.astral.sh/uv/).
+Validation uses Pydantic models generated from the JSON schemas. This validates aggregate `.json` files against `EvaluationLog` and instance-level `_samples.jsonl` files line-by-line against `InstanceLevelEvaluationLog`. Requires [uv](https://docs.astral.sh/uv/).
 
-### Validate files with `validate.py`
-
-Validate aggregate `.json` and instance-level `_samples.jsonl` files:
+### Validate files with the package CLI
 
 ```sh
-# Single file
-uv run python validate.py data/benchmark/dev/model/uuid.json
+# Single aggregate file
+uv run python -m every_eval_ever validate data/benchmark/dev/model/uuid.json
 
 # Instance-level JSONL
-uv run python validate.py data/benchmark/dev/model/uuid_samples.jsonl
+uv run python -m every_eval_ever validate data/benchmark/dev/model/uuid_samples.jsonl
 
 # Entire directory (recurses into subdirectories)
-uv run python validate.py data/benchmark/dev/model/
+uv run python -m every_eval_ever validate data/benchmark/dev/model/
 
 # Multiple paths
-uv run python validate.py file1.json file2_samples.jsonl data/
+uv run python -m every_eval_ever validate file1.json file2_samples.jsonl data/
 ```
 
 File type is determined by extension: `.json` validates against `EvaluationLog`, `.jsonl` validates each line against `InstanceLevelEvaluationLog`.
@@ -169,14 +181,14 @@ File type is determined by extension: `.json` validates against `EvaluationLog`,
 #### Output formats
 
 ```sh
-# Rich terminal output (default) — colored panels with field paths
-uv run python validate.py data/
+# Rich terminal output (default)
+uv run python -m every_eval_ever validate data/
 
 # Machine-readable JSON
-uv run python validate.py --format json data/
+uv run python -m every_eval_ever validate --format json data/
 
-# GitHub Actions annotations (::error file=...)
-uv run python validate.py --format github data/
+# GitHub Actions annotations
+uv run python -m every_eval_ever validate --format github data/
 ```
 
 #### Options
@@ -186,7 +198,7 @@ uv run python validate.py --format github data/
 | `--format {rich,json,github}` | `rich` | Output format |
 | `--max-errors N` | `50` | Maximum errors reported per JSONL file |
 
-Exit code is `0` if all files pass, `1` if any fail.
+Exit code is `0` if all files pass and `1` if any fail.
 
 ### Pre-commit hooks
 
@@ -219,7 +231,7 @@ data/
     └── {developer_name}/
         └── {model_name}/
             ├── {uuid}.json          # aggregate results
-            └── {uuid}_samples.jsonl         # instance-level results (optional)
+            └── {uuid}_samples.jsonl # instance-level results (optional)
 ```
 
 Example evaluations included in the schema v0.2 release:
@@ -291,11 +303,12 @@ The schema also supports **level-based metrics** (e.g. Low/Medium/High) and **un
 
 ## 🔧 Auto-generation of Pydantic Classes for Schema
 
-Run following bash commands to generate pydantic classes for `eval.schema.json` and `instance_level_eval.schema.json` (to easier use in data converter scripts):
+Run the following commands to generate the package-local Pydantic classes from the canonical package-local schemas:
 
 ```bash
-uv run datamodel-codegen --input eval.schema.json --output eval_types.py --class-name EvaluationLog --output-model-type pydantic_v2.BaseModel --input-file-type jsonschema --formatters ruff-format ruff-check
-uv run datamodel-codegen --input instance_level_eval.schema.json --output instance_level_types.py --class-name InstanceLevelEvaluationLog --output-model-type pydantic_v2.BaseModel --input-file-type jsonschema --formatters ruff-format ruff-check
+uv run datamodel-codegen --input every_eval_ever/schemas/eval.schema.json --output every_eval_ever/eval_types.py --class-name EvaluationLog --output-model-type pydantic_v2.BaseModel --input-file-type jsonschema --formatters ruff-format ruff-check
+uv run datamodel-codegen --input every_eval_ever/schemas/instance_level_eval.schema.json --output every_eval_ever/instance_level_types.py --class-name InstanceLevelEvaluationLog --output-model-type pydantic_v2.BaseModel --input-file-type jsonschema --formatters ruff-format ruff-check
+uv run python post_codegen.py
 ```
 
 ## 🔌 Eval Converters
@@ -304,11 +317,11 @@ We have prepared converters to make adapting to our schema as easy as possible. 
 
 | Framework | Command | Instance-Level JSONL |
 |---|---|---|
-| [Inspect AI](eval_converters/inspect/) | `uv run python3 -m eval_converters.inspect --log_path <path>` | Yes, if samples in log |
-| [HELM](eval_converters/helm/) | `uv run python3 -m eval_converters.helm --log_path <path>` | Always |
-| [lm-evaluation-harness](eval_converters/lm_eval/) | `uv run python -m eval_converters.lm_eval --log_path <path>` | With `--include_samples` |
+| [Inspect AI](every_eval_ever/converters/inspect/) | `every_eval_ever convert inspect --log_path <path>` | Yes, if samples in log |
+| [HELM](every_eval_ever/converters/helm/) | `every_eval_ever convert helm --log_path <path>` | Always |
+| [lm-evaluation-harness](every_eval_ever/converters/lm_eval/) | `every_eval_ever convert lm_eval --log_path <path> --include_samples` | With `--include_samples` |
 
-For full CLI usage and required input files, see the [Eval Converters README](eval_converters/README.md).
+For full CLI usage and required input files, see the [Eval Converters README](every_eval_ever/converters/README.md).
 
 ## 🏆 ACL 2026 Shared Task
 
@@ -337,4 +350,3 @@ Qualifying contributors will be invited as co-authors on the shared task paper.
   note    = {Schema Release}
 }
 ```
-

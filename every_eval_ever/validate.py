@@ -5,11 +5,11 @@ Validates aggregate (.json) files against EvaluationLog and
 instance-level (_samples.jsonl) files against InstanceLevelEvaluationLog.
 
 Usage:
-    uv run python validate.py data/benchmark/dev/model/uuid.json
-    uv run python validate.py data/benchmark/dev/model/uuid_samples.jsonl
-    uv run python validate.py data/benchmark/dev/model/   # directory recurse
-    uv run python validate.py --format json data/*.json
-    uv run python validate.py --max-errors 10 data/*_samples.jsonl
+    uv run python -m every_eval_ever validate data/benchmark/dev/model/uuid.json
+    uv run python -m every_eval_ever validate data/benchmark/dev/model/uuid_samples.jsonl
+    uv run python -m every_eval_ever validate data/benchmark/dev/model/   # directory recurse
+    uv run python -m every_eval_ever validate --format json data/*.json
+    uv run python -m every_eval_ever validate --max-errors 10 data/*_samples.jsonl
 """
 
 from __future__ import annotations
@@ -25,8 +25,8 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 
-from eval_types import EvaluationLog
-from instance_level_types import InstanceLevelEvaluationLog
+from every_eval_ever.eval_types import EvaluationLog
+from every_eval_ever.instance_level_types import InstanceLevelEvaluationLog
 
 DEFAULT_MAX_ERRORS = 50
 
@@ -319,7 +319,7 @@ def render_report_github(reports: list[ValidationReport]) -> str:
 # ---------------------------------------------------------------------------
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="eee-validate",
         description="Validate EEE schema files using Pydantic models",
@@ -342,12 +342,12 @@ def main() -> None:
         dest="output_format",
         help="Output format (default: rich)",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     file_paths = expand_paths(args.paths)
     if not file_paths:
         print("No files found to validate.", file=sys.stderr)
-        sys.exit(1)
+        return 1
 
     reports = [validate_file(fp, max_errors=args.max_errors) for fp in file_paths]
 
@@ -365,9 +365,8 @@ def main() -> None:
         if output:
             print(output)
 
-    if any(not r.valid for r in reports):
-        sys.exit(1)
+    return 1 if any(not r.valid for r in reports) else 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

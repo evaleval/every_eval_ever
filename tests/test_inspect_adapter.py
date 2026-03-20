@@ -5,9 +5,9 @@ import contextlib
 from pathlib import Path
 import tempfile
 
-from eval_converters.inspect.adapter import InspectAIAdapter
-from eval_converters.inspect.utils import extract_model_info_from_model_path
-from eval_types import (
+from every_eval_ever.converters.inspect.adapter import InspectAIAdapter
+from every_eval_ever.converters.inspect.utils import extract_model_info_from_model_path
+from every_eval_ever.eval_types import (
     EvaluationLog,
     EvaluatorRelationship,
     SourceDataHf,

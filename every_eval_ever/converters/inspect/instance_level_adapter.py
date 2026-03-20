@@ -1,18 +1,30 @@
 import json
-from inspect_ai.model import (
-    ChatMessage,
-    ChatMessageAssistant,
-    ChatMessageTool,
-    ChatMessageUser,
-    ModelUsage
-)
-from inspect_ai.log import (
-    EvalSample
-)
 from pathlib import Path
 from typing import Any, List, Tuple
 
-from instance_level_types import (
+_INSPECT_IMPORT_ERROR: Exception | None = None
+try:
+    from inspect_ai.model import (
+        ChatMessage,
+        ChatMessageAssistant,
+        ChatMessageTool,
+        ChatMessageUser,
+        ModelUsage,
+    )
+    from inspect_ai.log import EvalSample
+except Exception as ex:  # pragma: no cover - exercised only when optional deps missing
+    _INSPECT_IMPORT_ERROR = ex
+    ChatMessage = ChatMessageAssistant = ChatMessageTool = ChatMessageUser = ModelUsage = EvalSample = Any  # type: ignore[assignment]
+
+
+def _require_inspect_dependencies() -> None:
+    if _INSPECT_IMPORT_ERROR is not None:
+        raise ImportError(
+            "Inspect converter dependencies are missing. "
+            "Install with: pip install 'every_eval_ever[inspect]'"
+        ) from _INSPECT_IMPORT_ERROR
+
+from every_eval_ever.instance_level_types import (
     AnswerAttributionItem,
     Evaluation,
     Input,
@@ -25,12 +37,13 @@ from instance_level_types import (
     ToolCall
 )
 
-from eval_converters import SCHEMA_VERSION
-from eval_converters.common.utils import sha256_string
+from every_eval_ever.converters import SCHEMA_VERSION
+from every_eval_ever.converters.common.utils import sha256_string
 
 
 class InspectInstanceLevelDataAdapter:
     def __init__(self, evaulation_id: str, format: str, hash_algorithm: str, evaluation_dir: str):
+        _require_inspect_dependencies()
         self.evaluation_id = evaulation_id
         self.format = format
         self.hash_algorithm = hash_algorithm

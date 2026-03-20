@@ -1,10 +1,10 @@
 import tempfile
 from pathlib import Path
 
-from eval_converters.lm_eval.adapter import LMEvalAdapter
-from eval_converters.lm_eval.instance_level_adapter import LMEvalInstanceLevelAdapter
-from eval_converters.lm_eval.utils import parse_model_args, find_samples_file
-from eval_types import (
+from every_eval_ever.converters.lm_eval.adapter import LMEvalAdapter
+from every_eval_ever.converters.lm_eval.instance_level_adapter import LMEvalInstanceLevelAdapter
+from every_eval_ever.converters.lm_eval.utils import parse_model_args, find_samples_file
+from every_eval_ever.eval_types import (
     EvaluationLog,
     EvaluatorRelationship,
     SourceDataHf,

@@ -9,10 +9,9 @@ Usage:
 """
 
 import time
-from pathlib import Path
 from typing import Any, Dict, List
 
-from eval_types import (
+from every_eval_ever.eval_types import (
     EvalLibrary,
     EvaluationLog,
     EvaluationResult,
@@ -23,11 +22,7 @@ from eval_types import (
     SourceDataHf,
 )
 
-import sys
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from helpers import (
-    SCHEMA_VERSION,
+from every_eval_ever.helpers import (
     fetch_json,
     get_developer,
     make_model_info,
@@ -96,7 +91,9 @@ SOURCE_DATA_MAPPING = {
 }
 
 
-def convert_model(model_data: Dict[str, Any], retrieved_timestamp: str) -> EvaluationLog:
+def convert_model(
+    model_data: Dict[str, Any], retrieved_timestamp: str
+) -> EvaluationLog:
     """Convert a single model's data to EvaluationLog format."""
     model_id = model_data["model"]["name"]
     if "/" not in model_id:
@@ -107,10 +104,14 @@ def convert_model(model_data: Dict[str, Any], retrieved_timestamp: str) -> Evalu
     eval_results: List[EvaluationResult] = []
     for eval_key, eval_data in model_data.get("evaluations", {}).items():
         display_name = eval_data.get("name", EVALUATION_MAPPING.get(eval_key, eval_key))
-        description = EVALUATION_DESCRIPTIONS.get(display_name, f"Accuracy on {display_name}")
+        description = EVALUATION_DESCRIPTIONS.get(
+            display_name, f"Accuracy on {display_name}"
+        )
         source_data = SOURCE_DATA_MAPPING.get(eval_key)
         if source_data is None:
-            raise ValueError(f"Unknown eval_key '{eval_key}' — add it to SOURCE_DATA_MAPPING")
+            raise ValueError(
+                f"Unknown eval_key '{eval_key}' — add it to SOURCE_DATA_MAPPING"
+            )
 
         eval_results.append(
             EvaluationResult(
@@ -136,7 +137,9 @@ def convert_model(model_data: Dict[str, Any], retrieved_timestamp: str) -> Evalu
     if "architecture" in model_data["model"]:
         additional_details["architecture"] = str(model_data["model"]["architecture"])
     if "params_billions" in model_data.get("metadata", {}):
-        additional_details["params_billions"] = str(model_data["metadata"]["params_billions"])
+        additional_details["params_billions"] = str(
+            model_data["metadata"]["params_billions"]
+        )
 
     # Build model info
     model_info = make_model_info(
@@ -161,7 +164,9 @@ def convert_model(model_data: Dict[str, Any], retrieved_timestamp: str) -> Evalu
         eval_library=EvalLibrary(
             name="lm-evaluation-harness",
             version="0.4.0",
-            additional_details={"fork": "https://github.com/huggingface/lm-evaluation-harness/tree/adding_all_changess"},
+            additional_details={
+                "fork": "https://github.com/huggingface/lm-evaluation-harness/tree/adding_all_changess"
+            },
         ),
         model_info=model_info,
         evaluation_results=eval_results,

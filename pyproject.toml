@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "every-eval-ever"
 version = "0.2.2"
@@ -24,9 +28,20 @@ all = [
     "every-eval-ever[helm]",
 ]
 
+[project.scripts]
+every_eval_ever = "every_eval_ever.cli:main"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["every_eval_ever*"]
+
+[tool.setuptools.package-data]
+every_eval_ever = ["schemas/*.json"]
 [dependency-groups]
 dev = [
     "datamodel-code-generator>=0.43.1",
-"pytest>=9.0.2",
+    "pytest>=9.0.2",
     "ruff>=0.12.2",
 ]

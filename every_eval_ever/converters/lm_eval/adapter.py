@@ -4,14 +4,14 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-from eval_converters import SCHEMA_VERSION
-from eval_converters.common.adapter import (
+from every_eval_ever.converters import SCHEMA_VERSION
+from every_eval_ever.converters.common.adapter import (
     AdapterMetadata,
     BaseEvaluationAdapter,
     SupportedLibrary,
 )
-from eval_converters.common.utils import get_current_unix_timestamp
-from eval_types import (
+from every_eval_ever.converters.common.utils import get_current_unix_timestamp
+from every_eval_ever.eval_types import (
     EvalLibrary,
     EvaluationLog,
     EvaluationResult,

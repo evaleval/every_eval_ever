@@ -4,7 +4,6 @@ import json
 import os
 from typing import Any, Dict, List
 
-
 IGNORE_KEYS = {"retrieved_timestamp", "evaluation_id"}
 
 
@@ -65,7 +64,7 @@ def normalized_hash(payload: Dict[str, Any]) -> str:
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
 
 
-def main() -> None:
+def main(argv: List[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="check_duplicate_entries",
         description="Detects duplicate evaluation entries ignoring scrape timestamp fields.",
@@ -73,7 +72,7 @@ def main() -> None:
     parser.add_argument(
         "paths", nargs="+", type=str, help="File or folder paths to JSON data"
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     file_paths = expand_paths(args.paths)
     print()
@@ -112,7 +111,7 @@ def main() -> None:
     if not duplicate_groups:
         print("No duplicates found.")
         print()
-        return
+        return 0
 
     ignore_label = ", ".join(f"`{key}`" for key in sorted(IGNORE_KEYS))
     print(f"Found duplicate entries (ignoring keys: {ignore_label}).")
@@ -131,8 +130,8 @@ def main() -> None:
             )
         print()
 
-    raise SystemExit(1)
+    return 1
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

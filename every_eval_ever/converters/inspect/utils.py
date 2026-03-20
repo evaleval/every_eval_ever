@@ -5,11 +5,11 @@ from pathlib import Path
 from pydantic import BaseModel
 from typing import Dict, Type, List
 
-from eval_types import (
+from every_eval_ever.eval_types import (
     InferenceEngine,
     ModelInfo
 )
-from eval_converters.common.utils import get_model_organization_info
+from every_eval_ever.converters.common.utils import get_model_organization_info
 
 
 class ModelPathHandler:
