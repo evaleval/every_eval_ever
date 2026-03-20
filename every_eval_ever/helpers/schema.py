@@ -7,9 +7,9 @@ from typing import Any, Dict, List, Optional
 
 
 def _load_schema_version() -> str:
-    schema_path = Path(__file__).parent.parent.parent / "eval.schema.json"
+    schema_path = Path(__file__).parent.parent.parent / 'eval.schema.json'
     with schema_path.open() as f:
-        return json.load(f)["version"]
+        return json.load(f)['version']
 
 
 SCHEMA_VERSION = _load_schema_version()
@@ -121,7 +121,7 @@ def make_evaluation_result(
 def make_source_metadata(
     source_name: str,
     organization_name: str,
-    source_type: str = "documentation",
+    source_type: str = 'documentation',
     evaluator_relationship: EvaluatorRelationship = EvaluatorRelationship.third_party,
     organization_url: Optional[str] = None,
     additional_details: Optional[Dict[str, str]] = None,
@@ -153,7 +153,7 @@ def make_source_metadata(
 def make_model_info(
     model_name: str,
     developer: Optional[str] = None,
-    inference_platform: str = "unknown",
+    inference_platform: str = 'unknown',
     additional_details: Optional[Dict[str, Any]] = None,
 ) -> ModelInfo:
     """
@@ -188,11 +188,11 @@ def make_evaluation_log(
     evaluation_results: List[EvaluationResult],
     source_data: List[str],
     organization_name: str,
-    source_type: str = "documentation",
+    source_type: str = 'documentation',
     evaluator_relationship: EvaluatorRelationship = EvaluatorRelationship.third_party,
     organization_url: Optional[str] = None,
     developer: Optional[str] = None,
-    inference_platform: str = "unknown",
+    inference_platform: str = 'unknown',
     model_additional_details: Optional[Dict[str, Any]] = None,
     retrieved_timestamp: Optional[str] = None,
 ) -> EvaluationLog:
@@ -223,8 +223,8 @@ def make_evaluation_log(
     model_id = get_model_id(model_name, dev)
 
     # Build evaluation_id: source_name/model_id_sanitized/timestamp
-    sanitized_model_id = model_id.replace("/", "_")
-    evaluation_id = f"{source_name}/{sanitized_model_id}/{timestamp}"
+    sanitized_model_id = model_id.replace('/', '_')
+    evaluation_id = f'{source_name}/{sanitized_model_id}/{timestamp}'
 
     return EvaluationLog(
         schema_version=SCHEMA_VERSION,

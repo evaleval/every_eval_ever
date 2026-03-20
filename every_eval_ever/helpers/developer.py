@@ -4,82 +4,73 @@ from typing import Optional
 
 DEVELOPER_PATTERNS = {
     # OpenAI models
-    "gpt": "openai",
-    "text-davinci": "openai",
-    "text-curie": "openai",
-    "text-babbage": "openai",
-    "text-ada": "openai",
-    "davinci": "openai",
-    "curie": "openai",
-    "babbage": "openai",
-    "ada": "openai",
-    "o1": "openai",
-    "o3": "openai",
-    "o4": "openai",
-
+    'gpt': 'openai',
+    'text-davinci': 'openai',
+    'text-curie': 'openai',
+    'text-babbage': 'openai',
+    'text-ada': 'openai',
+    'davinci': 'openai',
+    'curie': 'openai',
+    'babbage': 'openai',
+    'ada': 'openai',
+    'o1': 'openai',
+    'o3': 'openai',
+    'o4': 'openai',
     # Anthropic models
-    "claude": "anthropic",
-
+    'claude': 'anthropic',
     # Google models
-    "gemini": "google",
-    "gemma": "google",
-    "palm": "google",
-    "t5": "google",
-    "ul2": "google",
-    "text-bison": "google",
-    "text-unicorn": "google",
-
+    'gemini': 'google',
+    'gemma': 'google',
+    'palm': 'google',
+    't5': 'google',
+    'ul2': 'google',
+    'text-bison': 'google',
+    'text-unicorn': 'google',
     # Meta models
-    "llama": "meta",
-    "opt": "meta",
-
+    'llama': 'meta',
+    'opt': 'meta',
     # Mistral models
-    "mistral": "mistralai",
-    "mixtral": "mistralai",
-
+    'mistral': 'mistralai',
+    'mixtral': 'mistralai',
     # Alibaba models
-    "qwen": "alibaba",
-
+    'qwen': 'alibaba',
     # Microsoft models
-    "phi": "microsoft",
-    "tnlg": "microsoft",
-
+    'phi': 'microsoft',
+    'tnlg': 'microsoft',
     # AI21 models
-    "j1": "ai21",
-    "j2": "ai21",
-    "jamba": "ai21",
-    "jurassic": "ai21",
-
+    'j1': 'ai21',
+    'j2': 'ai21',
+    'jamba': 'ai21',
+    'jurassic': 'ai21',
     # Cohere models
-    "command": "cohere",
-    "cohere": "cohere",
-    "aya": "cohere",
-    "granite": "ibm",
-
+    'command': 'cohere',
+    'cohere': 'cohere',
+    'aya': 'cohere',
+    'granite': 'ibm',
     # Other providers
-    "falcon": "tiiuae",
-    "bloom": "bigscience",
-    "t0pp": "bigscience",
-    "pythia": "eleutherai",
-    "gpt-j": "eleutherai",
-    "gpt-neox": "eleutherai",
-    "luminous": "aleph-alpha",
-    "mpt": "mosaicml",
-    "redpajama": "together",
-    "vicuna": "lmsys",
-    "alpaca": "stanford",
-    "palmyra": "writer",
-    "instructpalmyra": "writer",
-    "yalm": "yandex",
-    "glm": "zhipu-ai",
-    "deepseek": "deepseek",
-    "yi": "01-ai",
-    "solar": "upstage",
-    "arctic": "snowflake",
-    "dbrx": "databricks",
-    "olmo": "allenai",
-    "nova": "amazon",
-    "grok": "xai",
+    'falcon': 'tiiuae',
+    'bloom': 'bigscience',
+    't0pp': 'bigscience',
+    'pythia': 'eleutherai',
+    'gpt-j': 'eleutherai',
+    'gpt-neox': 'eleutherai',
+    'luminous': 'aleph-alpha',
+    'mpt': 'mosaicml',
+    'redpajama': 'together',
+    'vicuna': 'lmsys',
+    'alpaca': 'stanford',
+    'palmyra': 'writer',
+    'instructpalmyra': 'writer',
+    'yalm': 'yandex',
+    'glm': 'zhipu-ai',
+    'deepseek': 'deepseek',
+    'yi': '01-ai',
+    'solar': 'upstage',
+    'arctic': 'snowflake',
+    'dbrx': 'databricks',
+    'olmo': 'allenai',
+    'nova': 'amazon',
+    'grok': 'xai',
 }
 
 
@@ -108,19 +99,19 @@ def get_developer(model_name: str) -> str:
         "unknown"
     """
     if not model_name:
-        return "unknown"
+        return 'unknown'
 
     # If already has org prefix (e.g., "meta-llama/Llama-3-8B"), use it
-    if "/" in model_name:
-        return model_name.split("/")[0]
+    if '/' in model_name:
+        return model_name.split('/')[0]
 
     # Pattern match against known model families
     lower_name = model_name.lower()
     for pattern, developer in DEVELOPER_PATTERNS.items():
-        if lower_name.startswith(pattern) or f"-{pattern}" in lower_name:
+        if lower_name.startswith(pattern) or f'-{pattern}' in lower_name:
             return developer
 
-    return "unknown"
+    return 'unknown'
 
 
 def get_model_id(model_name: str, developer: Optional[str] = None) -> str:
@@ -140,8 +131,8 @@ def get_model_id(model_name: str, developer: Optional[str] = None) -> str:
         >>> get_model_id("openai/gpt-4")
         "openai/gpt-4"
     """
-    if "/" in model_name:
+    if '/' in model_name:
         return model_name
 
     dev = developer or get_developer(model_name)
-    return f"{dev}/{model_name}"
+    return f'{dev}/{model_name}'

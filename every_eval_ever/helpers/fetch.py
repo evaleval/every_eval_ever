@@ -9,9 +9,12 @@ import requests
 
 DEFAULT_TIMEOUT = 60  # seconds
 
+
 class FetchError(Exception):
     """Raised when fetching data from a remote source fails."""
+
     pass
+
 
 def fetch_json(
     url: str,
@@ -37,9 +40,9 @@ def fetch_json(
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
-        raise FetchError(f"Failed to fetch {url}: {e}") from e
+        raise FetchError(f'Failed to fetch {url}: {e}') from e
     except ValueError as e:
-        raise FetchError(f"Failed to parse JSON from {url}: {e}") from e
+        raise FetchError(f'Failed to parse JSON from {url}: {e}') from e
 
 
 def fetch_csv(
@@ -62,11 +65,13 @@ def fetch_csv(
         FetchError: If the request fails or returns non-200 status
     """
     try:
-        response = requests.get(url, timeout=timeout, headers=headers, allow_redirects=True)
+        response = requests.get(
+            url, timeout=timeout, headers=headers, allow_redirects=True
+        )
         response.raise_for_status()
         reader = csv.DictReader(io.StringIO(response.text))
         return list(reader)
     except requests.exceptions.RequestException as e:
-        raise FetchError(f"Failed to fetch {url}: {e}") from e
+        raise FetchError(f'Failed to fetch {url}: {e}') from e
     except csv.Error as e:
-        raise FetchError(f"Failed to parse CSV from {url}: {e}") from e
+        raise FetchError(f'Failed to parse CSV from {url}: {e}') from e

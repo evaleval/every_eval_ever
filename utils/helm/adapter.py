@@ -29,7 +29,7 @@ from every_eval_ever.eval_types import (
     ModelInfo,
     ScoreDetails,
     ScoreType,
-    SourceDataUrl
+    SourceDataUrl,
 )
 
 from every_eval_ever.helpers import (
@@ -45,44 +45,44 @@ def parse_args():
     """Parse CLI arguments."""
     parser = ArgumentParser()
     parser.add_argument(
-        "--leaderboard_name",
+        '--leaderboard_name',
         type=str,
-        default="HELM_Capabilities",
+        default='HELM_Capabilities',
         choices=[
-            "HELM_Capabilities",
-            "HELM_Lite",
-            "HELM_Classic",
-            "HELM_Instruct",
-            "HELM_MMLU",
+            'HELM_Capabilities',
+            'HELM_Lite',
+            'HELM_Classic',
+            'HELM_Instruct',
+            'HELM_MMLU',
         ],
     )
     parser.add_argument(
-        "--source_data_url",
+        '--source_data_url',
         type=str,
         default=(
-            "https://storage.googleapis.com/crfm-helm-public/"
-            "capabilities/benchmark_output/releases/v1.12.0/"
-            "groups/core_scenarios.json"
+            'https://storage.googleapis.com/crfm-helm-public/'
+            'capabilities/benchmark_output/releases/v1.12.0/'
+            'groups/core_scenarios.json'
         ),
     )
     parser.add_argument(
-        "--eval_library_name",
+        '--eval_library_name',
         type=str,
-        default="helm",
-        help="Name of the evaluation library (e.g. helm, lm_eval, inspect_ai)",
+        default='helm',
+        help='Name of the evaluation library (e.g. helm, lm_eval, inspect_ai)',
     )
     parser.add_argument(
-        "--eval_library_version",
+        '--eval_library_version',
         type=str,
-        default="unknown",
-        help="Version of the evaluation library",
+        default='unknown',
+        help='Version of the evaluation library',
     )
     return parser.parse_args()
 
 
 def clean_model_name(model_name: str) -> str:
     """Remove parentheses from model name."""
-    return model_name.replace("(", "").replace(")", "")
+    return model_name.replace('(', '').replace(')', '')
 
 
 def extract_generation_config(run_specs: List[str]) -> Dict[str, Any]:
@@ -90,12 +90,12 @@ def extract_generation_config(run_specs: List[str]) -> Dict[str, Any]:
     generation_config: Dict[str, Any] = defaultdict(list)
 
     for run_spec in run_specs:
-        _, args_str = run_spec.split(":", 1)
-        args = args_str.split(",")
+        _, args_str = run_spec.split(':', 1)
+        args = args_str.split(',')
 
         for arg in args:
-            key, value = arg.split("=")
-            if key == "model":
+            key, value = arg.split('=')
+            if key == 'model':
                 continue
             generation_config[key].append(value)
 
@@ -109,45 +109,48 @@ def extract_generation_config(run_specs: List[str]) -> Dict[str, Any]:
     return dict(generation_config)
 
 
-def extract_model_info_from_row(row: List[Dict[str, Any]], model_name: str) -> Tuple[ModelInfo, str]:
+def extract_model_info_from_row(
+    row: List[Dict[str, Any]], model_name: str
+) -> Tuple[ModelInfo, str]:
     """Extract model metadata from leaderboard row."""
     run_spec_names = next(
-        (cell["run_spec_names"] for cell in row if "run_spec_names" in cell),
+        (cell['run_spec_names'] for cell in row if 'run_spec_names' in cell),
         None,
     )
 
-    if "(" in model_name and ")" in model_name:
+    if '(' in model_name and ')' in model_name:
         model_name = clean_model_name(model_name)
 
     if not run_spec_names:
         developer = get_developer(model_name)
-        if developer == "unknown":
-            model_id = model_name.replace(" ", "-")
+        if developer == 'unknown':
+            model_id = model_name.replace(' ', '-')
         else:
-            model_id = f"{developer}/{model_name.replace(' ', '-')}"
+            model_id = f'{developer}/{model_name.replace(" ", "-")}'
     else:
         spec = run_spec_names[0]
-        args = spec.split(":", 1)[1].split(",")
-        
+        args = spec.split(':', 1)[1].split(',')
+
         model_details = next(
-            (arg.split("=", 1)[1] for arg in args if arg.startswith("model=")),
-            "",
+            (arg.split('=', 1)[1] for arg in args if arg.startswith('model=')),
+            '',
         )
 
-        developer = model_details.split("_")[0]
-        model_id = model_details.replace("_", "/")
+        developer = model_details.split('_')[0]
+        model_id = model_details.replace('_', '/')
 
-    if developer == "unknown":
+    if developer == 'unknown':
         developer = get_developer(model_name)
 
     model_info = make_model_info(
         model_name=model_name,
         developer=developer,
-        inference_platform="unknown",
+        inference_platform='unknown',
     )
     model_info.id = model_id
 
     return model_info
+
 
 def find_column_ranges(tab_rows: List[List[Dict[str, Any]]]):
     """Determine min/max values for each metric column."""
@@ -157,7 +160,7 @@ def find_column_ranges(tab_rows: List[List[Dict[str, Any]]]):
 
     for row in tab_rows:
         for idx, cell in enumerate(row[1:], start=0):
-            value = cell.get("value", 0)
+            value = cell.get('value', 0)
             if value is not None:
                 mins[idx] = min(mins[idx], value)
                 maxs[idx] = max(maxs[idx], value)
@@ -168,8 +171,8 @@ def find_column_ranges(tab_rows: List[List[Dict[str, Any]]]):
 def convert(
     leaderboard_name: str,
     leaderboard_data: List[Dict[str, Any]],
-    eval_library_name: str = "helm",
-    eval_library_version: str = "unknown",
+    eval_library_name: str = 'helm',
+    eval_library_version: str = 'unknown',
 ):
     """Convert HELM leaderboard data into unified evaluation logs."""
     retrieved_timestamp = str(time.time())
@@ -179,14 +182,14 @@ def convert(
     model_results: Dict[str, Dict[str, EvaluationResult]] = defaultdict(dict)
 
     for tab in leaderboard_data:
-        tab_name = tab.get("title")
-        headers = tab.get("header")
-        rows = tab.get("rows")
+        tab_name = tab.get('title')
+        headers = tab.get('header')
+        rows = tab.get('rows')
 
         mins, maxs = find_column_ranges(rows)
 
         for row in rows:
-            model_name = row[0].get("value")
+            model_name = row[0].get('value')
 
             if model_name not in model_infos:
                 model_info = extract_model_info_from_row(row, model_name)
@@ -194,17 +197,17 @@ def convert(
                 model_ids[model_name] = model_info.id
 
             for col_idx, (header, cell) in enumerate(zip(headers[1:], row[1:])):
-                full_eval_name = header.get("value")
+                full_eval_name = header.get('value')
                 short_name = (
                     full_eval_name.split()[0]
-                    if "-" in full_eval_name
+                    if '-' in full_eval_name
                     else full_eval_name
                 )
 
                 is_new_metric = (
-                    tab_name.lower() == "accuracy"
+                    tab_name.lower() == 'accuracy'
                     or short_name not in model_results[model_name]
-                    or "instruct" in leaderboard_name.lower()
+                    or 'instruct' in leaderboard_name.lower()
                 )
 
                 if full_eval_name.lower().startswith('mean'):
@@ -218,32 +221,42 @@ def convert(
                 if metric_name:
                     evaluation_description = f'{metric_name} on {dataset_name}'
                 else:
-                    evaluation_description = header.get("description", "")
+                    evaluation_description = header.get('description', '')
 
                 if is_new_metric:
                     metric_config = MetricConfig(
                         evaluation_description=evaluation_description,
-                        lower_is_better=header.get("lower_is_better", False),
+                        lower_is_better=header.get('lower_is_better', False),
                         min_score=(
-                            0.0 if mins[col_idx] >= 0 else math.floor(mins[col_idx])
+                            0.0
+                            if mins[col_idx] >= 0
+                            else math.floor(mins[col_idx])
                         ),
                         max_score=(
-                            1.0 if maxs[col_idx] <= 1 else math.ceil(maxs[col_idx])
+                            1.0
+                            if maxs[col_idx] <= 1
+                            else math.ceil(maxs[col_idx])
                         ),
                         score_type=ScoreType.continuous,
                     )
 
-                    source_dataset_name = leaderboard_name if leaderboard_name.lower() == 'helm_mmlu' else dataset_name
+                    source_dataset_name = (
+                        leaderboard_name
+                        if leaderboard_name.lower() == 'helm_mmlu'
+                        else dataset_name
+                    )
 
                     source_data = SourceDataUrl(
                         dataset_name=source_dataset_name,
                         source_type='url',
-                        url=[args.source_data_url]
+                        url=[args.source_data_url],
                     )
 
                     generation_config = (
-                        extract_generation_config(cell.get("run_spec_names", []))
-                        if cell.get("run_spec_names")
+                        extract_generation_config(
+                            cell.get('run_spec_names', [])
+                        )
+                        if cell.get('run_spec_names')
                         else {}
                     )
 
@@ -253,18 +266,18 @@ def convert(
                         metric_config=metric_config,
                         score_details=ScoreDetails(
                             score=(
-                                round(cell.get("value"), 3)
-                                if cell.get("value") is not None
+                                round(cell.get('value'), 3)
+                                if cell.get('value') is not None
                                 else -1
                             ),
                             details={
-                                "description": str(cell.get("description", "")),
-                                "tab": str(tab_name),
+                                'description': str(cell.get('description', '')),
+                                'tab': str(tab_name),
                             },
                         ),
                         generation_config=GenerationConfig(
                             additional_details=generation_config
-                        )
+                        ),
                     )
                 else:
                     # Add extra score details under the same metric
@@ -272,35 +285,37 @@ def convert(
                     detail_key = (
                         full_eval_name
                         if full_eval_name != existing.evaluation_name
-                        else f"{full_eval_name} - {tab_name}"
+                        else f'{full_eval_name} - {tab_name}'
                     )
 
                     if existing.score_details.details is None:
                         existing.score_details.details = {}
-                    existing.score_details.details[detail_key] = json.dumps({
-                        "description": str(cell.get("description", "")),
-                        "tab": tab_name,
-                        "score": str(cell.get("value", "")),
-                    })
-                
+                    existing.score_details.details[detail_key] = json.dumps(
+                        {
+                            'description': str(cell.get('description', '')),
+                            'tab': tab_name,
+                            'score': str(cell.get('value', '')),
+                        }
+                    )
+
     # Save evaluation logs
     for model_name, results_by_metric in model_results.items():
         model_info = model_infos[model_name]
         model_id = model_ids[model_name]
 
         evaluation_id = (
-            f"{leaderboard_name}/"
-            f"{model_id.replace('/', '_')}/"
-            f"{retrieved_timestamp}"
+            f'{leaderboard_name}/'
+            f'{model_id.replace("/", "_")}/'
+            f'{retrieved_timestamp}'
         )
 
         eval_log = EvaluationLog(
-            schema_version="0.2.1",
+            schema_version='0.2.1',
             evaluation_id=evaluation_id,
             retrieved_timestamp=retrieved_timestamp,
             source_metadata=make_source_metadata(
                 source_name=leaderboard_name,
-                organization_name="crfm",
+                organization_name='crfm',
                 evaluator_relationship=EvaluatorRelationship.third_party,
             ),
             eval_library=EvalLibrary(
@@ -312,31 +327,31 @@ def convert(
         )
 
         # Determine output path
-        if model_info.developer == "unknown":
+        if model_info.developer == 'unknown':
             developer = model_id
             model = model_id
         else:
-            if "/" in model_id:
-                developer, model = model_id.split("/", 1)
+            if '/' in model_id:
+                developer, model = model_id.split('/', 1)
             else:
                 developer = model_info.developer
                 model = model_id
 
         filepath = save_evaluation_log(
             eval_log,
-            f"data/{leaderboard_name}",
+            f'data/{leaderboard_name}',
             developer,
             model,
         )
-        print(f"Saved: {filepath}")
+        print(f'Saved: {filepath}')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     args = parse_args()
 
     leaderboard_name = args.leaderboard_name.lower()
 
-    print(f"Fetching {leaderboard_name} data from {args.source_data_url}")
+    print(f'Fetching {leaderboard_name} data from {args.source_data_url}')
     leaderboard_data = fetch_json(args.source_data_url)
 
     convert(
@@ -346,4 +361,4 @@ if __name__ == "__main__":
         eval_library_version=args.eval_library_version,
     )
 
-    print("Done!")
+    print('Done!')

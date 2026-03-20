@@ -4,215 +4,236 @@
 
 from __future__ import annotations
 from enum import Enum
-from pydantic import BaseModel, ConfigDict, Field, confloat, conint, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    confloat,
+    conint,
+    model_validator,
+)
 from typing import Any
 
 
 class InteractionType(Enum):
-    single_turn = "single_turn"
-    multi_turn = "multi_turn"
-    agentic = "agentic"
+    single_turn = 'single_turn'
+    multi_turn = 'multi_turn'
+    agentic = 'agentic'
 
 
 class Input(BaseModel):
-    raw: str = Field(..., description="The raw input as defined in the eval")
+    raw: str = Field(..., description='The raw input as defined in the eval')
     formatted: str | None = Field(
         None,
-        description="Includes chat template, CoT and all relevant modifications - basically the un-tokenized version of what the model sees",
+        description='Includes chat template, CoT and all relevant modifications - basically the un-tokenized version of what the model sees',
     )
     reference: list[str] = Field(
-        ..., description="Ground truths or reference answers for comparison/scoring"
+        ...,
+        description='Ground truths or reference answers for comparison/scoring',
     )
     choices: list[str] | None = Field(
-        None, description="Optional list of choices for multiple-choice questions"
+        None,
+        description='Optional list of choices for multiple-choice questions',
     )
 
 
 class Output(BaseModel):
-    raw: list[str] = Field(..., description="Complete model responses")
+    raw: list[str] = Field(..., description='Complete model responses')
     reasoning_trace: list[str] | None = Field(
         None,
-        description="Reasoning traces of the model if applicable (e.g. chain-of-thought tokens)",
+        description='Reasoning traces of the model if applicable (e.g. chain-of-thought tokens)',
     )
 
 
 class ToolCall(BaseModel):
-    id: str = Field(..., description="Unique identifier for the tool call")
-    name: str = Field(..., description="Name of tool/function")
+    id: str = Field(..., description='Unique identifier for the tool call')
+    name: str = Field(..., description='Name of tool/function')
     arguments: dict[str, Any] | None = Field(
-        None, description="Arguments used to call the tool (all values must be strings)"
+        None,
+        description='Arguments used to call the tool (all values must be strings)',
     )
 
 
 class Message(BaseModel):
     turn_idx: conint(ge=0) = Field(
         ...,
-        description="Index starting from 0 indicating the position in the conversation",
+        description='Index starting from 0 indicating the position in the conversation',
     )
     role: str = Field(
-        ..., description="Role of the speaker (e.g. user, assistant, system, tool)"
+        ...,
+        description='Role of the speaker (e.g. user, assistant, system, tool)',
     )
     content: str | None = Field(
         None,
-        description="The actual raw text for that particular turn (can be null if empty)",
+        description='The actual raw text for that particular turn (can be null if empty)',
     )
     reasoning_trace: str | None = Field(
-        None, description="Reasoning trace for that particular turn if applicable"
+        None,
+        description='Reasoning trace for that particular turn if applicable',
     )
     tool_calls: list[ToolCall] | None = Field(
-        None, description="List of tool invocations for this turn, if applicable"
+        None,
+        description='List of tool invocations for this turn, if applicable',
     )
     tool_call_id: list[str] | None = Field(
         None,
-        description="Reference to the tool call ID(s) this message has the content payload for.",
+        description='Reference to the tool call ID(s) this message has the content payload for.',
     )
 
 
 class AnswerAttributionItem(BaseModel):
     turn_idx: conint(ge=0) = Field(
-        ..., description="Turn index in messages. 0 for single_turn"
+        ..., description='Turn index in messages. 0 for single_turn'
     )
     source: str = Field(
         ...,
         description="Source of the extracted value (e.g. 'output.raw' or 'messages[turn_idx].content')",
     )
-    extracted_value: str = Field(..., description="Value that was extracted")
+    extracted_value: str = Field(..., description='Value that was extracted')
     extraction_method: str = Field(
         ...,
-        description="Method used to extract the value (e.g. regex, exact_match, llm_judge, custom)",
+        description='Method used to extract the value (e.g. regex, exact_match, llm_judge, custom)',
     )
     is_terminal: bool = Field(
         ...,
-        description="Whether this is the final answer (false if intermediate outputs are used to build up to a final answer)",
+        description='Whether this is the final answer (false if intermediate outputs are used to build up to a final answer)',
     )
 
 
 class Evaluation(BaseModel):
-    score: float = Field(..., description="Instance-level score")
-    is_correct: bool = Field(..., description="Whether the final answer is correct")
+    score: float = Field(..., description='Instance-level score')
+    is_correct: bool = Field(
+        ..., description='Whether the final answer is correct'
+    )
     num_turns: conint(ge=1) | None = Field(
-        None, description="Number of turns in the interaction"
+        None, description='Number of turns in the interaction'
     )
     tool_calls_count: conint(ge=0) | None = Field(
-        None, description="Count of tool calls across all turns in messages"
+        None, description='Count of tool calls across all turns in messages'
     )
 
 
 class TokenUsage(BaseModel):
-    input_tokens: conint(ge=0) = Field(..., description="Total input tokens used")
-    output_tokens: conint(ge=0) = Field(..., description="Total output tokens used")
-    total_tokens: conint(ge=0) = Field(..., description="Total tokens used")
+    input_tokens: conint(ge=0) = Field(
+        ..., description='Total input tokens used'
+    )
+    output_tokens: conint(ge=0) = Field(
+        ..., description='Total output tokens used'
+    )
+    total_tokens: conint(ge=0) = Field(..., description='Total tokens used')
     input_tokens_cache_write: conint(ge=0) | None = Field(
-        None, description="Number of tokens written to the cache"
+        None, description='Number of tokens written to the cache'
     )
     input_tokens_cache_read: conint(ge=0) | None = Field(
-        None, description="Number of tokens retrieved from the cache"
+        None, description='Number of tokens retrieved from the cache'
     )
     reasoning_tokens: conint(ge=0) | None = Field(
-        None, description="Number of tokens used for reasoning"
+        None, description='Number of tokens used for reasoning'
     )
 
 
 class Performance(BaseModel):
     latency_ms: confloat(ge=0.0) | None = Field(
-        None, description="Total latency in milliseconds"
+        None, description='Total latency in milliseconds'
     )
     time_to_first_token_ms: confloat(ge=0.0) | None = Field(
-        None, description="Time to first token in milliseconds"
+        None, description='Time to first token in milliseconds'
     )
     generation_time_ms: confloat(ge=0.0) | None = Field(
-        None, description="Time for generation in milliseconds"
+        None, description='Time for generation in milliseconds'
     )
     additional_details: dict[str, Any] | None = Field(
         None,
-        description="Additional performance metrics (key-value pairs, all values must be strings)",
+        description='Additional performance metrics (key-value pairs, all values must be strings)',
     )
 
 
 class InstanceLevelEvaluationLog(BaseModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra='forbid',
     )
     schema_version: str = Field(
-        ..., description="Version of the schema used for this instance data"
+        ..., description='Version of the schema used for this instance data'
     )
     evaluation_id: str = Field(
         ...,
-        description="Foreign key linking to the aggregate evaluation JSON. Must match the evaluation_id in the aggregate file.",
+        description='Foreign key linking to the aggregate evaluation JSON. Must match the evaluation_id in the aggregate file.',
     )
     model_id: str = Field(
         ...,
-        description="Identifier of the model in HuggingFace format (e.g. meta-llama/Llama-3.2-1B-Instruct)",
+        description='Identifier of the model in HuggingFace format (e.g. meta-llama/Llama-3.2-1B-Instruct)',
     )
     evaluation_name: str = Field(
         ...,
-        description="The specific eval name, ideally unique (e.g. GSM8K, mmlu_physics). Primarily for display/filtering when evaluation_result_id is unavailable. If an evaluation run reports multiple aggregate results/metrics for the same sample, emit multiple instance records (one per aggregate result) rather than trying to attach a single instance record to many aggregate results.",
+        description='The specific eval name, ideally unique (e.g. GSM8K, mmlu_physics). Primarily for display/filtering when evaluation_result_id is unavailable. If an evaluation run reports multiple aggregate results/metrics for the same sample, emit multiple instance records (one per aggregate result) rather than trying to attach a single instance record to many aggregate results.',
     )
     evaluation_result_id: str | None = Field(
         None,
-        description="Preferred deterministic foreign key to aggregate evaluation_results[].evaluation_result_id. This is intended to point to exactly one aggregate evaluation result; if a single underlying interaction/sample contributes to multiple aggregate results, emit multiple instance records with different evaluation_result_id values.",
+        description='Preferred deterministic foreign key to aggregate evaluation_results[].evaluation_result_id. This is intended to point to exactly one aggregate evaluation result; if a single underlying interaction/sample contributes to multiple aggregate results, emit multiple instance records with different evaluation_result_id values.',
     )
     sample_id: str = Field(
         ...,
-        description="Question/sample identifier from the original dataset (e.g. gsm8k_0001)",
+        description='Question/sample identifier from the original dataset (e.g. gsm8k_0001)',
     )
     sample_hash: str | None = Field(
         None,
-        description="Hash of (input.raw + input.reference) to ensure comparison is between the same sample across models, in case sample_id is not consistent",
+        description='Hash of (input.raw + input.reference) to ensure comparison is between the same sample across models, in case sample_id is not consistent',
     )
     interaction_type: InteractionType = Field(
         ...,
-        description="Type of interaction: single_turn for simple Q&A, multi_turn for conversations, agentic for tool-using agents",
+        description='Type of interaction: single_turn for simple Q&A, multi_turn for conversations, agentic for tool-using agents',
     )
-    input: Input = Field(..., description="Input data for the evaluation sample")
+    input: Input = Field(
+        ..., description='Input data for the evaluation sample'
+    )
     output: Output | None = Field(
         None,
-        description="Output data - only used for single_turn interactions, null for multi_turn/agentic",
+        description='Output data - only used for single_turn interactions, null for multi_turn/agentic',
     )
     messages: list[Message] | None = Field(
         None,
-        description="Full message transcript - used for multi_turn and agentic, null for single_turn. Contains all system, user, assistant, and tool messages in order.",
+        description='Full message transcript - used for multi_turn and agentic, null for single_turn. Contains all system, user, assistant, and tool messages in order.',
     )
     answer_attribution: list[AnswerAttributionItem] = Field(
         ...,
-        description="Information about how the answer was extracted from the model output",
+        description='Information about how the answer was extracted from the model output',
     )
     evaluation: Evaluation = Field(
-        ..., description="Evaluation results and scoring data"
+        ..., description='Evaluation results and scoring data'
     )
     token_usage: TokenUsage | None = Field(
-        None, description="Token usage for the model completion"
+        None, description='Token usage for the model completion'
     )
     performance: Performance | None = Field(
-        None, description="Performance and latency metrics"
+        None, description='Performance and latency metrics'
     )
     error: str | None = Field(
         None,
-        description="Information about any error that occurred (e.g. timeout, refusal, API error)",
+        description='Information about any error that occurred (e.g. timeout, refusal, API error)',
     )
     metadata: dict[str, Any] | None = Field(
         None,
-        description="Optional metadata about the sample (e.g. subject, difficulty, tags)",
+        description='Optional metadata about the sample (e.g. subject, difficulty, tags)',
     )
 
     # --- validators (added by post_codegen.py) ---
 
-    @model_validator(mode="after")
+    @model_validator(mode='after')
     def validate_interaction_type_consistency(self):
         if self.interaction_type == InteractionType.single_turn:
             if self.output is None:
-                raise ValueError("single_turn interaction_type requires output")
+                raise ValueError('single_turn interaction_type requires output')
             if self.messages is not None:
                 raise ValueError(
-                    "single_turn interaction_type must not have messages"
+                    'single_turn interaction_type must not have messages'
                 )
         else:
             if self.messages is None:
                 raise ValueError(
-                    f"{self.interaction_type.value} interaction_type requires messages"
+                    f'{self.interaction_type.value} interaction_type requires messages'
                 )
             if self.output is not None:
                 raise ValueError(
-                    f"{self.interaction_type.value} interaction_type must not have output"
+                    f'{self.interaction_type.value} interaction_type must not have output'
                 )
         return self

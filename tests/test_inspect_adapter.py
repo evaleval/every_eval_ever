@@ -1,31 +1,41 @@
 import pytest
-pytest.importorskip("inspect_ai", reason="inspect-ai not installed; install with: uv sync --extra inspect")
+
+pytest.importorskip(
+    'inspect_ai',
+    reason='inspect-ai not installed; install with: uv sync --extra inspect',
+)
 
 import contextlib
 from pathlib import Path
 import tempfile
 
 from every_eval_ever.converters.inspect.adapter import InspectAIAdapter
-from every_eval_ever.converters.inspect.utils import extract_model_info_from_model_path
+from every_eval_ever.converters.inspect.utils import (
+    extract_model_info_from_model_path,
+)
 from every_eval_ever.eval_types import (
     EvaluationLog,
     EvaluatorRelationship,
     SourceDataHf,
-    SourceMetadata
+    SourceMetadata,
 )
 
 
 def _load_eval(adapter, filepath, metadata_args):
     eval_path = Path(filepath)
     metadata_args = dict(metadata_args)
-    metadata_args.setdefault("file_uuid", "test-file-uuid")
-    
+    metadata_args.setdefault('file_uuid', 'test-file-uuid')
+
     with tempfile.TemporaryDirectory() as tmpdir:
         metadata_args['parent_eval_output_dir'] = tmpdir
-        converted_eval = adapter.transform_from_file(eval_path, metadata_args=metadata_args)
-    
+        converted_eval = adapter.transform_from_file(
+            eval_path, metadata_args=metadata_args
+        )
+
     assert isinstance(converted_eval, EvaluationLog)
-    assert isinstance(converted_eval.evaluation_results[0].source_data, SourceDataHf)
+    assert isinstance(
+        converted_eval.evaluation_results[0].source_data, SourceDataHf
+    )
 
     assert isinstance(converted_eval.source_metadata, SourceMetadata)
     assert converted_eval.source_metadata.source_name == 'inspect_ai'
@@ -34,11 +44,13 @@ def _load_eval(adapter, filepath, metadata_args):
     return converted_eval
 
 
-def _extract_file_uuid_from_detailed_results(converted_eval: EvaluationLog) -> str:
+def _extract_file_uuid_from_detailed_results(
+    converted_eval: EvaluationLog,
+) -> str:
     assert converted_eval.detailed_evaluation_results is not None
     stem = Path(converted_eval.detailed_evaluation_results.file_path).stem
-    assert stem.endswith("_samples")
-    return stem[: -len("_samples")]
+    assert stem.endswith('_samples')
+    return stem[: -len('_samples')]
 
 
 def test_pubmedqa_eval():
@@ -48,13 +60,23 @@ def test_pubmedqa_eval():
         'evaluator_relationship': EvaluatorRelationship.first_party,
     }
 
-    converted_eval = _load_eval(adapter, 'tests/data/inspect/data_pubmedqa_gpt4o_mini.json', metadata_args)
+    converted_eval = _load_eval(
+        adapter,
+        'tests/data/inspect/data_pubmedqa_gpt4o_mini.json',
+        metadata_args,
+    )
 
     assert converted_eval.evaluation_timestamp == '1751553870.0'
     assert converted_eval.retrieved_timestamp is not None
-    
-    assert converted_eval.evaluation_results[0].source_data.dataset_name == 'pubmed_qa'
-    assert converted_eval.evaluation_results[0].source_data.hf_repo == 'bigbio/pubmed_qa'
+
+    assert (
+        converted_eval.evaluation_results[0].source_data.dataset_name
+        == 'pubmed_qa'
+    )
+    assert (
+        converted_eval.evaluation_results[0].source_data.hf_repo
+        == 'bigbio/pubmed_qa'
+    )
     assert len(converted_eval.evaluation_results[0].source_data.sample_ids) == 2
 
     assert converted_eval.model_info.name == 'openai/gpt-4o-mini-2024-07-18'
@@ -77,7 +99,7 @@ def test_transform_without_metadata_args_uses_defaults(tmp_path, caplog):
     adapter = InspectAIAdapter()
     eval_file = (
         Path(__file__).resolve().parent
-        / "data/inspect/data_pubmedqa_gpt4o_mini.json"
+        / 'data/inspect/data_pubmedqa_gpt4o_mini.json'
     )
     with contextlib.chdir(tmp_path):
         converted_eval = adapter.transform_from_file(
@@ -94,18 +116,21 @@ def test_transform_without_metadata_args_uses_defaults(tmp_path, caplog):
     )
     assert converted_eval.detailed_evaluation_results is not None
     assert converted_eval.detailed_evaluation_results.total_rows == 2
-    assert _extract_file_uuid_from_detailed_results(converted_eval) != "none"
+    assert _extract_file_uuid_from_detailed_results(converted_eval) != 'none'
 
 
 def test_transform_directory_assigns_unique_file_uuid_per_log():
     adapter = InspectAIAdapter()
-    fixture_dir = Path(__file__).resolve().parent / "data/inspect"
+    fixture_dir = Path(__file__).resolve().parent / 'data/inspect'
 
-    with tempfile.TemporaryDirectory() as tmp_logs_dir, tempfile.TemporaryDirectory() as tmp_out_dir:
+    with (
+        tempfile.TemporaryDirectory() as tmp_logs_dir,
+        tempfile.TemporaryDirectory() as tmp_out_dir,
+    ):
         tmp_logs_path = Path(tmp_logs_dir)
         fixture_targets = {
-            "data_pubmedqa_gpt4o_mini.json": "2026-02-01T11-00-00+00-00_pubmedqa_test1.json",
-            "data_arc_qwen.json": "2026-02-01T11-05-00+00-00_arc_test2.json",
+            'data_pubmedqa_gpt4o_mini.json': '2026-02-01T11-00-00+00-00_pubmedqa_test1.json',
+            'data_arc_qwen.json': '2026-02-01T11-05-00+00-00_arc_test2.json',
         }
         for source_name, target_name in fixture_targets.items():
             source = fixture_dir / source_name
@@ -115,30 +140,35 @@ def test_transform_directory_assigns_unique_file_uuid_per_log():
         converted_logs = adapter.transform_from_directory(
             tmp_logs_path,
             metadata_args={
-                "source_organization_name": "TestOrg",
-                "evaluator_relationship": EvaluatorRelationship.first_party,
-                "parent_eval_output_dir": tmp_out_dir,
-                "file_uuid": "shared-uuid",
+                'source_organization_name': 'TestOrg',
+                'evaluator_relationship': EvaluatorRelationship.first_party,
+                'parent_eval_output_dir': tmp_out_dir,
+                'file_uuid': 'shared-uuid',
             },
         )
 
     assert len(converted_logs) == 2
 
-    uuids = {_extract_file_uuid_from_detailed_results(log) for log in converted_logs}
-    assert "shared-uuid" not in uuids
+    uuids = {
+        _extract_file_uuid_from_detailed_results(log) for log in converted_logs
+    }
+    assert 'shared-uuid' not in uuids
     assert len(uuids) == 2
 
 
 def test_transform_directory_uses_file_uuids_metadata_when_provided():
     adapter = InspectAIAdapter()
-    fixture_dir = Path(__file__).resolve().parent / "data/inspect"
-    expected_uuids = ["explicit-uuid-1", "explicit-uuid-2"]
+    fixture_dir = Path(__file__).resolve().parent / 'data/inspect'
+    expected_uuids = ['explicit-uuid-1', 'explicit-uuid-2']
 
-    with tempfile.TemporaryDirectory() as tmp_logs_dir, tempfile.TemporaryDirectory() as tmp_out_dir:
+    with (
+        tempfile.TemporaryDirectory() as tmp_logs_dir,
+        tempfile.TemporaryDirectory() as tmp_out_dir,
+    ):
         tmp_logs_path = Path(tmp_logs_dir)
         fixture_targets = {
-            "data_pubmedqa_gpt4o_mini.json": "2026-02-01T11-00-00+00-00_pubmedqa_test1.json",
-            "data_arc_qwen.json": "2026-02-01T11-05-00+00-00_arc_test2.json",
+            'data_pubmedqa_gpt4o_mini.json': '2026-02-01T11-00-00+00-00_pubmedqa_test1.json',
+            'data_arc_qwen.json': '2026-02-01T11-05-00+00-00_arc_test2.json',
         }
         for source_name, target_name in fixture_targets.items():
             source = fixture_dir / source_name
@@ -148,15 +178,17 @@ def test_transform_directory_uses_file_uuids_metadata_when_provided():
         converted_logs = adapter.transform_from_directory(
             tmp_logs_path,
             metadata_args={
-                "source_organization_name": "TestOrg",
-                "evaluator_relationship": EvaluatorRelationship.first_party,
-                "parent_eval_output_dir": tmp_out_dir,
-                "file_uuids": expected_uuids,
+                'source_organization_name': 'TestOrg',
+                'evaluator_relationship': EvaluatorRelationship.first_party,
+                'parent_eval_output_dir': tmp_out_dir,
+                'file_uuids': expected_uuids,
             },
         )
 
     assert len(converted_logs) == 2
-    uuids = {_extract_file_uuid_from_detailed_results(log) for log in converted_logs}
+    uuids = {
+        _extract_file_uuid_from_detailed_results(log) for log in converted_logs
+    }
     assert uuids == set(expected_uuids)
 
 
@@ -167,16 +199,26 @@ def test_arc_sonnet_eval():
         'source_organization_name': 'TestOrg',
         'evaluator_relationship': EvaluatorRelationship.first_party,
     }
-    converted_eval = _load_eval(adapter, 'tests/data/inspect/data_arc_sonnet.json', metadata_args)
+    converted_eval = _load_eval(
+        adapter, 'tests/data/inspect/data_arc_sonnet.json', metadata_args
+    )
 
     assert converted_eval.evaluation_timestamp == '1761000045.0'
     assert converted_eval.retrieved_timestamp is not None
 
-    assert converted_eval.evaluation_results[0].source_data.dataset_name == 'ai2_arc'
-    assert converted_eval.evaluation_results[0].source_data.hf_repo == 'allenai/ai2_arc'
+    assert (
+        converted_eval.evaluation_results[0].source_data.dataset_name
+        == 'ai2_arc'
+    )
+    assert (
+        converted_eval.evaluation_results[0].source_data.hf_repo
+        == 'allenai/ai2_arc'
+    )
     assert len(converted_eval.evaluation_results[0].source_data.sample_ids) == 5
 
-    assert converted_eval.model_info.name == 'anthropic/claude-sonnet-4-20250514'
+    assert (
+        converted_eval.model_info.name == 'anthropic/claude-sonnet-4-20250514'
+    )
     assert converted_eval.model_info.id == 'anthropic/claude-sonnet-4-20250514'
     assert converted_eval.model_info.developer == 'anthropic'
     assert converted_eval.model_info.inference_platform == 'anthropic'
@@ -199,13 +241,21 @@ def test_arc_qwen_eval():
         'evaluator_relationship': EvaluatorRelationship.first_party,
     }
 
-    converted_eval = _load_eval(adapter, 'tests/data/inspect/data_arc_qwen.json', metadata_args)
+    converted_eval = _load_eval(
+        adapter, 'tests/data/inspect/data_arc_qwen.json', metadata_args
+    )
 
     assert converted_eval.evaluation_timestamp == '1761001924.0'
     assert converted_eval.retrieved_timestamp is not None
 
-    assert converted_eval.evaluation_results[0].source_data.dataset_name == 'ai2_arc'
-    assert converted_eval.evaluation_results[0].source_data.hf_repo == 'allenai/ai2_arc'
+    assert (
+        converted_eval.evaluation_results[0].source_data.dataset_name
+        == 'ai2_arc'
+    )
+    assert (
+        converted_eval.evaluation_results[0].source_data.hf_repo
+        == 'allenai/ai2_arc'
+    )
     assert len(converted_eval.evaluation_results[0].source_data.sample_ids) == 3
 
     assert converted_eval.model_info.name == 'ollama/qwen2.5:0.5b'
@@ -231,12 +281,18 @@ def test_gaia_eval():
         'evaluator_relationship': EvaluatorRelationship.first_party,
     }
 
-    converted_eval = _load_eval(adapter, 'tests/data/inspect/2026-02-07T11-26-57+00-00_gaia_4V8zHbbRKpU5Yv2BMoBcjE.json', metadata_args)
+    converted_eval = _load_eval(
+        adapter,
+        'tests/data/inspect/2026-02-07T11-26-57+00-00_gaia_4V8zHbbRKpU5Yv2BMoBcjE.json',
+        metadata_args,
+    )
 
     assert converted_eval.evaluation_timestamp is not None
     assert converted_eval.retrieved_timestamp is not None
-    
-    assert converted_eval.evaluation_results[0].source_data.dataset_name == 'GAIA'
+
+    assert (
+        converted_eval.evaluation_results[0].source_data.dataset_name == 'GAIA'
+    )
     assert converted_eval.evaluation_results[0].source_data.hf_repo is not None
     assert len(converted_eval.evaluation_results[0].source_data.sample_ids) > 0
 
@@ -264,38 +320,43 @@ def test_humaneval_eval():
         'evaluator_relationship': EvaluatorRelationship.first_party,
     }
 
-    converted_eval = _load_eval(adapter, 'tests/data/inspect/2026-02-24T11-23-20+00-00_humaneval_ENiBTeoXr2dbbNcDtpbVvq.json', metadata_args)
+    converted_eval = _load_eval(
+        adapter,
+        'tests/data/inspect/2026-02-24T11-23-20+00-00_humaneval_ENiBTeoXr2dbbNcDtpbVvq.json',
+        metadata_args,
+    )
     assert converted_eval.detailed_evaluation_results is not None
+
 
 def test_convert_model_path_to_standarized_model_ids():
     model_path_to_standarized_id_map = {
-        "openai/gpt-4o-mini": "openai/gpt-4o-mini",
-        "openai/azure/gpt-4o-mini": "openai/gpt-4o-mini",
-        "anthropic/claude-sonnet-4-0": "anthropic/claude-sonnet-4-0",
-        "anthropic/bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0": "anthropic/claude-3-5-sonnet@20241022",
-        "anthropic/vertex/claude-3-5-sonnet-v2@20241022": "anthropic/claude-3-5-sonnet@20241022",
-        "google/gemini-2.5-pro": "google/gemini-2.5-pro",
-        "google/vertex/gemini-2.0-flash": "google/gemini-2.0-flash",
-        "mistral/mistral-large-latest": "mistral/mistral-large-latest",
-        "mistral/azure/Mistral-Large-2411": "mistral/Mistral-Large-2411",
-        "openai-api/deepseek/deepseek-reasoner": "deepseek/deepseek-reasoner",
-        "bedrock/meta.llama2-70b-chat-v1": "meta/llama2-70b-chat",
-        "azureai/Llama-3.3-70B-Instruct": "azureai/Llama-3.3-70B-Instruct",
-        "together/meta-llama/Meta-Llama-3.1-70B-Instruct": "meta-llama/Meta-Llama-3.1-70B-Instruct",
-        "groq/llama-3.1-70b-versatile": "meta-llama/llama-3.1-70b-versatile",
-        "fireworks/accounts/fireworks/models/deepseek-r1-0528": "deepseek-ai/deepseek-r1-0528",
-        "sambanova/DeepSeek-V1-0324": "deepseek-ai/DeepSeek-V1-0324",
-        "cf/meta/llama-3.1-70b-instruct": "meta/llama-3.1-70b-instruct",
-        "perplexity/sonar": "perplexity/sonar",
-        "hf/openai-community/gpt2": "openai-community/gpt2",
-        "vllm/openai-community/gpt2": "openai-community/gpt2",
-        "vllm/meta-llama/Meta-Llama-3-8B-Instruct": "meta-llama/Meta-Llama-3-8B-Instruct",
-        "sglang/meta-llama/Meta-Llama-3-8B-Instruct": "meta-llama/Meta-Llama-3-8B-Instruct",
-        "ollama/llama3.1": "ollama/llama3.1",
-        "llama-cpp-python/llama3": "llama-cpp-python/llama3",
-        "openrouter/gryphe/mythomax-l2-13b": "gryphe/mythomax-l2-13b",
-        "hf-inference-providers/openai/gpt-oss-120b": "openai/gpt-oss-120b",
-        "hf-inference-providers/openai/gpt-oss-120b:cerebras": "openai/gpt-oss-120b:cerebras",
+        'openai/gpt-4o-mini': 'openai/gpt-4o-mini',
+        'openai/azure/gpt-4o-mini': 'openai/gpt-4o-mini',
+        'anthropic/claude-sonnet-4-0': 'anthropic/claude-sonnet-4-0',
+        'anthropic/bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0': 'anthropic/claude-3-5-sonnet@20241022',
+        'anthropic/vertex/claude-3-5-sonnet-v2@20241022': 'anthropic/claude-3-5-sonnet@20241022',
+        'google/gemini-2.5-pro': 'google/gemini-2.5-pro',
+        'google/vertex/gemini-2.0-flash': 'google/gemini-2.0-flash',
+        'mistral/mistral-large-latest': 'mistral/mistral-large-latest',
+        'mistral/azure/Mistral-Large-2411': 'mistral/Mistral-Large-2411',
+        'openai-api/deepseek/deepseek-reasoner': 'deepseek/deepseek-reasoner',
+        'bedrock/meta.llama2-70b-chat-v1': 'meta/llama2-70b-chat',
+        'azureai/Llama-3.3-70B-Instruct': 'azureai/Llama-3.3-70B-Instruct',
+        'together/meta-llama/Meta-Llama-3.1-70B-Instruct': 'meta-llama/Meta-Llama-3.1-70B-Instruct',
+        'groq/llama-3.1-70b-versatile': 'meta-llama/llama-3.1-70b-versatile',
+        'fireworks/accounts/fireworks/models/deepseek-r1-0528': 'deepseek-ai/deepseek-r1-0528',
+        'sambanova/DeepSeek-V1-0324': 'deepseek-ai/DeepSeek-V1-0324',
+        'cf/meta/llama-3.1-70b-instruct': 'meta/llama-3.1-70b-instruct',
+        'perplexity/sonar': 'perplexity/sonar',
+        'hf/openai-community/gpt2': 'openai-community/gpt2',
+        'vllm/openai-community/gpt2': 'openai-community/gpt2',
+        'vllm/meta-llama/Meta-Llama-3-8B-Instruct': 'meta-llama/Meta-Llama-3-8B-Instruct',
+        'sglang/meta-llama/Meta-Llama-3-8B-Instruct': 'meta-llama/Meta-Llama-3-8B-Instruct',
+        'ollama/llama3.1': 'ollama/llama3.1',
+        'llama-cpp-python/llama3': 'llama-cpp-python/llama3',
+        'openrouter/gryphe/mythomax-l2-13b': 'gryphe/mythomax-l2-13b',
+        'hf-inference-providers/openai/gpt-oss-120b': 'openai/gpt-oss-120b',
+        'hf-inference-providers/openai/gpt-oss-120b:cerebras': 'openai/gpt-oss-120b:cerebras',
     }
 
     for model_path, model_id in model_path_to_standarized_id_map.items():

@@ -6,7 +6,11 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 from every_eval_ever.converters import SCHEMA_VERSION
-from every_eval_ever.eval_types import DetailedEvaluationResults, Format, HashAlgorithm
+from every_eval_ever.eval_types import (
+    DetailedEvaluationResults,
+    Format,
+    HashAlgorithm,
+)
 from every_eval_ever.instance_level_types import (
     AnswerAttributionItem,
     Evaluation,
@@ -61,21 +65,24 @@ class LMEvalInstanceLevelAdapter:
         if output_dir is None:
             return None
 
-        logs = self.transform_samples(samples_path, evaluation_id, model_id, task_name)
+        logs = self.transform_samples(
+            samples_path, evaluation_id, model_id, task_name
+        )
         if not logs:
             return None
 
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
         if file_uuid:
-            out_file = output_dir / f"{file_uuid}_samples.jsonl"
+            out_file = output_dir / f'{file_uuid}_samples.jsonl'
         else:
-            out_file = output_dir / f"samples_{task_name}.jsonl"
+            out_file = output_dir / f'samples_{task_name}.jsonl'
 
-        with open(out_file, "w") as f:
+        with open(out_file, 'w') as f:
             for log in logs:
                 f.write(
-                    json.dumps(log.model_dump(mode="json"), ensure_ascii=False) + "\n"
+                    json.dumps(log.model_dump(mode='json'), ensure_ascii=False)
+                    + '\n'
                 )
 
         file_hash = hashlib.sha256(out_file.read_bytes()).hexdigest()
@@ -97,19 +104,19 @@ class LMEvalInstanceLevelAdapter:
     ) -> InstanceLevelEvaluationLog:
         """Transform a single lm-eval sample into an instance-level log."""
         # Extract prompt from arguments
-        arguments = sample.get("arguments", {})
-        prompt = ""
+        arguments = sample.get('arguments', {})
+        prompt = ''
         if arguments:
-            first_arg = arguments.get("gen_args_0", {})
-            prompt = first_arg.get("arg_0", "")
+            first_arg = arguments.get('gen_args_0', {})
+            prompt = first_arg.get('arg_0', '')
 
-        target = str(sample.get("target", ""))
+        target = str(sample.get('target', ''))
 
         # Extract model output
         raw_output = self._extract_output(sample)
 
         # Determine correctness from metric values
-        metrics = sample.get("metrics", [])
+        metrics = sample.get('metrics', [])
         score = None
         is_correct = None
         for metric_name in metrics:
@@ -125,26 +132,28 @@ class LMEvalInstanceLevelAdapter:
             is_correct = False
 
         # Build sample hash from input + reference for cross-model comparison
-        hash_input = json.dumps({"raw": prompt, "reference": target}, sort_keys=True)
+        hash_input = json.dumps(
+            {'raw': prompt, 'reference': target}, sort_keys=True
+        )
         sample_hash = hashlib.sha256(hash_input.encode()).hexdigest()
 
         # Build evaluation_name: include filter if not "none"
-        filter_name = sample.get("filter", "none")
+        filter_name = sample.get('filter', 'none')
         eval_name = task_name
-        if filter_name != "none":
-            eval_name = f"{task_name}/{filter_name}"
+        if filter_name != 'none':
+            eval_name = f'{task_name}/{filter_name}'
 
         # Build answer attribution
         # For lm-eval, the answer is always extracted from the model's single-turn output.
         # The extraction_method depends on the filter applied.
-        extraction_method = "none"
-        if filter_name != "none":
+        extraction_method = 'none'
+        if filter_name != 'none':
             extraction_method = filter_name
 
         answer_attribution = [
             AnswerAttributionItem(
                 turn_idx=0,
-                source="output.raw",
+                source='output.raw',
                 extracted_value=raw_output,
                 extraction_method=extraction_method,
                 is_terminal=True,
@@ -156,7 +165,7 @@ class LMEvalInstanceLevelAdapter:
             evaluation_id=evaluation_id,
             model_id=model_id,
             evaluation_name=eval_name,
-            sample_id=str(sample.get("doc_id", 0)),
+            sample_id=str(sample.get('doc_id', 0)),
             sample_hash=sample_hash,
             interaction_type=InteractionType.single_turn,
             input=Input(
@@ -171,32 +180,32 @@ class LMEvalInstanceLevelAdapter:
                 is_correct=is_correct,
             ),
             metadata={
-                "doc_hash": str(sample.get("doc_hash", "")),
-                "prompt_hash": str(sample.get("prompt_hash", "")),
-                "target_hash": str(sample.get("target_hash", "")),
-                "filter": str(filter_name),
-                "lm_eval_metrics": json.dumps({
-                    m: sample.get(m) for m in metrics if m in sample
-                }),
+                'doc_hash': str(sample.get('doc_hash', '')),
+                'prompt_hash': str(sample.get('prompt_hash', '')),
+                'target_hash': str(sample.get('target_hash', '')),
+                'filter': str(filter_name),
+                'lm_eval_metrics': json.dumps(
+                    {m: sample.get(m) for m in metrics if m in sample}
+                ),
             },
         )
 
     def _is_multiple_choice(self, sample: dict[str, Any]) -> bool:
         """Check if a sample is multiple-choice by inspecting the arguments structure."""
-        arguments = sample.get("arguments", {})
-        return len(arguments) > 1 and "gen_args_1" in arguments
+        arguments = sample.get('arguments', {})
+        return len(arguments) > 1 and 'gen_args_1' in arguments
 
     def _extract_output(self, sample: dict[str, Any]) -> str:
         """Extract the model's output from a sample."""
-        filtered_resps = sample.get("filtered_resps", [])
-        resps = sample.get("resps", [])
+        filtered_resps = sample.get('filtered_resps', [])
+        resps = sample.get('resps', [])
 
         if self._is_multiple_choice(sample):
             # For multiple-choice, find the selected choice index from filtered_resps.
             # Each entry is [log_prob, is_greedy]; the model picks the highest log_prob.
             source = filtered_resps if filtered_resps else resps
             if not source:
-                return ""
+                return ''
             try:
                 log_probs = []
                 for resp in source:
@@ -204,7 +213,7 @@ class LMEvalInstanceLevelAdapter:
                         val = resp[0] if isinstance(resp[0], list) else resp
                         log_probs.append(float(val[0]))
                     else:
-                        log_probs.append(float("-inf"))
+                        log_probs.append(float('-inf'))
                 selected_idx = log_probs.index(max(log_probs))
                 # Return the choice text from arguments if available
                 choices = self._extract_choices(sample)
@@ -217,24 +226,24 @@ class LMEvalInstanceLevelAdapter:
         # For generation tasks, use the first response
         source = filtered_resps if filtered_resps else resps
         if not source:
-            return ""
+            return ''
 
         first = source[0]
         if isinstance(first, list):
-            return str(first[0]) if first else ""
+            return str(first[0]) if first else ''
         return str(first)
 
     def _extract_choices(self, sample: dict[str, Any]) -> list[str] | None:
         """Extract multiple choice options from arguments structure."""
-        arguments = sample.get("arguments", {})
+        arguments = sample.get('arguments', {})
         if not self._is_multiple_choice(sample):
             return None
         # Collect arg_1 (continuation text) from each gen_args_N in order
         choices = []
         idx = 0
-        while f"gen_args_{idx}" in arguments:
-            arg = arguments[f"gen_args_{idx}"]
-            if "arg_1" in arg:
-                choices.append(str(arg["arg_1"]).strip())
+        while f'gen_args_{idx}' in arguments:
+            arg = arguments[f'gen_args_{idx}']
+            if 'arg_1' in arg:
+                choices.append(str(arg['arg_1']).strip())
             idx += 1
         return choices if choices else None

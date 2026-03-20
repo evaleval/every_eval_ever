@@ -38,7 +38,7 @@ class ValidationReport:
     file_path: Path
     valid: bool
     errors: list[dict] = field(default_factory=list)
-    file_type: str = ""  # "aggregate" or "instance"
+    file_type: str = ''  # "aggregate" or "instance"
     line_count: int = 0  # for JSONL files
 
 
@@ -47,13 +47,13 @@ def _format_loc(loc: tuple) -> str:
     parts = []
     for part in loc:
         if isinstance(part, int):
-            parts.append(f"[{part}]")
+            parts.append(f'[{part}]')
         else:
             if parts:
-                parts.append(f" -> {part}")
+                parts.append(f' -> {part}')
             else:
                 parts.append(str(part))
-    return "".join(parts) if parts else "(root)"
+    return ''.join(parts) if parts else '(root)'
 
 
 def _pydantic_errors_to_dicts(exc: ValidationError) -> list[dict]:
@@ -62,10 +62,10 @@ def _pydantic_errors_to_dicts(exc: ValidationError) -> list[dict]:
     for err in exc.errors():
         errors.append(
             {
-                "loc": _format_loc(err["loc"]),
-                "msg": err["msg"],
-                "type": err["type"],
-                "input": err.get("input"),
+                'loc': _format_loc(err['loc']),
+                'msg': err['msg'],
+                'type': err['type'],
+                'input': err.get('input'),
             }
         )
     return errors
@@ -73,13 +73,17 @@ def _pydantic_errors_to_dicts(exc: ValidationError) -> list[dict]:
 
 def validate_aggregate(file_path: Path) -> ValidationReport:
     """Validate a .json file as an EvaluationLog."""
-    report = ValidationReport(file_path=file_path, valid=True, file_type="aggregate")
+    report = ValidationReport(
+        file_path=file_path, valid=True, file_type='aggregate'
+    )
 
     try:
-        raw = file_path.read_text(encoding="utf-8")
+        raw = file_path.read_text(encoding='utf-8')
     except OSError as e:
         report.valid = False
-        report.errors.append({"loc": "(file)", "msg": str(e), "type": "io_error"})
+        report.errors.append(
+            {'loc': '(file)', 'msg': str(e), 'type': 'io_error'}
+        )
         return report
 
     try:
@@ -88,9 +92,9 @@ def validate_aggregate(file_path: Path) -> ValidationReport:
         report.valid = False
         report.errors.append(
             {
-                "loc": f"line {e.lineno}, col {e.colno}",
-                "msg": e.msg,
-                "type": "json_parse_error",
+                'loc': f'line {e.lineno}, col {e.colno}',
+                'msg': e.msg,
+                'type': 'json_parse_error',
             }
         )
         return report
@@ -111,9 +115,9 @@ def _validate_instance_line(line: str, line_num: int) -> list[dict]:
     except json.JSONDecodeError as e:
         return [
             {
-                "loc": f"line {line_num}, col {e.colno}",
-                "msg": e.msg,
-                "type": "json_parse_error",
+                'loc': f'line {line_num}, col {e.colno}',
+                'msg': e.msg,
+                'type': 'json_parse_error',
             }
         ]
 
@@ -122,7 +126,7 @@ def _validate_instance_line(line: str, line_num: int) -> list[dict]:
     except ValidationError as e:
         errors = _pydantic_errors_to_dicts(e)
         for err in errors:
-            err["loc"] = f"line {line_num} -> {err['loc']}"
+            err['loc'] = f'line {line_num} -> {err["loc"]}'
         return errors
 
     return []
@@ -132,13 +136,17 @@ def validate_instance_file(
     file_path: Path, max_errors: int = DEFAULT_MAX_ERRORS
 ) -> ValidationReport:
     """Validate a .jsonl file as InstanceLevelEvaluationLog (line-by-line)."""
-    report = ValidationReport(file_path=file_path, valid=True, file_type="instance")
+    report = ValidationReport(
+        file_path=file_path, valid=True, file_type='instance'
+    )
 
     try:
-        f = file_path.open(encoding="utf-8")
+        f = file_path.open(encoding='utf-8')
     except OSError as e:
         report.valid = False
-        report.errors.append({"loc": "(file)", "msg": str(e), "type": "io_error"})
+        report.errors.append(
+            {'loc': '(file)', 'msg': str(e), 'type': 'io_error'}
+        )
         return report
 
     with f:
@@ -158,9 +166,9 @@ def validate_instance_file(
                 if remaining <= 0:
                     report.errors.append(
                         {
-                            "loc": "(truncated)",
-                            "msg": f"Error limit reached ({max_errors}). Use --max-errors to increase.",
-                            "type": "truncated",
+                            'loc': '(truncated)',
+                            'msg': f'Error limit reached ({max_errors}). Use --max-errors to increase.',
+                            'type': 'truncated',
                         }
                     )
                     break
@@ -173,9 +181,9 @@ def validate_instance_file(
                 if len(report.errors) >= max_errors:
                     report.errors.append(
                         {
-                            "loc": "(truncated)",
-                            "msg": f"Error limit reached ({max_errors}). Use --max-errors to increase.",
-                            "type": "truncated",
+                            'loc': '(truncated)',
+                            'msg': f'Error limit reached ({max_errors}). Use --max-errors to increase.',
+                            'type': 'truncated',
                         }
                     )
                     break
@@ -187,17 +195,19 @@ def validate_file(
     file_path: Path, max_errors: int = DEFAULT_MAX_ERRORS
 ) -> ValidationReport:
     """Dispatch validation by file extension."""
-    if file_path.suffix == ".json":
+    if file_path.suffix == '.json':
         return validate_aggregate(file_path)
-    elif file_path.suffix == ".jsonl":
+    elif file_path.suffix == '.jsonl':
         return validate_instance_file(file_path, max_errors)
     else:
-        report = ValidationReport(file_path=file_path, valid=False, file_type="unsupported")
+        report = ValidationReport(
+            file_path=file_path, valid=False, file_type='unsupported'
+        )
         report.errors.append(
             {
-                "loc": "(file)",
-                "msg": f"Unsupported file extension '{file_path.suffix}'. Expected .json or .jsonl",
-                "type": "unsupported_extension",
+                'loc': '(file)',
+                'msg': f"Unsupported file extension '{file_path.suffix}'. Expected .json or .jsonl",
+                'type': 'unsupported_extension',
             }
         )
         return report
@@ -211,7 +221,7 @@ def expand_paths(paths: list[str]) -> list[Path]:
         if path.is_file():
             result.append(path)
         elif path.is_dir():
-            for ext in ("*.json", "*.jsonl"):
+            for ext in ('*.json', '*.jsonl'):
                 result.extend(sorted(path.rglob(ext)))
         else:
             result.append(path)  # let validate_file report the error
@@ -222,7 +232,7 @@ def _truncate(value: object, max_len: int = 80) -> str:
     """Truncate a repr for display."""
     s = repr(value)
     if len(s) > max_len:
-        return s[: max_len - 3] + "..."
+        return s[: max_len - 3] + '...'
     return s
 
 
@@ -234,59 +244,73 @@ def _truncate(value: object, max_len: int = 80) -> str:
 def render_report_rich(report: ValidationReport, console: Console) -> None:
     """Render a single report as a rich panel."""
     if report.valid:
-        label = Text(" PASS ", style="bold white on green")
-        kind = "Aggregate (EvaluationLog)" if report.file_type == "aggregate" else f"Instance (InstanceLevelEvaluationLog, {report.line_count} lines)"
-        header = Text.assemble(label, "  ", (kind, "dim"))
+        label = Text(' PASS ', style='bold white on green')
+        kind = (
+            'Aggregate (EvaluationLog)'
+            if report.file_type == 'aggregate'
+            else f'Instance (InstanceLevelEvaluationLog, {report.line_count} lines)'
+        )
+        header = Text.assemble(label, '  ', (kind, 'dim'))
         console.print(
             Panel(
                 header,
-                title=f"[blue underline]{report.file_path}[/]",
-                title_align="left",
-                border_style="green",
+                title=f'[blue underline]{report.file_path}[/]',
+                title_align='left',
+                border_style='green',
             )
         )
     else:
-        label = Text(" FAIL ", style="bold white on red")
-        kind = "Aggregate (EvaluationLog)" if report.file_type == "aggregate" else "Instance (InstanceLevelEvaluationLog)"
-        header_line = Text.assemble(label, "  ", (kind, "dim"))
+        label = Text(' FAIL ', style='bold white on red')
+        kind = (
+            'Aggregate (EvaluationLog)'
+            if report.file_type == 'aggregate'
+            else 'Instance (InstanceLevelEvaluationLog)'
+        )
+        header_line = Text.assemble(label, '  ', (kind, 'dim'))
 
-        lines = [header_line, Text("")]
+        lines = [header_line, Text('')]
         for i, err in enumerate(report.errors, 1):
-            loc_text = Text(f"  {i}. {err['loc']}", style="cyan")
-            msg_text = Text(f"     {err['msg']}", style="default")
+            loc_text = Text(f'  {i}. {err["loc"]}', style='cyan')
+            msg_text = Text(f'     {err["msg"]}', style='default')
             lines.append(loc_text)
             lines.append(msg_text)
-            if "input" in err and err["input"] is not None:
-                got_text = Text(f"     Got: {_truncate(err['input'])}", style="dim")
+            if 'input' in err and err['input'] is not None:
+                got_text = Text(
+                    f'     Got: {_truncate(err["input"])}', style='dim'
+                )
                 lines.append(got_text)
-            lines.append(Text(""))
+            lines.append(Text(''))
 
-        body = Text("\n").join(lines)
+        body = Text('\n').join(lines)
         console.print(
             Panel(
                 body,
-                title=f"[blue underline]{report.file_path}[/]",
-                title_align="left",
-                border_style="red",
+                title=f'[blue underline]{report.file_path}[/]',
+                title_align='left',
+                border_style='red',
             )
         )
 
 
-def render_summary_rich(reports: list[ValidationReport], console: Console) -> None:
+def render_summary_rich(
+    reports: list[ValidationReport], console: Console
+) -> None:
     """Render a summary panel."""
     passed = sum(1 for r in reports if r.valid)
     failed = len(reports) - passed
     total_errors = sum(len(r.errors) for r in reports)
 
     if failed == 0:
-        style = "bold green"
-        msg = f"All {passed} file(s) passed validation"
+        style = 'bold green'
+        msg = f'All {passed} file(s) passed validation'
     else:
-        style = "bold red"
-        msg = f"{failed} file(s) failed, {passed} passed ({total_errors} total errors)"
+        style = 'bold red'
+        msg = f'{failed} file(s) failed, {passed} passed ({total_errors} total errors)'
 
     console.print()
-    console.print(Panel(Text(msg, style=style), title="Summary", border_style="dim"))
+    console.print(
+        Panel(Text(msg, style=style), title='Summary', border_style='dim')
+    )
 
 
 def render_report_json(reports: list[ValidationReport]) -> str:
@@ -295,11 +319,11 @@ def render_report_json(reports: list[ValidationReport]) -> str:
     for r in reports:
         output.append(
             {
-                "file": str(r.file_path),
-                "valid": r.valid,
-                "file_type": r.file_type,
-                "line_count": r.line_count,
-                "errors": r.errors,
+                'file': str(r.file_path),
+                'valid': r.valid,
+                'file_type': r.file_type,
+                'line_count': r.line_count,
+                'errors': r.errors,
             }
         )
     return json.dumps(output, indent=2, default=str)
@@ -310,8 +334,10 @@ def render_report_github(reports: list[ValidationReport]) -> str:
     lines = []
     for r in reports:
         for err in r.errors:
-            lines.append(f"::error file={r.file_path}::{err['loc']}: {err['msg']}")
-    return "\n".join(lines)
+            lines.append(
+                f'::error file={r.file_path}::{err["loc"]}: {err["msg"]}'
+            )
+    return '\n'.join(lines)
 
 
 # ---------------------------------------------------------------------------
@@ -321,46 +347,48 @@ def render_report_github(reports: list[ValidationReport]) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        prog="eee-validate",
-        description="Validate EEE schema files using Pydantic models",
+        prog='eee-validate',
+        description='Validate EEE schema files using Pydantic models',
     )
     parser.add_argument(
-        "paths",
-        nargs="+",
-        help="File or directory paths to validate (.json for aggregate, .jsonl for instance-level)",
+        'paths',
+        nargs='+',
+        help='File or directory paths to validate (.json for aggregate, .jsonl for instance-level)',
     )
     parser.add_argument(
-        "--max-errors",
+        '--max-errors',
         type=int,
         default=DEFAULT_MAX_ERRORS,
-        help=f"Maximum errors per JSONL file (default: {DEFAULT_MAX_ERRORS})",
+        help=f'Maximum errors per JSONL file (default: {DEFAULT_MAX_ERRORS})',
     )
     parser.add_argument(
-        "--format",
-        choices=["rich", "json", "github"],
-        default="rich",
-        dest="output_format",
-        help="Output format (default: rich)",
+        '--format',
+        choices=['rich', 'json', 'github'],
+        default='rich',
+        dest='output_format',
+        help='Output format (default: rich)',
     )
     args = parser.parse_args(argv)
 
     file_paths = expand_paths(args.paths)
     if not file_paths:
-        print("No files found to validate.", file=sys.stderr)
+        print('No files found to validate.', file=sys.stderr)
         return 1
 
-    reports = [validate_file(fp, max_errors=args.max_errors) for fp in file_paths]
+    reports = [
+        validate_file(fp, max_errors=args.max_errors) for fp in file_paths
+    ]
 
-    if args.output_format == "rich":
+    if args.output_format == 'rich':
         console = Console()
         console.print()
         for report in reports:
             render_report_rich(report, console)
         render_summary_rich(reports, console)
         console.print()
-    elif args.output_format == "json":
+    elif args.output_format == 'json':
         print(render_report_json(reports))
-    elif args.output_format == "github":
+    elif args.output_format == 'github':
         output = render_report_github(reports)
         if output:
             print(output)
@@ -368,5 +396,5 @@ def main(argv: list[str] | None = None) -> int:
     return 1 if any(not r.valid for r in reports) else 0
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     raise SystemExit(main())

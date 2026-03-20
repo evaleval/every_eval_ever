@@ -8,12 +8,12 @@ from pathlib import Path
 from typing import Any
 
 
-def schema_text(name: str = "eval.schema.json") -> str:
+def schema_text(name: str = 'eval.schema.json') -> str:
     with schema_path(name) as path:
-        return path.read_text(encoding="utf-8")
+        return path.read_text(encoding='utf-8')
 
 
-def schema_json(name: str = "eval.schema.json") -> dict[str, Any]:
+def schema_json(name: str = 'eval.schema.json') -> dict[str, Any]:
     return json.loads(schema_text(name))
 
 
@@ -25,8 +25,8 @@ class _SchemaPathContext:
     resource as a temporary file for the lifetime of the context.
     """
 
-    def __init__(self, name: str = "eval.schema.json") -> None:
-        resource = resources.files("every_eval_ever.schemas").joinpath(name)
+    def __init__(self, name: str = 'eval.schema.json') -> None:
+        resource = resources.files('every_eval_ever.schemas').joinpath(name)
         self._context = resources.as_file(resource)
 
     def __enter__(self) -> Path:
@@ -37,5 +37,5 @@ class _SchemaPathContext:
         return None
 
 
-def schema_path(name: str = "eval.schema.json") -> _SchemaPathContext:
+def schema_path(name: str = 'eval.schema.json') -> _SchemaPathContext:
     return _SchemaPathContext(name)

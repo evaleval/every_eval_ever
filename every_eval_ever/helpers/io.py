@@ -21,7 +21,7 @@ def sanitize_filename(name: str) -> str:
         Sanitized string safe for filesystem use
     """
     # Replace characters invalid on Windows/Unix filesystems
-    return re.sub(r'[<>:"/\\|?*]', "_", name)
+    return re.sub(r'[<>:"/\\|?*]', '_', name)
 
 
 def generate_output_path(
@@ -75,7 +75,7 @@ def save_evaluation_log(
     dir_path = generate_output_path(base_dir, developer, model_name)
     dir_path.mkdir(parents=True, exist_ok=True)
 
-    filename = f"{uuid.uuid4()}.json"
+    filename = f'{uuid.uuid4()}.json'
     filepath = dir_path / filename
 
     json_str = eval_log.model_dump_json(indent=2, exclude_none=True)

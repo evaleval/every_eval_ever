@@ -4,53 +4,62 @@
 
 from __future__ import annotations
 from enum import Enum
-from pydantic import BaseModel, ConfigDict, Field, confloat, conint, model_validator, Discriminator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    confloat,
+    conint,
+    model_validator,
+    Discriminator,
+)
 from typing import Annotated, Literal
 
 
 class SourceType(Enum):
-    documentation = "documentation"
-    evaluation_run = "evaluation_run"
+    documentation = 'documentation'
+    evaluation_run = 'evaluation_run'
 
 
 class EvaluatorRelationship(Enum):
-    first_party = "first_party"
-    third_party = "third_party"
-    collaborative = "collaborative"
-    other = "other"
+    first_party = 'first_party'
+    third_party = 'third_party'
+    collaborative = 'collaborative'
+    other = 'other'
 
 
 class SourceMetadata(BaseModel):
     source_name: str | None = Field(
         None,
-        description="Name of the source (e.g. title of the source leaderboard or name of the platform used for the evaluation).",
+        description='Name of the source (e.g. title of the source leaderboard or name of the platform used for the evaluation).',
     )
     source_type: SourceType = Field(
         ...,
-        description="Whether the data comes from a direct evaluation run or from documentation",
+        description='Whether the data comes from a direct evaluation run or from documentation',
     )
     source_organization_name: str = Field(
-        ..., description="Name of the organization that provides the data"
+        ..., description='Name of the organization that provides the data'
     )
     source_organization_url: str | None = Field(
-        None, description="URL for the organization that provides the data"
+        None, description='URL for the organization that provides the data'
     )
     source_organization_logo_url: str | None = Field(
-        None, description="URL for the Logo for the organization that provides the data"
+        None,
+        description='URL for the Logo for the organization that provides the data',
     )
     evaluator_relationship: EvaluatorRelationship = Field(
-        ..., description="Relationship between the evaluator and the model"
+        ..., description='Relationship between the evaluator and the model'
     )
     additional_details: dict[str, str] | None = Field(
         None,
-        description="Additional parameters (key-value pairs, all values must be strings)",
+        description='Additional parameters (key-value pairs, all values must be strings)',
     )
 
 
 class EvalLibrary(BaseModel):
     name: str = Field(
         ...,
-        description="Name of the evaluation library (e.g. inspect_ai, lm_eval, helm)",
+        description='Name of the evaluation library (e.g. inspect_ai, lm_eval, helm)',
     )
     version: str = Field(
         ...,
@@ -58,25 +67,25 @@ class EvalLibrary(BaseModel):
     )
     additional_details: dict[str, str] | None = Field(
         None,
-        description="Additional parameters (key-value pairs, all values must be strings)",
+        description='Additional parameters (key-value pairs, all values must be strings)',
     )
 
 
 class ScoreType(Enum):
-    binary = "binary"
-    continuous = "continuous"
-    levels = "levels"
+    binary = 'binary'
+    continuous = 'continuous'
+    levels = 'levels'
 
 
 class AggregationMethod(Enum):
-    majority_vote = "majority_vote"
-    average = "average"
-    weighted_average = "weighted_average"
-    median = "median"
+    majority_vote = 'majority_vote'
+    average = 'average'
+    weighted_average = 'weighted_average'
+    median = 'median'
 
 
 class StandardError(BaseModel):
-    value: float = Field(..., description="The standard error value")
+    value: float = Field(..., description='The standard error value')
     method: str | None = Field(
         None,
         description="How the standard error was computed (e.g. 'analytic', 'bootstrap', 'jackknife')",
@@ -84,64 +93,72 @@ class StandardError(BaseModel):
 
 
 class ConfidenceInterval(BaseModel):
-    lower: float = Field(..., description="Lower bound of the confidence interval")
-    upper: float = Field(..., description="Upper bound of the confidence interval")
+    lower: float = Field(
+        ..., description='Lower bound of the confidence interval'
+    )
+    upper: float = Field(
+        ..., description='Upper bound of the confidence interval'
+    )
     confidence_level: confloat(ge=0.0, le=1.0) | None = Field(
-        None, description="Confidence level (e.g. 0.95 for a 95% confidence interval)"
+        None,
+        description='Confidence level (e.g. 0.95 for a 95% confidence interval)',
     )
     method: str | None = Field(
-        None, description="How the confidence interval was computed"
+        None, description='How the confidence interval was computed'
     )
 
 
 class Uncertainty(BaseModel):
     standard_error: StandardError | None = Field(
         None,
-        description="Standard error of the score estimate (SE_mean = standard_deviation / sqrt(num_samples))",
+        description='Standard error of the score estimate (SE_mean = standard_deviation / sqrt(num_samples))',
     )
     confidence_interval: ConfidenceInterval | None = Field(
         None,
-        description="Lower and upper bounds for the metric at a given confidence level.",
+        description='Lower and upper bounds for the metric at a given confidence level.',
     )
     standard_deviation: float | None = Field(
-        None, description="Standard deviation of the per-sample scores"
+        None, description='Standard deviation of the per-sample scores'
     )
     num_samples: int | None = Field(
-        None, description="Number of samples used to compute the uncertainty estimates"
+        None,
+        description='Number of samples used to compute the uncertainty estimates',
     )
     num_bootstrap_samples: int | None = Field(
         None,
-        description="Number of bootstrap resamples used, if bootstrap method was applied",
+        description='Number of bootstrap resamples used, if bootstrap method was applied',
     )
 
 
 class ScoreDetails(BaseModel):
-    score: float = Field(..., description="The score for the evaluation")
+    score: float = Field(..., description='The score for the evaluation')
     details: dict[str, str] | None = Field(
         None,
-        description="Additional parameters (key-value pairs, all values must be strings)",
+        description='Additional parameters (key-value pairs, all values must be strings)',
     )
     uncertainty: Uncertainty | None = Field(
-        None, description="Quantification of uncertainty around the reported score"
+        None,
+        description='Quantification of uncertainty around the reported score',
     )
 
 
 class AvailableTool(BaseModel):
-    name: str | None = Field(None, description="e.g. bash, calculator, ...")
+    name: str | None = Field(None, description='e.g. bash, calculator, ...')
     description: str | None = None
     parameters: dict[str, str] | None = Field(
         None,
-        description="Additional parameters (key-value pairs, all values must be strings)",
+        description='Additional parameters (key-value pairs, all values must be strings)',
     )
 
 
 class AgenticEvalConfig(BaseModel):
     available_tools: list[AvailableTool] | None = Field(
-        None, description="List of all available tools with their configurations"
+        None,
+        description='List of all available tools with their configurations',
     )
     additional_details: dict[str, str] | None = Field(
         None,
-        description="Additional parameters (key-value pairs, all values must be strings)",
+        description='Additional parameters (key-value pairs, all values must be strings)',
     )
 
 
@@ -149,174 +166,190 @@ class EvalPlan(BaseModel):
     name: str | None = None
     steps: list[str] | None = Field(
         None,
-        description="Array of evaluation plan steps (each step is a JSON-serialized string)",
+        description='Array of evaluation plan steps (each step is a JSON-serialized string)',
     )
     config: dict[str, str] | None = Field(
         None,
-        description="Additional parameters (key-value pairs, all values must be strings)",
+        description='Additional parameters (key-value pairs, all values must be strings)',
     )
 
 
 class EvalLimits(BaseModel):
-    time_limit: int | None = Field(None, description="Time limit for evaluation.")
-    message_limit: int | None = Field(None, description="Message limit for evaluation.")
-    token_limit: int | None = Field(None, description="Token limit for evaluation.")
+    time_limit: int | None = Field(
+        None, description='Time limit for evaluation.'
+    )
+    message_limit: int | None = Field(
+        None, description='Message limit for evaluation.'
+    )
+    token_limit: int | None = Field(
+        None, description='Token limit for evaluation.'
+    )
 
 
 class Sandbox(BaseModel):
-    type: str | None = Field(None, description="Type of sandbox e.g. docker")
+    type: str | None = Field(None, description='Type of sandbox e.g. docker')
     config: str | None = Field(
         None,
-        description="Config file name/path e.g. compose.yaml. TODO or full config? Not sure based on the Inspect docs",
+        description='Config file name/path e.g. compose.yaml. TODO or full config? Not sure based on the Inspect docs',
     )
 
 
 class GenerationArgs(BaseModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra='forbid',
     )
-    temperature: float | None = Field(None, description="Sampling temperature")
-    top_p: float | None = Field(None, description="Nucleus sampling parameter")
-    top_k: float | None = Field(None, description="Top-k sampling parameter")
+    temperature: float | None = Field(None, description='Sampling temperature')
+    top_p: float | None = Field(None, description='Nucleus sampling parameter')
+    top_k: float | None = Field(None, description='Top-k sampling parameter')
     max_tokens: conint(ge=1) | None = Field(
-        None, description="Maximum number of tokens to generate"
+        None, description='Maximum number of tokens to generate'
     )
     execution_command: str | None = Field(
-        None, description="Command used to run the model to generate results"
+        None, description='Command used to run the model to generate results'
     )
     reasoning: bool | None = Field(
         None,
-        description="Whether reasoning orchain-of-thought was used to generate results",
+        description='Whether reasoning orchain-of-thought was used to generate results',
     )
     prompt_template: str | None = Field(
         None,
-        description="Input prompt template for task (should contain agentic info if needed).",
+        description='Input prompt template for task (should contain agentic info if needed).',
     )
     agentic_eval_config: AgenticEvalConfig | None = Field(
-        None, description="General configuration for agentic evaluations."
+        None, description='General configuration for agentic evaluations.'
     )
     eval_plan: EvalPlan | None = Field(
         None,
-        description="Plan (solvers) used in evaluation. Solvers are crucial parts of Inspect evaluations which can serve a wide variety of purposes like providing system prompts, prompt engineering, model generation or multi-turn dialog.",
+        description='Plan (solvers) used in evaluation. Solvers are crucial parts of Inspect evaluations which can serve a wide variety of purposes like providing system prompts, prompt engineering, model generation or multi-turn dialog.',
     )
     eval_limits: EvalLimits | None = Field(
         None,
-        description="Listed evaluation limits like time limit, message limit, token limit.",
+        description='Listed evaluation limits like time limit, message limit, token limit.',
     )
     sandbox: Sandbox | None = None
     max_attempts: int | None = Field(
-        1, description="Maximum number of submission attempts (default 1)."
+        1, description='Maximum number of submission attempts (default 1).'
     )
     incorrect_attempt_feedback: str | None = Field(
-        None, description="Feedback from the model after incorrect attempt."
+        None, description='Feedback from the model after incorrect attempt.'
     )
 
 
 class GenerationConfig(BaseModel):
     generation_args: GenerationArgs | None = Field(
         None,
-        description="Parameters used to generate results - properties may vary by model type",
+        description='Parameters used to generate results - properties may vary by model type',
     )
     additional_details: dict[str, str] | None = Field(
         None,
-        description="Additional parameters (key-value pairs, all values must be strings)",
+        description='Additional parameters (key-value pairs, all values must be strings)',
     )
 
 
 class Format(Enum):
-    jsonl = "jsonl"
-    json = "json"
+    jsonl = 'jsonl'
+    json = 'json'
 
 
 class HashAlgorithm(Enum):
-    sha256 = "sha256"
-    md5 = "md5"
+    sha256 = 'sha256'
+    md5 = 'md5'
 
 
 class DetailedEvaluationResults(BaseModel):
     format: Format | None = Field(
-        None, description="Format of the detailed evaluation results"
+        None, description='Format of the detailed evaluation results'
     )
     file_path: str | None = Field(
-        None, description="Path to the detailed evaluation results file"
+        None, description='Path to the detailed evaluation results file'
     )
     hash_algorithm: HashAlgorithm | None = Field(
         None,
-        description="Hash algorithm used for checksum and sample_hash in instance-level data",
+        description='Hash algorithm used for checksum and sample_hash in instance-level data',
     )
-    checksum: str | None = Field(None, description="Checksum value of the file")
+    checksum: str | None = Field(None, description='Checksum value of the file')
     total_rows: int | None = Field(
-        None, description="Total number of rows in the detailed evaluation results file"
+        None,
+        description='Total number of rows in the detailed evaluation results file',
     )
     additional_details: dict[str, str] | None = Field(
         None,
-        description="Additional parameters (key-value pairs, all values must be strings)",
+        description='Additional parameters (key-value pairs, all values must be strings)',
     )
 
 
 class InferenceEngine(BaseModel):
-    name: str | None = Field(None, description="Name of the inference engine")
-    version: str | None = Field(None, description="Version of the inference engine")
+    name: str | None = Field(None, description='Name of the inference engine')
+    version: str | None = Field(
+        None, description='Version of the inference engine'
+    )
 
 
 class ModelInfo(BaseModel):
-    name: str = Field(..., description="Model name provided by evaluation source")
+    name: str = Field(
+        ..., description='Model name provided by evaluation source'
+    )
     id: str = Field(
         ...,
-        description="Model name in HuggingFace format (e.g. meta-llama/Llama-3.1-8B-Instruct for models available on HuggingFace or openai/azure/gpt-4o-mini-2024-07-18 for closed API models)",
+        description='Model name in HuggingFace format (e.g. meta-llama/Llama-3.1-8B-Instruct for models available on HuggingFace or openai/azure/gpt-4o-mini-2024-07-18 for closed API models)',
     )
     developer: str | None = Field(
-        None, description="Name of organization that provides the model (e.g. 'OpenAI')"
+        None,
+        description="Name of organization that provides the model (e.g. 'OpenAI')",
     )
     inference_platform: str | None = Field(
         None,
-        description="Name of inference platform which provides an access to models by API to run the evaluations or provides models weights to run them locally (e.g. HuggingFace, Bedrock, Together AI)",
+        description='Name of inference platform which provides an access to models by API to run the evaluations or provides models weights to run them locally (e.g. HuggingFace, Bedrock, Together AI)',
     )
     inference_engine: InferenceEngine | None = Field(
         None,
-        description="Name of inference engine which provides an access to optimized models to use them for local evaluations (e.g. vLLM, Ollama).",
+        description='Name of inference engine which provides an access to optimized models to use them for local evaluations (e.g. vLLM, Ollama).',
     )
     additional_details: dict[str, str] | None = Field(
         None,
-        description="Additional parameters (key-value pairs, all values must be strings)",
+        description='Additional parameters (key-value pairs, all values must be strings)',
     )
 
 
 class SourceDataUrl(BaseModel):
-    dataset_name: str = Field(..., description="Name of the source dataset")
-    source_type: Literal["url"]
+    dataset_name: str = Field(..., description='Name of the source dataset')
+    source_type: Literal['url']
     url: list[str] = Field(
-        ..., description="URL(s) for the source of the evaluation data", min_length=1
+        ...,
+        description='URL(s) for the source of the evaluation data',
+        min_length=1,
     )
     additional_details: dict[str, str] | None = Field(
         None,
-        description="Additional parameters (key-value pairs, all values must be strings)",
+        description='Additional parameters (key-value pairs, all values must be strings)',
     )
 
 
 class SourceDataHf(BaseModel):
-    dataset_name: str = Field(..., description="Name of the source dataset")
-    source_type: Literal["hf_dataset"]
-    hf_repo: str | None = Field(None, description="HuggingFace repository identifier")
-    hf_split: str | None = Field(None, description="One of train, val or test.")
+    dataset_name: str = Field(..., description='Name of the source dataset')
+    source_type: Literal['hf_dataset']
+    hf_repo: str | None = Field(
+        None, description='HuggingFace repository identifier'
+    )
+    hf_split: str | None = Field(None, description='One of train, val or test.')
     samples_number: int | None = Field(
-        None, description="Number of samples in the dataset"
+        None, description='Number of samples in the dataset'
     )
     sample_ids: list[str] | None = Field(
-        None, description="Array of sample ids used for evaluation"
+        None, description='Array of sample ids used for evaluation'
     )
     additional_details: dict[str, str] | None = Field(
         None,
-        description="Additional parameters (key-value pairs, all values must be strings)",
+        description='Additional parameters (key-value pairs, all values must be strings)',
     )
 
 
 class SourceDataPrivate(BaseModel):
-    dataset_name: str = Field(..., description="Name of the source dataset")
-    source_type: Literal["other"]
+    dataset_name: str = Field(..., description='Name of the source dataset')
+    source_type: Literal['other']
     additional_details: dict[str, str] | None = Field(
         None,
-        description="Additional parameters (key-value pairs, all values must be strings)",
+        description='Additional parameters (key-value pairs, all values must be strings)',
     )
 
 
@@ -324,89 +357,99 @@ class JudgeConfig(BaseModel):
     model_info: ModelInfo
     temperature: float | None = None
     weight: float | None = Field(
-        None, description="Weight of this judge's score in aggregation (used in jury)"
+        None,
+        description="Weight of this judge's score in aggregation (used in jury)",
     )
     additional_details: dict[str, str] | None = Field(
         None,
-        description="Additional parameters (key-value pairs, all values must be strings)",
+        description='Additional parameters (key-value pairs, all values must be strings)',
     )
 
 
 class LlmScoring(BaseModel):
     judges: list[JudgeConfig] = Field(
         ...,
-        description="LLM judge(s) - single item for judge, multiple for jury",
+        description='LLM judge(s) - single item for judge, multiple for jury',
         min_length=1,
     )
-    input_prompt: str = Field(..., description="Prompt template used for judging")
+    input_prompt: str = Field(
+        ..., description='Prompt template used for judging'
+    )
     aggregation_method: AggregationMethod | None = Field(
-        None, description="How to aggregate scores when multiple judges"
+        None, description='How to aggregate scores when multiple judges'
     )
     expert_baseline: float | None = Field(
-        None, description="Expert/human baseline score for comparison"
+        None, description='Expert/human baseline score for comparison'
     )
     additional_details: dict[str, str] | None = Field(
         None,
-        description="Additional parameters (key-value pairs, all values must be strings)",
+        description='Additional parameters (key-value pairs, all values must be strings)',
     )
 
 
 class MetricConfig(BaseModel):
     evaluation_description: str | None = Field(
-        None, description="Description of the evaluation"
+        None, description='Description of the evaluation'
     )
     metric_id: str | None = Field(
         None,
-        description="Stable metric identifier for joining/deduping/querying. Use a canonical global id when applicable (e.g. accuracy, f1_macro, auroc, rmse, pass_at_k). For benchmark/leaderboard-specific metrics, use a namespaced id (e.g. rewardbench.overall, lmarena.elo).",
+        description='Stable metric identifier for joining/deduping/querying. Use a canonical global id when applicable (e.g. accuracy, f1_macro, auroc, rmse, pass_at_k). For benchmark/leaderboard-specific metrics, use a namespaced id (e.g. rewardbench.overall, lmarena.elo).',
     )
     metric_name: str | None = Field(
         None,
-        description="Display name for the metric (e.g. Accuracy, F1-macro, pass@1).",
+        description='Display name for the metric (e.g. Accuracy, F1-macro, pass@1).',
     )
     metric_kind: str | None = Field(
         None,
-        description="Normalized metric family/type used for safe aggregation (e.g. accuracy, f1, auroc, rmse, mae, pass_rate, elo).",
+        description='Normalized metric family/type used for safe aggregation (e.g. accuracy, f1, auroc, rmse, mae, pass_rate, elo).',
     )
     metric_unit: str | None = Field(
         None,
-        description="Unit of the metric values (e.g. proportion, percent, points, ms, tokens).",
+        description='Unit of the metric values (e.g. proportion, percent, points, ms, tokens).',
     )
     metric_parameters: dict[str, str | float | bool | None] | None = Field(
-        None, description='Metric-specific parameters (e.g. {"k": 1} for pass@k).'
+        None,
+        description='Metric-specific parameters (e.g. {"k": 1} for pass@k).',
     )
-    lower_is_better: bool = Field(..., description="Whether a lower score is better")
-    score_type: ScoreType | None = Field(None, description="Type of score")
-    level_names: list[str] | None = Field(None, description="Names of the score levels")
+    lower_is_better: bool = Field(
+        ..., description='Whether a lower score is better'
+    )
+    score_type: ScoreType | None = Field(None, description='Type of score')
+    level_names: list[str] | None = Field(
+        None, description='Names of the score levels'
+    )
     level_metadata: list[str] | None = Field(
-        None, description="Additional Description for each Score Level"
+        None, description='Additional Description for each Score Level'
     )
     has_unknown_level: bool | None = Field(
         None,
-        description="Indicates whether there is an Unknown Level - if True, then a score of -1 will be treated as Unknown",
+        description='Indicates whether there is an Unknown Level - if True, then a score of -1 will be treated as Unknown',
     )
     min_score: float | None = Field(
-        None, description="Minimum possible score for continuous metric"
+        None, description='Minimum possible score for continuous metric'
     )
     max_score: float | None = Field(
-        None, description="Maximum possible score for continuous metric"
+        None, description='Maximum possible score for continuous metric'
     )
     llm_scoring: LlmScoring | None = Field(
-        None, description="Configuration when LLM is used as scorer/judge"
+        None, description='Configuration when LLM is used as scorer/judge'
     )
     additional_details: dict[str, str] | None = Field(
         None,
-        description="Additional parameters (key-value pairs, all values must be strings)",
+        description='Additional parameters (key-value pairs, all values must be strings)',
     )
 
     # --- validators (added by post_codegen.py) ---
 
-    @model_validator(mode="after")
+    @model_validator(mode='after')
     def validate_score_type_requirements(self):
         if self.score_type == ScoreType.levels:
             if self.level_names is None:
                 raise ValueError("score_type 'levels' requires level_names")
             if self.has_unknown_level is None:
-                raise ValueError("score_type 'levels' requires has_unknown_level")
+                raise ValueError(
+                    "score_type 'levels' requires has_unknown_level"
+                )
         elif self.score_type == ScoreType.continuous:
             if self.min_score is None:
                 raise ValueError("score_type 'continuous' requires min_score")
@@ -414,55 +457,62 @@ class MetricConfig(BaseModel):
                 raise ValueError("score_type 'continuous' requires max_score")
         return self
 
+
 class EvaluationResult(BaseModel):
     evaluation_result_id: str | None = Field(
         None,
-        description="Stable identifier for this metric result inside an evaluation run. Recommended deterministic join key for instance-level records.",
+        description='Stable identifier for this metric result inside an evaluation run. Recommended deterministic join key for instance-level records.',
     )
-    evaluation_name: str = Field(..., description="Name of the evaluation")
-    source_data: Annotated[SourceDataUrl | SourceDataHf | SourceDataPrivate, Discriminator("source_type")] = Field(
+    evaluation_name: str = Field(..., description='Name of the evaluation')
+    source_data: Annotated[
+        SourceDataUrl | SourceDataHf | SourceDataPrivate,
+        Discriminator('source_type'),
+    ] = Field(
         ...,
-        description="Source of dataset for this evaluation: URL, HuggingFace dataset, or private/custom dataset.",
+        description='Source of dataset for this evaluation: URL, HuggingFace dataset, or private/custom dataset.',
     )
     evaluation_timestamp: str | None = Field(
-        None, description="Timestamp for when the evaluations were run"
+        None, description='Timestamp for when the evaluations were run'
     )
-    metric_config: MetricConfig = Field(..., description="Details about the metric")
+    metric_config: MetricConfig = Field(
+        ..., description='Details about the metric'
+    )
     score_details: ScoreDetails = Field(
-        ..., description="The score for the evaluation and related details"
+        ..., description='The score for the evaluation and related details'
     )
     generation_config: GenerationConfig | None = None
 
 
 class EvaluationLog(BaseModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra='forbid',
     )
     schema_version: str = Field(
-        ..., description="Version of the schema used for this evaluation data"
+        ..., description='Version of the schema used for this evaluation data'
     )
     evaluation_id: str = Field(
         ...,
-        description="Unique identifier for this specific evaluation run. Use eval_name/model_id/retrieved_timestamp format",
+        description='Unique identifier for this specific evaluation run. Use eval_name/model_id/retrieved_timestamp format',
     )
     evaluation_timestamp: str | None = Field(
-        None, description="Timestamp for when the evaluation was run"
+        None, description='Timestamp for when the evaluation was run'
     )
     retrieved_timestamp: str = Field(
         ...,
-        description="Timestamp for when this record was created - using Unix Epoch time format",
+        description='Timestamp for when this record was created - using Unix Epoch time format',
     )
     source_metadata: SourceMetadata = Field(
-        ..., description="Metadata about the source of the leaderboard data"
+        ..., description='Metadata about the source of the leaderboard data'
     )
     eval_library: EvalLibrary = Field(
-        ..., description="Evaluation library/framework used to run the evaluation"
+        ...,
+        description='Evaluation library/framework used to run the evaluation',
     )
     model_info: ModelInfo
     evaluation_results: list[EvaluationResult] = Field(
-        ..., description="Array of evaluation results"
+        ..., description='Array of evaluation results'
     )
     detailed_evaluation_results: DetailedEvaluationResults | None = Field(
         None,
-        description="Reference to the evaluation results for all individual samples in the evaluation",
+        description='Reference to the evaluation results for all individual samples in the evaluation',
     )

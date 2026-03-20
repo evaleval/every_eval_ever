@@ -19,10 +19,10 @@ from pathlib import Path
 
 PATCHES = [
     {
-        "file": "every_eval_ever/instance_level_types.py",
-        "import_add": "model_validator",
-        "class_name": "InstanceLevelEvaluationLog",
-        "validator": '''
+        'file': 'every_eval_ever/instance_level_types.py',
+        'import_add': 'model_validator',
+        'class_name': 'InstanceLevelEvaluationLog',
+        'validator': """
     # --- validators (added by post_codegen.py) ---
 
     @model_validator(mode="after")
@@ -44,13 +44,13 @@ PATCHES = [
                     f"{self.interaction_type.value} interaction_type must not have output"
                 )
         return self
-''',
+""",
     },
     {
-        "file": "every_eval_ever/eval_types.py",
-        "import_add": "model_validator",
-        "class_name": "MetricConfig",
-        "validator": '''
+        'file': 'every_eval_ever/eval_types.py',
+        'import_add': 'model_validator',
+        'class_name': 'MetricConfig',
+        'validator': """
     # --- validators (added by post_codegen.py) ---
 
     @model_validator(mode="after")
@@ -66,7 +66,7 @@ PATCHES = [
             if self.max_score is None:
                 raise ValueError("score_type 'continuous' requires max_score")
         return self
-''',
+""",
     },
 ]
 
@@ -75,10 +75,10 @@ PATCHES = [
 # ---------------------------------------------------------------------------
 
 DISCRIMINATOR_PATCH = {
-    "file": "every_eval_ever/eval_types.py",
-    "target_line": "    source_data: SourceDataUrl | SourceDataHf | SourceDataPrivate = Field(",
-    "replacement": '    source_data: Annotated[SourceDataUrl | SourceDataHf | SourceDataPrivate, Discriminator("source_type")] = Field(',
-    "imports": ["Annotated", "Discriminator"],
+    'file': 'every_eval_ever/eval_types.py',
+    'target_line': '    source_data: SourceDataUrl | SourceDataHf | SourceDataPrivate = Field(',
+    'replacement': '    source_data: Annotated[SourceDataUrl | SourceDataHf | SourceDataPrivate, Discriminator("source_type")] = Field(',
+    'imports': ['Annotated', 'Discriminator'],
 }
 
 
@@ -89,104 +89,110 @@ def add_import(content: str, symbol: str) -> str:
 
     def replacer(m):
         existing = m.group(1)
-        return f"from pydantic import {existing}, {symbol}"
+        return f'from pydantic import {existing}, {symbol}'
 
-    return re.sub(r"from pydantic import (.+)", replacer, content, count=1)
+    return re.sub(r'from pydantic import (.+)', replacer, content, count=1)
 
 
-def append_to_last_class_field(content: str, class_name: str, validator_code: str) -> str:
+def append_to_last_class_field(
+    content: str, class_name: str, validator_code: str
+) -> str:
     """Append validator code after the last field of a class, before the next class or EOF."""
     # Find the class definition
-    class_pattern = rf"^class {class_name}\(.*?\):"
+    class_pattern = rf'^class {class_name}\(.*?\):'
     class_match = re.search(class_pattern, content, re.MULTILINE)
     if not class_match:
-        raise ValueError(f"Class {class_name} not found")
+        raise ValueError(f'Class {class_name} not found')
 
     class_start = class_match.start()
 
     # Find the next class definition or EOF after this class
-    next_class = re.search(r"^\nclass ", content[class_start + 1:], re.MULTILINE)
+    next_class = re.search(
+        r'^\nclass ', content[class_start + 1 :], re.MULTILINE
+    )
     if next_class:
         insert_pos = class_start + 1 + next_class.start()
     else:
         insert_pos = len(content)
 
     # Insert validator before the next class (or at EOF), replacing trailing whitespace
-    before = content[:insert_pos].rstrip("\n")
+    before = content[:insert_pos].rstrip('\n')
     after = content[insert_pos:]
 
-    return before + "\n" + validator_code + after
+    return before + '\n' + validator_code + after
 
 
 def patch_file(patch: dict) -> None:
-    path = Path(__file__).parent / patch["file"]
+    path = Path(__file__).parent / patch['file']
     content = path.read_text()
 
     # Check if already patched
-    if "post_codegen.py" in content:
-        print(f"  {patch['file']}: already patched, skipping")
+    if 'post_codegen.py' in content:
+        print(f'  {patch["file"]}: already patched, skipping')
         return
 
-    content = add_import(content, patch["import_add"])
-    content = append_to_last_class_field(content, patch["class_name"], patch["validator"])
+    content = add_import(content, patch['import_add'])
+    content = append_to_last_class_field(
+        content, patch['class_name'], patch['validator']
+    )
 
     path.write_text(content)
-    print(f"  {patch['file']}: patched {patch['class_name']}")
+    print(f'  {patch["file"]}: patched {patch["class_name"]}')
 
 
 def apply_discriminator_patch(patch: dict) -> None:
     """Add Discriminator annotation to a union field for better error messages."""
-    path = Path(__file__).parent / patch["file"]
+    path = Path(__file__).parent / patch['file']
     content = path.read_text()
 
     # Check if the specific replacement has already been applied
-    if patch["replacement"] in content:
-        print(f"  {patch['file']}: discriminator already patched, skipping")
+    if patch['replacement'] in content:
+        print(f'  {patch["file"]}: discriminator already patched, skipping')
         return
 
     # Add imports
-    for symbol in patch["imports"]:
-        if symbol == "Annotated":
-            if "from typing import" in content:
-                if "Annotated" not in content:
+    for symbol in patch['imports']:
+        if symbol == 'Annotated':
+            if 'from typing import' in content:
+                if 'Annotated' not in content:
                     content = content.replace(
-                        "from typing import ",
-                        "from typing import Annotated, ",
+                        'from typing import ',
+                        'from typing import Annotated, ',
                     )
             else:
                 # Add typing import after pydantic import
                 content = content.replace(
-                    "from pydantic import ",
-                    "from typing import Annotated\nfrom pydantic import ",
+                    'from pydantic import ',
+                    'from typing import Annotated\nfrom pydantic import ',
                 )
-        elif symbol == "Discriminator":
-            content = add_import(content, "Discriminator")
+        elif symbol == 'Discriminator':
+            content = add_import(content, 'Discriminator')
 
     # Replace the target line
-    target_line = patch["target_line"]
+    target_line = patch['target_line']
     occurrences = content.count(target_line)
     if occurrences == 0:
         raise ValueError(
-            f"Target line for discriminator patch not found in {patch['file']}"
+            f'Target line for discriminator patch not found in {patch["file"]}'
         )
     if occurrences > 1:
         print(
-            f"  {patch['file']}: warning: multiple ({occurrences}) occurrences of "
-            "target line found; patching all occurrences"
+            f'  {patch["file"]}: warning: multiple ({occurrences}) occurrences of '
+            'target line found; patching all occurrences'
         )
 
-    content = content.replace(target_line, patch["replacement"])
+    content = content.replace(target_line, patch['replacement'])
     path.write_text(content)
-    print(f"  {patch['file']}: patched source_data with Discriminator")
+    print(f'  {patch["file"]}: patched source_data with Discriminator')
 
 
 def main():
-    print("Applying post-codegen patches...")
+    print('Applying post-codegen patches...')
     for patch in PATCHES:
         patch_file(patch)
     apply_discriminator_patch(DISCRIMINATOR_PATCH)
-    print("Done.")
+    print('Done.')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

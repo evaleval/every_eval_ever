@@ -1,5 +1,8 @@
 import pytest
-pytest.importorskip("helm", reason="crfm-helm not installed; install with: uv sync --extra helm")
+
+pytest.importorskip(
+    'helm', reason='crfm-helm not installed; install with: uv sync --extra helm'
+)
 
 from pathlib import Path
 import tempfile
@@ -9,25 +12,32 @@ from every_eval_ever.eval_types import (
     EvaluationLog,
     EvaluatorRelationship,
     SourceDataHf,
-    SourceMetadata
+    SourceMetadata,
 )
 
 
 def _load_eval(adapter, filepath, metadata_args):
     eval_dirpath = Path(filepath)
-    
+
     with tempfile.TemporaryDirectory() as tmpdir:
-        converted_eval = adapter.transform_from_directory(eval_dirpath, output_path=str(Path(tmpdir) / 'helm_output'), metadata_args=metadata_args)
+        converted_eval = adapter.transform_from_directory(
+            eval_dirpath,
+            output_path=str(Path(tmpdir) / 'helm_output'),
+            metadata_args=metadata_args,
+        )
 
     converted_eval = converted_eval[0]
     assert isinstance(converted_eval, EvaluationLog)
-    assert isinstance(converted_eval.evaluation_results[0].source_data, SourceDataHf)
+    assert isinstance(
+        converted_eval.evaluation_results[0].source_data, SourceDataHf
+    )
 
     assert isinstance(converted_eval.source_metadata, SourceMetadata)
     assert converted_eval.source_metadata.source_name == 'HELM'
     assert converted_eval.source_metadata.source_type.value == 'evaluation_run'
 
     return converted_eval
+
 
 def test_mmlu_eval():
     adapter = HELMAdapter()
@@ -36,14 +46,22 @@ def test_mmlu_eval():
         'evaluator_relationship': EvaluatorRelationship.first_party,
     }
 
-    converted_eval = _load_eval(adapter, 'tests/data/helm/mmlu:subject=philosophy,method=multiple_choice_joint,model=openai_gpt2', metadata_args)
+    converted_eval = _load_eval(
+        adapter,
+        'tests/data/helm/mmlu:subject=philosophy,method=multiple_choice_joint,model=openai_gpt2',
+        metadata_args,
+    )
 
     assert converted_eval.evaluation_timestamp is not None
     assert converted_eval.retrieved_timestamp is not None
-    
-    assert converted_eval.evaluation_results[0].source_data.dataset_name == 'mmlu'
+
+    assert (
+        converted_eval.evaluation_results[0].source_data.dataset_name == 'mmlu'
+    )
     assert converted_eval.evaluation_results[0].source_data.hf_repo is None
-    assert len(converted_eval.evaluation_results[0].source_data.sample_ids) == 10
+    assert (
+        len(converted_eval.evaluation_results[0].source_data.sample_ids) == 10
+    )
 
     assert converted_eval.model_info.name == 'openai/gpt2'
     assert converted_eval.model_info.id == 'openai/gpt2'
@@ -60,6 +78,7 @@ def test_mmlu_eval():
     assert converted_eval.detailed_evaluation_results.format is not None
     assert converted_eval.detailed_evaluation_results.total_rows == 10
 
+
 def test_hellswag_eval():
     adapter = HELMAdapter()
     metadata_args = {
@@ -67,14 +86,23 @@ def test_hellswag_eval():
         'evaluator_relationship': EvaluatorRelationship.first_party,
     }
 
-    converted_eval = _load_eval(adapter, 'tests/data/helm/commonsense:dataset=hellaswag,method=multiple_choice_joint,model=eleutherai_pythia-1b-v0', metadata_args)
+    converted_eval = _load_eval(
+        adapter,
+        'tests/data/helm/commonsense:dataset=hellaswag,method=multiple_choice_joint,model=eleutherai_pythia-1b-v0',
+        metadata_args,
+    )
 
     assert converted_eval.evaluation_timestamp is not None
     assert converted_eval.retrieved_timestamp is not None
-    
-    assert converted_eval.evaluation_results[0].source_data.dataset_name == 'hellaswag'
+
+    assert (
+        converted_eval.evaluation_results[0].source_data.dataset_name
+        == 'hellaswag'
+    )
     assert converted_eval.evaluation_results[0].source_data.hf_repo is None
-    assert len(converted_eval.evaluation_results[0].source_data.sample_ids) == 10
+    assert (
+        len(converted_eval.evaluation_results[0].source_data.sample_ids) == 10
+    )
 
     assert converted_eval.model_info.name == 'eleutherai/pythia-1b-v0'
     assert converted_eval.model_info.id == 'eleutherai/pythia-1b-v0'
@@ -91,6 +119,7 @@ def test_hellswag_eval():
     assert converted_eval.detailed_evaluation_results.format is not None
     assert converted_eval.detailed_evaluation_results.total_rows == 10
 
+
 def test_narrativeqa_eval():
     adapter = HELMAdapter()
     metadata_args = {
@@ -98,12 +127,17 @@ def test_narrativeqa_eval():
         'evaluator_relationship': EvaluatorRelationship.first_party,
     }
 
-    converted_eval = _load_eval(adapter, 'tests/data/helm/narrative_qa:model=openai_gpt2', metadata_args)
+    converted_eval = _load_eval(
+        adapter, 'tests/data/helm/narrative_qa:model=openai_gpt2', metadata_args
+    )
 
     assert converted_eval.evaluation_timestamp is not None
     assert converted_eval.retrieved_timestamp is not None
-    
-    assert converted_eval.evaluation_results[0].source_data.dataset_name == 'narrativeqa'
+
+    assert (
+        converted_eval.evaluation_results[0].source_data.dataset_name
+        == 'narrativeqa'
+    )
     assert converted_eval.evaluation_results[0].source_data.hf_repo is None
     assert len(converted_eval.evaluation_results[0].source_data.sample_ids) == 5
 

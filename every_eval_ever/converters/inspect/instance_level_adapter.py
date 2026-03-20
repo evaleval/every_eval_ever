@@ -12,17 +12,22 @@ try:
         ModelUsage,
     )
     from inspect_ai.log import EvalSample
-except Exception as ex:  # pragma: no cover - exercised only when optional deps missing
+except (
+    Exception
+) as ex:  # pragma: no cover - exercised only when optional deps missing
     _INSPECT_IMPORT_ERROR = ex
-    ChatMessage = ChatMessageAssistant = ChatMessageTool = ChatMessageUser = ModelUsage = EvalSample = Any  # type: ignore[assignment]
+    ChatMessage = ChatMessageAssistant = ChatMessageTool = ChatMessageUser = (
+        ModelUsage
+    ) = EvalSample = Any  # type: ignore[assignment]
 
 
 def _require_inspect_dependencies() -> None:
     if _INSPECT_IMPORT_ERROR is not None:
         raise ImportError(
-            "Inspect converter dependencies are missing. "
+            'Inspect converter dependencies are missing. '
             "Install with: pip install 'every_eval_ever[inspect]'"
         ) from _INSPECT_IMPORT_ERROR
+
 
 from every_eval_ever.instance_level_types import (
     AnswerAttributionItem,
@@ -34,7 +39,7 @@ from every_eval_ever.instance_level_types import (
     Performance,
     Output,
     TokenUsage,
-    ToolCall
+    ToolCall,
 )
 
 from every_eval_ever.converters import SCHEMA_VERSION
@@ -42,7 +47,13 @@ from every_eval_ever.converters.common.utils import sha256_string
 
 
 class InspectInstanceLevelDataAdapter:
-    def __init__(self, evaulation_id: str, format: str, hash_algorithm: str, evaluation_dir: str):
+    def __init__(
+        self,
+        evaulation_id: str,
+        format: str,
+        hash_algorithm: str,
+        evaluation_dir: str,
+    ):
         _require_inspect_dependencies()
         self.evaluation_id = evaulation_id
         self.format = format
@@ -57,44 +68,44 @@ class InspectInstanceLevelDataAdapter:
         for msg in raw_input:
             if not isinstance(msg, ChatMessageUser):
                 continue
-            content = getattr(msg, "content", "")
+            content = getattr(msg, 'content', '')
             if isinstance(content, list):
-                content = " ".join(
-                    block.text if hasattr(block, "text") else str(block)
+                content = ' '.join(
+                    block.text if hasattr(block, 'text') else str(block)
                     for block in content
                 )
             parts.append(content)
-        return "\n".join(parts)
+        return '\n'.join(parts)
 
     def _parse_content_with_reasoning(
-        self,
-        content: List[Any]
+        self, content: List[Any]
     ) -> Tuple[str, str]:
         response = None
         reasoning_trace = None
         for part in content:
-            if part.type and part.type == "reasoning":
-                reasoning_trace = part.reasoning # or part.summary
-            elif part.type and part.type == "text":
+            if part.type and part.type == 'reasoning':
+                reasoning_trace = part.reasoning  # or part.summary
+            elif part.type and part.type == 'text':
                 response = part.text
 
         return response, reasoning_trace
 
-
     def _get_token_usage(self, usage: ModelUsage | None):
-        return TokenUsage(
-            input_tokens=usage.input_tokens,
-            output_tokens=usage.output_tokens,
-            total_tokens=usage.total_tokens,
-            input_tokens_cache_write=usage.input_tokens_cache_write,
-            input_tokens_cache_read=usage.input_tokens_cache_read,
-            reasoning_tokens=usage.reasoning_tokens,
-        ) if usage else None
+        return (
+            TokenUsage(
+                input_tokens=usage.input_tokens,
+                output_tokens=usage.output_tokens,
+                total_tokens=usage.total_tokens,
+                input_tokens_cache_write=usage.input_tokens_cache_write,
+                input_tokens_cache_read=usage.input_tokens_cache_read,
+                reasoning_tokens=usage.reasoning_tokens,
+            )
+            if usage
+            else None
+        )
 
     def _handle_chat_messages(
-        self,
-        turn_idx: int,
-        message: ChatMessage
+        self, turn_idx: int, message: ChatMessage
     ) -> Message:
         role = message.role
         content = message.content
@@ -110,13 +121,24 @@ class InspectInstanceLevelDataAdapter:
                 ToolCall(
                     id=tool_call.id,
                     name=tool_call.function,
-                    arguments={str(k): json.dumps(v) for k, v in tool_call.arguments.items()} if tool_call.arguments else None
+                    arguments={
+                        str(k): json.dumps(v)
+                        for k, v in tool_call.arguments.items()
+                    }
+                    if tool_call.arguments
+                    else None,
                 )
                 for tool_call in message.tool_calls or []
             ]
 
-        if isinstance(message, ChatMessageUser) or isinstance(message, ChatMessageTool):
-            tool_call_id = [message.tool_call_id] if isinstance(message.tool_call_id, str) else message.tool_call_id
+        if isinstance(message, ChatMessageUser) or isinstance(
+            message, ChatMessageTool
+        ):
+            tool_call_id = (
+                [message.tool_call_id]
+                if isinstance(message.tool_call_id, str)
+                else message.tool_call_id
+            )
 
         return Message(
             turn_idx=turn_idx,
@@ -124,40 +146,37 @@ class InspectInstanceLevelDataAdapter:
             content=content,
             reasoning_trace=reasoning,
             tool_calls=tool_calls,
-            tool_call_id=tool_call_id
+            tool_call_id=tool_call_id,
         )
 
-    def _save_json(
-        self,
-        items: list[InstanceLevelEvaluationLog]
-    ):
+    def _save_json(self, items: list[InstanceLevelEvaluationLog]):
         eval_dir_path = Path(self.evaluation_dir)
         eval_dir_path.mkdir(parents=True, exist_ok=True)
         path = Path(self.path)
 
-        with path.open("w", encoding="utf-8") as f:
+        with path.open('w', encoding='utf-8') as f:
             for item in items:
                 json_line = json.dumps(
-                    item.model_dump(mode="json"),
-                    ensure_ascii=False
+                    item.model_dump(mode='json'), ensure_ascii=False
                 )
-                f.write(json_line + "\n")
+                f.write(json_line + '\n')
 
-        print(f'Instance-level eval log was successfully saved to {self.path} path.')
+        print(
+            f'Instance-level eval log was successfully saved to {self.path} path.'
+        )
 
     def convert_instance_level_logs(
-        self,
-        evaluation_name: str,
-        model_id: str,
-        samples: List[EvalSample]
+        self, evaluation_name: str, model_id: str, samples: List[EvalSample]
     ) -> Tuple[str, int]:
         instance_level_logs: List[InstanceLevelEvaluationLog] = []
 
         for sample in samples:
             sample_input = Input(
                 raw=self._serialize_input(sample.input),
-                reference=[sample.target] if isinstance(sample.target, str) else list(sample.target),
-                choices=sample.choices
+                reference=[sample.target]
+                if isinstance(sample.target, str)
+                else list(sample.target),
+                choices=sample.choices,
             )
 
             reasoning_trace = None
@@ -165,7 +184,9 @@ class InspectInstanceLevelDataAdapter:
             content = message.content
 
             if isinstance(content, list):
-                response, reasoning_trace = self._parse_content_with_reasoning(content)
+                response, reasoning_trace = self._parse_content_with_reasoning(
+                    content
+                )
             else:
                 response = content
 
@@ -182,12 +203,12 @@ class InspectInstanceLevelDataAdapter:
                 for msg_idx, msg in enumerate(sample.messages)
             ]
 
-            counted_assistant_roles = sum([
-                msg.role.lower() == 'assistant' for msg in processed_messages
-            ])
-            counted_tool_roles = sum([
-                msg.role.lower() == 'tool' for msg in processed_messages
-            ])
+            counted_assistant_roles = sum(
+                [msg.role.lower() == 'assistant' for msg in processed_messages]
+            )
+            counted_tool_roles = sum(
+                [msg.role.lower() == 'tool' for msg in processed_messages]
+            )
 
             if counted_tool_roles:
                 interaction_type = InteractionType.agentic
@@ -196,11 +217,14 @@ class InspectInstanceLevelDataAdapter:
             else:
                 interaction_type = InteractionType.single_turn
 
-
             if interaction_type == InteractionType.single_turn:
                 sample_output = Output(
-                    raw=[response] if isinstance(response, str) else list(response),
-                    reasoning_trace=[reasoning_trace] if isinstance(reasoning_trace, str) else reasoning_trace
+                    raw=[response]
+                    if isinstance(response, str)
+                    else list(response),
+                    reasoning_trace=[reasoning_trace]
+                    if isinstance(reasoning_trace, str)
+                    else reasoning_trace,
                 )
                 messages = None
             else:
@@ -214,7 +238,9 @@ class InspectInstanceLevelDataAdapter:
                 tool_calls_count=sum(
                     len(msg.tool_calls) if msg.tool_calls else 0
                     for msg in messages
-                ) if messages else 0
+                )
+                if messages
+                else 0,
             )
 
             answer_attribution: List[AnswerAttributionItem] = []
@@ -223,8 +249,10 @@ class InspectInstanceLevelDataAdapter:
 
             if sample.total_time and sample.working_time:
                 performance = Performance(
-                    latency_ms=int((sample.total_time - sample.working_time) * 1000),
-                    generation_time_ms=int(sample.working_time * 1000)
+                    latency_ms=int(
+                        (sample.total_time - sample.working_time) * 1000
+                    ),
+                    generation_time_ms=int(sample.working_time * 1000),
                 )
             else:
                 performance = None
@@ -235,7 +263,9 @@ class InspectInstanceLevelDataAdapter:
                 model_id=model_id,
                 evaluation_name=evaluation_name,
                 sample_id=str(sample.id),
-                sample_hash=sha256_string(sample_input.raw + ''.join(sample_input.reference)),
+                sample_hash=sha256_string(
+                    sample_input.raw + ''.join(sample_input.reference)
+                ),
                 interaction_type=interaction_type,
                 input=sample_input,
                 output=sample_output,
@@ -244,11 +274,15 @@ class InspectInstanceLevelDataAdapter:
                 evaluation=evaluation,
                 token_usage=token_usage,
                 performance=performance,
-                error=f'{sample.error.message}\n{sample.error.traceback}' if sample.error else None,
+                error=f'{sample.error.message}\n{sample.error.traceback}'
+                if sample.error
+                else None,
                 metadata={
-                    'stop_reason': str(sample.output.stop_reason) if sample.output.stop_reason else '',
-                    'epoch': str(sample.epoch)
-                }
+                    'stop_reason': str(sample.output.stop_reason)
+                    if sample.output.stop_reason
+                    else '',
+                    'epoch': str(sample.epoch),
+                },
             )
 
             instance_level_logs.append(instance_level_log)

@@ -1,5 +1,9 @@
 import pytest
-pytest.importorskip("inspect_ai", reason="inspect-ai not installed; install with: uv sync --extra inspect")
+
+pytest.importorskip(
+    'inspect_ai',
+    reason='inspect-ai not installed; install with: uv sync --extra inspect',
+)
 
 import json
 import tempfile
@@ -7,7 +11,10 @@ from pathlib import Path
 
 from every_eval_ever.converters.inspect.adapter import InspectAIAdapter
 from every_eval_ever.eval_types import EvaluatorRelationship
-from every_eval_ever.instance_level_types import InstanceLevelEvaluationLog, InteractionType
+from every_eval_ever.instance_level_types import (
+    InstanceLevelEvaluationLog,
+    InteractionType,
+)
 from every_eval_ever.converters.inspect.instance_level_adapter import (
     InspectInstanceLevelDataAdapter,
 )
@@ -16,90 +23,92 @@ from inspect_ai.model import ChatMessageAssistant, ChatMessageUser, ContentText
 
 def _load_instance_level_data(adapter, filepath, metadata_args):
     eval_filepath = Path(filepath)
-    
+
     with tempfile.TemporaryDirectory() as tmpdir:
         metadata_args['parent_eval_output_dir'] = tmpdir
         converted_eval = adapter.transform_from_file(
-            eval_filepath,
-            metadata_args=metadata_args
+            eval_filepath, metadata_args=metadata_args
         )
-    
-        instance_level_path = Path(converted_eval.detailed_evaluation_results.file_path)
+
+        instance_level_path = Path(
+            converted_eval.detailed_evaluation_results.file_path
+        )
         instance_logs = []
         with instance_level_path.open('r', encoding='utf-8') as f:
             for line in f:
                 if line.strip():
                     data = json.loads(line)
-                    instance_logs.append(InstanceLevelEvaluationLog.model_validate(data))
+                    instance_logs.append(
+                        InstanceLevelEvaluationLog.model_validate(data)
+                    )
 
     return converted_eval, instance_logs
 
 
 def test_pubmedqa_instance_level():
     adapter = InspectAIAdapter()
-    
+
     with tempfile.TemporaryDirectory() as tmpdir:
         metadata_args = {
             'source_organization_name': 'TestOrg',
             'evaluator_relationship': EvaluatorRelationship.first_party,
             'parent_eval_output_dir': tmpdir,
-            'file_uuid': 'test_pubmedqa'
+            'file_uuid': 'test_pubmedqa',
         }
 
         converted_eval, instance_logs = _load_instance_level_data(
             adapter,
             'tests/data/inspect/data_pubmedqa_gpt4o_mini.json',
-            metadata_args
+            metadata_args,
         )
-        
+
         assert len(instance_logs) == 2
         log = instance_logs[0]
-        
+
         assert log.schema_version == '0.2.1'
         assert log.model_id == 'openai/gpt-4o-mini-2024-07-18'
         assert log.interaction_type == InteractionType.single_turn
-        
+
         assert log.input.raw.startswith('Context')
-        
+
         assert log.output.raw == ['A']
         assert log.messages is None
-        
+
         assert log.evaluation.score == 1.0
         assert log.evaluation.is_correct is True
 
+
 def test_arc_sonnet_instance_level():
     adapter = InspectAIAdapter()
-    
+
     with tempfile.TemporaryDirectory() as tmpdir:
         metadata_args = {
             'source_organization_name': 'TestOrg',
             'evaluator_relationship': EvaluatorRelationship.first_party,
             'parent_eval_output_dir': tmpdir,
-            'file_uuid': 'test_arc_sonnet'
+            'file_uuid': 'test_arc_sonnet',
         }
 
         converted_eval, instance_logs = _load_instance_level_data(
-            adapter,
-            'tests/data/inspect/data_arc_sonnet.json',
-            metadata_args
+            adapter, 'tests/data/inspect/data_arc_sonnet.json', metadata_args
         )
-        
+
         assert len(instance_logs) == 5
         log = instance_logs[0]
-        
+
         assert log.schema_version == '0.2.1'
         assert log.model_id == 'anthropic/claude-sonnet-4-20250514'
         assert log.interaction_type == InteractionType.single_turn
-        
+
         assert len(log.input.choices) == 4
         assert 'Sunlight is the source of energy' in log.input.choices[0]
-        
+
         assert log.output.raw == ['A']
         assert log.messages is None
-        
+
         assert log.evaluation.score == 1.0
         assert log.evaluation.is_correct is True
-        
+
         assert log.token_usage.input_tokens > 0
         assert log.token_usage.output_tokens > 0
         assert log.token_usage.total_tokens > 0
@@ -107,94 +116,106 @@ def test_arc_sonnet_instance_level():
 
 def test_arc_qwen_instance_level():
     adapter = InspectAIAdapter()
-    
+
     with tempfile.TemporaryDirectory() as tmpdir:
         metadata_args = {
             'source_organization_name': 'TestOrg',
             'evaluator_relationship': EvaluatorRelationship.first_party,
             'parent_eval_output_dir': tmpdir,
-            'file_uuid': 'test_arc_qwen'
+            'file_uuid': 'test_arc_qwen',
         }
 
         converted_eval, instance_logs = _load_instance_level_data(
-            adapter,
-            'tests/data/inspect/data_arc_qwen.json',
-            metadata_args
+            adapter, 'tests/data/inspect/data_arc_qwen.json', metadata_args
         )
-        
+
         assert len(instance_logs) == 3
         log = instance_logs[0]
-        
+
         assert log.schema_version == '0.2.1'
         assert log.model_id == 'ollama/qwen2.5-0.5b'
         assert log.interaction_type == InteractionType.single_turn
-        
-        assert log.input.choices == ['Sunlight is the source of energy for nearly all ecosystems.', 'Most ecosystems are found on land instead of in water.', 'Carbon dioxide is more available than other gases.', 'The producers in all ecosystems are plants.']
-        
+
+        assert log.input.choices == [
+            'Sunlight is the source of energy for nearly all ecosystems.',
+            'Most ecosystems are found on land instead of in water.',
+            'Carbon dioxide is more available than other gases.',
+            'The producers in all ecosystems are plants.',
+        ]
+
         assert log.evaluation.score == 1.0
-        
+
         assert log.performance.latency_ms > 0
 
 
 def test_gaia_instance_level():
     adapter = InspectAIAdapter()
-    
+
     with tempfile.TemporaryDirectory() as tmpdir:
         metadata_args = {
             'source_organization_name': 'TestOrg',
             'evaluator_relationship': EvaluatorRelationship.first_party,
             'parent_eval_output_dir': tmpdir,
-            'file_uuid': 'test_gaia'
+            'file_uuid': 'test_gaia',
         }
 
         converted_eval, instance_logs = _load_instance_level_data(
             adapter,
             'tests/data/inspect/2026-02-07T11-26-57+00-00_gaia_4V8zHbbRKpU5Yv2BMoBcjE.json',
-            metadata_args
+            metadata_args,
         )
-        
+
         assert len(instance_logs) > 0
         log = instance_logs[0]
-        
+
         assert log.schema_version == '0.2.1'
         assert log.model_id == 'openai/gpt-4.1-mini-2025-04-14'
-        
+
         assert log.interaction_type == InteractionType.agentic
-        
+
         assert log.input.raw is not None or log.input.choices is not None
-        
+
         assert log.output is None
         assert log.messages is not None
         assert any([i.role for i in log.messages if i.role == 'tool'])
-        
+
         assert len(log.messages) > 2
         assert log.messages[0].turn_idx == 0
         assert log.messages[0].role == 'system'
         assert log.messages[1].role == 'user'
 
         assert log.evaluation.score >= 0.0
-        
+
         assert log.token_usage is not None
         assert log.token_usage.input_tokens >= 0
         assert log.token_usage.output_tokens >= 0
 
-def test_serialize_input_skips_non_user_messages():
-    adapter = InspectInstanceLevelDataAdapter("test_id", "jsonl", "sha256", "/tmp")
 
-    user_msg = ChatMessageUser(content="user question")
-    assistant_msg = ChatMessageAssistant(content="assistant answer")
+def test_serialize_input_skips_non_user_messages():
+    adapter = InspectInstanceLevelDataAdapter(
+        'test_id', 'jsonl', 'sha256', '/tmp'
+    )
+
+    user_msg = ChatMessageUser(content='user question')
+    assistant_msg = ChatMessageAssistant(content='assistant answer')
 
     result = adapter._serialize_input([assistant_msg, user_msg])
-    assert result == "user question"
-    assert "assistant answer" not in result
+    assert result == 'user question'
+    assert 'assistant answer' not in result
+
 
 def test_serialize_input_concatenates_list_content():
-    adapter = InspectInstanceLevelDataAdapter("test_id", "jsonl", "sha256", "/tmp")
+    adapter = InspectInstanceLevelDataAdapter(
+        'test_id', 'jsonl', 'sha256', '/tmp'
+    )
 
-    msg_str = ChatMessageUser(content="plain string content")
-    assert adapter._serialize_input([msg_str]) == "plain string content"
+    msg_str = ChatMessageUser(content='plain string content')
+    assert adapter._serialize_input([msg_str]) == 'plain string content'
 
-    block1 = ContentText(text="Context: some context.")
-    block2 = ContentText(text="Question: what is X?")
+    block1 = ContentText(text='Context: some context.')
+    block2 = ContentText(text='Question: what is X?')
     msg_list = ChatMessageUser(content=[block1, block2])
-    assert adapter._serialize_input([msg_list]) == "Context: some context. Question: what is X?"
+    assert (
+        adapter._serialize_input([msg_list])
+        == 'Context: some context. Question: what is X?'
+    )
