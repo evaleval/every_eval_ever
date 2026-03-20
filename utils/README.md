@@ -1,0 +1,25 @@
+# Adapters
+
+One-off adapter scripts that fetch leaderboard data from external sources and convert it to the Every Eval Ever schema. These are run manually, not via the main CLI.
+
+## Usage
+
+Each adapter is run with `uv run python -m utils.<name>.adapter`.
+
+## Adapters
+
+| Adapter | Data Source | Description |
+|---------|-------------|-------------|
+| `global-mmlu-lite` | Kaggle API | Fetches Global MMLU Lite leaderboard results from Kaggle. |
+| `hfopenllm_v2` | HuggingFace Spaces API | Fetches the Open LLM Leaderboard v2 (4576+ models). |
+| `helm` | HELM leaderboard | Converts HELM leaderboard data. Supports `--leaderboard_name` for Capabilities/Lite/Classic/Instruct/MMLU. |
+| `rewardbench` | HuggingFace | Fetches RewardBench v1 (CSV) and RewardBench v2 (JSON) leaderboard data. |
+| `terminal_bench_2` | tbench.ai | Fetches Terminal-Bench 2.0 agentic coding benchmark results. |
+
+## Notes
+
+- These are one-off scripts, not integrated into the main CLI.
+- They require network access to fetch live leaderboard data.
+- Some adapters (e.g. `rewardbench`, `helm`) may take several minutes to complete due to the number of models.
+- Run `uv run python -m utils.<name>.adapter --help` for adapter-specific options.
+- The script for livecodebenchpro is out-dated and will be updated at a later date.
