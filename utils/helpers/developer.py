@@ -15,6 +15,7 @@ DEVELOPER_PATTERNS = {
     "ada": "openai",
     "o1": "openai",
     "o3": "openai",
+    "o4": "openai",
 
     # Anthropic models
     "claude": "anthropic",
@@ -52,6 +53,8 @@ DEVELOPER_PATTERNS = {
     # Cohere models
     "command": "cohere",
     "cohere": "cohere",
+    "aya": "cohere",
+    "granite": "ibm",
 
     # Other providers
     "falcon": "tiiuae",

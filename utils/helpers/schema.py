@@ -1,7 +1,16 @@
 """Schema construction helpers for building evaluation logs."""
 
+import json
 import time
+from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+def _load_schema_version() -> str:
+    schema_path = Path(__file__).parent.parent.parent / "eval.schema.json"
+    with schema_path.open() as f:
+        return json.load(f)["version"]
+
+SCHEMA_VERSION = _load_schema_version()
 
 from eval_types import (
     EvaluationLog,
@@ -213,7 +222,7 @@ def make_evaluation_log(
     evaluation_id = f"{source_name}/{sanitized_model_id}/{timestamp}"
 
     return EvaluationLog(
-        schema_version="0.1.0",
+        schema_version=SCHEMA_VERSION,
         evaluation_id=evaluation_id,
         retrieved_timestamp=timestamp,
         source_data=source_data,

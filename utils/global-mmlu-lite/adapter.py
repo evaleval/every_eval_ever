@@ -30,6 +30,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from helpers import (
+    SCHEMA_VERSION,
     fetch_json,
     get_developer,
     make_source_metadata,
@@ -168,7 +169,7 @@ def fetch_global_mmlu_lite(retrieved_timestamp: str) -> int:
         # Build evaluation log
         evaluation_id = f"global-mmlu-lite/{model_info.id.replace('/', '_')}/{retrieved_timestamp}"
         eval_log = EvaluationLog(
-            schema_version="0.2.1",
+            schema_version=SCHEMA_VERSION,
             evaluation_id=evaluation_id,
             retrieved_timestamp=retrieved_timestamp,
             source_metadata=make_source_metadata(
@@ -177,7 +178,11 @@ def fetch_global_mmlu_lite(retrieved_timestamp: str) -> int:
                 organization_url="www.kaggle.com",
                 evaluator_relationship=EvaluatorRelationship.third_party,
             ),
-            eval_library=EvalLibrary(name="unknown", version="unknown"),
+            eval_library=EvalLibrary(
+                name="kaggle kernel",
+                version="4",
+                additional_details={"url": "https://www.kaggle.com/code/shivalikasingh95/global-mmlu-lite-sample-notebook"},
+            ),
             model_info=model_info,
             evaluation_results=eval_results,
         )
