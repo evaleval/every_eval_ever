@@ -1,8 +1,12 @@
 """
-Post-codegen patches for every_eval_ever/eval_types.py and
-every_eval_ever/instance_level_types.py.
+Post-codegen patches for every_eval_ever/eval_types.py and every_eval_ever/instance_level_types.py.
 
 Run after datamodel-codegen to re-apply model validators that codegen cannot generate.
+
+Usage:
+    uv run datamodel-codegen --input every_eval_ever/schemas/eval.schema.json --output every_eval_ever/eval_types.py ...
+    uv run datamodel-codegen --input every_eval_ever/schemas/instance_level_eval.schema.json --output every_eval_ever/instance_level_types.py ...
+    uv run python post_codegen.py
 """
 
 import re
@@ -135,10 +139,12 @@ def apply_discriminator_patch(patch: dict) -> None:
     path = Path(__file__).parent / patch["file"]
     content = path.read_text()
 
+    # Check if the specific replacement has already been applied
     if patch["replacement"] in content:
         print(f"  {patch['file']}: discriminator already patched, skipping")
         return
 
+    # Add imports
     for symbol in patch["imports"]:
         if symbol == "Annotated":
             if "from typing import" in content:
@@ -148,6 +154,7 @@ def apply_discriminator_patch(patch: dict) -> None:
                         "from typing import Annotated, ",
                     )
             else:
+                # Add typing import after pydantic import
                 content = content.replace(
                     "from pydantic import ",
                     "from typing import Annotated\nfrom pydantic import ",
@@ -155,6 +162,7 @@ def apply_discriminator_patch(patch: dict) -> None:
         elif symbol == "Discriminator":
             content = add_import(content, "Discriminator")
 
+    # Replace the target line
     target_line = patch["target_line"]
     occurrences = content.count(target_line)
     if occurrences == 0:

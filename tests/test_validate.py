@@ -1,8 +1,9 @@
-"""Tests for the Pydantic-based EEE validator."""
+"""Tests for validate.py — Pydantic-based EEE schema validation."""
 
 from __future__ import annotations
 
 import json
+import textwrap
 from pathlib import Path
 
 import pytest

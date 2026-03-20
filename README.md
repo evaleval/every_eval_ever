@@ -4,7 +4,8 @@
 
 **Every Eval Ever** is a shared schema and crowdsourced eval database. It defines a standardized metadata format for storing AI evaluation results — from leaderboard scrapes and research papers to local evaluation runs — so that results from different frameworks can be compared, reproduced, and reused. The three components that make it work:
 
-- 📋 **A metadata schema** ([`eval.schema.json`](every_eval_ever/schemas/eval.schema.json)) that defines the information needed for meaningful comparison of evaluation results, including [instance-level data](every_eval_ever/schemas/instance_level_eval.schema.json)
+- 📋 **A metadata schema** ([`eval.schema.json`](eval.schema.json)) that defines the information needed for meaningful comparison of evaluation results, including [instance-level data](instance_level_eval.schema.json)
+- 🔧 **Validation** that checks data against the schema before it enters the repository
 - 🔌 **Converters** for [Inspect AI](every_eval_ever/converters/inspect/), [HELM](every_eval_ever/converters/helm/), and [lm-eval-harness](every_eval_ever/converters/lm_eval/), so you can transform your existing evaluation logs into the standard format
 
 Install the package:
@@ -32,12 +33,12 @@ pip install 'every-eval-ever[all]'
 ## 🚀 Contributor Guide
 New data can be contributed to the [Hugging Face Dataset](https://huggingface.co/datasets/evaleval/EEE_datastore) using the following process:
 
-Leaderboard/evaluation data is split-up into files by individual model, and data for each model is stored using [`eval.schema.json`](every_eval_ever/schemas/eval.schema.json). The repository is structured into folders as `data/{benchmark_name}/{developer_name}/{model_name}/`.
+Leaderboard/evaluation data is split-up into files by individual model, and data for each model is stored using [`eval.schema.json`](eval.schema.json). The repository is structured into folders as `data/{benchmark_name}/{developer_name}/{model_name}/`.
 
 ### TL;DR How to successfully submit
 
-1. Data must conform to [`eval.schema.json`](every_eval_ever/schemas/eval.schema.json) (current version: `0.2.2`)
-2. Convert local eval logs with [`every_eval_ever convert`](every_eval_ever/cli.py) when using a supported framework
+1. Data must conform to [`eval.schema.json`](eval.schema.json) (current version: `0.2.2`)
+2. Validation runs automatically on every PR via [`.github/workflows/validate-data.yml`](.github/workflows/validate-data.yml)
 3. An EvalEval member will review and merge your submission
 
 ### PR Naming Convention
@@ -70,7 +71,7 @@ Note: Each file can contain multiple individual results related to one model. Se
 2. For each model, use the Hugging Face (`developer_name/model_name`) naming convention to create a 2-tier folder structure.
 3. Add a JSON file with results for each model and name it `{uuid}.json`.
 4. [Optional] Include a [`utils/`](utils/) folder in your benchmark name folder with any scripts used to generate the data (see e.g. [`utils/global-mmlu-lite/adapter.py`](utils/global-mmlu-lite/adapter.py)).
-5. [Optional] Use [`every_eval_ever convert`](every_eval_ever/cli.py) if you're starting from supported local eval logs rather than hand-authored JSON.
+5. [Validate] Validation runs automatically via [`validate-data.yml`](.github/workflows/validate-data.yml) using the package-local validator to check JSON files against the schema before merging.
 6. [Submit] Two ways to submit your evaluation data:
    - **Option A: Drag & drop via Hugging Face** — Go to [evaleval/EEE_datastore](https://huggingface.co/datasets/evaleval/EEE_datastore) → click "Files and versions" → "Contribute" → "Upload files" → drag and drop your data → select "Open as a pull request to the main branch". See [step-by-step screenshots](https://docs.google.com/document/d/1dxTQF8ncGCzaAOIj0RX7E9Hg4THmUBzezDOYUp_XdCY/edit?usp=sharing).
    - **Option B: Clone & PR** — Clone the [Hugging Face repository](https://huggingface.co/datasets/evaleval/EEE_datastore), add your data under `data/`, and open a pull request
@@ -111,7 +112,7 @@ Note: Each file can contain multiple individual results related to one model. Se
 
 ### Instance-Level Data
 
-For evaluations that include per-sample results, the individual results should be stored in a companion `{uuid}_samples.jsonl` file in the same folder (one JSONL per JSON, sharing the same UUID). The aggregate JSON file refers to its JSONL via the `detailed_evaluation_results` field. The instance-level schema ([`instance_level_eval.schema.json`](every_eval_ever/schemas/instance_level_eval.schema.json)) supports three interaction types:
+For evaluations that include per-sample results, the individual results should be stored in a companion `{uuid}_samples.jsonl` file in the same folder (one JSONL per JSON, sharing the same UUID). The aggregate JSON file refers to its JSONL via the `detailed_evaluation_results` field. The instance-level schema ([`instance_level_eval.schema.json`](instance_level_eval.schema.json)) supports three interaction types:
 
 - **`single_turn`**: Standard QA, MCQ, classification — uses `output` object
 - **`multi_turn`**: Conversational evaluations with multiple exchanges — uses `messages` array
@@ -157,7 +158,7 @@ At the instance level, agentic evaluations use `interaction_type: "agentic"` wit
 
 ## ✅ Data Validation
 
-Validation uses Pydantic models generated from the bundled schemas in [`every_eval_ever/schemas/`](every_eval_ever/schemas/). This validates aggregate `.json` files against `EvaluationLog` and instance-level `_samples.jsonl` files line-by-line against `InstanceLevelEvaluationLog`. Requires [uv](https://docs.astral.sh/uv/).
+Validation uses Pydantic models generated from the JSON schemas. This validates aggregate `.json` files against `EvaluationLog` and instance-level `_samples.jsonl` files line-by-line against `InstanceLevelEvaluationLog`. Requires [uv](https://docs.astral.sh/uv/).
 
 ### Validate files with the package CLI
 
@@ -199,6 +200,27 @@ uv run python -m every_eval_ever validate --format github data/
 
 Exit code is `0` if all files pass and `1` if any fail.
 
+### Pre-commit hooks
+
+The repository also has a pre-commit hook for validation. To run it:
+
+```sh
+# Staged files only
+uv run pre-commit run
+
+# All files
+uv run pre-commit run --all-files
+
+# Specific files
+uv run pre-commit run --files a.json b.json c.json
+```
+
+To install the pre-commit so that it runs before `git commit` (optional):
+
+```sh
+uv run pre-commit install
+```
+
 ## 🗂️ Data Structure
 
 Evaluation data is hosted on the [Hugging Face datastore](https://huggingface.co/datasets/evaleval/EEE_datastore). The folder structure is:
@@ -226,7 +248,7 @@ Example evaluations included in the schema v0.2 release:
 | LiveCodeBench Pro | [`data/livecodebenchpro/`](https://huggingface.co/datasets/evaleval/EEE_datastore/tree/main/data/livecodebenchpro) |
 | RewardBench | [`data/reward-bench/`](https://huggingface.co/datasets/evaleval/EEE_datastore/tree/main/data/reward-bench) |
 
-Schemas: [`eval.schema.json`](every_eval_ever/schemas/eval.schema.json) (aggregate) · [`instance_level_eval.schema.json`](every_eval_ever/schemas/instance_level_eval.schema.json) (per-sample JSONL)
+Schemas: [`eval.schema.json`](eval.schema.json) (aggregate) · [`instance_level_eval.schema.json`](instance_level_eval.schema.json) (per-sample JSONL)
 
 Each evaluation has its own directory under [`data/`](https://huggingface.co/datasets/evaleval/EEE_datastore/tree/main/data) on the Hugging Face datastore. Within each evaluation, models are organized by developer and model name. Instance-level data is stored in optional `{uuid}_samples.jsonl` files alongside aggregate `{uuid}.json` results.
 
@@ -277,7 +299,7 @@ Each result file captures not just scores but the context needed to interpret an
 }]
 ```
 
-The schema also supports **level-based metrics** (e.g. Low/Medium/High) and **uncertainty** reporting (confidence intervals, standard errors). See [`eval.schema.json`](every_eval_ever/schemas/eval.schema.json) for the full specification.
+The schema also supports **level-based metrics** (e.g. Low/Medium/High) and **uncertainty** reporting (confidence intervals, standard errors). See [`eval.schema.json`](eval.schema.json) for the full specification.
 
 ## 🔧 Auto-generation of Pydantic Classes for Schema
 
@@ -305,8 +327,8 @@ For full CLI usage and required input files, see the [Eval Converters README](ev
 
 We are running a [Shared Task](https://evalevalai.com/events/shared-task-every-eval-ever/) at **ACL 2026 in San Diego** (July 7, 2026). The task invites participants to contribute to a unifying database of eval results:
 
-- **Track 1: Public Eval Data Parsing** — Parse leaderboards (Chatbot Arena, Open LLM Leaderboard, AlpacaEval, etc.) and academic papers into [our schema](every_eval_ever/schemas/eval.schema.json) and contribute to a unifying database of eval results!
-- **Track 2: Proprietary Evaluation Data** — Convert proprietary evaluation datasets into [our schema](every_eval_ever/schemas/eval.schema.json) and contribute to a unifying database of eval results!
+- **Track 1: Public Eval Data Parsing** — Parse leaderboards (Chatbot Arena, Open LLM Leaderboard, AlpacaEval, etc.) and academic papers into [our schema](eval.schema.json) and contribute to a unifying database of eval results!
+- **Track 2: Proprietary Evaluation Data** — Convert proprietary evaluation datasets into [our schema](eval.schema.json) and contribute to a unifying database of eval results!
 
 | Milestone | Date |
 |---|---|

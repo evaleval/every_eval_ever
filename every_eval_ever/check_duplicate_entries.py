@@ -66,7 +66,7 @@ def normalized_hash(payload: Dict[str, Any]) -> str:
 
 def main(argv: List[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        prog="every_eval_ever check-duplicates",
+        prog="check_duplicate_entries",
         description="Detects duplicate evaluation entries ignoring scrape timestamp fields.",
     )
     parser.add_argument(
@@ -82,8 +82,8 @@ def main(argv: List[str] | None = None) -> int:
     groups: Dict[str, List[Dict[str, Any]]] = {}
     for file_path in file_paths:
         try:
-            with open(file_path, "r", encoding="utf-8") as file:
-                payload = json.load(file)
+            with open(file_path, "r") as f:
+                payload = json.load(f)
         except json.JSONDecodeError as e:
             message = f"JSONDecodeError: {str(e)}"
             annotate_error(
