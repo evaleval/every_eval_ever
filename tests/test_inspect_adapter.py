@@ -362,3 +362,14 @@ def test_convert_model_path_to_standarized_model_ids():
     for model_path, model_id in model_path_to_standarized_id_map.items():
         model_info = extract_model_info_from_model_path(model_path)
         assert model_info.id == model_id
+
+def test_many():
+    adapter = InspectAIAdapter()
+    metadata_args = {
+        'source_organization_name': 'TestOrg',
+        'evaluator_relationship': EvaluatorRelationship.first_party,
+    }
+
+    for inspect_eval_path in (Path(__file__).parent / Path("data/inspect/inspect_shortened/")).glob("*.json"):
+        converted_eval = _load_eval(adapter, inspect_eval_path.resolve(), metadata_args)
+        assert converted_eval.detailed_evaluation_results is not None

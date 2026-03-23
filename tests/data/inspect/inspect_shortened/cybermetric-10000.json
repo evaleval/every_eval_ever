@@ -1,0 +1,2256 @@
+{
+  "version": 2,
+  "status": "success",
+  "eval": {
+    "eval_id": "7pmDtbVXbLrjK2aUUboXbk",
+    "run_id": "6gva9NmbJYdNkg4boPLRR2",
+    "created": "2026-03-06T12:25:37+00:00",
+    "task": "inspect_evals/cybermetric_10000",
+    "task_id": "DDcNWjEeZEygrWHuHDdscx",
+    "task_version": 2,
+    "task_display_name": "cybermetric_10000",
+    "task_registry_name": "inspect_evals/cybermetric_10000",
+    "task_attribs": {},
+    "task_args": {},
+    "task_args_passed": {},
+    "dataset": {
+      "name": "CyberMetric-10000",
+      "location": "/home/user/.cache/inspect_evals/cybermetric/CyberMetric-10000.jsonl",
+      "samples": 5,
+      "sample_ids": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "shuffled": false
+    },
+    "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+    "model_generate_config": {},
+    "model_args": {},
+    "config": {
+      "epochs": 1,
+      "epochs_reducer": [
+        "mean"
+      ],
+      "fail_on_error": true,
+      "continue_on_fail": false,
+      "sandbox_cleanup": true,
+      "log_samples": true,
+      "log_realtime": false,
+      "log_images": true,
+      "log_buffer": 1018,
+      "score_display": false
+    },
+    "revision": {
+      "type": "git",
+      "origin": "https://github.com/MIMIR-AI-ROUTER/inspect_evals.git",
+      "commit": "d3c09098"
+    },
+    "packages": {
+      "inspect_ai": "0.3.180.dev77+gb34c521b",
+      "inspect_evals": "0.0.1.dev2104+unknown.gd3c09098a"
+    },
+    "metadata": {
+      "full_task_version": "2-A",
+      "task_interface_version": "A",
+      "task_comparability_version": 2
+    },
+    "scorers": [
+      {
+        "name": "choice",
+        "options": {},
+        "metrics": [
+          {
+            "name": "inspect_ai/accuracy",
+            "options": {}
+          },
+          {
+            "name": "inspect_ai/stderr",
+            "options": {}
+          }
+        ],
+        "metadata": {}
+      }
+    ]
+  },
+  "plan": {
+    "name": "plan",
+    "steps": [
+      {
+        "solver": "system_message",
+        "params": {
+          "template": "You are a security expert who answers questions.",
+          "params": {}
+        }
+      },
+      {
+        "solver": "multiple_choice",
+        "params": {
+          "template": null,
+          "cot": false,
+          "multiple_correct": false,
+          "max_tokens": null,
+          "kwargs": {}
+        }
+      }
+    ],
+    "config": {}
+  },
+  "results": {
+    "total_samples": 5,
+    "completed_samples": 5,
+    "scores": [
+      {
+        "name": "choice",
+        "scorer": "choice",
+        "scored_samples": 5,
+        "unscored_samples": 0,
+        "params": {},
+        "metrics": {
+          "accuracy": {
+            "name": "accuracy",
+            "value": 1.0,
+            "params": {}
+          },
+          "stderr": {
+            "name": "stderr",
+            "value": 0.0,
+            "params": {}
+          }
+        }
+      }
+    ]
+  },
+  "stats": {
+    "started_at": "2026-03-06T12:25:37+00:00",
+    "completed_at": "2026-03-06T12:34:17+00:00",
+    "model_usage": {
+      "hf/Qwen/Qwen2.5-7B-Instruct": {
+        "input_tokens": 910,
+        "output_tokens": 25,
+        "total_tokens": 935
+      }
+    }
+  },
+  "samples": [
+    {
+      "id": 1,
+      "epoch": 1,
+      "input": "Question: Which of the following refers to the secrecy of information?\nOptions: A) Availability, B) Authentication, C) Integrity, D) Confidentiality\n\n",
+      "choices": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "target": "D",
+      "messages": [
+        {
+          "id": "kLcQ4svByY5GkguM4ANtDy",
+          "content": "You are a security expert who answers questions.",
+          "role": "system"
+        },
+        {
+          "id": "irvV7rc4zdZNAiVj8TNaF3",
+          "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nQuestion: Which of the following refers to the secrecy of information?\nOptions: A) Availability, B) Authentication, C) Integrity, D) Confidentiality\n\n\n\nA) A\nB) B\nC) C\nD) D",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "cc4f8TjvDfcXjTyVhfQ4qM",
+          "content": "ANSWER: D",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "cc4f8TjvDfcXjTyVhfQ4qM",
+              "content": "ANSWER: D",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "ANSWER: D",
+        "usage": {
+          "input_tokens": 182,
+          "output_tokens": 5,
+          "total_tokens": 187
+        },
+        "time": 2.038569809999899,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "choice": {
+          "value": "C",
+          "answer": "D",
+          "explanation": "ANSWER: D",
+          "history": []
+        }
+      },
+      "metadata": {},
+      "store": {},
+      "events": [
+        {
+          "uuid": "B3gA8cwvFmms5mdRtBZVRH",
+          "span_id": "05f30a9c0794421595cec208e9fff22c",
+          "timestamp": "2026-03-06T13:25:47.089332+01:00",
+          "working_start": 76808.680618063,
+          "event": "span_begin",
+          "id": "05f30a9c0794421595cec208e9fff22c",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "EjaxMTXdcekPjEikzigRoh",
+          "span_id": "05f30a9c0794421595cec208e9fff22c",
+          "timestamp": "2026-03-06T13:25:47.089542+01:00",
+          "working_start": 76808.680822279,
+          "event": "sample_init",
+          "sample": {
+            "input": "attachment://1b2fa2dcf297ec7fc72794fa8e180d92",
+            "choices": [
+              "A",
+              "B",
+              "C",
+              "D"
+            ],
+            "target": "D",
+            "id": 1
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "irvV7rc4zdZNAiVj8TNaF3",
+                "content": "attachment://1b2fa2dcf297ec7fc72794fa8e180d92",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {}
+          }
+        },
+        {
+          "uuid": "oKunFixp3CV4MyoB3qGMPj",
+          "span_id": "05f30a9c0794421595cec208e9fff22c",
+          "timestamp": "2026-03-06T13:25:47.089697+01:00",
+          "working_start": 76808.680976489,
+          "event": "span_end",
+          "id": "05f30a9c0794421595cec208e9fff22c"
+        },
+        {
+          "uuid": "SMHAWxKyxuvp8bp3mf9H2M",
+          "span_id": "7af51660c1384e2fb6fcf6e1664a502f",
+          "timestamp": "2026-03-06T13:25:47.120598+01:00",
+          "working_start": 0.030815917009022087,
+          "event": "span_begin",
+          "id": "7af51660c1384e2fb6fcf6e1664a502f",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "L4uco299SwKBS5FhkatL6p",
+          "span_id": "1c8b4981472f457799f96237ed77d42b",
+          "timestamp": "2026-03-06T13:25:47.123718+01:00",
+          "working_start": 0.03397693201259244,
+          "event": "span_begin",
+          "id": "1c8b4981472f457799f96237ed77d42b",
+          "parent_id": "7af51660c1384e2fb6fcf6e1664a502f",
+          "type": "solver",
+          "name": "system_message"
+        },
+        {
+          "uuid": "dLRMmyHRYQtiRGkMPqX9YJ",
+          "span_id": "1c8b4981472f457799f96237ed77d42b",
+          "timestamp": "2026-03-06T13:25:47.125151+01:00",
+          "working_start": 0.03537096299987752,
+          "event": "state",
+          "changes": [
+            {
+              "op": "remove",
+              "path": "/messages/0/source"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "You are a security expert who answers questions.",
+              "replaced": "Question: Which of the following refers to the secrecy of information?\nOptions: A) Availability, B) Authentication, C) Integrity, D) Confidentiality\n\n"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/id",
+              "value": "kLcQ4svByY5GkguM4ANtDy",
+              "replaced": "irvV7rc4zdZNAiVj8TNaF3"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/role",
+              "value": "system",
+              "replaced": "user"
+            },
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "irvV7rc4zdZNAiVj8TNaF3",
+                "content": "attachment://1b2fa2dcf297ec7fc72794fa8e180d92",
+                "source": "input",
+                "role": "user"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "Vt9VijpiozV2CNtqy3J4dq",
+          "span_id": "1c8b4981472f457799f96237ed77d42b",
+          "timestamp": "2026-03-06T13:25:47.125229+01:00",
+          "working_start": 0.03544695000164211,
+          "event": "span_end",
+          "id": "1c8b4981472f457799f96237ed77d42b"
+        },
+        {
+          "uuid": "n2tPYNAvhnnxQPK4EbFQTZ",
+          "span_id": "4facfa992f8542929db56eb5ce0a1170",
+          "timestamp": "2026-03-06T13:25:47.125294+01:00",
+          "working_start": 0.035511763009708375,
+          "event": "span_begin",
+          "id": "4facfa992f8542929db56eb5ce0a1170",
+          "parent_id": "7af51660c1384e2fb6fcf6e1664a502f",
+          "type": "solver",
+          "name": "multiple_choice"
+        },
+        {
+          "uuid": "hBLtL4MbbWSoQKUeP26ov9",
+          "span_id": "4facfa992f8542929db56eb5ce0a1170",
+          "timestamp": "2026-03-06T13:25:47.125631+01:00",
+          "working_start": 0.035849795007379726,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "kLcQ4svByY5GkguM4ANtDy",
+              "content": "You are a security expert who answers questions.",
+              "role": "system"
+            },
+            {
+              "id": "irvV7rc4zdZNAiVj8TNaF3",
+              "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nQuestion: Which of the following refers to the secrecy of information?\nOptions: A) Availability, B) Authentication, C) Integrity, D) Confidentiality\n\n\n\nA) A\nB) B\nC) C\nD) D",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 2048
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "cc4f8TjvDfcXjTyVhfQ4qM",
+                  "content": "ANSWER: D",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "ANSWER: D",
+            "usage": {
+              "input_tokens": 182,
+              "output_tokens": 5,
+              "total_tokens": 187
+            },
+            "time": 2.038569809999899,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-06T13:25:49.292270+01:00",
+          "working_time": 2.038569809999899
+        },
+        {
+          "uuid": "VSRpoHwCpFWuUxHSNAx88w",
+          "span_id": "4facfa992f8542929db56eb5ce0a1170",
+          "timestamp": "2026-03-06T13:25:49.293158+01:00",
+          "working_start": 2.0757650270097656,
+          "event": "state",
+          "changes": [
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 182,
+                "output_tokens": 5,
+                "total_tokens": 187
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 2.038569809999899
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "cc4f8TjvDfcXjTyVhfQ4qM",
+                  "content": "ANSWER: D",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "ANSWER: D",
+              "replaced": ""
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/1/content",
+              "value": "attachment://71b64b7bd3851c457155ff6fbe170bb5",
+              "replaced": "Question: Which of the following refers to the secrecy of information?\nOptions: A) Availability, B) Authentication, C) Integrity, D) Confidentiality\n\n"
+            },
+            {
+              "op": "add",
+              "path": "/messages/2",
+              "value": {
+                "id": "cc4f8TjvDfcXjTyVhfQ4qM",
+                "content": "ANSWER: D",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "oVoJd3QBxsVt9T6CDbNDRq",
+          "span_id": "4facfa992f8542929db56eb5ce0a1170",
+          "timestamp": "2026-03-06T13:25:49.293273+01:00",
+          "working_start": 2.075877331008087,
+          "event": "span_end",
+          "id": "4facfa992f8542929db56eb5ce0a1170"
+        },
+        {
+          "uuid": "nvLAtrP89whBufsGXHc9Ja",
+          "span_id": "7af51660c1384e2fb6fcf6e1664a502f",
+          "timestamp": "2026-03-06T13:25:49.293351+01:00",
+          "working_start": 2.0759549950016662,
+          "event": "span_end",
+          "id": "7af51660c1384e2fb6fcf6e1664a502f"
+        },
+        {
+          "uuid": "SgQCx4VyCWZai7cEirzZVN",
+          "span_id": "a128b887259d4838b4ca66cbb6c93f80",
+          "timestamp": "2026-03-06T13:25:49.310915+01:00",
+          "working_start": 2.093519511006889,
+          "event": "span_begin",
+          "id": "a128b887259d4838b4ca66cbb6c93f80",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "JiXLdP6XtbcAkXyaA9JDdT",
+          "span_id": "2de85852c3c447608a0ef3450672d593",
+          "timestamp": "2026-03-06T13:25:49.310996+01:00",
+          "working_start": 2.0936005270050373,
+          "event": "span_begin",
+          "id": "2de85852c3c447608a0ef3450672d593",
+          "parent_id": "a128b887259d4838b4ca66cbb6c93f80",
+          "type": "scorer",
+          "name": "choice"
+        },
+        {
+          "uuid": "WUFBWv7BuCsHgDHezaGX8u",
+          "span_id": "2de85852c3c447608a0ef3450672d593",
+          "timestamp": "2026-03-06T13:25:49.311090+01:00",
+          "working_start": 2.0936941140098497,
+          "event": "score",
+          "score": {
+            "value": "C",
+            "answer": "D",
+            "explanation": "ANSWER: D",
+            "history": []
+          },
+          "target": "D",
+          "intermediate": false
+        },
+        {
+          "uuid": "Exo2UCm6yjHVVHCB8cZwPz",
+          "span_id": "2de85852c3c447608a0ef3450672d593",
+          "timestamp": "2026-03-06T13:25:49.311187+01:00",
+          "working_start": 2.0937910540087614,
+          "event": "span_end",
+          "id": "2de85852c3c447608a0ef3450672d593"
+        },
+        {
+          "uuid": "JD9qsyAHG427A8Q4TUVxjb",
+          "span_id": "a128b887259d4838b4ca66cbb6c93f80",
+          "timestamp": "2026-03-06T13:25:49.311236+01:00",
+          "working_start": 2.093840501998784,
+          "event": "span_end",
+          "id": "a128b887259d4838b4ca66cbb6c93f80"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 182,
+          "output_tokens": 5,
+          "total_tokens": 187
+        }
+      },
+      "total_time": 2.238,
+      "working_time": 2.11,
+      "uuid": "MPrWGDPdsAXbJ6MoNEy4Km",
+      "error_retries": [],
+      "attachments": {
+        "1b2fa2dcf297ec7fc72794fa8e180d92": "Question: Which of the following refers to the secrecy of information?\nOptions: A) Availability, B) Authentication, C) Integrity, D) Confidentiality\n\n",
+        "71b64b7bd3851c457155ff6fbe170bb5": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nQuestion: Which of the following refers to the secrecy of information?\nOptions: A) Availability, B) Authentication, C) Integrity, D) Confidentiality\n\n\n\nA) A\nB) B\nC) C\nD) D"
+      }
+    },
+    {
+      "id": 2,
+      "epoch": 1,
+      "input": "Question: Which type of authentication uses multiple factors for verification, such as something you know, something you have, and something you are?\nOptions: A) Dual-factor authentication, B) Single-factor authentication, C) Multi-factor authentication, D) Verification authentication\n\n",
+      "choices": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "target": "C",
+      "messages": [
+        {
+          "id": "dgS8hy3wVDvtcBj8PwzYMm",
+          "content": "You are a security expert who answers questions.",
+          "role": "system"
+        },
+        {
+          "id": "MNJ8MMZaZtJVFDZTAQBAZH",
+          "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nQuestion: Which type of authentication uses multiple factors for verification, such as something you know, something you have, and something you are?\nOptions: A) Dual-factor authentication, B) Single-factor authentication, C) Multi-factor authentication, D) Verification authentication\n\n\n\nA) A\nB) B\nC) C\nD) D",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "mwfUJWtXozqJeh7uAwCQTE",
+          "content": "ANSWER: C",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "mwfUJWtXozqJeh7uAwCQTE",
+              "content": "ANSWER: C",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "ANSWER: C",
+        "usage": {
+          "input_tokens": 182,
+          "output_tokens": 5,
+          "total_tokens": 187
+        },
+        "time": 2.110021881002467,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "choice": {
+          "value": "C",
+          "answer": "C",
+          "explanation": "ANSWER: C",
+          "history": []
+        }
+      },
+      "metadata": {},
+      "store": {},
+      "events": [
+        {
+          "uuid": "NTE3pBFPZbMVWiqETafjLp",
+          "span_id": "8e84116cc84c4ca8bb9f50f714dd8f9e",
+          "timestamp": "2026-03-06T13:25:47.091413+01:00",
+          "working_start": 76808.682693187,
+          "event": "span_begin",
+          "id": "8e84116cc84c4ca8bb9f50f714dd8f9e",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "FwMzmCT97wdZosc5tJSeaG",
+          "span_id": "8e84116cc84c4ca8bb9f50f714dd8f9e",
+          "timestamp": "2026-03-06T13:25:47.091489+01:00",
+          "working_start": 76808.682768057,
+          "event": "sample_init",
+          "sample": {
+            "input": "attachment://b133c07418c9ff65c025c74c54cf03a9",
+            "choices": [
+              "A",
+              "B",
+              "C",
+              "D"
+            ],
+            "target": "C",
+            "id": 2
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "MNJ8MMZaZtJVFDZTAQBAZH",
+                "content": "attachment://b133c07418c9ff65c025c74c54cf03a9",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {}
+          }
+        },
+        {
+          "uuid": "ncFiuX75TzNt9Dtb6SYC5L",
+          "span_id": "8e84116cc84c4ca8bb9f50f714dd8f9e",
+          "timestamp": "2026-03-06T13:25:47.091561+01:00",
+          "working_start": 76808.682840133,
+          "event": "span_end",
+          "id": "8e84116cc84c4ca8bb9f50f714dd8f9e"
+        },
+        {
+          "uuid": "ZPpFFSjU8LnWo4TNwKsBxc",
+          "span_id": "7e8ef0c11fc44fcfb86cc566df2183f6",
+          "timestamp": "2026-03-06T13:25:47.125864+01:00",
+          "working_start": 0.034274456003913656,
+          "event": "span_begin",
+          "id": "7e8ef0c11fc44fcfb86cc566df2183f6",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "DtfQatyYWWkMDMtrU5FXBH",
+          "span_id": "a6929cb21f63441a9f4f19f1ad38bd57",
+          "timestamp": "2026-03-06T13:25:47.125941+01:00",
+          "working_start": 0.03435184000409208,
+          "event": "span_begin",
+          "id": "a6929cb21f63441a9f4f19f1ad38bd57",
+          "parent_id": "7e8ef0c11fc44fcfb86cc566df2183f6",
+          "type": "solver",
+          "name": "system_message"
+        },
+        {
+          "uuid": "h2RMPGFHKHzY8jbgSfASvK",
+          "span_id": "a6929cb21f63441a9f4f19f1ad38bd57",
+          "timestamp": "2026-03-06T13:25:47.126298+01:00",
+          "working_start": 0.03471026501210872,
+          "event": "state",
+          "changes": [
+            {
+              "op": "remove",
+              "path": "/messages/0/source"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "You are a security expert who answers questions.",
+              "replaced": "Question: Which type of authentication uses multiple factors for verification, such as something you know, something you have, and something you are?\nOptions: A) Dual-factor authentication, B) Single-factor authentication, C) Multi-factor authentication, D) Verification authentication\n\n"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/id",
+              "value": "dgS8hy3wVDvtcBj8PwzYMm",
+              "replaced": "MNJ8MMZaZtJVFDZTAQBAZH"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/role",
+              "value": "system",
+              "replaced": "user"
+            },
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "MNJ8MMZaZtJVFDZTAQBAZH",
+                "content": "attachment://b133c07418c9ff65c025c74c54cf03a9",
+                "source": "input",
+                "role": "user"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "BgULdDQwbzRG8LC975Bbx6",
+          "span_id": "a6929cb21f63441a9f4f19f1ad38bd57",
+          "timestamp": "2026-03-06T13:25:47.126356+01:00",
+          "working_start": 0.03476697600854095,
+          "event": "span_end",
+          "id": "a6929cb21f63441a9f4f19f1ad38bd57"
+        },
+        {
+          "uuid": "Hc4QsoGGcrvWZLSXwVE76h",
+          "span_id": "1fa6eb116b374c6b9d1861f7817aa253",
+          "timestamp": "2026-03-06T13:25:47.126418+01:00",
+          "working_start": 0.034828437012038194,
+          "event": "span_begin",
+          "id": "1fa6eb116b374c6b9d1861f7817aa253",
+          "parent_id": "7e8ef0c11fc44fcfb86cc566df2183f6",
+          "type": "solver",
+          "name": "multiple_choice"
+        },
+        {
+          "uuid": "SVD3MTZLJVp7mySoShtWZ4",
+          "span_id": "1fa6eb116b374c6b9d1861f7817aa253",
+          "timestamp": "2026-03-06T13:25:47.126632+01:00",
+          "working_start": 0.035043267998844385,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "dgS8hy3wVDvtcBj8PwzYMm",
+              "content": "You are a security expert who answers questions.",
+              "role": "system"
+            },
+            {
+              "id": "MNJ8MMZaZtJVFDZTAQBAZH",
+              "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nQuestion: Which type of authentication uses multiple factors for verification, such as something you know, something you have, and something you are?\nOptions: A) Dual-factor authentication, B) Single-factor authentication, C) Multi-factor authentication, D) Verification authentication\n\n\n\nA) A\nB) B\nC) C\nD) D",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 2048
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "mwfUJWtXozqJeh7uAwCQTE",
+                  "content": "ANSWER: C",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "ANSWER: C",
+            "usage": {
+              "input_tokens": 182,
+              "output_tokens": 5,
+              "total_tokens": 187
+            },
+            "time": 2.110021881002467,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-06T13:25:49.295447+01:00",
+          "working_time": 2.110021881002467
+        },
+        {
+          "uuid": "VEHrMy2QvcHFhN4Hm59eVo",
+          "span_id": "1fa6eb116b374c6b9d1861f7817aa253",
+          "timestamp": "2026-03-06T13:25:49.295795+01:00",
+          "working_start": 2.1456037649913924,
+          "event": "state",
+          "changes": [
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 182,
+                "output_tokens": 5,
+                "total_tokens": 187
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 2.110021881002467
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "mwfUJWtXozqJeh7uAwCQTE",
+                  "content": "ANSWER: C",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "ANSWER: C",
+              "replaced": ""
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/1/content",
+              "value": "attachment://44f14d1b1eaec6f7b1547e090a86ad9f",
+              "replaced": "Question: Which type of authentication uses multiple factors for verification, such as something you know, something you have, and something you are?\nOptions: A) Dual-factor authentication, B) Single-factor authentication, C) Multi-factor authentication, D) Verification authentication\n\n"
+            },
+            {
+              "op": "add",
+              "path": "/messages/2",
+              "value": {
+                "id": "mwfUJWtXozqJeh7uAwCQTE",
+                "content": "ANSWER: C",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "MPWgEQP7nZ2WvZBV5vEyKV",
+          "span_id": "1fa6eb116b374c6b9d1861f7817aa253",
+          "timestamp": "2026-03-06T13:25:49.295858+01:00",
+          "working_start": 2.145667181001045,
+          "event": "span_end",
+          "id": "1fa6eb116b374c6b9d1861f7817aa253"
+        },
+        {
+          "uuid": "YnaL45sawS5jisF9RTqF6B",
+          "span_id": "7e8ef0c11fc44fcfb86cc566df2183f6",
+          "timestamp": "2026-03-06T13:25:49.295919+01:00",
+          "working_start": 2.1457283619965892,
+          "event": "span_end",
+          "id": "7e8ef0c11fc44fcfb86cc566df2183f6"
+        },
+        {
+          "uuid": "F6KiWrWVZD9jUGbi2uJw7k",
+          "span_id": "2d828c96cc3042908e3a649b25bac066",
+          "timestamp": "2026-03-06T13:25:49.316291+01:00",
+          "working_start": 2.1660993799887365,
+          "event": "span_begin",
+          "id": "2d828c96cc3042908e3a649b25bac066",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "AXD8JodnBfXa5R5goBkaJg",
+          "span_id": "cfb2deb27747440b80d267006c29db8f",
+          "timestamp": "2026-03-06T13:25:49.316360+01:00",
+          "working_start": 2.1661686619918328,
+          "event": "span_begin",
+          "id": "cfb2deb27747440b80d267006c29db8f",
+          "parent_id": "2d828c96cc3042908e3a649b25bac066",
+          "type": "scorer",
+          "name": "choice"
+        },
+        {
+          "uuid": "GdMWeZGLkmWHHFH4MXjSLL",
+          "span_id": "cfb2deb27747440b80d267006c29db8f",
+          "timestamp": "2026-03-06T13:25:49.316422+01:00",
+          "working_start": 2.1662304019992007,
+          "event": "score",
+          "score": {
+            "value": "C",
+            "answer": "C",
+            "explanation": "ANSWER: C",
+            "history": []
+          },
+          "target": "C",
+          "intermediate": false
+        },
+        {
+          "uuid": "QfFpSz6uAYN269FBwRYnoJ",
+          "span_id": "cfb2deb27747440b80d267006c29db8f",
+          "timestamp": "2026-03-06T13:25:49.316479+01:00",
+          "working_start": 2.166287950996775,
+          "event": "span_end",
+          "id": "cfb2deb27747440b80d267006c29db8f"
+        },
+        {
+          "uuid": "PrfSavbhwnnYC88PeGdasm",
+          "span_id": "2d828c96cc3042908e3a649b25bac066",
+          "timestamp": "2026-03-06T13:25:49.316527+01:00",
+          "working_start": 2.1663354429911124,
+          "event": "span_end",
+          "id": "2d828c96cc3042908e3a649b25bac066"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 182,
+          "output_tokens": 5,
+          "total_tokens": 187
+        }
+      },
+      "total_time": 2.243,
+      "working_time": 2.184,
+      "uuid": "mi4hXCZVUHboRHG4xMQhtg",
+      "error_retries": [],
+      "attachments": {
+        "b133c07418c9ff65c025c74c54cf03a9": "Question: Which type of authentication uses multiple factors for verification, such as something you know, something you have, and something you are?\nOptions: A) Dual-factor authentication, B) Single-factor authentication, C) Multi-factor authentication, D) Verification authentication\n\n",
+        "44f14d1b1eaec6f7b1547e090a86ad9f": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nQuestion: Which type of authentication uses multiple factors for verification, such as something you know, something you have, and something you are?\nOptions: A) Dual-factor authentication, B) Single-factor authentication, C) Multi-factor authentication, D) Verification authentication\n\n\n\nA) A\nB) B\nC) C\nD) D"
+      }
+    },
+    {
+      "id": 3,
+      "epoch": 1,
+      "input": "Question: What does TOE stand for?\nOptions: A) Target of evaluation, B) Time of evaluation, C) Type of evaluation, D) Term of evaluation\n\n",
+      "choices": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "target": "A",
+      "messages": [
+        {
+          "id": "jCekMYQinQd25u6an3KVbG",
+          "content": "You are a security expert who answers questions.",
+          "role": "system"
+        },
+        {
+          "id": "aDi6XVwde4zhnRd58cdZVm",
+          "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nQuestion: What does TOE stand for?\nOptions: A) Target of evaluation, B) Time of evaluation, C) Type of evaluation, D) Term of evaluation\n\n\n\nA) A\nB) B\nC) C\nD) D",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "KWBASAeBKt2EtgFhZCNVkC",
+          "content": "ANSWER: A",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "KWBASAeBKt2EtgFhZCNVkC",
+              "content": "ANSWER: A",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "ANSWER: A",
+        "usage": {
+          "input_tokens": 182,
+          "output_tokens": 5,
+          "total_tokens": 187
+        },
+        "time": 2.101138074998744,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "choice": {
+          "value": "C",
+          "answer": "A",
+          "explanation": "ANSWER: A",
+          "history": []
+        }
+      },
+      "metadata": {},
+      "store": {},
+      "events": [
+        {
+          "uuid": "DZXtNNg7JeoKqgTmQpMRtL",
+          "span_id": "398307de91c3464aae3be623e4b6b112",
+          "timestamp": "2026-03-06T13:25:47.092239+01:00",
+          "working_start": 76808.68351899,
+          "event": "span_begin",
+          "id": "398307de91c3464aae3be623e4b6b112",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "7hjHrMgL6Z8LHEE9Mm6Rjf",
+          "span_id": "398307de91c3464aae3be623e4b6b112",
+          "timestamp": "2026-03-06T13:25:47.092307+01:00",
+          "working_start": 76808.683585479,
+          "event": "sample_init",
+          "sample": {
+            "input": "attachment://68cd5c0ced2c8f5dad393cb05863a2fc",
+            "choices": [
+              "A",
+              "B",
+              "C",
+              "D"
+            ],
+            "target": "A",
+            "id": 3
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "aDi6XVwde4zhnRd58cdZVm",
+                "content": "attachment://68cd5c0ced2c8f5dad393cb05863a2fc",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {}
+          }
+        },
+        {
+          "uuid": "HGfxa6YeXBNaKvievJKnwp",
+          "span_id": "398307de91c3464aae3be623e4b6b112",
+          "timestamp": "2026-03-06T13:25:47.092377+01:00",
+          "working_start": 76808.683655879,
+          "event": "span_end",
+          "id": "398307de91c3464aae3be623e4b6b112"
+        },
+        {
+          "uuid": "cmoH6TsVU6uz6XXN37PPYc",
+          "span_id": "bd7f51d4bded4604bea2c0979109b729",
+          "timestamp": "2026-03-06T13:25:47.126758+01:00",
+          "working_start": 0.03435379499569535,
+          "event": "span_begin",
+          "id": "bd7f51d4bded4604bea2c0979109b729",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "X78aBNviV7Gg86SZjSE6GF",
+          "span_id": "5bc1199d37404c8d8a3371d625dee7fd",
+          "timestamp": "2026-03-06T13:25:47.126829+01:00",
+          "working_start": 0.034424753990606405,
+          "event": "span_begin",
+          "id": "5bc1199d37404c8d8a3371d625dee7fd",
+          "parent_id": "bd7f51d4bded4604bea2c0979109b729",
+          "type": "solver",
+          "name": "system_message"
+        },
+        {
+          "uuid": "kcbKtA32xpAPySifbLec3K",
+          "span_id": "5bc1199d37404c8d8a3371d625dee7fd",
+          "timestamp": "2026-03-06T13:25:47.127834+01:00",
+          "working_start": 0.03543018898926675,
+          "event": "state",
+          "changes": [
+            {
+              "op": "remove",
+              "path": "/messages/0/source"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "You are a security expert who answers questions.",
+              "replaced": "Question: What does TOE stand for?\nOptions: A) Target of evaluation, B) Time of evaluation, C) Type of evaluation, D) Term of evaluation\n\n"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/id",
+              "value": "jCekMYQinQd25u6an3KVbG",
+              "replaced": "aDi6XVwde4zhnRd58cdZVm"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/role",
+              "value": "system",
+              "replaced": "user"
+            },
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "aDi6XVwde4zhnRd58cdZVm",
+                "content": "attachment://68cd5c0ced2c8f5dad393cb05863a2fc",
+                "source": "input",
+                "role": "user"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "VXGNbnXiboLVaU76YhDCme",
+          "span_id": "5bc1199d37404c8d8a3371d625dee7fd",
+          "timestamp": "2026-03-06T13:25:47.127891+01:00",
+          "working_start": 0.035486341002979316,
+          "event": "span_end",
+          "id": "5bc1199d37404c8d8a3371d625dee7fd"
+        },
+        {
+          "uuid": "ngfxXYuMfkrVBrXuFpruwL",
+          "span_id": "2c2503a60e0142caa47a13df6867f14b",
+          "timestamp": "2026-03-06T13:25:47.127947+01:00",
+          "working_start": 0.03554249300213996,
+          "event": "span_begin",
+          "id": "2c2503a60e0142caa47a13df6867f14b",
+          "parent_id": "bd7f51d4bded4604bea2c0979109b729",
+          "type": "solver",
+          "name": "multiple_choice"
+        },
+        {
+          "uuid": "hxJWxdsT2LzRsgd9YNetcU",
+          "span_id": "2c2503a60e0142caa47a13df6867f14b",
+          "timestamp": "2026-03-06T13:25:47.128147+01:00",
+          "working_start": 0.03574335700250231,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "jCekMYQinQd25u6an3KVbG",
+              "content": "You are a security expert who answers questions.",
+              "role": "system"
+            },
+            {
+              "id": "aDi6XVwde4zhnRd58cdZVm",
+              "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nQuestion: What does TOE stand for?\nOptions: A) Target of evaluation, B) Time of evaluation, C) Type of evaluation, D) Term of evaluation\n\n\n\nA) A\nB) B\nC) C\nD) D",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 2048
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "KWBASAeBKt2EtgFhZCNVkC",
+                  "content": "ANSWER: A",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "ANSWER: A",
+            "usage": {
+              "input_tokens": 182,
+              "output_tokens": 5,
+              "total_tokens": 187
+            },
+            "time": 2.101138074998744,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-06T13:25:49.297520+01:00",
+          "working_time": 2.101138074998744
+        },
+        {
+          "uuid": "myrGYqSgPfgaE7DVj4gYWB",
+          "span_id": "2c2503a60e0142caa47a13df6867f14b",
+          "timestamp": "2026-03-06T13:25:49.297889+01:00",
+          "working_start": 2.1373641730024246,
+          "event": "state",
+          "changes": [
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 182,
+                "output_tokens": 5,
+                "total_tokens": 187
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 2.101138074998744
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "KWBASAeBKt2EtgFhZCNVkC",
+                  "content": "ANSWER: A",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "ANSWER: A",
+              "replaced": ""
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/1/content",
+              "value": "attachment://dac2d078eec65bc108edb5fc8bd658d4",
+              "replaced": "Question: What does TOE stand for?\nOptions: A) Target of evaluation, B) Time of evaluation, C) Type of evaluation, D) Term of evaluation\n\n"
+            },
+            {
+              "op": "add",
+              "path": "/messages/2",
+              "value": {
+                "id": "KWBASAeBKt2EtgFhZCNVkC",
+                "content": "ANSWER: A",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "J4xLk4fjcWxta2k2Miyj8e",
+          "span_id": "2c2503a60e0142caa47a13df6867f14b",
+          "timestamp": "2026-03-06T13:25:49.297951+01:00",
+          "working_start": 2.137425634005922,
+          "event": "span_end",
+          "id": "2c2503a60e0142caa47a13df6867f14b"
+        },
+        {
+          "uuid": "8o7i42yiopTs7oxh5D5Czh",
+          "span_id": "bd7f51d4bded4604bea2c0979109b729",
+          "timestamp": "2026-03-06T13:25:49.298009+01:00",
+          "working_start": 2.137483461992815,
+          "event": "span_end",
+          "id": "bd7f51d4bded4604bea2c0979109b729"
+        },
+        {
+          "uuid": "UkPMc3BVPdP26Dn6HGgTo7",
+          "span_id": "02e7015ca2984befb020a5cfbfaffa9a",
+          "timestamp": "2026-03-06T13:25:49.317214+01:00",
+          "working_start": 2.1566878519952297,
+          "event": "span_begin",
+          "id": "02e7015ca2984befb020a5cfbfaffa9a",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "JjzGJ73FFRi475RXSHJfTv",
+          "span_id": "b3558c590633417085c572664d3ebda1",
+          "timestamp": "2026-03-06T13:25:49.317269+01:00",
+          "working_start": 2.156743165993248,
+          "event": "span_begin",
+          "id": "b3558c590633417085c572664d3ebda1",
+          "parent_id": "02e7015ca2984befb020a5cfbfaffa9a",
+          "type": "scorer",
+          "name": "choice"
+        },
+        {
+          "uuid": "LpLaNxZULggQ68eP2PJztP",
+          "span_id": "b3558c590633417085c572664d3ebda1",
+          "timestamp": "2026-03-06T13:25:49.317326+01:00",
+          "working_start": 2.1567998770042323,
+          "event": "score",
+          "score": {
+            "value": "C",
+            "answer": "A",
+            "explanation": "ANSWER: A",
+            "history": []
+          },
+          "target": "A",
+          "intermediate": false
+        },
+        {
+          "uuid": "EVFBYE7UqeEpNjodz2MQb9",
+          "span_id": "b3558c590633417085c572664d3ebda1",
+          "timestamp": "2026-03-06T13:25:49.317388+01:00",
+          "working_start": 2.156861896000919,
+          "event": "span_end",
+          "id": "b3558c590633417085c572664d3ebda1"
+        },
+        {
+          "uuid": "KCxxt4tddZFSEfDURUUkAT",
+          "span_id": "02e7015ca2984befb020a5cfbfaffa9a",
+          "timestamp": "2026-03-06T13:25:49.317435+01:00",
+          "working_start": 2.1569088289979845,
+          "event": "span_end",
+          "id": "02e7015ca2984befb020a5cfbfaffa9a"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 182,
+          "output_tokens": 5,
+          "total_tokens": 187
+        }
+      },
+      "total_time": 2.242,
+      "working_time": 2.174,
+      "uuid": "Fc4zeyapwBEbA93Y9UwuMg",
+      "error_retries": [],
+      "attachments": {
+        "68cd5c0ced2c8f5dad393cb05863a2fc": "Question: What does TOE stand for?\nOptions: A) Target of evaluation, B) Time of evaluation, C) Type of evaluation, D) Term of evaluation\n\n",
+        "dac2d078eec65bc108edb5fc8bd658d4": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nQuestion: What does TOE stand for?\nOptions: A) Target of evaluation, B) Time of evaluation, C) Type of evaluation, D) Term of evaluation\n\n\n\nA) A\nB) B\nC) C\nD) D"
+      }
+    },
+    {
+      "id": 4,
+      "epoch": 1,
+      "input": "Question: What is the method by which systems verify that a user who is requesting access to a resource really is who they claim to be?\nOptions: A) Identification, B) Validation, C) Authorization, D) Authentication\n\n",
+      "choices": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "target": "D",
+      "messages": [
+        {
+          "id": "o2AfAFyMpwsorRVKvyJBx8",
+          "content": "You are a security expert who answers questions.",
+          "role": "system"
+        },
+        {
+          "id": "iUo5DYpP5oJQ7VmyJfaFmA",
+          "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nQuestion: What is the method by which systems verify that a user who is requesting access to a resource really is who they claim to be?\nOptions: A) Identification, B) Validation, C) Authorization, D) Authentication\n\n\n\nA) A\nB) B\nC) C\nD) D",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "eJmU45h6LApdjHKXJBBqzV",
+          "content": "ANSWER: D",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "eJmU45h6LApdjHKXJBBqzV",
+              "content": "ANSWER: D",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "ANSWER: D",
+        "usage": {
+          "input_tokens": 182,
+          "output_tokens": 5,
+          "total_tokens": 187
+        },
+        "time": 2.092225212996709,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "choice": {
+          "value": "C",
+          "answer": "D",
+          "explanation": "ANSWER: D",
+          "history": []
+        }
+      },
+      "metadata": {},
+      "store": {},
+      "events": [
+        {
+          "uuid": "fruDL46eE9NrQtBcHwsTft",
+          "span_id": "573aa8d68f744e0a9da7f59ac5b08606",
+          "timestamp": "2026-03-06T13:25:47.093037+01:00",
+          "working_start": 76808.684316577,
+          "event": "span_begin",
+          "id": "573aa8d68f744e0a9da7f59ac5b08606",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "2gYiqtMZ6NJtqauXWuXd58",
+          "span_id": "573aa8d68f744e0a9da7f59ac5b08606",
+          "timestamp": "2026-03-06T13:25:47.093106+01:00",
+          "working_start": 76808.68438558,
+          "event": "sample_init",
+          "sample": {
+            "input": "attachment://37ed1a962173ce9fcee60bd4b8fd72ac",
+            "choices": [
+              "A",
+              "B",
+              "C",
+              "D"
+            ],
+            "target": "D",
+            "id": 4
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "iUo5DYpP5oJQ7VmyJfaFmA",
+                "content": "attachment://37ed1a962173ce9fcee60bd4b8fd72ac",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {}
+          }
+        },
+        {
+          "uuid": "iGrXs54ABwJ2BqkbWurJVj",
+          "span_id": "573aa8d68f744e0a9da7f59ac5b08606",
+          "timestamp": "2026-03-06T13:25:47.093171+01:00",
+          "working_start": 76808.684450113,
+          "event": "span_end",
+          "id": "573aa8d68f744e0a9da7f59ac5b08606"
+        },
+        {
+          "uuid": "eWDbp7zD8e2Mp7SZYwGBhB",
+          "span_id": "8a90a9c69f3c45ae9fba1537f07fe7ce",
+          "timestamp": "2026-03-06T13:25:47.128236+01:00",
+          "working_start": 0.035038239002460614,
+          "event": "span_begin",
+          "id": "8a90a9c69f3c45ae9fba1537f07fe7ce",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "hrf8s28HZmwsV4mFpg94DU",
+          "span_id": "9423aacf94094e138548696cff079c37",
+          "timestamp": "2026-03-06T13:25:47.128303+01:00",
+          "working_start": 0.035105287010082975,
+          "event": "span_begin",
+          "id": "9423aacf94094e138548696cff079c37",
+          "parent_id": "8a90a9c69f3c45ae9fba1537f07fe7ce",
+          "type": "solver",
+          "name": "system_message"
+        },
+        {
+          "uuid": "hKoXGiwCYYTmikxgyDvevE",
+          "span_id": "9423aacf94094e138548696cff079c37",
+          "timestamp": "2026-03-06T13:25:47.128626+01:00",
+          "working_start": 0.035429629002464935,
+          "event": "state",
+          "changes": [
+            {
+              "op": "remove",
+              "path": "/messages/0/source"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "You are a security expert who answers questions.",
+              "replaced": "Question: What is the method by which systems verify that a user who is requesting access to a resource really is who they claim to be?\nOptions: A) Identification, B) Validation, C) Authorization, D) Authentication\n\n"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/id",
+              "value": "o2AfAFyMpwsorRVKvyJBx8",
+              "replaced": "iUo5DYpP5oJQ7VmyJfaFmA"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/role",
+              "value": "system",
+              "replaced": "user"
+            },
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "iUo5DYpP5oJQ7VmyJfaFmA",
+                "content": "attachment://37ed1a962173ce9fcee60bd4b8fd72ac",
+                "source": "input",
+                "role": "user"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "TvQUQZZfChqKMYdVXkheHW",
+          "span_id": "9423aacf94094e138548696cff079c37",
+          "timestamp": "2026-03-06T13:25:47.128686+01:00",
+          "working_start": 0.0354882960091345,
+          "event": "span_end",
+          "id": "9423aacf94094e138548696cff079c37"
+        },
+        {
+          "uuid": "YiJH2wLMfTd2V7MNddKkjm",
+          "span_id": "19631f21e9b44a3da562350f8401e7fe",
+          "timestamp": "2026-03-06T13:25:47.128777+01:00",
+          "working_start": 0.035578810013248585,
+          "event": "span_begin",
+          "id": "19631f21e9b44a3da562350f8401e7fe",
+          "parent_id": "8a90a9c69f3c45ae9fba1537f07fe7ce",
+          "type": "solver",
+          "name": "multiple_choice"
+        },
+        {
+          "uuid": "GehyqxDAkDA2tEYw8PyKeQ",
+          "span_id": "19631f21e9b44a3da562350f8401e7fe",
+          "timestamp": "2026-03-06T13:25:47.128973+01:00",
+          "working_start": 0.03577604200108908,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "o2AfAFyMpwsorRVKvyJBx8",
+              "content": "You are a security expert who answers questions.",
+              "role": "system"
+            },
+            {
+              "id": "iUo5DYpP5oJQ7VmyJfaFmA",
+              "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nQuestion: What is the method by which systems verify that a user who is requesting access to a resource really is who they claim to be?\nOptions: A) Identification, B) Validation, C) Authorization, D) Authentication\n\n\n\nA) A\nB) B\nC) C\nD) D",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 2048
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "eJmU45h6LApdjHKXJBBqzV",
+                  "content": "ANSWER: D",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "ANSWER: D",
+            "usage": {
+              "input_tokens": 182,
+              "output_tokens": 5,
+              "total_tokens": 187
+            },
+            "time": 2.092225212996709,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-06T13:25:49.299645+01:00",
+          "working_time": 2.092225212996709
+        },
+        {
+          "uuid": "nKf3Yjy9KA2gyVrTXGjcS9",
+          "span_id": "19631f21e9b44a3da562350f8401e7fe",
+          "timestamp": "2026-03-06T13:25:49.299972+01:00",
+          "working_start": 2.1285136100050295,
+          "event": "state",
+          "changes": [
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 182,
+                "output_tokens": 5,
+                "total_tokens": 187
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 2.092225212996709
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "eJmU45h6LApdjHKXJBBqzV",
+                  "content": "ANSWER: D",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "ANSWER: D",
+              "replaced": ""
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/1/content",
+              "value": "attachment://d989ecc36925a05d4b4c5b968d44cd6c",
+              "replaced": "Question: What is the method by which systems verify that a user who is requesting access to a resource really is who they claim to be?\nOptions: A) Identification, B) Validation, C) Authorization, D) Authentication\n\n"
+            },
+            {
+              "op": "add",
+              "path": "/messages/2",
+              "value": {
+                "id": "eJmU45h6LApdjHKXJBBqzV",
+                "content": "ANSWER: D",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "BUzurHgen5tWk6KcjoV6Xs",
+          "span_id": "19631f21e9b44a3da562350f8401e7fe",
+          "timestamp": "2026-03-06T13:25:49.300033+01:00",
+          "working_start": 2.12857339400216,
+          "event": "span_end",
+          "id": "19631f21e9b44a3da562350f8401e7fe"
+        },
+        {
+          "uuid": "cc6AP5TdYQJwy8W3a2h2fc",
+          "span_id": "8a90a9c69f3c45ae9fba1537f07fe7ce",
+          "timestamp": "2026-03-06T13:25:49.300090+01:00",
+          "working_start": 2.1286309429997345,
+          "event": "span_end",
+          "id": "8a90a9c69f3c45ae9fba1537f07fe7ce"
+        },
+        {
+          "uuid": "FPBzKMqNFMqSr5Co7njtLm",
+          "span_id": "db9f1ecb81454914baf950edc64856cf",
+          "timestamp": "2026-03-06T13:25:49.318120+01:00",
+          "working_start": 2.146660044003511,
+          "event": "span_begin",
+          "id": "db9f1ecb81454914baf950edc64856cf",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "EEYGeAFCs5mTqogf5sQcqL",
+          "span_id": "a163b6b5f3844cee9e863a4f878a7f05",
+          "timestamp": "2026-03-06T13:25:49.318180+01:00",
+          "working_start": 2.146720387012465,
+          "event": "span_begin",
+          "id": "a163b6b5f3844cee9e863a4f878a7f05",
+          "parent_id": "db9f1ecb81454914baf950edc64856cf",
+          "type": "scorer",
+          "name": "choice"
+        },
+        {
+          "uuid": "D5XjNpX655tERwXtvvxTCP",
+          "span_id": "a163b6b5f3844cee9e863a4f878a7f05",
+          "timestamp": "2026-03-06T13:25:49.318233+01:00",
+          "working_start": 2.1467731870070565,
+          "event": "score",
+          "score": {
+            "value": "C",
+            "answer": "D",
+            "explanation": "ANSWER: D",
+            "history": []
+          },
+          "target": "D",
+          "intermediate": false
+        },
+        {
+          "uuid": "SPqhuygdQn9eRd8RJgtufo",
+          "span_id": "a163b6b5f3844cee9e863a4f878a7f05",
+          "timestamp": "2026-03-06T13:25:49.318291+01:00",
+          "working_start": 2.1468315740057733,
+          "event": "span_end",
+          "id": "a163b6b5f3844cee9e863a4f878a7f05"
+        },
+        {
+          "uuid": "MTREdrQvi3rUdQvr76gz6d",
+          "span_id": "db9f1ecb81454914baf950edc64856cf",
+          "timestamp": "2026-03-06T13:25:49.318338+01:00",
+          "working_start": 2.146878507002839,
+          "event": "span_end",
+          "id": "db9f1ecb81454914baf950edc64856cf"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 182,
+          "output_tokens": 5,
+          "total_tokens": 187
+        }
+      },
+      "total_time": 2.242,
+      "working_time": 2.164,
+      "uuid": "noApANXSrrH3VAtCgR4aqU",
+      "error_retries": [],
+      "attachments": {
+        "37ed1a962173ce9fcee60bd4b8fd72ac": "Question: What is the method by which systems verify that a user who is requesting access to a resource really is who they claim to be?\nOptions: A) Identification, B) Validation, C) Authorization, D) Authentication\n\n",
+        "d989ecc36925a05d4b4c5b968d44cd6c": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nQuestion: What is the method by which systems verify that a user who is requesting access to a resource really is who they claim to be?\nOptions: A) Identification, B) Validation, C) Authorization, D) Authentication\n\n\n\nA) A\nB) B\nC) C\nD) D"
+      }
+    },
+    {
+      "id": 5,
+      "epoch": 1,
+      "input": "Question: Which term refers to the measure of information security, including the verification and assurance of the confidentiality, integrity, and availability of data and assets?\nOptions: A) Information Security, B) Information Assurance, C) Cybersecurity, D) Risk Management\n\n",
+      "choices": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "target": "B",
+      "messages": [
+        {
+          "id": "M3tjMfRt94MUySFFhbUgXh",
+          "content": "You are a security expert who answers questions.",
+          "role": "system"
+        },
+        {
+          "id": "U6Xmm9EJj9VZiwESEBeVrt",
+          "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nQuestion: Which term refers to the measure of information security, including the verification and assurance of the confidentiality, integrity, and availability of data and assets?\nOptions: A) Information Security, B) Information Assurance, C) Cybersecurity, D) Risk Management\n\n\n\nA) A\nB) B\nC) C\nD) D",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "jeHkCfgHer5DNyeLwT6RPp",
+          "content": "ANSWER: B",
+          "source": "generate",
+          "role": "assistant",
+          "model": "Qwen/Qwen2.5-7B-Instruct"
+        }
+      ],
+      "output": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "jeHkCfgHer5DNyeLwT6RPp",
+              "content": "ANSWER: B",
+              "source": "generate",
+              "role": "assistant",
+              "model": "Qwen/Qwen2.5-7B-Instruct"
+            },
+            "stop_reason": "unknown"
+          }
+        ],
+        "completion": "ANSWER: B",
+        "usage": {
+          "input_tokens": 182,
+          "output_tokens": 5,
+          "total_tokens": 187
+        },
+        "time": 2.0831424979987787,
+        "metadata": {
+          "hidden_states": null
+        }
+      },
+      "scores": {
+        "choice": {
+          "value": "C",
+          "answer": "B",
+          "explanation": "ANSWER: B",
+          "history": []
+        }
+      },
+      "metadata": {},
+      "store": {},
+      "events": [
+        {
+          "uuid": "QvTyhUUBNLqY3xbsxBGfFG",
+          "span_id": "ad5f63f7735a40f083d56660fcc4c6b6",
+          "timestamp": "2026-03-06T13:25:47.093942+01:00",
+          "working_start": 76808.685222278,
+          "event": "span_begin",
+          "id": "ad5f63f7735a40f083d56660fcc4c6b6",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "DeattwMN2TsttBxjPMcor6",
+          "span_id": "ad5f63f7735a40f083d56660fcc4c6b6",
+          "timestamp": "2026-03-06T13:25:47.094011+01:00",
+          "working_start": 76808.685289885,
+          "event": "sample_init",
+          "sample": {
+            "input": "attachment://a1a61597c77b10ee6b4fddebdbeb8b3f",
+            "choices": [
+              "A",
+              "B",
+              "C",
+              "D"
+            ],
+            "target": "B",
+            "id": 5
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "U6Xmm9EJj9VZiwESEBeVrt",
+                "content": "attachment://a1a61597c77b10ee6b4fddebdbeb8b3f",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {}
+          }
+        },
+        {
+          "uuid": "aaK3PZd5uKRErrjWgMwc9C",
+          "span_id": "ad5f63f7735a40f083d56660fcc4c6b6",
+          "timestamp": "2026-03-06T13:25:47.094076+01:00",
+          "working_start": 76808.685354418,
+          "event": "span_end",
+          "id": "ad5f63f7735a40f083d56660fcc4c6b6"
+        },
+        {
+          "uuid": "LnKBPJnoXuEz2D96QtBBGb",
+          "span_id": "6f29a4e919de4160a96cbec179d0a6ee",
+          "timestamp": "2026-03-06T13:25:47.129060+01:00",
+          "working_start": 0.03495582700998057,
+          "event": "span_begin",
+          "id": "6f29a4e919de4160a96cbec179d0a6ee",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "2REDQNtMeAAYuJ6tD2PQKp",
+          "span_id": "272713c4b4bc4777826cf89b065dd9a6",
+          "timestamp": "2026-03-06T13:25:47.129117+01:00",
+          "working_start": 0.03501365499687381,
+          "event": "span_begin",
+          "id": "272713c4b4bc4777826cf89b065dd9a6",
+          "parent_id": "6f29a4e919de4160a96cbec179d0a6ee",
+          "type": "solver",
+          "name": "system_message"
+        },
+        {
+          "uuid": "WaqdxpZRaiYBGEeA39ELJo",
+          "span_id": "272713c4b4bc4777826cf89b065dd9a6",
+          "timestamp": "2026-03-06T13:25:47.129441+01:00",
+          "working_start": 0.03533883600903209,
+          "event": "state",
+          "changes": [
+            {
+              "op": "remove",
+              "path": "/messages/0/source"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "You are a security expert who answers questions.",
+              "replaced": "Question: Which term refers to the measure of information security, including the verification and assurance of the confidentiality, integrity, and availability of data and assets?\nOptions: A) Information Security, B) Information Assurance, C) Cybersecurity, D) Risk Management\n\n"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/id",
+              "value": "M3tjMfRt94MUySFFhbUgXh",
+              "replaced": "U6Xmm9EJj9VZiwESEBeVrt"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/role",
+              "value": "system",
+              "replaced": "user"
+            },
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "U6Xmm9EJj9VZiwESEBeVrt",
+                "content": "attachment://a1a61597c77b10ee6b4fddebdbeb8b3f",
+                "source": "input",
+                "role": "user"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "b5oRYuD9s37sv5yspbYwJs",
+          "span_id": "272713c4b4bc4777826cf89b065dd9a6",
+          "timestamp": "2026-03-06T13:25:47.129496+01:00",
+          "working_start": 0.03539247400476597,
+          "event": "span_end",
+          "id": "272713c4b4bc4777826cf89b065dd9a6"
+        },
+        {
+          "uuid": "jmwV3SVymvj2Q73rDerPNt",
+          "span_id": "dde89ee5ed4c44e3a154ca975e772018",
+          "timestamp": "2026-03-06T13:25:47.129549+01:00",
+          "working_start": 0.035445273999357596,
+          "event": "span_begin",
+          "id": "dde89ee5ed4c44e3a154ca975e772018",
+          "parent_id": "6f29a4e919de4160a96cbec179d0a6ee",
+          "type": "solver",
+          "name": "multiple_choice"
+        },
+        {
+          "uuid": "GKxuV3BMtrhmdNJJLU7wy3",
+          "span_id": "dde89ee5ed4c44e3a154ca975e772018",
+          "timestamp": "2026-03-06T13:25:47.129785+01:00",
+          "working_start": 0.03568133800581563,
+          "event": "model",
+          "model": "hf/Qwen/Qwen2.5-7B-Instruct",
+          "input": [
+            {
+              "id": "M3tjMfRt94MUySFFhbUgXh",
+              "content": "You are a security expert who answers questions.",
+              "role": "system"
+            },
+            {
+              "id": "U6Xmm9EJj9VZiwESEBeVrt",
+              "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nQuestion: Which term refers to the measure of information security, including the verification and assurance of the confidentiality, integrity, and availability of data and assets?\nOptions: A) Information Security, B) Information Assurance, C) Cybersecurity, D) Risk Management\n\n\n\nA) A\nB) B\nC) C\nD) D",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {
+            "max_tokens": 2048
+          },
+          "output": {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "jeHkCfgHer5DNyeLwT6RPp",
+                  "content": "ANSWER: B",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            ],
+            "completion": "ANSWER: B",
+            "usage": {
+              "input_tokens": 182,
+              "output_tokens": 5,
+              "total_tokens": 187
+            },
+            "time": 2.0831424979987787,
+            "metadata": {
+              "hidden_states": null
+            }
+          },
+          "completed": "2026-03-06T13:25:49.301606+01:00",
+          "working_time": 2.0831424979987787
+        },
+        {
+          "uuid": "ZKGFJwBxe2joVvaaesmZPE",
+          "span_id": "dde89ee5ed4c44e3a154ca975e772018",
+          "timestamp": "2026-03-06T13:25:49.301953+01:00",
+          "working_start": 2.1193501589877997,
+          "event": "state",
+          "changes": [
+            {
+              "op": "add",
+              "path": "/output/metadata",
+              "value": {
+                "hidden_states": null
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 182,
+                "output_tokens": 5,
+                "total_tokens": 187
+              }
+            },
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 2.0831424979987787
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "jeHkCfgHer5DNyeLwT6RPp",
+                  "content": "ANSWER: B",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "Qwen/Qwen2.5-7B-Instruct"
+                },
+                "stop_reason": "unknown"
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "ANSWER: B",
+              "replaced": ""
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "Qwen/Qwen2.5-7B-Instruct",
+              "replaced": "hf/Qwen/Qwen2.5-7B-Instruct"
+            },
+            {
+              "op": "replace",
+              "path": "/messages/1/content",
+              "value": "attachment://0afa26424bad6f489fd8956cb02abada",
+              "replaced": "Question: Which term refers to the measure of information security, including the verification and assurance of the confidentiality, integrity, and availability of data and assets?\nOptions: A) Information Security, B) Information Assurance, C) Cybersecurity, D) Risk Management\n\n"
+            },
+            {
+              "op": "add",
+              "path": "/messages/2",
+              "value": {
+                "id": "jeHkCfgHer5DNyeLwT6RPp",
+                "content": "ANSWER: B",
+                "source": "generate",
+                "role": "assistant",
+                "model": "Qwen/Qwen2.5-7B-Instruct"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "jgPE9WR4uPCQTZ46dZfdGu",
+          "span_id": "dde89ee5ed4c44e3a154ca975e772018",
+          "timestamp": "2026-03-06T13:25:49.302013+01:00",
+          "working_start": 2.1194093839876587,
+          "event": "span_end",
+          "id": "dde89ee5ed4c44e3a154ca975e772018"
+        },
+        {
+          "uuid": "GrY89xxkZGSu3mC5BPS4cF",
+          "span_id": "6f29a4e919de4160a96cbec179d0a6ee",
+          "timestamp": "2026-03-06T13:25:49.302071+01:00",
+          "working_start": 2.1194669339893153,
+          "event": "span_end",
+          "id": "6f29a4e919de4160a96cbec179d0a6ee"
+        },
+        {
+          "uuid": "SEpUyyZY5CswRpcWKdV4y5",
+          "span_id": "94d9e9fe26fd4072b3f5782d7bcb9c7e",
+          "timestamp": "2026-03-06T13:25:49.319030+01:00",
+          "working_start": 2.136425786986365,
+          "event": "span_begin",
+          "id": "94d9e9fe26fd4072b3f5782d7bcb9c7e",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "ZkGo667CsRrqFXLj8KfUiE",
+          "span_id": "2ea29bfbabe744bbba28170743511bf4",
+          "timestamp": "2026-03-06T13:25:49.319082+01:00",
+          "working_start": 2.1364783069875557,
+          "event": "span_begin",
+          "id": "2ea29bfbabe744bbba28170743511bf4",
+          "parent_id": "94d9e9fe26fd4072b3f5782d7bcb9c7e",
+          "type": "scorer",
+          "name": "choice"
+        },
+        {
+          "uuid": "2UTh7svCvVvdfpetmSHDmx",
+          "span_id": "2ea29bfbabe744bbba28170743511bf4",
+          "timestamp": "2026-03-06T13:25:49.319135+01:00",
+          "working_start": 2.1365311069966992,
+          "event": "score",
+          "score": {
+            "value": "C",
+            "answer": "B",
+            "explanation": "ANSWER: B",
+            "history": []
+          },
+          "target": "B",
+          "intermediate": false
+        },
+        {
+          "uuid": "b643sqEZzmTeeNCoxhe76u",
+          "span_id": "2ea29bfbabe744bbba28170743511bf4",
+          "timestamp": "2026-03-06T13:25:49.319192+01:00",
+          "working_start": 2.136588656983804,
+          "event": "span_end",
+          "id": "2ea29bfbabe744bbba28170743511bf4"
+        },
+        {
+          "uuid": "g2vxjYykW6Yw2W84QxaCY9",
+          "span_id": "94d9e9fe26fd4072b3f5782d7bcb9c7e",
+          "timestamp": "2026-03-06T13:25:49.319241+01:00",
+          "working_start": 2.1366378249949776,
+          "event": "span_end",
+          "id": "94d9e9fe26fd4072b3f5782d7bcb9c7e"
+        }
+      ],
+      "model_usage": {
+        "hf/Qwen/Qwen2.5-7B-Instruct": {
+          "input_tokens": 182,
+          "output_tokens": 5,
+          "total_tokens": 187
+        }
+      },
+      "total_time": 2.241,
+      "working_time": 2.153,
+      "uuid": "MErohvWFWNsiY5J6w5BbN5",
+      "error_retries": [],
+      "attachments": {
+        "a1a61597c77b10ee6b4fddebdbeb8b3f": "Question: Which term refers to the measure of information security, including the verification and assurance of the confidentiality, integrity, and availability of data and assets?\nOptions: A) Information Security, B) Information Assurance, C) Cybersecurity, D) Risk Management\n\n",
+        "0afa26424bad6f489fd8956cb02abada": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D.\n\nQuestion: Which term refers to the measure of information security, including the verification and assurance of the confidentiality, integrity, and availability of data and assets?\nOptions: A) Information Security, B) Information Assurance, C) Cybersecurity, D) Risk Management\n\n\n\nA) A\nB) B\nC) C\nD) D"
+      }
+    }
+  ],
+  "reductions": [
+    {
+      "scorer": "choice",
+      "samples": [
+        {
+          "value": 1.0,
+          "answer": "D",
+          "explanation": "ANSWER: D",
+          "history": [],
+          "sample_id": 1
+        },
+        {
+          "value": 1.0,
+          "answer": "C",
+          "explanation": "ANSWER: C",
+          "history": [],
+          "sample_id": 2
+        },
+        {
+          "value": 1.0,
+          "answer": "A",
+          "explanation": "ANSWER: A",
+          "history": [],
+          "sample_id": 3
+        },
+        {
+          "value": 1.0,
+          "answer": "D",
+          "explanation": "ANSWER: D",
+          "history": [],
+          "sample_id": 4
+        },
+        {
+          "value": 1.0,
+          "answer": "B",
+          "explanation": "ANSWER: B",
+          "history": [],
+          "sample_id": 5
+        }
+      ]
+    }
+  ]
+}
