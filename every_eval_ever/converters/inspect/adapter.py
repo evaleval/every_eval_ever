@@ -42,7 +42,6 @@ def _require_inspect_dependencies() -> None:
         ) from _INSPECT_IMPORT_ERROR
 
 from every_eval_ever.converters import SCHEMA_VERSION
-
 from every_eval_ever.converters.common.adapter import (
     AdapterMetadata,
     BaseEvaluationAdapter,
@@ -54,16 +53,14 @@ from every_eval_ever.converters.common.utils import (
     get_current_unix_timestamp,
     sha256_file,
 )
-
 from every_eval_ever.converters.inspect.instance_level_adapter import (
-    InspectInstanceLevelDataAdapter
+    InspectInstanceLevelDataAdapter,
 )
 from every_eval_ever.converters.inspect.utils import (
     apply_supplemental_eval_details,
     extract_model_info_from_model_path,
     parse_supplemental_eval_details,
 )
-
 from every_eval_ever.eval_types import (
     AgenticEvalConfig,
     AvailableTool,
@@ -91,7 +88,6 @@ from every_eval_ever.eval_types import (
     StandardError,
     Uncertainty,
 )
-
 
 logger = logging.getLogger(__name__)
 
@@ -579,7 +575,10 @@ class InspectAIAdapter(BaseEvaluationAdapter):
                     HashAlgorithm.sha256.value,
                     evaluation_dir,
                 ).convert_instance_level_logs(
-                    evaluation_task_name, model_info.id, raw_eval_log.samples
+                    evaluation_task_name,
+                    model_info.id,
+                    raw_eval_log.samples,
+                    raw_eval_log.reductions,
                 )
             )
 

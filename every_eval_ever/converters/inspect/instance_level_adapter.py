@@ -1,10 +1,10 @@
 import json
 from pathlib import Path
-from typing import Any, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 _INSPECT_IMPORT_ERROR: Exception | None = None
 try:
-    from inspect_ai.log import EvalSample
+    from inspect_ai.log import EvalSample, EvalSampleReductions
     from inspect_ai.model import (
         ChatMessage,
         ChatMessageAssistant,
@@ -18,7 +18,7 @@ except (
     _INSPECT_IMPORT_ERROR = ex
     ChatMessage = ChatMessageAssistant = ChatMessageTool = ChatMessageUser = (
         ModelUsage
-    ) = EvalSample = Any  # type: ignore[assignment]
+    ) = EvalSample = EvalSampleReductions = Any  # type: ignore[assignment]
 
 
 def _require_inspect_dependencies() -> None:
@@ -164,10 +164,135 @@ class InspectInstanceLevelDataAdapter:
             f'Instance-level eval log was successfully saved to {self.path} path.'
         )
 
+    def _normalize_sample_id(self, sample_id: Any) -> str:
+        return '' if sample_id is None else str(sample_id)
+
+    def _parse_score_value(
+        self, value: Any
+    ) -> Tuple[float | None, bool]:
+        if isinstance(value, bool):
+            return (1.0 if value else 0.0), True
+
+        if isinstance(value, (int, float)):
+            score = float(value)
+            return score, score in {0.0, 1.0}
+
+        if isinstance(value, str):
+            normalized = value.strip()
+            normalized_upper = normalized.upper()
+            if normalized_upper == 'C':
+                return 1.0, True
+            if normalized_upper == 'I':
+                return 0.0, True
+            if normalized_upper == 'TRUE':
+                return 1.0, True
+            if normalized_upper == 'FALSE':
+                return 0.0, True
+
+            try:
+                score = float(normalized)
+            except (TypeError, ValueError):
+                return None, False
+
+            return score, score in {0.0, 1.0}
+
+        return None, False
+
+    def _build_reduction_lookups(
+        self, reductions: List[EvalSampleReductions] | None
+    ) -> Tuple[
+        Dict[Tuple[str, str], Tuple[float, bool]],
+        Dict[str, List[Tuple[float, bool]]],
+    ]:
+        reductions_by_sample_and_scorer: Dict[
+            Tuple[str, str], Tuple[float, bool]
+        ] = {}
+        reductions_by_sample: Dict[str, List[Tuple[float, bool]]] = {}
+
+        if not reductions:
+            return reductions_by_sample_and_scorer, reductions_by_sample
+
+        for reduction in reductions:
+            scorer_name = self._normalize_sample_id(
+                getattr(reduction, 'scorer', None)
+            )
+            reduced_samples = getattr(reduction, 'samples', None) or []
+
+            for reduced_sample in reduced_samples:
+                sample_id = self._normalize_sample_id(
+                    getattr(reduced_sample, 'sample_id', None)
+                )
+                if not sample_id:
+                    continue
+
+                parsed_score, parsed_is_binary = self._parse_score_value(
+                    getattr(reduced_sample, 'value', None)
+                )
+                if parsed_score is None:
+                    continue
+
+                reductions_by_sample[sample_id] = (
+                    reductions_by_sample.get(sample_id, [])
+                    + [(parsed_score, parsed_is_binary)]
+                )
+
+                if scorer_name:
+                    reductions_by_sample_and_scorer[(sample_id, scorer_name)] = (
+                        parsed_score,
+                        parsed_is_binary,
+                    )
+
+        return reductions_by_sample_and_scorer, reductions_by_sample
+
+    def _resolve_evaluation_score(
+        self,
+        sample: EvalSample,
+        response_in_reference: bool,
+        reductions_by_sample_and_scorer: Dict[
+            Tuple[str, str], Tuple[float, bool]
+        ],
+        reductions_by_sample: Dict[str, List[Tuple[float, bool]]],
+    ) -> Tuple[float, bool]:
+        sample_id = self._normalize_sample_id(getattr(sample, 'id', None))
+
+        if sample.scores:
+            for scorer_name in sample.scores.keys():
+                scorer_key = self._normalize_sample_id(scorer_name)
+                matched = reductions_by_sample_and_scorer.get(
+                    (sample_id, scorer_key)
+                )
+                if matched is not None:
+                    return matched
+
+        sample_reduction_scores = reductions_by_sample.get(sample_id, [])
+        unique_sample_reduction_scores = set(sample_reduction_scores)
+        if len(unique_sample_reduction_scores) == 1:
+            return unique_sample_reduction_scores.pop()
+
+        if sample.scores:
+            for score in sample.scores.values():
+                parsed_score, parsed_is_binary = self._parse_score_value(
+                    getattr(score, 'value', None)
+                )
+                if parsed_score is not None:
+                    return parsed_score, parsed_is_binary
+
+        fallback_score = 1.0 if response_in_reference else 0.0
+        return fallback_score, True
+
     def convert_instance_level_logs(
-        self, evaluation_name: str, model_id: str, samples: List[EvalSample]
+        self,
+        evaluation_name: str,
+        model_id: str,
+        samples: List[EvalSample],
+        reductions: List[EvalSampleReductions] | None = None,
     ) -> Tuple[str, int]:
         instance_level_logs: List[InstanceLevelEvaluationLog] = []
+        reductions_by_sample_and_scorer, reductions_by_sample = (
+            self._build_reduction_lookups(reductions)
+        )
+
+        print(reductions_by_sample)
 
         for sample in samples:
             sample_input = Input(
@@ -230,9 +355,22 @@ class InspectInstanceLevelDataAdapter:
                 sample_output = None
                 messages = processed_messages
 
+            response_in_reference = response in sample_input.reference
+            evaluation_score, score_is_binary = self._resolve_evaluation_score(
+                sample,
+                response_in_reference,
+                reductions_by_sample_and_scorer,
+                reductions_by_sample,
+            )
+            is_correct = (
+                evaluation_score > 0
+                if score_is_binary
+                else response_in_reference
+            )
+
             evaluation = Evaluation(
-                score=1.0 if response in sample_input.reference else 0.0,
-                is_correct=response in sample_input.reference,
+                score=evaluation_score,
+                is_correct=is_correct,
                 num_turns=len(messages) if messages else 1,
                 tool_calls_count=sum(
                     len(msg.tool_calls) if msg.tool_calls else 0

@@ -8,6 +8,7 @@ pytest.importorskip(
 import json
 import tempfile
 from pathlib import Path
+from types import SimpleNamespace
 
 from inspect_ai.model import ChatMessageAssistant, ChatMessageUser, ContentText
 
@@ -220,3 +221,127 @@ def test_serialize_input_concatenates_list_content():
         adapter._serialize_input([msg_list])
         == 'Context: some context. Question: what is X?'
     )
+
+
+def _convert_single_synthetic_sample(
+    sample: SimpleNamespace,
+    reductions: list[SimpleNamespace] | None = None,
+) -> InstanceLevelEvaluationLog:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        adapter = InspectInstanceLevelDataAdapter(
+            'synthetic_test', 'jsonl', 'sha256', tmpdir
+        )
+        path, rows_count = adapter.convert_instance_level_logs(
+            'synthetic_eval',
+            'synthetic/model',
+            [sample],
+            reductions=reductions,
+        )
+        assert rows_count == 1
+        rows = Path(path).read_text(encoding='utf-8').splitlines()
+        assert len(rows) == 1
+        return InstanceLevelEvaluationLog.model_validate(json.loads(rows[0]))
+
+
+def _make_synthetic_sample(
+    *,
+    sample_id: str,
+    target: str,
+    response_content: str,
+    score_value: str | float | int | bool | None = None,
+    score_answer: str | None = None,
+    score_explanation: str | None = None,
+    scorer_name: str = 'choice',
+) -> SimpleNamespace:
+    sample_scores = None
+    if score_value is not None:
+        sample_scores = {
+            scorer_name: SimpleNamespace(
+                value=score_value,
+                answer=score_answer,
+                explanation=score_explanation,
+            )
+        }
+
+    return SimpleNamespace(
+        id=sample_id,
+        epoch=1,
+        input='Synthetic prompt',
+        target=target,
+        choices=None,
+        messages=[],
+        output=SimpleNamespace(
+            choices=[
+                SimpleNamespace(
+                    message=SimpleNamespace(content=response_content)
+                )
+            ],
+            usage=None,
+            stop_reason=None,
+        ),
+        scores=sample_scores,
+        total_time=None,
+        working_time=None,
+        error=None,
+    )
+
+
+def test_reductions_override_answer_match_heuristic_for_score():
+    sample = _make_synthetic_sample(
+        sample_id='sample_1',
+        target='target_answer',
+        response_content='generated_response',
+        score_value='C',
+        score_answer='target_answer',
+        scorer_name='bfcl_scorer',
+    )
+    reductions = [
+        SimpleNamespace(
+            scorer='bfcl_scorer',
+            samples=[
+                SimpleNamespace(
+                    sample_id='sample_1',
+                    value=0,
+                    answer='target_answer',
+                    explanation='',
+                )
+            ],
+        )
+    ]
+
+    instance_log = _convert_single_synthetic_sample(
+        sample, reductions=reductions
+    )
+
+    assert instance_log.evaluation.score == 0.0
+    assert instance_log.evaluation.is_correct is False
+
+
+def test_score_value_ci_fallback_without_reductions():
+    sample = _make_synthetic_sample(
+        sample_id='sample_2',
+        target='target_answer',
+        response_content='non_matching_answer',
+        score_value='C',
+        scorer_name='choice',
+    )
+
+    instance_log = _convert_single_synthetic_sample(sample, reductions=None)
+
+    assert instance_log.evaluation.score == 1.0
+    assert instance_log.evaluation.is_correct is True
+
+
+def test_unparseable_score_value_falls_back_to_response_reference_match():
+    sample = _make_synthetic_sample(
+        sample_id='sample_3',
+        target='target_answer',
+        response_content='target_answer',
+        score_value='unknown',
+        scorer_name='choice',
+    )
+
+    instance_log = _convert_single_synthetic_sample(sample, reductions=None)
+
+    assert instance_log.evaluation.score == 1.0
+    assert instance_log.evaluation.is_correct is True
