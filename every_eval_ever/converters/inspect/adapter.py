@@ -578,7 +578,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
                     evaluation_task_name,
                     model_info.id,
                     raw_eval_log.samples,
-                    raw_eval_log.reductions,
+                    getattr(raw_eval_log, "reductions", None),
                 )
             )
 

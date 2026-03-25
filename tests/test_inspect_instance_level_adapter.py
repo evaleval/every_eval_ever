@@ -332,6 +332,21 @@ def test_score_value_ci_fallback_without_reductions():
     assert instance_log.evaluation.is_correct is True
 
 
+def test_non_binary_numeric_score_marks_correct_even_without_ref_match():
+    sample = _make_synthetic_sample(
+        sample_id='sample_2b',
+        target='target_answer',
+        response_content='non_matching_answer',
+        score_value=0.6,
+        scorer_name='choice',
+    )
+
+    instance_log = _convert_single_synthetic_sample(sample, reductions=None)
+
+    assert instance_log.evaluation.score == 0.6
+    assert instance_log.evaluation.is_correct is True
+
+
 def test_unparseable_score_value_falls_back_to_response_reference_match():
     sample = _make_synthetic_sample(
         sample_id='sample_3',
@@ -345,3 +360,18 @@ def test_unparseable_score_value_falls_back_to_response_reference_match():
 
     assert instance_log.evaluation.score == 1.0
     assert instance_log.evaluation.is_correct is True
+
+
+def test_unparseable_score_value_falls_back_to_reference_mismatch():
+    sample = _make_synthetic_sample(
+        sample_id='sample_3b',
+        target='target_answer',
+        response_content='non_matching_answer',
+        score_value='unknown',
+        scorer_name='choice',
+    )
+
+    instance_log = _convert_single_synthetic_sample(sample, reductions=None)
+
+    assert instance_log.evaluation.score == 0.0
+    assert instance_log.evaluation.is_correct is False

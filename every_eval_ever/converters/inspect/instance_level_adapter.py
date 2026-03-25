@@ -262,20 +262,22 @@ class InspectInstanceLevelDataAdapter:
                     (sample_id, scorer_key)
                 )
                 if matched is not None:
-                    return matched
+                    score, _ = matched
+                    return score, False
 
         sample_reduction_scores = reductions_by_sample.get(sample_id, [])
         unique_sample_reduction_scores = set(sample_reduction_scores)
         if len(unique_sample_reduction_scores) == 1:
-            return unique_sample_reduction_scores.pop()
+            score, _ = unique_sample_reduction_scores.pop()
+            return score, False
 
         if sample.scores:
             for score in sample.scores.values():
-                parsed_score, parsed_is_binary = self._parse_score_value(
+                parsed_score, _ = self._parse_score_value(
                     getattr(score, 'value', None)
                 )
                 if parsed_score is not None:
-                    return parsed_score, parsed_is_binary
+                    return parsed_score, False
 
         fallback_score = 1.0 if response_in_reference else 0.0
         return fallback_score, True
@@ -291,8 +293,6 @@ class InspectInstanceLevelDataAdapter:
         reductions_by_sample_and_scorer, reductions_by_sample = (
             self._build_reduction_lookups(reductions)
         )
-
-        print(reductions_by_sample)
 
         for sample in samples:
             sample_input = Input(
@@ -356,16 +356,19 @@ class InspectInstanceLevelDataAdapter:
                 messages = processed_messages
 
             response_in_reference = response in sample_input.reference
-            evaluation_score, score_is_binary = self._resolve_evaluation_score(
+            (
+                evaluation_score,
+                is_fallback_score,
+            ) = self._resolve_evaluation_score(
                 sample,
                 response_in_reference,
                 reductions_by_sample_and_scorer,
                 reductions_by_sample,
             )
             is_correct = (
-                evaluation_score > 0
-                if score_is_binary
-                else response_in_reference
+                response_in_reference
+                if is_fallback_score
+                else evaluation_score > 0
             )
 
             evaluation = Evaluation(
