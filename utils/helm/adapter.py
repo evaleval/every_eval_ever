@@ -274,8 +274,12 @@ def convert(
                                 'tab': str(tab_name),
                             },
                         ),
-                        generation_config=GenerationConfig(
-                            additional_details=generation_config
+                        generation_config=(
+                            GenerationConfig(
+                                additional_details=generation_config
+                            )
+                            if generation_config
+                            else None
                         ),
                     )
                 else:
