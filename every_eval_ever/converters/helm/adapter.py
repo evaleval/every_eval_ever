@@ -231,16 +231,17 @@ class HELMAdapter(BaseEvaluationAdapter):
             adapter_spec: The global adapter specification from run_spec.json.
             request: The specific request object from scenario_state.json (optional).
         """
-        temperature = request_state.request.temperature or getattr(
+        req = request_state.request
+        temperature = req.temperature if req.temperature is not None else getattr(
             adapter_spec, 'temperature', None
         )
-        max_tokens = request_state.request.max_tokens or getattr(
+        max_tokens = req.max_tokens if req.max_tokens is not None else getattr(
             adapter_spec, 'max_tokens', None
         )
-        top_p = request_state.request.top_p or getattr(
+        top_p = req.top_p if req.top_p is not None else getattr(
             adapter_spec, 'top_p', None
         )
-        top_k = request_state.request.top_k_per_token or getattr(
+        top_k = req.top_k_per_token if req.top_k_per_token is not None else getattr(
             adapter_spec, 'top_k_per_token', None
         )
 
