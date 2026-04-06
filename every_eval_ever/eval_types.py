@@ -211,7 +211,7 @@ class GenerationArgs(BaseModel):
     )
     reasoning: bool | None = Field(
         None,
-        description='Whether reasoning orchain-of-thought was used to generate results',
+        description='Whether reasoning or chain-of-thought was used to generate results',
     )
     prompt_template: str | None = Field(
         None,
