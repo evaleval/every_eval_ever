@@ -65,6 +65,35 @@ def load_rows(input_json: Path) -> list[dict]:
     return json.loads(input_json.read_text(encoding="utf-8"))
 
 
+def compute_metric_bounds(rows: list[dict]) -> dict[str, dict[str, float]]:
+    rating_values = [float(row["rating"]) for row in rows]
+    rank_values = [float(row["rank"]) for row in rows]
+    cost_values = [
+        float(row["cost_per_100_calls_usd"])
+        for row in rows
+        if row.get("cost_per_100_calls_usd") is not None
+    ]
+
+    bounds = {
+        "elo": {
+            "min_score": min(rating_values),
+            "max_score": max(rating_values),
+        },
+        "rank": {
+            "min_score": 1.0,
+            "max_score": max(rank_values),
+        },
+    }
+
+    if cost_values:
+        bounds["cost_per_100_calls_usd"] = {
+            "min_score": 0.0,
+            "max_score": max(cost_values),
+        }
+
+    return bounds
+
+
 def slugify_model_name(raw_model_id: str) -> str:
     # Keep close to source aliases. Lowercase, preserve dots and hyphens.
     return raw_model_id.strip().lower()
@@ -81,18 +110,25 @@ def normalize_model(raw_model_id: str) -> tuple[str, str]:
     return developer_name, model_name
 
 
-def make_results(row: dict) -> list[dict]:
+def make_results(
+    row: dict, metric_bounds: dict[str, dict[str, float]]
+) -> list[dict]:
     results = []
 
     results.append(
         {
             "evaluation_result_id": "overall::elo",
-            "evaluation_name": "overall",
+            "evaluation_name": "overall_elo",
             "source_data": make_source_data(),
             "metric_config": {
                 "metric_id": "elo",
                 "metric_name": "Elo rating",
+                "metric_type": "continuous",
+                "metric_kind": "elo",
+                "metric_unit": "points",
                 "lower_is_better": False,
+                "score_type": "continuous",
+                **metric_bounds["elo"],
                 "additional_details": {
                     "raw_metric_field": "rating",
                 },
@@ -112,12 +148,17 @@ def make_results(row: dict) -> list[dict]:
     results.append(
         {
             "evaluation_result_id": "overall::rank",
-            "evaluation_name": "overall",
+            "evaluation_name": "overall_rank",
             "source_data": make_source_data(),
             "metric_config": {
                 "metric_id": "rank",
                 "metric_name": "Rank",
+                "metric_type": "continuous",
+                "metric_kind": "rank",
+                "metric_unit": "position",
                 "lower_is_better": True,
+                "score_type": "continuous",
+                **metric_bounds["rank"],
             },
             "score_details": {
                 "score": float(row["rank"]),
@@ -129,12 +170,17 @@ def make_results(row: dict) -> list[dict]:
         results.append(
             {
                 "evaluation_result_id": "overall::cost_per_100_calls_usd",
-                "evaluation_name": "overall",
+                "evaluation_name": "overall_cost_per_100_calls_usd",
                 "source_data": make_source_data(),
                 "metric_config": {
                     "metric_id": "cost_per_100_calls_usd",
                     "metric_name": "Cost per 100 calls",
+                    "metric_type": "continuous",
+                    "metric_kind": "cost",
+                    "metric_unit": "usd",
                     "lower_is_better": True,
+                    "score_type": "continuous",
+                    **metric_bounds["cost_per_100_calls_usd"],
                 },
                 "score_details": {
                     "score": float(row["cost_per_100_calls_usd"]),
@@ -145,7 +191,9 @@ def make_results(row: dict) -> list[dict]:
     return results
 
 
-def make_log(row: dict) -> tuple[dict, str, str]:
+def make_log(
+    row: dict, metric_bounds: dict[str, dict[str, float]]
+) -> tuple[dict, str, str]:
     raw_model_id = row["modelId"]
     developer_name, model_name = normalize_model(raw_model_id)
     ts = str(time.time())
@@ -176,7 +224,7 @@ def make_log(row: dict) -> tuple[dict, str, str]:
                 "raw_model_id": raw_model_id,
             },
         },
-        "evaluation_results": make_results(row),
+        "evaluation_results": make_results(row, metric_bounds),
     }
     return log, developer_name, model_name
 
@@ -189,8 +237,12 @@ def write_log(log: dict, out_root: Path, developer: str, model: str) -> Path:
     return out_path
 
 
-def export_one(row: dict, out_root: Path) -> Path:
-    log, developer, model = make_log(row)
+def export_one(
+    row: dict,
+    out_root: Path,
+    metric_bounds: dict[str, dict[str, float]],
+) -> Path:
+    log, developer, model = make_log(row, metric_bounds)
     return write_log(log, out_root, developer, model)
 
 
@@ -206,9 +258,11 @@ def main() -> None:
     if missing:
         raise SystemExit(f"Missing provider mappings for: {missing}")
 
+    metric_bounds = compute_metric_bounds(rows)
+
     exported = 0
     for row in rows:
-        out_path = export_one(row, args.output_dir)
+        out_path = export_one(row, args.output_dir, metric_bounds)
         print(out_path)
         exported += 1
 

@@ -24,6 +24,38 @@ def load_rows(input_json: Path) -> list[dict]:
     return json.loads(input_json.read_text(encoding="utf-8"))
 
 
+def compute_metric_bounds(rows: list[dict]) -> dict[str, dict[str, float]]:
+    cost_per_task_values = [
+        float(row["costPerTask"])
+        for row in rows
+        if row.get("costPerTask") is not None
+    ]
+    cost_values = [
+        float(row["cost"]) for row in rows if row.get("cost") is not None
+    ]
+
+    bounds = {
+        "score": {
+            "min_score": 0.0,
+            "max_score": 1.0,
+        }
+    }
+
+    if cost_per_task_values:
+        bounds["cost_per_task"] = {
+            "min_score": 0.0,
+            "max_score": max(cost_per_task_values),
+        }
+
+    if cost_values:
+        bounds["cost"] = {
+            "min_score": 0.0,
+            "max_score": max(cost_values),
+        }
+
+    return bounds
+
+
 def infer_developer(raw_model_id: str) -> str:
     s = raw_model_id.strip().lower().replace("_", "-")
 
@@ -112,7 +144,11 @@ def choose_best_row(rows: list[dict], developer_name: str) -> dict:
     )[0]
 
 
-def make_results(rows_for_canonical: list[dict], developer_name: str) -> list[dict]:
+def make_results(
+    rows_for_canonical: list[dict],
+    developer_name: str,
+    metric_bounds: dict[str, dict[str, float]],
+) -> list[dict]:
     results = []
     by_dataset = defaultdict(list)
 
@@ -131,7 +167,11 @@ def make_results(rows_for_canonical: list[dict], developer_name: str) -> list[di
                 "metric_config": {
                     "metric_id": "score",
                     "metric_name": "ARC score",
+                    "metric_kind": "accuracy",
+                    "metric_unit": "proportion",
                     "lower_is_better": False,
+                    "score_type": "continuous",
+                    **metric_bounds["score"],
                     "additional_details": {
                         "raw_metric_field": "score",
                     },
@@ -159,7 +199,11 @@ def make_results(rows_for_canonical: list[dict], developer_name: str) -> list[di
                     "metric_config": {
                         "metric_id": "cost_per_task",
                         "metric_name": "Cost per task",
+                        "metric_kind": "cost",
+                        "metric_unit": "usd",
                         "lower_is_better": True,
+                        "score_type": "continuous",
+                        **metric_bounds["cost_per_task"],
                         "additional_details": {
                             "raw_metric_field": "costPerTask",
                         },
@@ -186,7 +230,11 @@ def make_results(rows_for_canonical: list[dict], developer_name: str) -> list[di
                     "metric_config": {
                         "metric_id": "cost",
                         "metric_name": "Cost",
+                        "metric_kind": "cost",
+                        "metric_unit": "usd",
                         "lower_is_better": True,
+                        "score_type": "continuous",
+                        **metric_bounds["cost"],
                         "additional_details": {
                             "raw_metric_field": "cost",
                         },
@@ -208,7 +256,12 @@ def make_results(rows_for_canonical: list[dict], developer_name: str) -> list[di
     return results
 
 
-def make_log(rows_for_canonical: list[dict], developer_name: str, model_name: str) -> tuple[dict, str, str]:
+def make_log(
+    rows_for_canonical: list[dict],
+    developer_name: str,
+    model_name: str,
+    metric_bounds: dict[str, dict[str, float]],
+) -> tuple[dict, str, str]:
     primary_raw_model_id = choose_primary_raw_model_id(rows_for_canonical, developer_name)
     all_aliases = sorted({row["modelId"] for row in rows_for_canonical})
     ts = str(time.time())
@@ -241,7 +294,9 @@ def make_log(rows_for_canonical: list[dict], developer_name: str, model_name: st
                 "raw_model_aliases_json": json.dumps(all_aliases),
             },
         },
-        "evaluation_results": make_results(rows_for_canonical, developer_name),
+        "evaluation_results": make_results(
+            rows_for_canonical, developer_name, metric_bounds
+        ),
     }
 
     return log, developer_name, model_name
@@ -263,6 +318,7 @@ def main() -> None:
 
     rows = load_rows(args.input_json)
     rows = [r for r in rows if r.get("display") is True]
+    metric_bounds = compute_metric_bounds(rows)
 
     by_canonical = defaultdict(list)
     for row in rows:
@@ -271,7 +327,12 @@ def main() -> None:
 
     exported = 0
     for (developer_name, model_name), rows_for_canonical in sorted(by_canonical.items()):
-        log, developer, model = make_log(rows_for_canonical, developer_name, model_name)
+        log, developer, model = make_log(
+            rows_for_canonical,
+            developer_name,
+            model_name,
+            metric_bounds,
+        )
         out_path = write_log(log, args.output_dir, developer, model)
         print(out_path)
         exported += 1
