@@ -334,16 +334,6 @@ def extract_model_info_from_model_path(model_path: str) -> ModelInfo:
     )
 
 
-def save_to_file(path: str, obj: BaseModel) -> bool:
-    json_str = obj.model_dump_json(indent=4, exclude_none=True)
-
-    obj_path = Path(path)
-    obj_path.mkdir(parents=True, exist_ok=True)
-
-    with open(obj_path, 'w') as json_file:
-        json_file.write(json_str)
-
-
 SYNTHETIC_METRIC_CONFIG_FIELDS = {
     "evaluation_description",
     "lower_is_better",
