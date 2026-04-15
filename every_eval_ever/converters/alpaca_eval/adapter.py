@@ -18,7 +18,7 @@ from every_eval_ever.eval_types import (
     ModelInfo,
     ScoreDetails,
     ScoreType,
-    SourceDataPrivate,
+    SourceDataUrl,
     SourceMetadata,
     SourceType,
     StandardError,
@@ -136,9 +136,10 @@ def _build_evaluation_results(
     """Build EvaluationResult list from a single CSV row."""
     results = []
 
-    source_data = SourceDataPrivate(
+    source_data = SourceDataUrl(
         dataset_name=cfg['source_name'],
-        source_type='other',
+        source_type='url',
+        url=['https://github.com/tatsu-lab/alpaca_eval'],
     )
 
     win_rate = _to_float(row.get('win_rate'))
