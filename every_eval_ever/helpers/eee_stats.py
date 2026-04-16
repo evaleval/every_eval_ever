@@ -1,8 +1,9 @@
 """Display and summarize Every Eval Ever dataset statistics."""
 
 import argparse
+import re
 import sys
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 import duckdb
 from huggingface_hub import HfFileSystem
@@ -10,13 +11,6 @@ from tqdm import tqdm
 
 SEP = '=' * 60
 SUB = '-' * 60
-
-hffs = HfFileSystem()
-
-repo_id = 'evaleval/EEE_datastore'
-folder_path = 'viewer_parquets'
-
-HUGGING_FACE_DATASTORE = f'datasets/{repo_id}/{folder_path}/**/*.parquet'
 
 
 def execute_query(con, sql):
@@ -27,27 +21,6 @@ def section(title: str) -> None:
     print(f'\n{SEP}')
     print(f'  {title.upper()}')
     print(SUB)
-
-
-def print_startup_summary(
-    datastore: str,
-    table_name: str,
-    schema_urls: List[str],
-    instance_urls: List[str],
-) -> None:
-    print(f'\n{SEP}')
-    print('EVERY EVAL EVER STATS')
-    print(SUB)
-    print(f'datastore: {datastore}')
-    print(f'tables:    {table_name}_schema, {table_name}_instances')
-    print(f'schema files:   {len(schema_urls):,}')
-    print(f'instance files: {len(instance_urls):,}')
-
-
-def print_table_ready(name: str, row_count: int, file_count: int) -> None:
-    print(
-        f'\nLoaded {name}: {row_count:,} rows from {file_count:,} parquet files.\n'
-    )
 
 
 def get_parquet_columns(con, url: str) -> set[str]:
@@ -92,12 +65,9 @@ def build_instance_select_sql(available_columns: set[str]) -> str:
     return ',\n'.join(select_columns)
 
 
-def read_data(datastore) -> Optional[Tuple[List[str], List[str]]]:
+def read_data(datastore) -> Tuple[List[str], List[str]]:
+    hffs = HfFileSystem()
     files = hffs.glob(datastore)
-
-    if not files:
-        print('No parquet files found.')
-        return None
 
     schema_urls = [f'hf://{f}' for f in files if f.endswith('dataset.parquet')]
     instance_urls = [
@@ -109,8 +79,7 @@ def read_data(datastore) -> Optional[Tuple[List[str], List[str]]]:
 
 def analyze_data(con, schema_table, instance_table) -> None:
     print(f'\n{SEP}')
-    print('  EVERY EVAL EVER — DATASET ANALYSIS')
-    print(f'  tables: {schema_table}, {instance_table}')
+    print(f'Tables: {schema_table}, {instance_table}')
     print(SEP)
 
     # schema vs instance
@@ -136,28 +105,28 @@ def analyze_data(con, schema_table, instance_table) -> None:
     print(f'  {"schema rows":<32} {n_schema_rows:>10,}')
     print(f'  {"instance rows":<32} {n_instance_rows:>10,}')
 
-    # scehma vs instance columns
-    cols = execute_query(
+    # schema vs instance columns
+    schema_cols = execute_query(
         con,
         f"""
         SELECT column_name FROM information_schema.columns
         WHERE table_name = '{schema_table}';
     """,
     )
-    section(f'columns  ({len(cols)} total)')
-    for (col,) in cols:
-        print(f'  - {col}')
+    section(f'columns  ({len(schema_cols)} total)')
+    for (scc,) in schema_cols:
+        print(f'  - {scc}')
 
-    cols = execute_query(
+    instance_cols = execute_query(
         con,
         f"""
         SELECT column_name FROM information_schema.columns
         WHERE table_name = '{instance_table}';
     """,
     )
-    section(f'columns  ({len(cols)} total)')
-    for (col,) in cols:
-        print(f'  - {col}')
+    section(f'columns  ({len(instance_cols)} total)')
+    for (inc,) in instance_cols:
+        print(f'  - {inc}')
 
     # schema eval library names
     lib_count = execute_query(
@@ -173,7 +142,7 @@ def analyze_data(con, schema_table, instance_table) -> None:
     for lib, n in lib_count:
         print(f'  {str(lib):<42} {n:>8,}')
 
-    # scheme source metadata
+    # schema source metadata
     src_counts = execute_query(
         con,
         f"""
@@ -210,55 +179,56 @@ def analyze_data(con, schema_table, instance_table) -> None:
 
 
 def main():
+    repo_id = 'evaleval/EEE_datastore'
+    folder_path = 'viewer_parquets'
+
+    HUGGING_FACE_DATASTORE = f'datasets/{repo_id}/{folder_path}/**/*.parquet'
+    print(f'\n{SEP}')
+    print('EVERY EVAL EVER STATS')
+    print(f'DATASTORE: {HUGGING_FACE_DATASTORE}')
+    print(SUB)
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '--table', default='eee', help='Table name for database'
     )
 
     args = parser.parse_args()
-    table_name = args.table
+    if not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*', args.table):
+        parser.error('--table must be a valid SQL identifier')
 
-    datastore = HUGGING_FACE_DATASTORE
+    table_name = args.table
+    schema_table = f'{table_name}_schema'
+    instance_table = f'{table_name}_instances'
 
     with duckdb.connect(':memory:') as con:
-        con.execute('INSTALL httpfs; LOAD httpfs;')
-        data_urls = read_data(datastore)
+        schema_loaded = False
+        instance_loaded = False
 
-        if not data_urls:
-            sys.exit(1)
+        try:
+            con.execute('LOAD httpfs;')
+        except duckdb.Error:
+            con.execute('INSTALL httpfs;')
+            con.execute('LOAD httpfs;')
 
-        schema_urls, instance_urls = data_urls
-        print_startup_summary(
-            datastore=datastore,
-            table_name=table_name,
-            schema_urls=schema_urls,
-            instance_urls=instance_urls,
-        )
-
+        schema_urls, instance_urls = read_data(HUGGING_FACE_DATASTORE)
         if not schema_urls and not instance_urls:
+            print('No parquet files found')
             sys.exit(1)
 
         if schema_urls:
             con.execute(
                 f"""
-                CREATE OR REPLACE TABLE {table_name}_schema AS
+                CREATE OR REPLACE TABLE {schema_table} AS
                 SELECT * FROM read_parquet(?, union_by_name=true, filename=true)
             """,
                 [schema_urls],
             )
-            schema_row_count = execute_query(
-                con, f'SELECT COUNT(*) FROM {table_name}_schema;'
-            )[0][0]
-            print_table_ready(
-                name=f'{table_name}_schema',
-                row_count=schema_row_count,
-                file_count=len(schema_urls),
-            )
+            schema_loaded = True
 
         if instance_urls:
             con.execute(
                 f"""
-                CREATE OR REPLACE TABLE {table_name}_instances (
+                CREATE OR REPLACE TABLE {instance_table} (
                     schema_version VARCHAR NOT NULL,
                     evaluation_id VARCHAR NOT NULL,
                     model_id VARCHAR NOT NULL,
@@ -280,6 +250,11 @@ def main():
                 )
                 """
             )
+            # we load instance parquet files one by one because duckdb
+            # can fail when unioning files with mixed nested optional column types (an issue on duckdbs side)
+            # (struct in one file, NULL-type in another for the same column).
+            # so we check each file's columns first and fill missing ones with NULL before insert.
+            # will look implement similar convention for schema level data to future proof it
             for url in tqdm(
                 instance_urls,
                 desc='Loading instance parquet files',
@@ -291,24 +266,20 @@ def main():
                 )
                 con.execute(
                     f"""
-                    INSERT INTO {table_name}_instances
+                    INSERT INTO {instance_table}
                     SELECT
                         {instance_select_sql}
                     FROM read_parquet(?, filename=true)
                     """,
                     [url],
                 )
+            instance_loaded = True
 
-            instance_row_count = execute_query(
-                con, f'SELECT COUNT(*) FROM {table_name}_instances;'
-            )[0][0]
-            print_table_ready(
-                name=f'{table_name}_instances',
-                row_count=instance_row_count,
-                file_count=len(instance_urls),
-            )
+        if not schema_loaded or not instance_loaded:
+            print('Skipping combined analysis: one table was not loaded.')
+            sys.exit(1)
 
-        analyze_data(con, f'{table_name}_schema', f'{table_name}_instances')
+        analyze_data(con, schema_table, instance_table)
 
 
 if __name__ == '__main__':
