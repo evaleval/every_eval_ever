@@ -149,9 +149,12 @@ def convert_submission(submission_dir: Path, retrieved_timestamp: str, total_ins
     if no_logs:
         score_details["no_logs_count"] = str(len(no_logs))
 
-    # Sanitize model_id for use in evaluation_id
-    sanitized_id = re.sub(r'[^a-zA-Z0-9/_.-]', '_', model_id)
-    eval_id = f"swe-bench-verified/{sanitized_id}/{retrieved_timestamp}"
+    # Sanitize identifier components for use in evaluation_id
+    sanitized_id = re.sub(r"[^a-zA-Z0-9_.-]", "_", model_id.replace("/", "_"))
+    submission_slug = re.sub(r"[^a-zA-Z0-9_.-]", "_", dir_name)
+    eval_id = (
+        f"swe-bench-verified/{sanitized_id}/{submission_slug}/{retrieved_timestamp}"
+    )
     evaluation_timestamp = parse_date_from_dir(dir_name)
 
     eval_result = EvaluationResult(
