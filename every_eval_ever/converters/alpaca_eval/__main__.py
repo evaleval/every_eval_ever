@@ -6,6 +6,8 @@ import sys
 import uuid
 from pathlib import Path
 
+from every_eval_ever.converters import SCHEMA_VERSION
+
 from .adapter import LEADERBOARDS, AlpacaEvalAdapter
 
 

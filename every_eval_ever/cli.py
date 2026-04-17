@@ -203,23 +203,27 @@ def _cmd_convert_alpaca_eval(args: argparse.Namespace) -> int:
         cfg_name = LEADERBOARDS[version]['source_name']
         print(f'\n=== {cfg_name} ===')
         logs = adapter.fetch_leaderboard(version)
-        benchmark_key = f'alpaca_eval_{version}'
 
         for log in logs:
-            parts = log.model_info.id.split('/', 1)
-            developer = parts[0] if len(parts) == 2 else 'unknown'
-            model_name = parts[1] if len(parts) == 2 else log.model_info.id
-
-            out_dir = output_dir / benchmark_key / developer / model_name
-            out_dir.mkdir(parents=True, exist_ok=True)
-            out_file = out_dir / f'{str(uuid.uuid4())}.json'
-
-            import json
-
-            with out_file.open('w', encoding='utf-8') as f:
-                json.dump(
-                    log.model_dump(mode='json', exclude_none=True), f, indent=2
+            if args.source_organization_name != 'unknown':
+                log.source_metadata.source_organization_name = (
+                    args.source_organization_name
                 )
+            if args.source_organization_url is not None:
+                log.source_metadata.source_organization_url = (
+                    args.source_organization_url
+                )
+            if args.evaluator_relationship != 'third_party':
+                from every_eval_ever.eval_types import EvaluatorRelationship
+                log.source_metadata.evaluator_relationship = (
+                    EvaluatorRelationship(args.evaluator_relationship)
+                )
+            if args.eval_library_name != 'alpaca_eval':
+                log.eval_library.name = args.eval_library_name
+            if args.eval_library_version != 'unknown':
+                log.eval_library.version = args.eval_library_version
+
+            out_file = _write_log(log, output_dir)
             print(f'  {out_file}')
             total += 1
 

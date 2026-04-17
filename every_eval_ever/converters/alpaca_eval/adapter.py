@@ -81,18 +81,18 @@ _DEVELOPER_MAP = [
     ('orca', 'microsoft'),
     ('phi-', 'microsoft'),
     ('phi_', 'microsoft'),
-    ('wizardlm', 'WizardLM'),
-    ('qwen', 'Qwen'),
+    ('wizardlm', 'wizard-lm'),
+    ('qwen', 'qwen'),
     ('deepseek', 'deepseek-ai'),
     ('yi-', '01-ai'),
     ('gemma', 'google'),
-    ('command', 'CohereForAI'),
-    ('cohere', 'CohereForAI'),
+    ('command', 'cohere-for-ai'),
+    ('cohere', 'cohere-for-ai'),
     ('solar', 'upstage'),
-    ('zephyr', 'HuggingFaceH4'),
+    ('zephyr', 'hugging-face-h4'),
     ('tulu', 'allenai'),
     ('olmo', 'allenai'),
-    ('xwinlm', 'Xwin-LM'),
+    ('xwinlm', 'xwin-lm'),
     ('guanaco', 'timdettmers'),
     ('openchat', 'openchat'),
 ]
@@ -139,7 +139,7 @@ def _build_evaluation_results(
     source_data = SourceDataUrl(
         dataset_name=cfg['source_name'],
         source_type='url',
-        url=['https://github.com/tatsu-lab/alpaca_eval'],
+        url=[cfg['url']],
     )
 
     win_rate = _to_float(row.get('win_rate'))
@@ -164,6 +164,7 @@ def _build_evaluation_results(
             EvaluationResult(
                 evaluation_name='Win Rate',
                 metric_config=MetricConfig(
+                    metric_id='alpaca_eval.win_rate',
                     evaluation_description=(
                         f'Fraction of outputs preferred over the '
                         f'{cfg["baseline"]} baseline by the '
@@ -188,6 +189,7 @@ def _build_evaluation_results(
             EvaluationResult(
                 evaluation_name='Length-Controlled Win Rate',
                 metric_config=MetricConfig(
+                    metric_id='alpaca_eval.lc_win_rate',
                     evaluation_description=(
                         'Win rate debiased for output length, raising '
                         'Chatbot Arena rank correlation from 0.93 to 0.98.'
@@ -211,6 +213,7 @@ def _build_evaluation_results(
             EvaluationResult(
                 evaluation_name='Discrete Win Rate',
                 metric_config=MetricConfig(
+                    metric_id='alpaca_eval.discrete_win_rate',
                     evaluation_description=(
                         'Binary win rate — no partial credit for ties.'
                     ),
@@ -230,6 +233,7 @@ def _build_evaluation_results(
             EvaluationResult(
                 evaluation_name='Average Response Length',
                 metric_config=MetricConfig(
+                    metric_id='alpaca_eval.avg_length',
                     evaluation_description=(
                         'Mean number of tokens in model responses.'
                     ),

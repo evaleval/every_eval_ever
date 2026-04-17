@@ -234,6 +234,7 @@ Metrics converted per model:
 | Discrete Win Rate | Binary win rate — no partial credit for ties |
 | Average Response Length | Mean token count of model responses |
 
+
 ### Usage
 
 Convert both leaderboards (default):
@@ -267,6 +268,6 @@ usage: every_eval_ever convert alpaca_eval [-h] [--log_path LOG_PATH]
                                            [--eval_library_version ...]
 
 options:
-  --version {v1,v2}     Which leaderboard to convert. Omit to convert both (default).
-  --output_dir          Base output directory (default: data).
+  --version {v1,v2}            Which leaderboard to convert. Omit to convert both (default).
+  --output_dir OUTPUT_DIR      Base output directory (default: data).
 ```
