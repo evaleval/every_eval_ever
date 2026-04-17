@@ -1,5 +1,5 @@
 ## Automatic Evaluation Log Converters
-A collection of scripts to convert evaluation logs from local runs from evaluation frameworks (e.g., `Inspect AI` and `lm-eval-harness`). 
+A collection of scripts to convert evaluation logs from local evaluation frameworks (e.g., `Inspect AI` and `lm-eval-harness`) and public leaderboards (e.g., AlpacaEval) into the unified Every Eval Ever schema.
 
 ### Installation
 
@@ -215,4 +215,59 @@ options:
                         lm_eval, helm)
   --eval_library_version EVAL_LIBRARY_VERSION
                         Version of the evaluation library
+```
+
+## AlpacaEval
+
+The AlpacaEval converter fetches the public leaderboard CSV directly from GitHub
+and converts all model entries into the unified schema. No local log files are required.
+
+Both AlpacaEval 1.0 (GPT-4 judge, `text_davinci_003` baseline) and
+AlpacaEval 2.0 (weighted LC win rate, `gpt4_turbo` baseline) are supported.
+
+Metrics converted per model:
+
+| Metric | Description |
+|---|---|
+| Win Rate | Fraction of outputs preferred over the baseline (raw) |
+| Length-Controlled Win Rate | Win rate debiased for response length (v2 only) |
+| Discrete Win Rate | Binary win rate — no partial credit for ties |
+| Average Response Length | Mean token count of model responses |
+
+
+### Usage
+
+Convert both leaderboards (default):
+
+```bash
+uv run every_eval_ever convert alpaca_eval --output_dir data
+```
+
+Convert only AlpacaEval 2.0:
+
+```bash
+uv run every_eval_ever convert alpaca_eval --version v2 --output_dir data
+```
+
+Convert only AlpacaEval 1.0:
+
+```bash
+uv run every_eval_ever convert alpaca_eval --version v1 --output_dir data
+```
+
+Full argument list:
+
+```
+usage: every_eval_ever convert alpaca_eval [-h] [--log_path LOG_PATH]
+                                           [--output_dir OUTPUT_DIR]
+                                           [--version {v1,v2}]
+                                           [--source_organization_name ...]
+                                           [--evaluator_relationship ...]
+                                           [--source_organization_url ...]
+                                           [--eval_library_name ...]
+                                           [--eval_library_version ...]
+
+options:
+  --version {v1,v2}            Which leaderboard to convert. Omit to convert both (default).
+  --output_dir OUTPUT_DIR      Base output directory (default: data).
 ```
