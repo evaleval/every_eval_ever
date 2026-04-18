@@ -112,11 +112,20 @@ def check_file(file_path: Path, report: CanonicalIdentityReport) -> None:
         payload = json.loads(file_path.read_text(encoding='utf-8'))
     except Exception:
         report.malformed['aggregate_json_parse_error'] += 1
+        report.files_scanned += 1
         return
 
-    benchmark_family = infer_benchmark_family(file_path, payload)
+    if not isinstance(payload, dict):
+        report.malformed['aggregate_json_not_object'] += 1
+        report.files_scanned += 1
+        return
 
     evaluation_results = payload.get('evaluation_results')
+    if evaluation_results is None:
+        return
+
+    report.files_scanned += 1
+    benchmark_family = infer_benchmark_family(file_path, payload)
     if not isinstance(evaluation_results, list):
         report.malformed['evaluation_results_not_list'] += 1
         return
@@ -136,7 +145,6 @@ def check_paths(paths: list[str]) -> CanonicalIdentityReport:
         for path in expand_paths(paths)
         if path.suffix == '.json' and not path.name.endswith('_samples.json')
     ]
-    report.files_scanned = len(aggregate_files)
 
     for file_path in aggregate_files:
         check_file(file_path, report)

@@ -100,6 +100,26 @@ def test_check_paths_passes_for_complete_identity(tmp_path: Path):
     assert report.malformed == {}
 
 
+def test_check_paths_ignores_non_aggregate_json(tmp_path: Path):
+    data_dir = tmp_path / 'data' / 'clean-benchmark' / 'org' / 'model'
+    data_dir.mkdir(parents=True)
+    (tmp_path / 'metadata.json').write_text(
+        json.dumps({'generated_by': 'unit-test'}),
+        encoding='utf-8',
+    )
+
+    payload = _base_payload(
+        'clean-benchmark/org_model/123',
+        [_result_with_identity('slice_a')],
+    )
+    (data_dir / 'run.json').write_text(json.dumps(payload), encoding='utf-8')
+
+    report = check_paths([str(tmp_path)])
+    assert report.files_scanned == 1
+    assert report.results_scanned == 1
+    assert report.has_issues is False
+
+
 def test_main_fail_on_issues_returns_nonzero(tmp_path: Path):
     data_dir = tmp_path / 'data' / 'broken-benchmark' / 'org' / 'model'
     data_dir.mkdir(parents=True)
