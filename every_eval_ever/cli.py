@@ -246,6 +246,31 @@ def build_parser() -> argparse.ArgumentParser:
         help='One or more JSON files or directories containing JSON files.',
     )
 
+    augment_parser = subparsers.add_parser(
+        'augment-canonical-identity',
+        help='Backfill canonical metric/eval identity into datastore JSON',
+        description=(
+            'Backfill metric fields, evaluation_result_id values, and '
+            'metric-free evaluation_name values for known legacy '
+            'benchmark families in the datastore.'
+        ),
+    )
+    augment_parser.add_argument(
+        'paths',
+        nargs='+',
+        help='One or more aggregate JSON files or directories to augment.',
+    )
+    augment_parser.add_argument(
+        '--write',
+        action='store_true',
+        help='Write changes in place. Without this flag, run as a dry run.',
+    )
+    augment_parser.add_argument(
+        '--skip-samples',
+        action='store_true',
+        help='Do not update companion *_samples.jsonl files.',
+    )
+
     convert_parser = subparsers.add_parser(
         'convert',
         help='Convert source eval logs to every_eval_ever',
@@ -357,6 +382,18 @@ def main(argv: list[str] | None = None) -> int:
         )
 
         return check_duplicates_main(args.paths)
+
+    if args.command == 'augment-canonical-identity':
+        from every_eval_ever.augment_canonical_identity import (
+            main as augment_canonical_identity_main,
+        )
+
+        forwarded_args = [*args.paths]
+        if args.write:
+            forwarded_args.append('--write')
+        if args.skip_samples:
+            forwarded_args.append('--skip-samples')
+        return augment_canonical_identity_main(forwarded_args)
 
     if args.command == 'convert':
         if args.source == 'lm_eval':
