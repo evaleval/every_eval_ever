@@ -71,6 +71,13 @@ HFOPENLLM_METRICS: dict[str, dict[str, Any]] = {
     },
 }
 
+SINGLE_SCORE_BENCHMARK_FAMILIES = {
+    'appworld_test_normal',
+    'browsecompplus',
+    'la_leaderboard',
+    'swe-bench',
+}
+
 
 @dataclass
 class CanonicalPatch:
@@ -123,13 +130,80 @@ def _set_metric_field(
     return False
 
 
-def _metric_from_phrase(phrase: str) -> CanonicalPatch | None:
-    normalized = phrase.strip().lower()
+def _benchmark_metric_namespace(benchmark_family: str) -> str:
+    namespace = re.sub(r'[^a-z0-9]+', '_', benchmark_family.lower()).strip('_')
+    return namespace or 'benchmark'
 
-    if normalized in {'accuracy', 'cot correct', 'correct'}:
+
+def _score_metric_unit(metric_config: dict[str, Any]) -> str:
+    min_score = metric_config.get('min_score')
+    max_score = metric_config.get('max_score')
+
+    if min_score in {0, 0.0} and max_score in {1, 1.0}:
+        return 'proportion'
+    if min_score in {0, 0.0} and max_score in {100, 100.0}:
+        return 'points'
+    return 'points'
+
+
+def _metric_from_phrase(phrase: str) -> CanonicalPatch | None:
+    normalized = phrase.strip().lower().rstrip(':.')
+
+    pass_at_k_match = re.fullmatch(r'pass@(?P<k>\d+)', normalized)
+    if pass_at_k_match is not None:
+        k = int(pass_at_k_match.group('k'))
+        return CanonicalPatch(
+            metric_id='pass_at_k',
+            metric_name=f'Pass@{k}',
+            metric_kind='pass_rate',
+            metric_unit='proportion',
+            metric_parameters={'k': k},
+        )
+
+    ndcg_match = re.fullmatch(r'ndcg@(?P<k>\d+)', normalized)
+    if ndcg_match is not None:
+        k = int(ndcg_match.group('k'))
+        return CanonicalPatch(
+            metric_id='ndcg',
+            metric_name=f'NDCG@{k}',
+            metric_kind='ndcg',
+            metric_unit='proportion',
+            metric_parameters={'k': k},
+        )
+
+    rouge_match = re.fullmatch(r'rouge[-_ ]?(?P<n>\d+)', normalized)
+    if rouge_match is not None:
+        n = int(rouge_match.group('n'))
+        return CanonicalPatch(
+            metric_id=f'rouge_{n}',
+            metric_name=f'ROUGE-{n}',
+            metric_kind='rouge',
+            metric_unit='proportion',
+            metric_parameters={'n': n},
+        )
+
+    bleu_match = re.fullmatch(r'bleu[-_ ]?(?P<n>\d+)', normalized)
+    if bleu_match is not None:
+        n = int(bleu_match.group('n'))
+        return CanonicalPatch(
+            metric_id=f'bleu_{n}',
+            metric_name=f'BLEU-{n}',
+            metric_kind='bleu',
+            metric_unit='proportion',
+            metric_parameters={'n': n},
+        )
+
+    if normalized in {'acc', 'accuracy', 'cot correct', 'correct'}:
         return CanonicalPatch(
             metric_id='accuracy',
             metric_name='Accuracy',
+            metric_kind='accuracy',
+            metric_unit='proportion',
+        )
+    if normalized in {'equivalent', 'equivalent (cot)'}:
+        return CanonicalPatch(
+            metric_id='equivalent_cot',
+            metric_name='Equivalent (CoT)',
             metric_kind='accuracy',
             metric_unit='proportion',
         )
@@ -199,7 +273,7 @@ def _wordle_patch(raw_evaluation_name: str) -> CanonicalPatch | None:
 
 def _fibble_patch(raw_evaluation_name: str) -> CanonicalPatch | None:
     match = re.fullmatch(
-        r'fibble_arena_(?P<variant>1lie|5lies)_(?P<metric>.+)',
+        r'fibble_arena_(?P<variant>1lie|[2-9]lies)_(?P<metric>.+)',
         raw_evaluation_name,
     )
     if match is None:
@@ -301,6 +375,65 @@ def _rewardbench_patch(
     return None
 
 
+def _description_metric_patch(metric_config: dict[str, Any]) -> CanonicalPatch | None:
+    description = str(metric_config.get('evaluation_description') or '')
+    if ' on ' not in description:
+        return None
+    metric_phrase = description.split(' on ', 1)[0]
+    return _metric_from_phrase(metric_phrase)
+
+
+def _score_suffix_patch(
+    benchmark_family: str,
+    raw_evaluation_name: str,
+    metric_config: dict[str, Any],
+) -> CanonicalPatch | None:
+    score_match = re.fullmatch(r'(?P<slice>.+?) Score', raw_evaluation_name)
+    if score_match is None:
+        return None
+
+    eval_slice = score_match.group('slice').strip()
+    evaluation_name = (
+        benchmark_family if eval_slice.lower() == 'overall' else eval_slice
+    )
+    namespace = _benchmark_metric_namespace(benchmark_family)
+    return CanonicalPatch(
+        evaluation_name=evaluation_name,
+        metric_id=f'{namespace}.score',
+        metric_name='Score',
+        metric_kind='score',
+        metric_unit=_score_metric_unit(metric_config),
+    )
+
+
+def _single_score_patch(
+    benchmark_family: str, metric_config: dict[str, Any]
+) -> CanonicalPatch:
+    namespace = _benchmark_metric_namespace(benchmark_family)
+    return CanonicalPatch(
+        metric_id=f'{namespace}.score',
+        metric_name='Score',
+        metric_kind='score',
+        metric_unit=_score_metric_unit(metric_config),
+    )
+
+
+def _theory_of_mind_patch(
+    raw_evaluation_name: str, metric_config: dict[str, Any]
+) -> CanonicalPatch | None:
+    match = re.fullmatch(
+        r'(?P<metric>.+?) on (?P<slice>.+?)(?: for scorer .+)?',
+        raw_evaluation_name,
+    )
+    if match is not None:
+        patch = _metric_from_phrase(match.group('metric'))
+        if patch is not None:
+            patch.evaluation_name = match.group('slice').strip()
+            return patch
+
+    return _metric_from_phrase(str(metric_config.get('evaluation_description') or ''))
+
+
 def _helm_patch(
     benchmark_family: str,
     raw_evaluation_name: str,
@@ -368,6 +501,13 @@ def _canonical_patch_for_result(
     if benchmark_family == 'apex-agents':
         return _apex_agents_patch(raw_evaluation_name)
 
+    if benchmark_family in {'ace', 'apex-v1'}:
+        return _score_suffix_patch(
+            benchmark_family=benchmark_family,
+            raw_evaluation_name=raw_evaluation_name,
+            metric_config=metric_config,
+        )
+
     if benchmark_family == 'bfcl':
         return _bfcl_patch(raw_evaluation_name, metric_config)
 
@@ -377,6 +517,17 @@ def _canonical_patch_for_result(
             raw_evaluation_name=raw_evaluation_name,
             metric_config=metric_config,
         )
+
+    if benchmark_family == 'livecodebenchpro':
+        return _description_metric_patch(metric_config)
+
+    if benchmark_family in SINGLE_SCORE_BENCHMARK_FAMILIES or benchmark_family.startswith(
+        'tau-bench-2_'
+    ):
+        return _single_score_patch(benchmark_family, metric_config)
+
+    if benchmark_family == 'theory_of_mind':
+        return _theory_of_mind_patch(raw_evaluation_name, metric_config)
 
     return None
 

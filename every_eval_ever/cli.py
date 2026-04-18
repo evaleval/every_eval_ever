@@ -246,6 +246,38 @@ def build_parser() -> argparse.ArgumentParser:
         help='One or more JSON files or directories containing JSON files.',
     )
 
+    check_canonical_parser = subparsers.add_parser(
+        'check-canonical-identity',
+        help='Audit canonical metric/eval identity coverage',
+        description=(
+            'Audit aggregate JSON files for missing or malformed canonical '
+            'metric/result identity fields.'
+        ),
+    )
+    check_canonical_parser.add_argument(
+        'paths',
+        nargs='+',
+        help='One or more aggregate JSON files or directories to audit.',
+    )
+    check_canonical_parser.add_argument(
+        '--format',
+        choices=['text', 'json'],
+        default='text',
+        dest='canonical_output_format',
+        help='Output format.',
+    )
+    check_canonical_parser.add_argument(
+        '--top',
+        type=int,
+        default=20,
+        help='How many benchmarks to show per missing field in the report.',
+    )
+    check_canonical_parser.add_argument(
+        '--fail-on-issues',
+        action='store_true',
+        help='Exit with status 1 if missing/malformed identity fields exist.',
+    )
+
     augment_parser = subparsers.add_parser(
         'augment-canonical-identity',
         help='Backfill canonical metric/eval identity into datastore JSON',
@@ -382,6 +414,22 @@ def main(argv: list[str] | None = None) -> int:
         )
 
         return check_duplicates_main(args.paths)
+
+    if args.command == 'check-canonical-identity':
+        from every_eval_ever.check_canonical_identity import (
+            main as check_canonical_identity_main,
+        )
+
+        forwarded_args = [
+            *args.paths,
+            '--format',
+            args.canonical_output_format,
+            '--top',
+            str(args.top),
+        ]
+        if args.fail_on_issues:
+            forwarded_args.append('--fail-on-issues')
+        return check_canonical_identity_main(forwarded_args)
 
     if args.command == 'augment-canonical-identity':
         from every_eval_ever.augment_canonical_identity import (

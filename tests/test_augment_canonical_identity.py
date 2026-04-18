@@ -292,3 +292,172 @@ def test_helm_description_drives_metric_identity_and_mean_row_renaming():
     assert narrative_qa['evaluation_name'] == 'NarrativeQA'
     assert narrative_qa['metric_config']['metric_id'] == 'f1'
     assert ifeval['metric_config']['metric_id'] == 'strict_accuracy'
+
+
+def test_fibble_arena_supports_2_to_4_lie_variants():
+    payload = _base_payload(
+        'fibble_arena/org_model/123',
+        [
+            _base_result(
+                'fibble_arena_3lies_win_rate',
+                'Win rate on Fibble³ Arena (3 lies)',
+            ),
+            _base_result(
+                'fibble_arena_4lies_avg_attempts',
+                'Average guesses used per game on Fibble⁴ Arena (4 lies)',
+                min_score=1.0,
+                max_score=8.0,
+                lower_is_better=True,
+            ),
+        ],
+    )
+
+    augmented, changed_results, _, _ = augment_aggregate_payload(
+        payload, benchmark_family='fibble_arena'
+    )
+
+    win_rate = augmented['evaluation_results'][0]
+    avg_attempts = augmented['evaluation_results'][1]
+
+    assert changed_results == 2
+    assert win_rate['evaluation_name'] == 'fibble_arena_3lies'
+    assert win_rate['metric_config']['metric_id'] == 'win_rate'
+    assert avg_attempts['evaluation_name'] == 'fibble_arena_4lies'
+    assert avg_attempts['metric_config']['metric_id'] == 'mean_attempts'
+
+
+def test_helm_patch_handles_ndcg_bleu_and_acc_abbreviations():
+    payload = _base_payload(
+        'helm_classic/org_model/123',
+        [
+            _base_result(
+                'MS MARCO (TREC)',
+                'NDCG@10 on MS MARCO (TREC)',
+            ),
+            _base_result(
+                'WMT 2014',
+                'BLEU-4 on WMT 2014',
+            ),
+            _base_result(
+                'Omni-MATH',
+                'Acc on Omni-MATH',
+            ),
+        ],
+    )
+
+    augmented, changed_results, _, _ = augment_aggregate_payload(
+        payload, benchmark_family='helm_classic'
+    )
+
+    ndcg = augmented['evaluation_results'][0]['metric_config']
+    bleu = augmented['evaluation_results'][1]['metric_config']
+    acc = augmented['evaluation_results'][2]['metric_config']
+
+    assert changed_results == 3
+    assert ndcg['metric_id'] == 'ndcg'
+    assert ndcg['metric_parameters'] == {'k': 10}
+    assert bleu['metric_id'] == 'bleu_4'
+    assert bleu['metric_parameters'] == {'n': 4}
+    assert acc['metric_id'] == 'accuracy'
+
+
+def test_livecodebenchpro_pass_at_k_is_backfilled():
+    payload = _base_payload(
+        'livecodebenchpro/org_model/123',
+        [
+            _base_result(
+                'Hard Problems',
+                'Pass@1 on Hard Problems',
+            )
+        ],
+    )
+
+    augmented, changed_results, _, _ = augment_aggregate_payload(
+        payload, benchmark_family='livecodebenchpro'
+    )
+
+    metric_config = augmented['evaluation_results'][0]['metric_config']
+    assert changed_results == 1
+    assert metric_config['metric_id'] == 'pass_at_k'
+    assert metric_config['metric_name'] == 'Pass@1'
+    assert metric_config['metric_kind'] == 'pass_rate'
+    assert metric_config['metric_parameters'] == {'k': 1}
+
+
+def test_score_suffix_families_and_single_score_families_are_backfilled():
+    ace_payload = _base_payload(
+        'ace/org_model/123',
+        [
+            _base_result('Overall Score', 'Overall ACE score.'),
+            _base_result('Gaming Score', 'Gaming domain score.'),
+        ],
+    )
+    ace_augmented, changed_results, _, _ = augment_aggregate_payload(
+        ace_payload, benchmark_family='ace'
+    )
+
+    overall = ace_augmented['evaluation_results'][0]
+    gaming = ace_augmented['evaluation_results'][1]
+
+    assert changed_results == 2
+    assert overall['evaluation_name'] == 'ace'
+    assert overall['metric_config']['metric_id'] == 'ace.score'
+    assert gaming['evaluation_name'] == 'Gaming'
+    assert gaming['metric_config']['metric_id'] == 'ace.score'
+
+    tau_payload = _base_payload(
+        'tau-bench-2/airline/org_model/123',
+        [
+            _base_result(
+                'tau-bench-2/airline',
+                'Tau Bench 2 benchmark evaluation (airline subset)',
+            )
+        ],
+    )
+    tau_augmented, tau_changed, _, _ = augment_aggregate_payload(
+        tau_payload, benchmark_family='tau-bench-2_airline'
+    )
+    tau_metric = tau_augmented['evaluation_results'][0]['metric_config']
+    assert tau_changed == 1
+    assert tau_metric['metric_id'] == 'tau_bench_2_airline.score'
+    assert tau_metric['metric_unit'] == 'proportion'
+
+    la_payload = _base_payload(
+        'la_leaderboard/org_model/123',
+        [
+            _base_result(
+                'la_leaderboard',
+                'La Leaderboard benchmark score',
+                min_score=0.0,
+                max_score=100.0,
+            )
+        ],
+    )
+    la_augmented, la_changed, _, _ = augment_aggregate_payload(
+        la_payload, benchmark_family='la_leaderboard'
+    )
+    la_metric = la_augmented['evaluation_results'][0]['metric_config']
+    assert la_changed == 1
+    assert la_metric['metric_id'] == 'la_leaderboard.score'
+    assert la_metric['metric_unit'] == 'points'
+
+
+def test_theory_of_mind_patch_splits_metric_from_eval_name():
+    payload = _base_payload(
+        'theory_of_mind/org_model/123',
+        [
+            _base_result(
+                'accuracy on theory_of_mind for scorer model_graded_fact',
+                'accuracy',
+            )
+        ],
+    )
+
+    augmented, changed_results, _, _ = augment_aggregate_payload(
+        payload, benchmark_family='theory_of_mind'
+    )
+
+    result = augmented['evaluation_results'][0]
+    assert changed_results == 1
+    assert result['evaluation_name'] == 'theory_of_mind'
+    assert result['metric_config']['metric_id'] == 'accuracy'
