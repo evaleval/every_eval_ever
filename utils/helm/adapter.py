@@ -209,7 +209,7 @@ def convert(
                 is_helm_air_bench_category_table = (
                     leaderboard_name == "helm_air_bench"
                     and tab_name.startswith("AIR")
-                    and tab_name.endswith("categories"
+                    and tab_name.endswith("categories")
                 )
 
                 full_eval_name = header.get('value')
