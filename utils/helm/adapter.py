@@ -40,6 +40,9 @@ from every_eval_ever.helpers import (
 )
 
 
+HELM_PROJECT_METADATA_URL = "https://crfm.stanford.edu/helm/project_metadata.json"
+
+
 def parse_args():
     """Parse CLI arguments."""
     parser = ArgumentParser()
@@ -54,15 +57,13 @@ def parse_args():
             'HELM_Instruct',
             'HELM_MMLU',
         ],
+        help='HELM leaderboard name',
     )
     parser.add_argument(
-        '--source_data_url',
+        '--leaderboard_version',
         type=str,
-        default=(
-            'https://storage.googleapis.com/crfm-helm-public/'
-            'capabilities/benchmark_output/releases/v1.12.0/'
-            'groups/core_scenarios.json'
-        ),
+        default="latest",
+        help='Version of the HELM leaderboard to use; defaults to the latest version',
     )
     parser.add_argument(
         '--eval_library_name',
@@ -172,6 +173,7 @@ def convert(
     leaderboard_data: List[Dict[str, Any]],
     eval_library_name: str = 'helm',
     eval_library_version: str = 'unknown',
+    source_data_url: str = 'unknown',
 ):
     """Convert HELM leaderboard data into unified evaluation logs."""
     retrieved_timestamp = str(time.time())
@@ -248,7 +250,7 @@ def convert(
                     source_data = SourceDataUrl(
                         dataset_name=source_dataset_name,
                         source_type='url',
-                        url=[args.source_data_url],
+                        url=[source_data_url],
                     )
 
                     generation_config = (
@@ -345,19 +347,57 @@ def convert(
         print(f'Saved: {filepath}')
 
 
-if __name__ == '__main__':
+def get_leaderboard_versions(leaderboard_id: str) -> List[str]:
+    """Return a list of published versions for the leaderboard"""
+    project_metadata = fetch_json(HELM_PROJECT_METADATA_URL)
+    project = ""
+    for project in project_metadata:
+        if project["id"] == leaderboard_id:
+            return project["releases"]
+    raise ValueError(f"Leaderboard ID {leaderboard_id} not found in HELM project metadata at {HELM_PROJECT_METADATA_URL}")
+
+
+def get_source_data_url(leaderboard_id: str, leaderboard_version: str) -> str:
+    """Return the URL of the JSON file containing the results table of the primary group of the leaderboard"""
+    leaderboard_versions = get_leaderboard_versions(leaderboard_id)
+    if not leaderboard_versions:
+        raise ValueError(f"No versions found for leaderboard {leaderboard_id}")
+    if leaderboard_version == "latest":
+        leaderboard_version = leaderboard_versions[0]
+    if leaderboard_version not in leaderboard_versions:
+        raise ValueError(f"Version {leaderboard_version} for leaderboard {leaderboard_id} not found; available versions: {leaderboard_versions}")
+
+    groups_table = fetch_json(f"https://storage.googleapis.com/crfm-helm-public/{leaderboard_id}/benchmark_output/releases/{leaderboard_version}/groups.json")
+    # This is un ugly hack to get the first group's ID.
+    # Unfortunately, this is actually how the offical HELM code does it.
+    # See: https://github.com/stanford-crfm/helm/blob/v0.5.14/helm-frontend/src/routes/Leaderboard.tsx#L44-L56
+    first_group_name = groups_table[0]["rows"][0][0]["href"].removeprefix("?group=")
+    return f'https://storage.googleapis.com/crfm-helm-public/{leaderboard_id}/benchmark_output/releases/{leaderboard_version}/groups/{first_group_name}.json'
+
+
+def main():
     args = parse_args()
 
     leaderboard_name = args.leaderboard_name.lower()
 
-    print(f'Fetching {leaderboard_name} data from {args.source_data_url}')
-    leaderboard_data = fetch_json(args.source_data_url)
+    if not leaderboard_name.startswith("helm_"):
+        raise ValueError("leaderboard_name must start with helm_")
+    leaderboard_id = leaderboard_name.removeprefix("helm_")
+    source_data_url = get_source_data_url(leaderboard_id, args.leaderboard_version)
+
+    print(f'Fetching {leaderboard_name} {args.leaderboard_version} data from {source_data_url}')
+    leaderboard_data = fetch_json(source_data_url)
 
     convert(
         leaderboard_name=leaderboard_name,
         leaderboard_data=leaderboard_data,
         eval_library_name=args.eval_library_name,
         eval_library_version=args.eval_library_version,
+        source_data_url=source_data_url,
     )
 
     print('Done!')
+
+
+if __name__ == '__main__':
+    main()
