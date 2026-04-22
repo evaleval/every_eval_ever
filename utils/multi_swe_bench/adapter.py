@@ -186,8 +186,7 @@ def main():
                     eval_log = convert_submission(submission_dir, lang, retrieved_timestamp)
                     dev = eval_log.model_info.developer or "unknown"
                     model_name = eval_log.model_info.name.split("/")[-1]
-                    base_dir = f"{OUTPUT_BASE}/{lang}"
-                    filepath = save_evaluation_log(eval_log, base_dir, dev, model_name)
+                    filepath = save_evaluation_log(eval_log, OUTPUT_BASE, dev, model_name)
                     score = eval_log.evaluation_results[0].score_details.score
                     print(f"  [{score:.1%}] {submission_dir.name} → {filepath}")
                     count += 1
