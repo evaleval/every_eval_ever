@@ -155,3 +155,39 @@ def test_narrativeqa_eval():
     assert converted_eval.detailed_evaluation_results is not None
     assert converted_eval.detailed_evaluation_results.format is not None
     assert converted_eval.detailed_evaluation_results.total_rows == 5
+
+
+def test_missing_model_deployment_falls_back_to_model():
+    """
+    Copies a helm data item and explicitly removes a field to test robustness
+    to model_deployment missing. Regression test for #112
+    """
+    import shutil
+    import json
+    src = Path(
+        'tests/data/helm/'
+        'mmlu:subject=philosophy,method=multiple_choice_joint,model=openai_gpt2'
+    )
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = Path(tmpdir)
+        dst = tmpdir / src.name
+        shutil.copytree(src, dst)
+
+        run_spec_fpath = dst / 'run_spec.json'
+        run_spec = json.loads(run_spec_fpath.read_text())
+        run_spec['adapter_spec'].pop('model_deployment', None)
+        run_spec_fpath.write_text(json.dumps(run_spec))
+
+        adapter = HELMAdapter()
+        metadata_args = {
+            'source_organization_name': 'TestOrg',
+            'evaluator_relationship': EvaluatorRelationship.first_party,
+        }
+
+        converted_eval = _load_eval(adapter, dst, metadata_args)
+
+    assert converted_eval.model_info.name == 'openai/gpt2'
+    assert converted_eval.model_info.id == 'openai/gpt2'
+    assert converted_eval.model_info.developer == 'openai'
+    assert converted_eval.model_info.inference_platform == 'unknown'
