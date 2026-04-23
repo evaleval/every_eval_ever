@@ -41,6 +41,7 @@ def _require_inspect_dependencies() -> None:
             "Install with: pip install 'every_eval_ever[inspect]'"
         ) from _INSPECT_IMPORT_ERROR
 
+
 from every_eval_ever.converters import SCHEMA_VERSION
 from every_eval_ever.converters.common.adapter import (
     AdapterMetadata,
@@ -83,6 +84,7 @@ from every_eval_ever.eval_types import (
     ScoreDetails,
     ScoreType,
     SourceDataHf,
+    SourceDataPrivate,
     SourceMetadata,
     SourceType,
     StandardError,
@@ -138,7 +140,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         num_samples: int = 0,
     ) -> EvaluationResult:
         return EvaluationResult(
-            evaluation_name=f"{metric_info.name} on {evaluation_task_name} for scorer {scorer_name}",
+            evaluation_name=f'{metric_info.name} on {evaluation_task_name} for scorer {scorer_name}',
             source_data=source_data,
             evaluation_timestamp=evaluation_timestamp,
             metric_config=MetricConfig(
@@ -228,22 +230,65 @@ class InspectAIAdapter(BaseEvaluationAdapter):
 
         return results
 
+    @staticmethod
+    def _looks_like_local_path(location: str | None) -> bool:
+        """Heuristic: is `dataset.location` a local filesystem path rather
+        than a HuggingFace repo identifier?
+
+        HuggingFace repos are of the form `owner/name` and never start
+        with `/`, `./`, `../`, `~`, or a Windows drive letter. Anything
+        with a scheme (e.g. `file://`, `http://`) is also not an HF repo.
+        """
+        if not location:
+            return False
+        if location.startswith(('/', './', '../', '~')):
+            return True
+        if len(location) >= 2 and location[1] == ':':  # Windows drive
+            return True
+        scheme = urlparse(location).scheme
+        if scheme and scheme not in ('hf', 'huggingface'):
+            return True
+        return False
+
     def _extract_source_data(
         self, dataset: EvalDataset, task_name: str
-    ) -> SourceDataHf:
+    ) -> SourceDataHf | SourceDataPrivate:
         dataset_name = (
             dataset.name.split('/')[-1]
             if dataset.name
             else task_name.split('/')[-1]
         )
+        sample_ids = (
+            [str(sid) for sid in dataset.sample_ids]
+            if dataset.sample_ids is not None
+            else None
+        )
+
+        if self._looks_like_local_path(dataset.location):
+            # dataset.location is a local filesystem path (e.g. a cached
+            # HF dataset or a benchmark's bundled challenges directory),
+            # so we cannot claim this is an HF dataset. Preserve what we
+            # know in additional_details so consumers can still trace it.
+            additional_details: dict[str, str] = {
+                'shuffled': str(dataset.shuffled),
+                'inspect_dataset_location': str(dataset.location),
+            }
+            if dataset.samples is not None:
+                additional_details['samples_number'] = str(dataset.samples)
+            if sample_ids is not None:
+                additional_details['sample_ids'] = ','.join(sample_ids)
+            return SourceDataPrivate(
+                source_type='other',
+                dataset_name=dataset_name,
+                additional_details=additional_details,
+            )
+
         return SourceDataHf(  # TODO add hf_split
             source_type='hf_dataset',
             dataset_name=dataset_name,
             hf_repo=dataset.location,
             samples_number=dataset.samples,
-            sample_ids=[str(sid) for sid in dataset.sample_ids]
-            if dataset.sample_ids is not None
-            else None,
+            sample_ids=sample_ids,
             additional_details={'shuffled': str(dataset.shuffled)},
         )
 
@@ -537,7 +582,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         )
 
         supplemental_eval_details = parse_supplemental_eval_details(
-            metadata_args.get("supplemental_eval_details")
+            metadata_args.get('supplemental_eval_details')
         )
 
         apply_supplemental_eval_details(
@@ -546,7 +591,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
             supplemental_eval_details=supplemental_eval_details,
         )
 
-        evaluation_id = f'{source_data.dataset_name}/{model_path.replace('/', '_')}/{evaluation_unix_timestamp}'
+        evaluation_id = f'{source_data.dataset_name}/{model_path.replace("/", "_")}/{evaluation_unix_timestamp}'
 
         parent_eval_output_dir = metadata_args.get(
             'parent_eval_output_dir', 'data'
@@ -578,7 +623,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
                     evaluation_task_name,
                     model_info.id,
                     raw_eval_log.samples,
-                    getattr(raw_eval_log, "reductions", None),
+                    getattr(raw_eval_log, 'reductions', None),
                 )
             )
 

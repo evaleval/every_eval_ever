@@ -27,6 +27,7 @@ from every_eval_ever.converters.inspect.adapter import InspectAIAdapter
 from every_eval_ever.eval_types import (
     EvaluatorRelationship,
     SourceDataHf,
+    SourceDataPrivate,
 )
 from every_eval_ever.instance_level_types import InstanceLevelEvaluationLog
 
@@ -106,40 +107,35 @@ class TestEmptyOutputChoices:
 
 
 class TestLocalFilesystemDatasetPath:
-    """When dataset.location is a local path, source_data should not
-    claim to be an hf_dataset with that path as hf_repo."""
+    """When dataset.location is a local path, source_data should be a
+    SourceDataPrivate rather than a SourceDataHf with a local hf_repo."""
 
-    @pytest.mark.xfail(
-        reason='adapter._extract_source_data always returns SourceDataHf '
-        'with hf_repo=dataset.location, even for local paths',
-        strict=True,
-    )
     def test_intercode_ctf_source_not_hf(self):
         """gdm_intercode_ctf uses a cached local JSON file — source_type
-        should not be hf_dataset."""
+        should be 'other' (SourceDataPrivate)."""
         converted, _ = _load_eval_and_instances(
             FIXTURES / 'data_intercode_ctf_local_path.json'
         )
         sd = converted.evaluation_results[0].source_data
-        assert not isinstance(sd, SourceDataHf) or not sd.hf_repo.startswith(
-            '/'
-        ), f'hf_repo is a local path: {sd.hf_repo}'
+        assert isinstance(sd, SourceDataPrivate), (
+            f'Expected SourceDataPrivate, got {type(sd).__name__}'
+        )
+        assert not isinstance(sd, SourceDataHf)
+        # The original location should be preserved for traceability.
+        assert 'inspect_dataset_location' in (sd.additional_details or {})
 
-    @pytest.mark.xfail(
-        reason='adapter._extract_source_data always returns SourceDataHf '
-        'with hf_repo=dataset.location, even for local paths',
-        strict=True,
-    )
     def test_cvebench_source_not_hf(self):
         """CVE-Bench uses a local challenges directory — source_type
-        should not be hf_dataset."""
+        should be 'other' (SourceDataPrivate)."""
         converted, _ = _load_eval_and_instances(
             FIXTURES / 'data_cvebench_empty_choices.json'
         )
         sd = converted.evaluation_results[0].source_data
-        assert not isinstance(sd, SourceDataHf) or not sd.hf_repo.startswith(
-            '/'
-        ), f'hf_repo is a local path: {sd.hf_repo}'
+        assert isinstance(sd, SourceDataPrivate), (
+            f'Expected SourceDataPrivate, got {type(sd).__name__}'
+        )
+        assert not isinstance(sd, SourceDataHf)
+        assert 'inspect_dataset_location' in (sd.additional_details or {})
 
 
 # -----------------------------------------------------------------------
