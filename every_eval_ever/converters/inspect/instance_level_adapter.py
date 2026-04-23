@@ -167,9 +167,7 @@ class InspectInstanceLevelDataAdapter:
     def _normalize_sample_id(self, sample_id: Any) -> str:
         return '' if sample_id is None else str(sample_id)
 
-    def _parse_score_value(
-        self, value: Any
-    ) -> Tuple[float | None, bool]:
+    def _parse_score_value(self, value: Any) -> Tuple[float | None, bool]:
         if isinstance(value, bool):
             return (1.0 if value else 0.0), True
 
@@ -231,13 +229,14 @@ class InspectInstanceLevelDataAdapter:
                 if parsed_score is None:
                     continue
 
-                reductions_by_sample[sample_id] = (
-                    reductions_by_sample.get(sample_id, [])
-                    + [(parsed_score, parsed_is_binary)]
-                )
+                reductions_by_sample[sample_id] = reductions_by_sample.get(
+                    sample_id, []
+                ) + [(parsed_score, parsed_is_binary)]
 
                 if scorer_name:
-                    reductions_by_sample_and_scorer[(sample_id, scorer_name)] = (
+                    reductions_by_sample_and_scorer[
+                        (sample_id, scorer_name)
+                    ] = (
                         parsed_score,
                         parsed_is_binary,
                     )
@@ -304,15 +303,22 @@ class InspectInstanceLevelDataAdapter:
             )
 
             reasoning_trace = None
-            message = sample.output.choices[0].message
-            content = message.content
+            if sample.output.choices:
+                message = sample.output.choices[0].message
+                content = message.content
 
-            if isinstance(content, list):
-                response, reasoning_trace = self._parse_content_with_reasoning(
-                    content
-                )
+                if isinstance(content, list):
+                    (
+                        response,
+                        reasoning_trace,
+                    ) = self._parse_content_with_reasoning(content)
+                else:
+                    response = content
             else:
-                response = content
+                # Samples with no model output (e.g. sandbox failures in
+                # agentic evals) have `output.choices == []`. Treat this
+                # as an empty response rather than crashing at choices[0].
+                response = ''
 
             if sample.scores:
                 # TODO Consider multiple scores
@@ -418,8 +424,11 @@ class InspectInstanceLevelDataAdapter:
                 if sample.error
                 else None,
                 metadata={
+                    # `stop_reason` is documented as reflecting the first
+                    # choice; guard against empty `choices` so it is only
+                    # surfaced when a choice actually exists.
                     'stop_reason': str(sample.output.stop_reason)
-                    if sample.output.stop_reason
+                    if sample.output.choices and sample.output.stop_reason
                     else '',
                     'epoch': str(sample.epoch),
                 },

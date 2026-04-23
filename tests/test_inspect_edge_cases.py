@@ -7,14 +7,12 @@ These tests exercise scenarios encountered when converting logs from:
 
 Fixtures are stripped-down real logs with events removed and messages trimmed.
 
-All tests are marked xfail because they document issues in the current
-adapter that need to be addressed.  Once fixed, the xfail markers can be
-removed and the tests will serve as regression guards.
+Tests that exercise already-fixed issues serve as regression guards;
+tests that still xfail document issues in the current adapter that are
+yet to be addressed.
 """
 
 import pytest
-
-from every_eval_ever.converters.common.error import TransformationError
 
 pytest.importorskip(
     'inspect_ai',
@@ -86,16 +84,15 @@ class TestEmptyOutputChoices:
     whose output.choices is [] because the sandbox failed to start.
     """
 
-    @pytest.mark.xfail(
-        reason='instance_level_adapter.py indexes choices[0] without '
-        'checking for empty list — raises IndexError '
-        '(wrapped in TransformationError)',
-        raises=TransformationError,
-        strict=True,
-    )
     def test_conversion_does_not_crash(self):
         """Converting a sample with empty choices must not raise."""
-        _load_eval_and_instances(FIXTURES / 'data_cvebench_empty_choices.json')
+        converted, instances = _load_eval_and_instances(
+            FIXTURES / 'data_cvebench_empty_choices.json'
+        )
+        assert len(instances) == 1
+        # stop_reason should be empty when choices is empty; the field is
+        # documented as reflecting the first choice.
+        assert instances[0].metadata['stop_reason'] == ''
 
 
 # -----------------------------------------------------------------------
