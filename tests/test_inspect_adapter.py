@@ -10,15 +10,15 @@ import tempfile
 from pathlib import Path
 from types import SimpleNamespace
 
-from every_eval_ever.converters.inspect.adapter import InspectAIAdapter
 from every_eval_ever.converters.common.error import AdapterError
+from every_eval_ever.converters.inspect.adapter import InspectAIAdapter
 from every_eval_ever.converters.inspect.utils import (
     extract_model_info_from_model_path,
 )
 from every_eval_ever.eval_types import (
-    GenerationConfig,
     EvaluationLog,
     EvaluatorRelationship,
+    GenerationConfig,
     ScoreType,
     SourceDataHf,
     SourceMetadata,
@@ -62,7 +62,9 @@ def _make_metric(name: str, value: float):
 
 
 def _make_scorer(scorer_name: str, metrics: dict[str, object]):
-    return SimpleNamespace(name=scorer_name, scorer=scorer_name, params=None, metrics=metrics)
+    return SimpleNamespace(
+        name=scorer_name, scorer=scorer_name, params=None, metrics=metrics
+    )
 
 
 def test_pubmedqa_eval():
@@ -83,7 +85,14 @@ def test_pubmedqa_eval():
 
     assert (
         converted_eval.evaluation_results[0].source_data.dataset_name
-        == 'pubmed_qa'
+        == 'pubmedqa'
+    )
+    # Harness-provided dataset.name is preserved in additional_details.
+    assert (
+        converted_eval.evaluation_results[0].source_data.additional_details[
+            'inspect_dataset_name'
+        ]
+        == 'bigbio/pubmed_qa'
     )
     assert (
         converted_eval.evaluation_results[0].source_data.hf_repo
@@ -98,7 +107,10 @@ def test_pubmedqa_eval():
     assert converted_eval.model_info.inference_engine is None
 
     results = converted_eval.evaluation_results
-    assert results[0].evaluation_name == 'accuracy on inspect_evals/pubmedqa for scorer choice'
+    assert (
+        results[0].evaluation_name
+        == 'accuracy on inspect_evals/pubmedqa for scorer choice'
+    )
     assert results[0].metric_config.evaluation_description == 'accuracy'
     assert results[0].score_details.score == 1.0
 
@@ -220,7 +232,13 @@ def test_arc_sonnet_eval():
 
     assert (
         converted_eval.evaluation_results[0].source_data.dataset_name
-        == 'ai2_arc'
+        == 'arc_easy'
+    )
+    assert (
+        converted_eval.evaluation_results[0].source_data.additional_details[
+            'inspect_dataset_name'
+        ]
+        == 'allenai/ai2_arc'
     )
     assert (
         converted_eval.evaluation_results[0].source_data.hf_repo
@@ -237,7 +255,9 @@ def test_arc_sonnet_eval():
     assert converted_eval.model_info.inference_engine is None
 
     results = converted_eval.evaluation_results
-    assert results[0].evaluation_name == 'accuracy on arc_easy for scorer choice'
+    assert (
+        results[0].evaluation_name == 'accuracy on arc_easy for scorer choice'
+    )
     assert results[0].metric_config.evaluation_description == 'accuracy'
     assert results[0].score_details.score == 1.0
 
@@ -262,7 +282,13 @@ def test_arc_qwen_eval():
 
     assert (
         converted_eval.evaluation_results[0].source_data.dataset_name
-        == 'ai2_arc'
+        == 'arc_easy'
+    )
+    assert (
+        converted_eval.evaluation_results[0].source_data.additional_details[
+            'inspect_dataset_name'
+        ]
+        == 'allenai/ai2_arc'
     )
     assert (
         converted_eval.evaluation_results[0].source_data.hf_repo
@@ -277,7 +303,9 @@ def test_arc_qwen_eval():
     assert converted_eval.model_info.inference_engine.name == 'ollama'
 
     results = converted_eval.evaluation_results
-    assert results[0].evaluation_name == 'accuracy on arc_easy for scorer choice'
+    assert (
+        results[0].evaluation_name == 'accuracy on arc_easy for scorer choice'
+    )
     assert results[0].metric_config.evaluation_description == 'accuracy'
     assert results[0].score_details.score == 0.3333333333333333
 
@@ -303,7 +331,13 @@ def test_gaia_eval():
     assert converted_eval.retrieved_timestamp is not None
 
     assert (
-        converted_eval.evaluation_results[0].source_data.dataset_name == 'GAIA'
+        converted_eval.evaluation_results[0].source_data.dataset_name == 'gaia'
+    )
+    assert (
+        converted_eval.evaluation_results[0].source_data.additional_details[
+            'inspect_dataset_name'
+        ]
+        == 'GAIA'
     )
     assert converted_eval.evaluation_results[0].source_data.hf_repo is not None
     assert len(converted_eval.evaluation_results[0].source_data.sample_ids) > 0
@@ -316,7 +350,9 @@ def test_gaia_eval():
 
     results = converted_eval.evaluation_results
     assert len(results) > 0
-    assert results[0].evaluation_name == 'accuracy on gaia for scorer gaia_scorer'
+    assert (
+        results[0].evaluation_name == 'accuracy on gaia for scorer gaia_scorer'
+    )
     assert results[0].metric_config.evaluation_description == 'accuracy'
     assert results[0].score_details.score >= 0.0
 
@@ -342,71 +378,75 @@ def test_humaneval_eval():
 
 def test_extract_evaluation_results_one_scorer_with_two_metrics():
     adapter = InspectAIAdapter()
-    source_data = SourceDataHf(dataset_name="synthetic_ds", source_type="hf_dataset")
+    source_data = SourceDataHf(
+        dataset_name='synthetic_ds', source_type='hf_dataset'
+    )
     generation_config = GenerationConfig()
     scores = [
         _make_scorer(
-            "choice",
+            'choice',
             {
-                "accuracy": _make_metric("accuracy", 0.75),
-                "f1": _make_metric("f1", 0.80),
-                "stderr": _make_metric("stderr", 0.05),
+                'accuracy': _make_metric('accuracy', 0.75),
+                'f1': _make_metric('f1', 0.80),
+                'stderr': _make_metric('stderr', 0.05),
             },
         )
     ]
 
     results = adapter._extract_evaluation_results(
-        evaluation_task_name="synthetic/task",
+        evaluation_task_name='synthetic/task',
         scores=scores,
         source_data=source_data,
         generation_config=generation_config,
         num_samples=10,
-        timestamp="1234567890",
+        timestamp='1234567890',
     )
 
     assert len(results) == 2
     assert {result.evaluation_name for result in results} == {
-        "accuracy on synthetic/task for scorer choice",
-        "f1 on synthetic/task for scorer choice",
+        'accuracy on synthetic/task for scorer choice',
+        'f1 on synthetic/task for scorer choice',
     }
 
 
 def test_extract_evaluation_results_two_scorers_two_metrics_each():
     adapter = InspectAIAdapter()
-    source_data = SourceDataHf(dataset_name="synthetic_ds", source_type="hf_dataset")
+    source_data = SourceDataHf(
+        dataset_name='synthetic_ds', source_type='hf_dataset'
+    )
     generation_config = GenerationConfig()
     scores = [
         _make_scorer(
-            "scorer_a",
+            'scorer_a',
             {
-                "accuracy": _make_metric("accuracy", 0.91),
-                "f1": _make_metric("f1", 0.90),
+                'accuracy': _make_metric('accuracy', 0.91),
+                'f1': _make_metric('f1', 0.90),
             },
         ),
         _make_scorer(
-            "scorer_b",
+            'scorer_b',
             {
-                "accuracy": _make_metric("accuracy", 0.88),
-                "f1": _make_metric("f1", 0.87),
+                'accuracy': _make_metric('accuracy', 0.88),
+                'f1': _make_metric('f1', 0.87),
             },
         ),
     ]
 
     results = adapter._extract_evaluation_results(
-        evaluation_task_name="synthetic/task",
+        evaluation_task_name='synthetic/task',
         scores=scores,
         source_data=source_data,
         generation_config=generation_config,
         num_samples=10,
-        timestamp="1234567890",
+        timestamp='1234567890',
     )
 
     assert len(results) == 4
     assert {result.evaluation_name for result in results} == {
-        "accuracy on synthetic/task for scorer scorer_a",
-        "f1 on synthetic/task for scorer scorer_a",
-        "accuracy on synthetic/task for scorer scorer_b",
-        "f1 on synthetic/task for scorer scorer_b",
+        'accuracy on synthetic/task for scorer scorer_a',
+        'f1 on synthetic/task for scorer scorer_a',
+        'accuracy on synthetic/task for scorer scorer_b',
+        'f1 on synthetic/task for scorer scorer_b',
     }
 
 
@@ -449,47 +489,47 @@ def test_convert_model_path_to_standarized_model_ids():
 def test_supplemental_eval_details_fill_only_top_level_fields():
     adapter = InspectAIAdapter()
     metadata_args = {
-        "source_organization_name": "TestOrg",
-        "evaluator_relationship": EvaluatorRelationship.first_party,
-        "supplemental_eval_details": {
-            "model_info": {
-                "additional_details": {
-                    "num_parameters": 42,
-                    "is_test_model": True,
+        'source_organization_name': 'TestOrg',
+        'evaluator_relationship': EvaluatorRelationship.first_party,
+        'supplemental_eval_details': {
+            'model_info': {
+                'additional_details': {
+                    'num_parameters': 42,
+                    'is_test_model': True,
                 }
             },
-            "source_data": {
-                "additional_details": {
-                    "shuffled": "should_not_overwrite",
-                    "subset": {"name": "full"},
+            'source_data': {
+                'additional_details': {
+                    'shuffled': 'should_not_overwrite',
+                    'subset': {'name': 'full'},
                 }
             },
-            "generation_config": {
-                "additional_details": {
-                    "runner": "inspect",
+            'generation_config': {
+                'additional_details': {
+                    'runner': 'inspect',
                 },
             },
-            "agentic_eval_config": {
-                "additional_details": {
-                    "agent_mode": "tool_use",
+            'agentic_eval_config': {
+                'additional_details': {
+                    'agent_mode': 'tool_use',
                 }
             },
-            "evaluation_results": [
+            'evaluation_results': [
                 {
-                    "evaluation_name": "accuracy on inspect_evals/pubmedqa for scorer choice",
-                    "score_details": {
-                        "details": {
-                            "notes": ["a", "b"],
+                    'evaluation_name': 'accuracy on inspect_evals/pubmedqa for scorer choice',
+                    'score_details': {
+                        'details': {
+                            'notes': ['a', 'b'],
                         }
                     },
-                    "metric_config": {
-                        "lower_is_better": True,
-                        "evaluation_description": "should_not_overwrite",
-                        "score_type": ScoreType.continuous,
-                        "min_score": 0.0,
-                        "max_score": 1.0,
-                        "additional_details": {
-                            "normalization": "none",
+                    'metric_config': {
+                        'lower_is_better': True,
+                        'evaluation_description': 'should_not_overwrite',
+                        'score_type': ScoreType.continuous,
+                        'min_score': 0.0,
+                        'max_score': 1.0,
+                        'additional_details': {
+                            'normalization': 'none',
                         },
                     },
                 },
@@ -499,47 +539,49 @@ def test_supplemental_eval_details_fill_only_top_level_fields():
 
     converted_eval = _load_eval(
         adapter,
-        "tests/data/inspect/data_pubmedqa_gpt4o_mini.json",
+        'tests/data/inspect/data_pubmedqa_gpt4o_mini.json',
         metadata_args,
     )
     result = converted_eval.evaluation_results[0]
 
     assert converted_eval.model_info.additional_details == {
-        "num_parameters": "42",
-        "is_test_model": "true",
+        'num_parameters': '42',
+        'is_test_model': 'true',
     }
-    assert result.source_data.additional_details["shuffled"] == "False"
-    assert result.source_data.additional_details["subset"] == '{"name": "full"}'
+    assert result.source_data.additional_details['shuffled'] == 'False'
+    assert result.source_data.additional_details['subset'] == '{"name": "full"}'
 
     assert result.generation_config is not None
-    assert result.generation_config.additional_details == {"runner": "inspect"}
+    assert result.generation_config.additional_details == {'runner': 'inspect'}
     assert result.generation_config.generation_args is not None
-    assert result.generation_config.generation_args.agentic_eval_config is not None
+    assert (
+        result.generation_config.generation_args.agentic_eval_config is not None
+    )
     assert (
         result.generation_config.generation_args.agentic_eval_config.additional_details
-        == {"agent_mode": "tool_use"}
+        == {'agent_mode': 'tool_use'}
     )
 
-    assert result.score_details.details == {"notes": '["a", "b"]'}
+    assert result.score_details.details == {'notes': '["a", "b"]'}
 
     # Converter-synthetic defaults are override-eligible.
     assert result.metric_config.lower_is_better is True
-    assert result.metric_config.evaluation_description == "should_not_overwrite"
-    assert result.metric_config.additional_details == {"normalization": "none"}
+    assert result.metric_config.evaluation_description == 'should_not_overwrite'
+    assert result.metric_config.additional_details == {'normalization': 'none'}
 
 
 def test_supplemental_eval_details_applies_top_level_score_details():
     adapter = InspectAIAdapter()
     metadata_args = {
-        "source_organization_name": "TestOrg",
-        "evaluator_relationship": EvaluatorRelationship.first_party,
-        "supplemental_eval_details": {
-            "evaluation_results": [
+        'source_organization_name': 'TestOrg',
+        'evaluator_relationship': EvaluatorRelationship.first_party,
+        'supplemental_eval_details': {
+            'evaluation_results': [
                 {
-                    "evaluation_name": "accuracy on inspect_evals/pubmedqa for scorer choice",
-                    "score_details": {
-                        "details": {
-                            "matched": 1,
+                    'evaluation_name': 'accuracy on inspect_evals/pubmedqa for scorer choice',
+                    'score_details': {
+                        'details': {
+                            'matched': 1,
                         },
                     },
                 }
@@ -549,24 +591,24 @@ def test_supplemental_eval_details_applies_top_level_score_details():
 
     converted_eval = _load_eval(
         adapter,
-        "tests/data/inspect/data_pubmedqa_gpt4o_mini.json",
+        'tests/data/inspect/data_pubmedqa_gpt4o_mini.json',
         metadata_args,
     )
     result = converted_eval.evaluation_results[0]
 
-    assert result.score_details.details == {"matched": "1"}
+    assert result.score_details.details == {'matched': '1'}
 
 
 def test_supplemental_eval_details_does_not_overwrite_existing_generation_details():
     adapter = InspectAIAdapter()
     metadata_args = {
-        "source_organization_name": "TestOrg",
-        "evaluator_relationship": EvaluatorRelationship.first_party,
-        "supplemental_eval_details": {
-            "generation_config": {
-                "additional_details": {
-                    "temperature": "999",
-                    "added_field": "yes",
+        'source_organization_name': 'TestOrg',
+        'evaluator_relationship': EvaluatorRelationship.first_party,
+        'supplemental_eval_details': {
+            'generation_config': {
+                'additional_details': {
+                    'temperature': '999',
+                    'added_field': 'yes',
                 }
             },
         },
@@ -574,28 +616,28 @@ def test_supplemental_eval_details_does_not_overwrite_existing_generation_detail
 
     converted_eval = _load_eval(
         adapter,
-        "tests/data/inspect/2026-02-07T11-26-57+00-00_gaia_4V8zHbbRKpU5Yv2BMoBcjE.json",
+        'tests/data/inspect/2026-02-07T11-26-57+00-00_gaia_4V8zHbbRKpU5Yv2BMoBcjE.json',
         metadata_args,
     )
     result = converted_eval.evaluation_results[0]
     assert result.generation_config is not None
     assert result.generation_config.additional_details is not None
     # existing log value remains
-    assert result.generation_config.additional_details["temperature"] == "0.5"
+    assert result.generation_config.additional_details['temperature'] == '0.5'
     # missing key gets filled
-    assert result.generation_config.additional_details["added_field"] == "yes"
+    assert result.generation_config.additional_details['added_field'] == 'yes'
 
 
 def test_supplemental_eval_details_does_not_apply_when_evaluation_name_does_not_match():
     adapter = InspectAIAdapter()
     metadata_args = {
-        "source_organization_name": "TestOrg",
-        "evaluator_relationship": EvaluatorRelationship.first_party,
-        "supplemental_eval_details": {
-            "evaluation_results": [
+        'source_organization_name': 'TestOrg',
+        'evaluator_relationship': EvaluatorRelationship.first_party,
+        'supplemental_eval_details': {
+            'evaluation_results': [
                 {
-                    "evaluation_name": "some_other_eval - choice",
-                    "score_details": {"details": {"matched": 1}},
+                    'evaluation_name': 'some_other_eval - choice',
+                    'score_details': {'details': {'matched': 1}},
                 }
             ],
         },
@@ -603,7 +645,7 @@ def test_supplemental_eval_details_does_not_apply_when_evaluation_name_does_not_
 
     converted_eval = _load_eval(
         adapter,
-        "tests/data/inspect/data_pubmedqa_gpt4o_mini.json",
+        'tests/data/inspect/data_pubmedqa_gpt4o_mini.json',
         metadata_args,
     )
     result = converted_eval.evaluation_results[0]
@@ -613,15 +655,15 @@ def test_supplemental_eval_details_does_not_apply_when_evaluation_name_does_not_
 def test_supplemental_eval_details_fails_on_deprecated_per_result_schema():
     adapter = InspectAIAdapter()
     metadata_args = {
-        "source_organization_name": "TestOrg",
-        "evaluator_relationship": EvaluatorRelationship.first_party,
-        "supplemental_eval_details": {
-            "per_result": [
+        'source_organization_name': 'TestOrg',
+        'evaluator_relationship': EvaluatorRelationship.first_party,
+        'supplemental_eval_details': {
+            'per_result': [
                 {
-                    "match": {
-                        "evaluation_name": "accuracy on inspect_evals/pubmedqa for scorer choice",
+                    'match': {
+                        'evaluation_name': 'accuracy on inspect_evals/pubmedqa for scorer choice',
                     },
-                    "score_details": {"details": {"matched": 1}},
+                    'score_details': {'details': {'matched': 1}},
                 },
             ]
         },
@@ -629,11 +671,11 @@ def test_supplemental_eval_details_fails_on_deprecated_per_result_schema():
 
     with tempfile.TemporaryDirectory() as tmpdir:
         metadata_args = dict(metadata_args)
-        metadata_args["file_uuid"] = "test-file-uuid"
-        metadata_args["parent_eval_output_dir"] = tmpdir
+        metadata_args['file_uuid'] = 'test-file-uuid'
+        metadata_args['parent_eval_output_dir'] = tmpdir
         with pytest.raises(AdapterError):
             adapter.transform_from_file(
-                Path("tests/data/inspect/data_pubmedqa_gpt4o_mini.json"),
+                Path('tests/data/inspect/data_pubmedqa_gpt4o_mini.json'),
                 metadata_args=metadata_args,
             )
 
@@ -641,17 +683,17 @@ def test_supplemental_eval_details_fails_on_deprecated_per_result_schema():
 def test_supplemental_eval_details_fails_on_duplicate_evaluation_name():
     adapter = InspectAIAdapter()
     metadata_args = {
-        "source_organization_name": "TestOrg",
-        "evaluator_relationship": EvaluatorRelationship.first_party,
-        "supplemental_eval_details": {
-            "evaluation_results": [
+        'source_organization_name': 'TestOrg',
+        'evaluator_relationship': EvaluatorRelationship.first_party,
+        'supplemental_eval_details': {
+            'evaluation_results': [
                 {
-                    "evaluation_name": "accuracy on inspect_evals/pubmedqa for scorer choice",
-                    "score_details": {"details": {"a": 1}},
+                    'evaluation_name': 'accuracy on inspect_evals/pubmedqa for scorer choice',
+                    'score_details': {'details': {'a': 1}},
                 },
                 {
-                    "evaluation_name": "accuracy on inspect_evals/pubmedqa for scorer choice",
-                    "score_details": {"details": {"b": 2}},
+                    'evaluation_name': 'accuracy on inspect_evals/pubmedqa for scorer choice',
+                    'score_details': {'details': {'b': 2}},
                 },
             ]
         },
@@ -659,11 +701,11 @@ def test_supplemental_eval_details_fails_on_duplicate_evaluation_name():
 
     with tempfile.TemporaryDirectory() as tmpdir:
         metadata_args = dict(metadata_args)
-        metadata_args["file_uuid"] = "test-file-uuid"
-        metadata_args["parent_eval_output_dir"] = tmpdir
+        metadata_args['file_uuid'] = 'test-file-uuid'
+        metadata_args['parent_eval_output_dir'] = tmpdir
         with pytest.raises(AdapterError):
             adapter.transform_from_file(
-                Path("tests/data/inspect/data_pubmedqa_gpt4o_mini.json"),
+                Path('tests/data/inspect/data_pubmedqa_gpt4o_mini.json'),
                 metadata_args=metadata_args,
             )
 
@@ -671,13 +713,13 @@ def test_supplemental_eval_details_fails_on_duplicate_evaluation_name():
 def test_supplemental_eval_details_fails_on_invalid_schema():
     adapter = InspectAIAdapter()
     metadata_args = {
-        "source_organization_name": "TestOrg",
-        "evaluator_relationship": EvaluatorRelationship.first_party,
-        "supplemental_eval_details": {
-            "evaluation_results": [
+        'source_organization_name': 'TestOrg',
+        'evaluator_relationship': EvaluatorRelationship.first_party,
+        'supplemental_eval_details': {
+            'evaluation_results': [
                 {
-                    "metric_config": {
-                        "unsupported_field": "x",
+                    'metric_config': {
+                        'unsupported_field': 'x',
                     }
                 }
             ]
@@ -686,10 +728,10 @@ def test_supplemental_eval_details_fails_on_invalid_schema():
 
     with tempfile.TemporaryDirectory() as tmpdir:
         metadata_args = dict(metadata_args)
-        metadata_args["file_uuid"] = "test-file-uuid"
-        metadata_args["parent_eval_output_dir"] = tmpdir
+        metadata_args['file_uuid'] = 'test-file-uuid'
+        metadata_args['parent_eval_output_dir'] = tmpdir
         with pytest.raises(AdapterError):
             adapter.transform_from_file(
-                Path("tests/data/inspect/data_pubmedqa_gpt4o_mini.json"),
+                Path('tests/data/inspect/data_pubmedqa_gpt4o_mini.json'),
                 metadata_args=metadata_args,
             )

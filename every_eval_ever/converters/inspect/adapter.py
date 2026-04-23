@@ -253,11 +253,21 @@ class InspectAIAdapter(BaseEvaluationAdapter):
     def _extract_source_data(
         self, dataset: EvalDataset, task_name: str
     ) -> SourceDataHf | SourceDataPrivate:
+        # Prefer the task name over `dataset.name` as the benchmark
+        # identifier. `dataset.name` is often set to an internal filename
+        # by the eval harness (e.g. 'challenges' for cyberseceval_2
+        # vulnerability_exploit, 'ic_ctf' for gdm_intercode_ctf), which
+        # does not identify the benchmark to downstream consumers. The
+        # task name is the canonical benchmark identifier. Preserve the
+        # harness-provided `dataset.name` in `additional_details` for
+        # anyone who needs the raw value.
         dataset_name = (
-            dataset.name.split('/')[-1]
-            if dataset.name
-            else task_name.split('/')[-1]
+            task_name.split('/')[-1]
+            if task_name
+            else (dataset.name.split('/')[-1] if dataset.name else '')
         )
+        inspect_dataset_name = dataset.name if dataset.name else None
+
         sample_ids = (
             [str(sid) for sid in dataset.sample_ids]
             if dataset.sample_ids is not None
@@ -273,6 +283,10 @@ class InspectAIAdapter(BaseEvaluationAdapter):
                 'shuffled': str(dataset.shuffled),
                 'inspect_dataset_location': str(dataset.location),
             }
+            if inspect_dataset_name is not None:
+                additional_details['inspect_dataset_name'] = (
+                    inspect_dataset_name
+                )
             if dataset.samples is not None:
                 additional_details['samples_number'] = str(dataset.samples)
             if sample_ids is not None:
@@ -283,13 +297,18 @@ class InspectAIAdapter(BaseEvaluationAdapter):
                 additional_details=additional_details,
             )
 
+        hf_additional_details: dict[str, str] = {
+            'shuffled': str(dataset.shuffled),
+        }
+        if inspect_dataset_name is not None:
+            hf_additional_details['inspect_dataset_name'] = inspect_dataset_name
         return SourceDataHf(  # TODO add hf_split
             source_type='hf_dataset',
             dataset_name=dataset_name,
             hf_repo=dataset.location,
             samples_number=dataset.samples,
             sample_ids=sample_ids,
-            additional_details={'shuffled': str(dataset.shuffled)},
+            additional_details=hf_additional_details,
         )
 
     def _safe_get(self, obj: Any, field: str):

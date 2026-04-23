@@ -148,16 +148,16 @@ class TestLocalFilesystemDatasetPath:
 
 
 class TestMisleadingDatasetNames:
-    """dataset_name should identify the benchmark, not an internal filename."""
+    """dataset_name should identify the benchmark, not an internal filename.
 
-    @pytest.mark.xfail(
-        reason="adapter uses dataset.name ('challenges') instead of the "
-        "task name ('cyse2_vulnerability_exploit')",
-        strict=True,
-    )
+    The adapter now uses the task name as the dataset_name and preserves
+    the harness-provided `dataset.name` in `additional_details
+    ['inspect_dataset_name']` for traceability.
+    """
+
     def test_cyse2_vuln_exploit_dataset_name(self):
         """CybersecEval2 vulnerability_exploit should not be named
-        'challenges'."""
+        'challenges'; the task name should be used instead."""
         converted, _ = _load_eval_and_instances(
             FIXTURES / 'data_cyse2_vuln_exploit_challenges.json'
         )
@@ -166,14 +166,17 @@ class TestMisleadingDatasetNames:
             'dataset_name should reflect the benchmark, not the internal '
             f'filename — got {sd.dataset_name!r}'
         )
+        assert 'cyse2_vulnerability_exploit' in sd.dataset_name, (
+            f'dataset_name should include the task name — got {sd.dataset_name!r}'
+        )
+        # Harness-provided dataset.name is preserved for traceability.
+        assert (sd.additional_details or {}).get(
+            'inspect_dataset_name'
+        ) == 'challenges'
 
-    @pytest.mark.xfail(
-        reason="adapter uses dataset.name ('ic_ctf') instead of the "
-        "task name ('gdm_intercode_ctf')",
-        strict=True,
-    )
     def test_intercode_ctf_dataset_name(self):
-        """gdm_intercode_ctf should not be named 'ic_ctf'."""
+        """gdm_intercode_ctf should not be named 'ic_ctf'; the task name
+        should be used instead."""
         converted, _ = _load_eval_and_instances(
             FIXTURES / 'data_intercode_ctf_local_path.json'
         )
@@ -182,3 +185,9 @@ class TestMisleadingDatasetNames:
             'dataset_name should reflect the benchmark, not the internal '
             f'filename — got {sd.dataset_name!r}'
         )
+        assert 'gdm_intercode_ctf' in sd.dataset_name, (
+            f'dataset_name should include the task name — got {sd.dataset_name!r}'
+        )
+        assert (sd.additional_details or {}).get(
+            'inspect_dataset_name'
+        ) == 'ic_ctf'
