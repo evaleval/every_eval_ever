@@ -42,7 +42,9 @@ METADATA_ARGS = {
 def _load_eval_and_instances(filepath, metadata_args=None):
     """Load a log through the adapter and return (EvaluationLog, [InstanceLevelEvaluationLog])."""
     adapter = InspectAIAdapter()
-    args = dict(metadata_args or METADATA_ARGS)
+    if metadata_args is None:
+        metadata_args = {}
+    args = {**METADATA_ARGS, **metadata_args}
     args.setdefault('file_uuid', 'test-uuid')
 
     with tempfile.TemporaryDirectory() as tmpdir:
