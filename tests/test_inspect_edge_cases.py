@@ -147,6 +147,29 @@ class TestLocalFilesystemDatasetPath:
 # -----------------------------------------------------------------------
 
 
+class TestEvaluationIdAlignment:
+    """Aggregate and instance-level logs must share the same evaluation_id.
+
+    The instance-level records carry `evaluation_id` as a foreign key back
+    to the aggregate log; they must match so downstream joins work. The
+    adapter previously set the instance-level `evaluation_id` to
+    `{file_uuid}_samples` (the basename of the instance-level file),
+    which did not match the aggregate's
+    `{dataset_name}/{model_path}/{timestamp}`.
+    """
+
+    def test_evaluation_id_matches_across_aggregate_and_instances(self):
+        converted, instances = _load_eval_and_instances(
+            FIXTURES / 'data_intercode_ctf_local_path.json'
+        )
+        assert instances, 'Expected at least one instance-level record'
+        for inst in instances:
+            assert inst.evaluation_id == converted.evaluation_id, (
+                f'instance evaluation_id {inst.evaluation_id!r} does not '
+                f'match aggregate {converted.evaluation_id!r}'
+            )
+
+
 class TestMisleadingDatasetNames:
     """dataset_name should identify the benchmark, not an internal filename.
 

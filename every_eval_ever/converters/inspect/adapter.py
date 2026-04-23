@@ -630,14 +630,20 @@ class InspectAIAdapter(BaseEvaluationAdapter):
             else:
                 model_dev, model_name = 'unknown', model_info.id
             evaluation_dir = f'{parent_eval_output_dir}/{source_data.dataset_name}/{model_dev}/{model_name}'
-            detailed_results_id = f'{file_uuid}_samples'
+            # The aggregate `evaluation_id` is the foreign key consumers
+            # use to join instance-level records back to the aggregate,
+            # so pass it through verbatim. The file basename is a
+            # separate, filesystem-safe identifier since the aggregate
+            # id contains slashes and other path-unsafe characters.
+            file_basename = f'{file_uuid}_samples'
 
             instance_level_log_path, instance_level_rows_number = (
                 InspectInstanceLevelDataAdapter(
-                    detailed_results_id,
-                    Format.jsonl.value,
-                    HashAlgorithm.sha256.value,
-                    evaluation_dir,
+                    evaluation_id=evaluation_id,
+                    file_basename=file_basename,
+                    format=Format.jsonl.value,
+                    hash_algorithm=HashAlgorithm.sha256.value,
+                    evaluation_dir=evaluation_dir,
                 ).convert_instance_level_logs(
                     evaluation_task_name,
                     model_info.id,
