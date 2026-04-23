@@ -21,6 +21,8 @@ from every_eval_ever.eval_types import (
     GenerationConfig,
     ScoreType,
     SourceDataHf,
+    SourceDataPrivate,
+    SourceDataUrl,
     SourceMetadata,
 )
 
@@ -38,7 +40,8 @@ def _load_eval(adapter, filepath, metadata_args):
 
     assert isinstance(converted_eval, EvaluationLog)
     assert isinstance(
-        converted_eval.evaluation_results[0].source_data, SourceDataHf
+        converted_eval.evaluation_results[0].source_data,
+        SourceDataHf | SourceDataUrl | SourceDataPrivate,
     )
 
     assert isinstance(converted_eval.source_metadata, SourceMetadata)
@@ -85,14 +88,7 @@ def test_pubmedqa_eval():
 
     assert (
         converted_eval.evaluation_results[0].source_data.dataset_name
-        == 'pubmedqa'
-    )
-    # Harness-provided dataset.name is preserved in additional_details.
-    assert (
-        converted_eval.evaluation_results[0].source_data.additional_details[
-            'inspect_dataset_name'
-        ]
-        == 'bigbio/pubmed_qa'
+        == 'pubmed_qa'
     )
     assert (
         converted_eval.evaluation_results[0].source_data.hf_repo
@@ -232,13 +228,7 @@ def test_arc_sonnet_eval():
 
     assert (
         converted_eval.evaluation_results[0].source_data.dataset_name
-        == 'arc_easy'
-    )
-    assert (
-        converted_eval.evaluation_results[0].source_data.additional_details[
-            'inspect_dataset_name'
-        ]
-        == 'allenai/ai2_arc'
+        == 'ai2_arc'
     )
     assert (
         converted_eval.evaluation_results[0].source_data.hf_repo
@@ -282,13 +272,7 @@ def test_arc_qwen_eval():
 
     assert (
         converted_eval.evaluation_results[0].source_data.dataset_name
-        == 'arc_easy'
-    )
-    assert (
-        converted_eval.evaluation_results[0].source_data.additional_details[
-            'inspect_dataset_name'
-        ]
-        == 'allenai/ai2_arc'
+        == 'ai2_arc'
     )
     assert (
         converted_eval.evaluation_results[0].source_data.hf_repo
@@ -330,17 +314,21 @@ def test_gaia_eval():
     assert converted_eval.evaluation_timestamp is not None
     assert converted_eval.retrieved_timestamp is not None
 
+    # GAIA's `dataset.location` is `inspect_evals/gaia_dataset/GAIA` —
+    # a 3-segment path, not a valid HF `owner/name`. The adapter emits
+    # SourceDataPrivate with the task name as `dataset_name` and
+    # preserves the harness-provided `dataset.name` and `dataset.location`
+    # in additional_details.
+    source_data = converted_eval.evaluation_results[0].source_data
+    assert source_data.__class__.__name__ == 'SourceDataPrivate'
+    assert source_data.dataset_name == 'gaia'
+    assert source_data.additional_details['inspect_dataset_name'] == 'GAIA'
     assert (
-        converted_eval.evaluation_results[0].source_data.dataset_name == 'gaia'
+        source_data.additional_details['inspect_dataset_location']
+        == 'inspect_evals/gaia_dataset/GAIA'
     )
-    assert (
-        converted_eval.evaluation_results[0].source_data.additional_details[
-            'inspect_dataset_name'
-        ]
-        == 'GAIA'
-    )
-    assert converted_eval.evaluation_results[0].source_data.hf_repo is not None
-    assert len(converted_eval.evaluation_results[0].source_data.sample_ids) > 0
+    assert int(source_data.additional_details['samples_number']) > 0
+    assert source_data.additional_details['sample_ids']
 
     assert converted_eval.model_info.name == 'openai/gpt-4.1-mini-2025-04-14'
     assert converted_eval.model_info.id == 'openai/gpt-4.1-mini-2025-04-14'

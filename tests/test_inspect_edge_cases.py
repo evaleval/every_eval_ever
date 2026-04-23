@@ -142,8 +142,8 @@ class TestLocalFilesystemDatasetPath:
 # 3. Misleading dataset_name from Inspect log metadata
 #    Some inspect_evals use internal filenames as the dataset name
 #    (e.g. 'challenges' for cyberseceval_2 vulnerability_exploit,
-#    'ic_ctf' for gdm_intercode_ctf).  The adapter should prefer the
-#    task name when the dataset name is ambiguous or generic.
+#    'ic_ctf' for gdm_intercode_ctf).  When `dataset.location` is not a
+#    valid HF `owner/name` repo, the adapter falls back to the task name.
 # -----------------------------------------------------------------------
 
 
@@ -173,9 +173,10 @@ class TestEvaluationIdAlignment:
 class TestMisleadingDatasetNames:
     """dataset_name should identify the benchmark, not an internal filename.
 
-    The adapter now uses the task name as the dataset_name and preserves
-    the harness-provided `dataset.name` in `additional_details
-    ['inspect_dataset_name']` for traceability.
+    When `dataset.location` is not a valid HF `owner/name` repo, the
+    adapter falls back to the inspect_evals task name for `dataset_name`
+    and preserves the harness-provided `dataset.name` under
+    `additional_details['inspect_dataset_name']` for traceability.
     """
 
     def test_cyse2_vuln_exploit_dataset_name(self):

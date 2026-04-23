@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Tuple, Union
@@ -230,44 +231,30 @@ class InspectAIAdapter(BaseEvaluationAdapter):
 
         return results
 
-    @staticmethod
-    def _looks_like_local_path(location: str | None) -> bool:
+    # A HuggingFace repo identifier: exactly `namespace/name` with no
+    # extra path segments, schemes, or path-unsafe prefixes. We use an
+    # allowlist regex because the set of "real HF repos" is much easier
+    # to characterize precisely than the set of "local paths".
+    _HF_REPO_RE = re.compile(r'^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$')
+
+    @classmethod
+    def _looks_like_local_path(cls, location: str | None) -> bool:
         """Heuristic: is `dataset.location` a local filesystem path rather
         than a HuggingFace repo identifier?
 
-        HuggingFace repos are of the form `owner/name` and never start
-        with `/`, `./`, `../`, `~`, or a Windows drive letter. Anything
-        with a scheme (e.g. `file://`, `http://`) is also not an HF repo.
+        A valid HF repo is exactly `namespace/name`. Anything else —
+        absolute/relative paths (`/`, `./`, `../`, `~`), Windows drive
+        letters, URL schemes (`file://`, `http://`), three-or-more
+        segment paths (e.g. `inspect_evals/gaia_dataset/GAIA` from older
+        Inspect versions), or plain single words — we treat as local.
         """
         if not location:
             return False
-        if location.startswith(('/', './', '../', '~')):
-            return True
-        if len(location) >= 2 and location[1] == ':':  # Windows drive
-            return True
-        scheme = urlparse(location).scheme
-        if scheme and scheme not in ('hf', 'huggingface'):
-            return True
-        return False
+        return not cls._HF_REPO_RE.match(location)
 
     def _extract_source_data(
         self, dataset: EvalDataset, task_name: str
     ) -> SourceDataHf | SourceDataPrivate:
-        # Prefer the task name over `dataset.name` as the benchmark
-        # identifier. `dataset.name` is often set to an internal filename
-        # by the eval harness (e.g. 'challenges' for cyberseceval_2
-        # vulnerability_exploit, 'ic_ctf' for gdm_intercode_ctf), which
-        # does not identify the benchmark to downstream consumers. The
-        # task name is the canonical benchmark identifier. Preserve the
-        # harness-provided `dataset.name` in `additional_details` for
-        # anyone who needs the raw value.
-        dataset_name = (
-            task_name.split('/')[-1]
-            if task_name
-            else (dataset.name.split('/')[-1] if dataset.name else '')
-        )
-        inspect_dataset_name = dataset.name if dataset.name else None
-
         sample_ids = (
             [str(sid) for sid in dataset.sample_ids]
             if dataset.sample_ids is not None
@@ -275,18 +262,31 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         )
 
         if self._looks_like_local_path(dataset.location):
-            # dataset.location is a local filesystem path (e.g. a cached
-            # HF dataset or a benchmark's bundled challenges directory),
-            # so we cannot claim this is an HF dataset. Preserve what we
-            # know in additional_details so consumers can still trace it.
+            # dataset.location is not a valid HF repo identifier: it may
+            # be an absolute filesystem path (e.g. a cached HF dataset
+            # or a benchmark's bundled challenges directory) or some
+            # other non-HF reference. We can't claim this is an HF
+            # dataset, and `dataset.name` is often an internal filename
+            # that doesn't identify the benchmark (e.g. 'challenges' for
+            # cyberseceval_2 vulnerability_exploit, 'ic_ctf' for
+            # gdm_intercode_ctf). Use the canonical inspect_evals task
+            # name as `dataset_name`, and preserve the harness-provided
+            # `dataset.name` and `dataset.location` in
+            # `additional_details` for anyone who needs the raw values.
+            dataset_name = (
+                task_name.split('/')[-1]
+                if task_name
+                else (dataset.name.split('/')[-1] if dataset.name else '')
+            )
             additional_details: dict[str, str] = {
                 'shuffled': str(dataset.shuffled),
-                'inspect_dataset_location': str(dataset.location),
             }
-            if inspect_dataset_name is not None:
-                additional_details['inspect_dataset_name'] = (
-                    inspect_dataset_name
+            if dataset.location:
+                additional_details['inspect_dataset_location'] = str(
+                    dataset.location
                 )
+            if dataset.name:
+                additional_details['inspect_dataset_name'] = dataset.name
             if dataset.samples is not None:
                 additional_details['samples_number'] = str(dataset.samples)
             if sample_ids is not None:
@@ -297,18 +297,21 @@ class InspectAIAdapter(BaseEvaluationAdapter):
                 additional_details=additional_details,
             )
 
-        hf_additional_details: dict[str, str] = {
-            'shuffled': str(dataset.shuffled),
-        }
-        if inspect_dataset_name is not None:
-            hf_additional_details['inspect_dataset_name'] = inspect_dataset_name
+        # Real HF dataset: trust `dataset.name` as the benchmark
+        # identifier. When the harness sets it to the full repo id
+        # (e.g. `bigbio/pubmed_qa`), take the final path segment.
+        dataset_name = (
+            dataset.name.split('/')[-1]
+            if dataset.name
+            else task_name.split('/')[-1]
+        )
         return SourceDataHf(  # TODO add hf_split
             source_type='hf_dataset',
             dataset_name=dataset_name,
             hf_repo=dataset.location,
             samples_number=dataset.samples,
             sample_ids=sample_ids,
-            additional_details=hf_additional_details,
+            additional_details={'shuffled': str(dataset.shuffled)},
         )
 
     def _safe_get(self, obj: Any, field: str):
