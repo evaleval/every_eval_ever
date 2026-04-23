@@ -40,18 +40,11 @@ from every_eval_ever.eval_types import (
     SourceMetadata,
 )
 from every_eval_ever.helpers import SCHEMA_VERSION, get_developer, get_model_id, save_evaluation_log
+from utils.swe_helpers import parse_date_from_dir
 
 SWE_BENCH_REPO = "https://github.com/swe-bench/experiments"
 SWE_BENCH_SUBDIR = "evaluation/verified"
 OUTPUT_DIR = "data/swe-bench-verified-leaderboard"
-
-
-def parse_date_from_dir(dir_name: str) -> str | None:
-    """Extract ISO date from directory name prefix like '20250225_sweagent_...'"""
-    m = re.match(r'^(\d{4})(\d{2})(\d{2})_', dir_name)
-    if m:
-        return f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
-    return None
 
 
 def normalize_org(org) -> str:

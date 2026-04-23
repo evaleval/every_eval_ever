@@ -56,6 +56,7 @@ def parse_args():
             'HELM_Classic',
             'HELM_Instruct',
             'HELM_MMLU',
+            'HELM_AIR_Bench',
         ],
         help='HELM leaderboard name',
     )
@@ -198,23 +199,42 @@ def convert(
                 model_ids[model_name] = model_info.id
 
             for col_idx, (header, cell) in enumerate(zip(headers[1:], row[1:])):
+                # The "HELM level K category" tables in HELM AIR-Bench need special handling.
+                # The column headers look like "AIRBench 2024 - Security Risks".
+                # For for this example, the dataset name should be "AIRBench 2024 - Security Risks"
+                # and the metric name should be "Refusal Rate".
+                # This differs from other HELM tables, in which the column headers
+                # are in the format "dataset_name - metric_name" (e.g. "MMLU - EM")
+                # This boolean indicates whether the special handling is needed.
+                is_helm_air_bench_category_table = (
+                    leaderboard_name == "helm_air_bench"
+                    and tab_name.startswith("AIR")
+                    and tab_name.endswith("categories")
+                )
+
                 full_eval_name = header.get('value')
                 short_name = (
                     full_eval_name.split()[0]
-                    if '-' in full_eval_name
+                    if '-' in full_eval_name and not is_helm_air_bench_category_table
                     else full_eval_name
                 )
+
 
                 is_new_metric = (
                     tab_name.lower() == 'accuracy'
                     or short_name not in model_results[model_name]
                     or 'instruct' in leaderboard_name.lower()
+                    or is_helm_air_bench_category_table
                 )
 
                 if full_eval_name.lower().startswith('mean'):
                     metric_name = None
                     dataset_name = leaderboard_name
                     evaluation_name = full_eval_name
+                elif is_helm_air_bench_category_table:
+                    dataset_name = full_eval_name
+                    evaluation_name = dataset_name
+                    metric_name = "Refusal Rate"
                 else:
                     dataset_name, metric_name = full_eval_name.split(' - ', 1)
                     evaluation_name = dataset_name
@@ -243,7 +263,7 @@ def convert(
 
                     source_dataset_name = (
                         leaderboard_name
-                        if leaderboard_name.lower() == 'helm_mmlu'
+                        if leaderboard_name.lower() in ['helm_mmlu', "helm_air_bench"]
                         else dataset_name
                     )
 
@@ -382,7 +402,7 @@ def main():
 
     if not leaderboard_name.startswith("helm_"):
         raise ValueError("leaderboard_name must start with helm_")
-    leaderboard_id = leaderboard_name.removeprefix("helm_")
+    leaderboard_id = leaderboard_name.removeprefix("helm_").replace("_", "-")
     source_data_url = get_source_data_url(leaderboard_id, args.leaderboard_version)
 
     print(f'Fetching {leaderboard_name} {args.leaderboard_version} data from {source_data_url}')
