@@ -283,6 +283,10 @@ class HELMAdapter(BaseEvaluationAdapter):
         max_tokens = req.max_tokens if req.max_tokens is not None else getattr(
             adapter_spec, 'max_tokens', None
         )
+        # multiple_choice_separate_* methods score by log-prob and set max_tokens=0;
+        # GenerationArgs requires max_tokens >= 1, so treat 0 as None (not applicable)
+        if max_tokens == 0:
+            max_tokens = None
         top_p = req.top_p if req.top_p is not None else getattr(
             adapter_spec, 'top_p', None
         )
