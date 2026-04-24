@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import (
     BaseModel,
@@ -154,7 +154,7 @@ class InstanceLevelEvaluationLog(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
     )
-    schema_version: str = Field(
+    schema_version: Literal['instance_level_eval_0.2.2'] = Field(
         ..., description='Version of the schema used for this instance data'
     )
     evaluation_id: str = Field(
