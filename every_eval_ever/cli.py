@@ -346,6 +346,26 @@ def build_parser() -> argparse.ArgumentParser:
         help='Do not update companion *_samples.jsonl files.',
     )
 
+    schema_version_parser = subparsers.add_parser(
+        'upgrade-schema-version',
+        help='Normalize datastore schema_version fields to 0.2.2',
+        description=(
+            'Update aggregate JSON files to schema_version=0.2.2 and '
+            'instance JSONL rows to '
+            'schema_version=instance_level_eval_0.2.2.'
+        ),
+    )
+    schema_version_parser.add_argument(
+        'paths',
+        nargs='+',
+        help='One or more JSON/JSONL files or directories to normalize.',
+    )
+    schema_version_parser.add_argument(
+        '--write',
+        action='store_true',
+        help='Write changes in place. Without this flag, run as a dry run.',
+    )
+
     convert_parser = subparsers.add_parser(
         'convert',
         help='Convert source eval logs to every_eval_ever',
@@ -496,6 +516,16 @@ def main(argv: list[str] | None = None) -> int:
         if args.skip_samples:
             forwarded_args.append('--skip-samples')
         return augment_canonical_identity_main(forwarded_args)
+
+    if args.command == 'upgrade-schema-version':
+        from every_eval_ever.upgrade_schema_version import (
+            main as upgrade_schema_version_main,
+        )
+
+        forwarded_args = [*args.paths]
+        if args.write:
+            forwarded_args.append('--write')
+        return upgrade_schema_version_main(forwarded_args)
 
     if args.command == 'convert':
         if args.source == 'lm_eval':

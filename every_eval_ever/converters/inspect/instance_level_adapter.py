@@ -29,7 +29,7 @@ def _require_inspect_dependencies() -> None:
         ) from _INSPECT_IMPORT_ERROR
 
 
-from every_eval_ever.converters import SCHEMA_VERSION
+from every_eval_ever.converters import INSTANCE_LEVEL_SCHEMA_VERSION
 from every_eval_ever.converters.common.utils import sha256_string
 from every_eval_ever.instance_level_types import (
     AnswerAttributionItem,
@@ -52,13 +52,14 @@ class InspectInstanceLevelDataAdapter:
         format: str,
         hash_algorithm: str,
         evaluation_dir: str,
+        file_stem: str | None = None,
     ):
         _require_inspect_dependencies()
         self.evaluation_id = evaulation_id
         self.format = format
         self.hash_algorithm = hash_algorithm
         self.evaluation_dir = evaluation_dir
-        self.path = f'{evaluation_dir}/{evaulation_id}.{format}'
+        self.path = f'{evaluation_dir}/{file_stem or evaulation_id}.{format}'
 
     def _serialize_input(self, raw_input) -> str:
         if isinstance(raw_input, str):
@@ -398,7 +399,7 @@ class InspectInstanceLevelDataAdapter:
                 performance = None
 
             instance_level_log = InstanceLevelEvaluationLog(
-                schema_version=SCHEMA_VERSION,
+                schema_version=INSTANCE_LEVEL_SCHEMA_VERSION,
                 evaluation_id=self.evaluation_id,
                 model_id=model_id,
                 evaluation_name=evaluation_name,
