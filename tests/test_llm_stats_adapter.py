@@ -96,7 +96,7 @@ def sample_payload() -> dict:
 def logs_by_relationship() -> dict[str, EvaluationLog]:
     bundles = adapter.make_logs(
         sample_payload(),
-        base_url='https://llm-stats.com/stats/v1',
+        base_url=adapter.DEFAULT_BASE_URL,
         retrieved_timestamp='1234567890.0',
     )
     logs = {
@@ -116,6 +116,16 @@ def test_make_logs_validate_against_schema():
         assert (
             validated.source_metadata.additional_details['attribution_required']
             == 'true'
+        )
+        assert (
+            validated.source_metadata.additional_details['scores_endpoint']
+            == 'https://api.llm-stats.com/v1/scores'
+        )
+        assert (
+            validated.source_metadata.additional_details[
+                'scores_endpoint_fallback'
+            ]
+            == 'https://api.llm-stats.com/leaderboard/benchmarks/{benchmark_id}'
         )
 
 
@@ -221,6 +231,23 @@ def test_scores_from_live_benchmark_detail_shape():
     assert adapter.relationship_from_score(scores[0]) == 'first_party'
 
 
+def test_scores_from_live_benchmark_detail_handles_empty_model_id():
+    detail = {
+        'benchmark_id': 'gpqa',
+        'name': 'GPQA',
+        'models': [
+            {
+                'model_id': None,
+                'score': 0.936,
+            }
+        ],
+    }
+
+    scores = adapter.scores_from_benchmark_detail(detail)
+
+    assert scores[0]['id'] == 'gpqa::unknown'
+
+
 def test_live_benchmark_scores_preserve_score_level_organization():
     detail = {
         'benchmark_id': 'gpqa',
@@ -249,3 +276,28 @@ def test_live_benchmark_scores_preserve_score_level_organization():
     assert bundles[0].developer == 'openai'
     assert bundles[0].model == 'gpt-5.5'
     assert bundles[0].log.model_info.id == 'openai/gpt-5.5'
+
+
+def test_relationship_accepts_canonical_values_from_provenance_keys():
+    assert (
+        adapter.relationship_from_score({'relationship': 'collaborative'})
+        == 'collaborative'
+    )
+    assert (
+        adapter.relationship_from_score({'verification_tier': 'third_party'})
+        == 'third_party'
+    )
+
+
+def test_unknown_source_urls_fall_back_to_attribution_url():
+    payload = {
+        'models': [],
+        'benchmarks': [],
+        'scores': [{'score': 0.5}],
+    }
+
+    bundles = adapter.make_logs(payload, retrieved_timestamp='1234567890.0')
+    result = bundles[0].log.evaluation_results[0]
+
+    assert result.source_data.url == [adapter.ATTRIBUTION_URL]
+    EvaluationLog.model_validate(bundles[0].log.model_dump())

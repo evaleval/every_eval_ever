@@ -431,7 +431,7 @@ def scores_from_benchmark_detail(
         score['score'] = score_value
         score.setdefault(
             'id',
-            f'{benchmark_source_id(benchmark)}::{entry.get("model_id", "unknown")}',
+            f'{benchmark_source_id(benchmark)}::{entry.get("model_id") or "unknown"}',
         )
         if entry.get('self_reported_source'):
             score['source_url'] = entry['self_reported_source']
@@ -763,9 +763,11 @@ def make_model_details(model: dict[str, Any]) -> dict[str, str]:
 
 
 def relationship_from_score(score: dict[str, Any]) -> str:
-    explicit = first_present(score, ('evaluator_relationship',))
-    if isinstance(explicit, str) and explicit in RELATIONSHIP_VALUES:
-        return explicit
+    explicit_keys = ('evaluator_relationship',) + tuple(PROVENANCE_KEYS)
+    for key in explicit_keys:
+        explicit = first_present(score, (key,))
+        if isinstance(explicit, str) and explicit in RELATIONSHIP_VALUES:
+            return explicit
 
     if (
         score.get('is_self_reported') is True
@@ -903,6 +905,8 @@ def score_source_urls(
         urls.append(
             api_url(base_url, f'/leaderboard/benchmarks/{raw_benchmark_id}')
         )
+    if not urls:
+        urls.append(ATTRIBUTION_URL)
     return dedupe_urls(urls)
 
 
@@ -1025,11 +1029,13 @@ def make_source_data(
 ) -> SourceDataUrl:
     raw_benchmark_id = benchmark_source_id(benchmark)
     raw_model_id = model_source_id(model)
-    urls = score_source_urls(score, model, benchmark, base_url)
+    urls = score_source_urls(score, model, benchmark, base_url) or [
+        ATTRIBUTION_URL
+    ]
     return SourceDataUrl(
         dataset_name=benchmark_display_name(benchmark),
         source_type='url',
-        url=urls,
+        url=urls or [ATTRIBUTION_URL],
         additional_details=stringify_details(
             {
                 'raw_benchmark_id': raw_benchmark_id,
@@ -1173,7 +1179,8 @@ def source_metadata(
         additional_details={
             'models_endpoint': f'{clean_base}/v1/models',
             'benchmarks_endpoint': f'{clean_base}/leaderboard/benchmarks',
-            'scores_endpoint': (
+            'scores_endpoint': f'{clean_base}/v1/scores',
+            'scores_endpoint_fallback': (
                 f'{clean_base}/leaderboard/benchmarks/{{benchmark_id}}'
             ),
             'developer_page_url': DEVELOPER_PAGE_URL,
