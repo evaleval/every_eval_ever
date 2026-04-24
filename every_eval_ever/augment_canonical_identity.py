@@ -75,7 +75,30 @@ SINGLE_SCORE_BENCHMARK_FAMILIES = {
     'appworld_test_normal',
     'browsecompplus',
     'la_leaderboard',
+    'multi-swe-bench-leaderboard',
     'swe-bench',
+    'swe-polybench-leaderboard',
+}
+
+INSPECT_ACCURACY_BENCHMARK_FAMILIES = {
+    'GAIA',
+    'MathVista',
+    'MMLU-Pro',
+    'MMMU-Multiple-Choice',
+    'MMMU-Open-Ended',
+    'big_bench_hard',
+    'commonsense_qa',
+    'cybench',
+    'cyse2_interpreter_abuse',
+    'cyse2_prompt_injection',
+    'cyse2_vulnerability_exploit',
+    'gdm_intercode_ctf',
+    'gpqa_diamond',
+    'gsm8k',
+    'hellaswag',
+    'mbpp',
+    'openai_humaneval',
+    'piqa',
 }
 
 
@@ -91,6 +114,7 @@ class CanonicalPatch:
 
 @dataclass
 class AugmentationReport:
+    original_file_path: Path
     file_path: Path
     benchmark_family: str
     aggregate_changed: bool
@@ -98,10 +122,11 @@ class AugmentationReport:
     sample_changed: bool
     changed_results: int
     sample_rows: int
+    path_changed: bool = False
 
     @property
     def changed(self) -> bool:
-        return self.aggregate_changed or self.sample_changed
+        return self.aggregate_changed or self.sample_changed or self.path_changed
 
 
 def _slug(value: str) -> str:
@@ -235,11 +260,32 @@ def _metric_from_phrase(phrase: str) -> CanonicalPatch | None:
             metric_kind='win_rate',
             metric_unit='proportion',
         )
+    if normalized == 'mean':
+        return CanonicalPatch(
+            metric_id='mean_score',
+            metric_name='Mean Score',
+            metric_kind='score',
+            metric_unit='proportion',
+        )
     if normalized in {'mean score', 'score', 'wb score'}:
         return CanonicalPatch(
             metric_id='score',
             metric_name='Score',
             metric_kind='score',
+            metric_unit='proportion',
+        )
+    if normalized in {'stderr', 'standard error'}:
+        return CanonicalPatch(
+            metric_id='standard_error',
+            metric_name='Standard Error',
+            metric_kind='standard_error',
+            metric_unit='proportion',
+        )
+    if normalized in {'std', 'stddev', 'standard deviation'}:
+        return CanonicalPatch(
+            metric_id='standard_deviation',
+            metric_name='Standard Deviation',
+            metric_kind='standard_deviation',
             metric_unit='proportion',
         )
     if normalized == 'harmlessness':
@@ -272,23 +318,188 @@ def _wordle_patch(raw_evaluation_name: str) -> CanonicalPatch | None:
 
 
 def _fibble_patch(raw_evaluation_name: str) -> CanonicalPatch | None:
-    match = re.fullmatch(
+    legacy_match = re.fullmatch(
         r'fibble_arena_(?P<variant>1lie|[2-9]lies)_(?P<metric>.+)',
+        raw_evaluation_name,
+    )
+    if legacy_match is not None:
+        metric = WORDLE_METRICS.get(legacy_match.group('metric'))
+        if metric is None:
+            return None
+
+        return CanonicalPatch(
+            evaluation_name=f'fibble_arena_{legacy_match.group("variant")}',
+            metric_id=metric['metric_id'],
+            metric_name=metric['metric_name'],
+            metric_kind=metric['metric_kind'],
+            metric_unit=metric['metric_unit'],
+        )
+
+    family_match = re.fullmatch(
+        r'(?P<family>fibble(?:[1-5])?_arena)_(?P<metric>.+)',
+        raw_evaluation_name,
+    )
+    if family_match is None:
+        return None
+
+    metric = WORDLE_METRICS.get(family_match.group('metric'))
+    if metric is None:
+        return None
+
+    return CanonicalPatch(
+        evaluation_name=family_match.group('family'),
+        metric_id=metric['metric_id'],
+        metric_name=metric['metric_name'],
+        metric_kind=metric['metric_kind'],
+        metric_unit=metric['metric_unit'],
+    )
+
+
+def _ifeval_patch(raw_evaluation_name: str) -> CanonicalPatch | None:
+    match = re.fullmatch(
+        r'(?P<slice>prompt_strict|prompt_loose|inst_strict|inst_loose|final)'
+        r'_(?P<metric>acc|stderr)'
+        r' on inspect_evals/ifeval(?: for scorer .+)?',
         raw_evaluation_name,
     )
     if match is None:
         return None
 
-    metric = WORDLE_METRICS.get(match.group('metric'))
+    metric_key = match.group('metric')
+    metric = _metric_from_phrase(
+        'accuracy' if metric_key == 'acc' else 'standard error'
+    )
+    if metric is None:
+        return None
+    metric.evaluation_name = match.group('slice')
+    return metric
+
+
+def _agentharm_patch(raw_evaluation_name: str) -> CanonicalPatch | None:
+    overall_match = re.fullmatch(
+        r'inspect_evals/(?P<metric>'
+        r'avg_score|avg_full_score|avg_refusals|avg_score_non_refusals'
+        r') on inspect_evals/agentharm(?: for scorer .+)?',
+        raw_evaluation_name,
+    )
+    if overall_match is not None:
+        metric_key = overall_match.group('metric')
+        if metric_key == 'avg_score':
+            return CanonicalPatch(
+                evaluation_name='agentharm',
+                metric_id='average_score',
+                metric_name='Average Score',
+                metric_kind='score',
+                metric_unit='proportion',
+            )
+        if metric_key == 'avg_full_score':
+            return CanonicalPatch(
+                evaluation_name='agentharm',
+                metric_id='average_full_score',
+                metric_name='Average Full Score',
+                metric_kind='score',
+                metric_unit='proportion',
+            )
+        if metric_key == 'avg_refusals':
+            return CanonicalPatch(
+                evaluation_name='agentharm',
+                metric_id='average_refusal_rate',
+                metric_name='Average Refusal Rate',
+                metric_kind='refusal_rate',
+                metric_unit='proportion',
+            )
+        if metric_key == 'avg_score_non_refusals':
+            return CanonicalPatch(
+                evaluation_name='agentharm',
+                metric_id='average_score_non_refusals',
+                metric_name='Average Score (Non-Refusals)',
+                metric_kind='score',
+                metric_unit='proportion',
+            )
+
+    category_match = re.fullmatch(
+        r'(?P<category>[A-Za-z]+)_avg_(?P<metric>scores|refusals)'
+        r' on inspect_evals/agentharm(?: for scorer .+)?',
+        raw_evaluation_name,
+    )
+    if category_match is None:
+        return None
+
+    category = category_match.group('category')
+    metric_kind = category_match.group('metric')
+    if metric_kind == 'scores':
+        return CanonicalPatch(
+            evaluation_name=category,
+            metric_id='average_score',
+            metric_name='Average Score',
+            metric_kind='score',
+            metric_unit='proportion',
+        )
+
+    return CanonicalPatch(
+        evaluation_name=category,
+        metric_id='average_refusal_rate',
+        metric_name='Average Refusal Rate',
+        metric_kind='refusal_rate',
+        metric_unit='proportion',
+    )
+
+
+def _generic_inspect_eval_patch(
+    benchmark_family: str,
+    raw_evaluation_name: str,
+    metric_config: dict[str, Any],
+) -> CanonicalPatch | None:
+    match = re.fullmatch(
+        r'(?P<metric>accuracy|mean|std) on '
+        r'(?:(?:inspect_evals/)?(?P<slice>[^ ]+))'
+        r'(?: for scorer .+)?',
+        raw_evaluation_name,
+        flags=re.IGNORECASE,
+    )
+    if match is None:
+        metric_phrase = str(metric_config.get('evaluation_description') or '')
+    else:
+        metric_phrase = match.group('metric')
+
+    metric = _metric_from_phrase(metric_phrase)
     if metric is None:
         return None
 
+    metric.evaluation_name = benchmark_family
+    return metric
+
+
+def _alphaxiv_patch(
+    payload: dict[str, Any], result: dict[str, Any]
+) -> CanonicalPatch:
+    raw_evaluation_name = str(result.get('evaluation_name') or '').strip()
+    metric_config = result.setdefault('metric_config', {})
+
+    if not raw_evaluation_name:
+        additional = metric_config.get('additional_details')
+        if isinstance(additional, dict):
+            raw_evaluation_name = str(additional.get('alphaxiv_y_axis') or '').strip()
+    if not raw_evaluation_name:
+        raw_evaluation_name = 'Score'
+
+    source_data = result.get('source_data')
+    evaluation_name = ''
+    if isinstance(source_data, dict):
+        evaluation_name = str(source_data.get('dataset_name') or '').strip()
+    if not evaluation_name:
+        evaluation_id = str(payload.get('evaluation_id') or '')
+        if '/' in evaluation_id:
+            evaluation_name = evaluation_id.split('/', 1)[0].strip()
+    if not evaluation_name:
+        evaluation_name = 'alphaxiv'
+
     return CanonicalPatch(
-        evaluation_name=f'fibble_arena_{match.group("variant")}',
-        metric_id=metric['metric_id'],
-        metric_name=metric['metric_name'],
-        metric_kind=metric['metric_kind'],
-        metric_unit=metric['metric_unit'],
+        evaluation_name=evaluation_name,
+        metric_id=_slug(raw_evaluation_name),
+        metric_name=raw_evaluation_name,
+        metric_kind='score',
+        metric_unit=_score_metric_unit(metric_config),
     )
 
 
@@ -455,12 +666,52 @@ def _helm_patch(
     return None
 
 
+def _swe_bench_verified_mini_patch(
+    benchmark_family: str,
+    raw_evaluation_name: str,
+    metric_config: dict[str, Any],
+) -> CanonicalPatch | None:
+    match = re.fullmatch(
+        r'(?P<metric>mean|std) on inspect_evals/swe_bench_verified_mini(?: for scorer .+)?',
+        raw_evaluation_name,
+        flags=re.IGNORECASE,
+    )
+    if match is None:
+        metric_phrase = str(metric_config.get('evaluation_description') or '')
+    else:
+        metric_phrase = match.group('metric')
+
+    metric_phrase = metric_phrase.strip().lower()
+    if metric_phrase == 'mean':
+        return CanonicalPatch(
+            evaluation_name=benchmark_family,
+            metric_id='mean_score',
+            metric_name='Mean Score',
+            metric_kind='score',
+            metric_unit=_score_metric_unit(metric_config),
+        )
+    if metric_phrase == 'std':
+        return CanonicalPatch(
+            evaluation_name=benchmark_family,
+            metric_id='standard_deviation',
+            metric_name='Standard Deviation',
+            metric_kind='standard_deviation',
+            metric_unit=_score_metric_unit(metric_config),
+        )
+    return None
+
+
 def _canonical_patch_for_result(
     benchmark_family: str,
     result: dict[str, Any],
+    *,
+    payload: dict[str, Any] | None = None,
 ) -> CanonicalPatch | None:
     raw_evaluation_name = str(result.get('evaluation_name') or '')
     metric_config = result.setdefault('metric_config', {})
+
+    if benchmark_family == 'alphaxiv':
+        return _alphaxiv_patch(payload or {}, result)
 
     if benchmark_family == 'global-mmlu-lite':
         return CanonicalPatch(
@@ -498,6 +749,9 @@ def _canonical_patch_for_result(
     if benchmark_family == 'fibble_arena':
         return _fibble_patch(raw_evaluation_name)
 
+    if re.fullmatch(r'fibble[1-5]_arena', benchmark_family):
+        return _fibble_patch(raw_evaluation_name)
+
     if benchmark_family == 'apex-agents':
         return _apex_agents_patch(raw_evaluation_name)
 
@@ -521,10 +775,37 @@ def _canonical_patch_for_result(
     if benchmark_family == 'livecodebenchpro':
         return _description_metric_patch(metric_config)
 
+    if benchmark_family == 'swe-bench-verified-mini':
+        return _swe_bench_verified_mini_patch(
+            benchmark_family=benchmark_family,
+            raw_evaluation_name=raw_evaluation_name,
+            metric_config=metric_config,
+        )
+
     if benchmark_family in SINGLE_SCORE_BENCHMARK_FAMILIES or benchmark_family.startswith(
         'tau-bench-2_'
     ):
         return _single_score_patch(benchmark_family, metric_config)
+
+    if benchmark_family == 'IFEval':
+        return _ifeval_patch(raw_evaluation_name)
+
+    if benchmark_family == 'agentharm':
+        return _agentharm_patch(raw_evaluation_name)
+
+    if benchmark_family == 'cvebench':
+        return _generic_inspect_eval_patch(
+            benchmark_family=benchmark_family,
+            raw_evaluation_name=raw_evaluation_name,
+            metric_config=metric_config,
+        )
+
+    if benchmark_family in INSPECT_ACCURACY_BENCHMARK_FAMILIES:
+        return _generic_inspect_eval_patch(
+            benchmark_family=benchmark_family,
+            raw_evaluation_name=raw_evaluation_name,
+            metric_config=metric_config,
+        )
 
     if benchmark_family == 'theory_of_mind':
         return _theory_of_mind_patch(raw_evaluation_name, metric_config)
@@ -627,9 +908,45 @@ def _assign_evaluation_result_ids(
         sample_updates[raw_evaluation_name] = {
             'evaluation_name': eval_name,
             'evaluation_result_id': evaluation_result_id,
+            'evaluation_id': evaluation_id,
         }
 
     return changed
+
+
+def _add_sample_alias_updates(
+    benchmark_family: str,
+    payload: dict[str, Any],
+    sample_updates: dict[str, dict[str, str]],
+) -> None:
+    if benchmark_family != 'swe-bench-verified-mini':
+        return
+
+    evaluation_id = str(payload.get('evaluation_id') or '')
+    mean_result = None
+    for result in payload.get('evaluation_results', []):
+        metric_config = result.get('metric_config', {})
+        if metric_config.get('metric_id') == 'mean_score':
+            mean_result = result
+            break
+
+    if mean_result is None:
+        return
+
+    alias_update = {
+        'evaluation_name': str(
+            mean_result.get('evaluation_name') or benchmark_family
+        ),
+        'evaluation_result_id': str(
+            mean_result.get('evaluation_result_id') or ''
+        ),
+        'evaluation_id': evaluation_id,
+    }
+    for raw_name in (
+        'inspect_evals/swe_bench_verified_mini',
+        'swe_bench_verified_mini',
+    ):
+        sample_updates[raw_name] = alias_update.copy()
 
 
 def infer_benchmark_family(
@@ -650,6 +967,29 @@ def infer_benchmark_family(
     return 'unknown'
 
 
+def _ensure_eval_library(
+    payload: dict[str, Any], benchmark_family: str
+) -> bool:
+    if benchmark_family != 'alphaxiv':
+        return False
+
+    changed = False
+    eval_library = payload.get('eval_library')
+    if not isinstance(eval_library, dict):
+        eval_library = {}
+        payload['eval_library'] = eval_library
+        changed = True
+
+    if eval_library.get('name') in (None, ''):
+        eval_library['name'] = 'alphaxiv'
+        changed = True
+    if eval_library.get('version') in (None, ''):
+        eval_library['version'] = 'unknown'
+        changed = True
+
+    return changed
+
+
 def augment_aggregate_payload(
     payload: dict[str, Any], benchmark_family: str | None = None
 ) -> tuple[dict[str, Any], int, dict[str, dict[str, str]], bool]:
@@ -658,15 +998,21 @@ def augment_aggregate_payload(
     )
     changed_results = 0
     sample_updates: dict[str, dict[str, str]] = {}
+    payload_changed = _ensure_eval_library(payload, benchmark_family)
 
     for result in payload.get('evaluation_results', []):
-        patch = _canonical_patch_for_result(benchmark_family, result)
+        patch = _canonical_patch_for_result(
+            benchmark_family, result, payload=payload
+        )
         changed, _ = _apply_patch(result, patch)
         if changed:
             changed_results += 1
 
     ids_changed = _assign_evaluation_result_ids(payload, sample_updates)
-    return payload, changed_results, sample_updates, ids_changed
+    _add_sample_alias_updates(benchmark_family, payload, sample_updates)
+    return payload, changed_results, sample_updates, (
+        ids_changed or payload_changed
+    )
 
 
 def _read_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -693,6 +1039,34 @@ def _write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
             handle.write(json.dumps(row, ensure_ascii=False) + '\n')
 
 
+def canonicalize_datastore_path(file_path: Path) -> Path:
+    parts = list(file_path.parts)
+    if 'data' not in parts:
+        return file_path
+
+    idx = parts.index('data')
+    relative = parts[idx + 1 :]
+    if len(relative) <= 4:
+        return file_path
+
+    benchmark_family = relative[0]
+    developer = relative[-3]
+    model_name = relative[-2]
+    filename = relative[-1]
+    return Path(*parts[: idx + 1], benchmark_family, developer, model_name, filename)
+
+
+def _move_file(source: Path, target: Path) -> None:
+    if source == target:
+        return
+    if target.exists():
+        raise FileExistsError(
+            f'Cannot normalize path for {source}: target already exists at {target}'
+        )
+    target.parent.mkdir(parents=True, exist_ok=True)
+    source.rename(target)
+
+
 def augment_sample_rows(
     rows: list[dict[str, Any]],
     sample_updates: dict[str, dict[str, str]],
@@ -713,6 +1087,14 @@ def augment_sample_rows(
             row['evaluation_result_id'] = update['evaluation_result_id']
             changed = True
 
+        updated_evaluation_id = update.get('evaluation_id')
+        if (
+            updated_evaluation_id is not None
+            and row.get('evaluation_id') != updated_evaluation_id
+        ):
+            row['evaluation_id'] = updated_evaluation_id
+            changed = True
+
     return rows, changed
 
 
@@ -721,7 +1103,9 @@ def augment_aggregate_file(
     *,
     write_changes: bool = False,
     update_samples: bool = True,
+    normalize_paths: bool = True,
 ) -> AugmentationReport:
+    original_file_path = file_path
     payload = json.loads(file_path.read_text(encoding='utf-8'))
     benchmark_family = infer_benchmark_family(file_path, payload)
     payload, changed_results, sample_updates, ids_changed = (
@@ -730,10 +1114,11 @@ def augment_aggregate_file(
     aggregate_changed = changed_results > 0 or ids_changed
 
     sample_file_path = file_path.with_name(f'{file_path.stem}_samples.jsonl')
+    sample_exists = sample_file_path.exists()
     sample_changed = False
     sample_rows = 0
 
-    if update_samples and sample_file_path.exists():
+    if update_samples and sample_exists:
         rows = _read_jsonl(sample_file_path)
         sample_rows = len(rows)
         rows, sample_changed = augment_sample_rows(rows, sample_updates)
@@ -752,16 +1137,36 @@ def augment_aggregate_file(
     if write_changes and aggregate_changed:
         _write_json(file_path, payload)
 
+    target_file_path = (
+        canonicalize_datastore_path(file_path) if normalize_paths else file_path
+    )
+    target_sample_file_path = (
+        canonicalize_datastore_path(sample_file_path)
+        if sample_exists and normalize_paths
+        else sample_file_path
+    )
+    path_changed = target_file_path != file_path
+
+    reported_file_path = target_file_path if path_changed else file_path
+    reported_sample_file_path = (
+        target_sample_file_path if sample_exists else None
+    )
+
+    if write_changes and path_changed:
+        if sample_exists and target_sample_file_path is not None:
+            _move_file(sample_file_path, target_sample_file_path)
+        _move_file(file_path, target_file_path)
+
     return AugmentationReport(
-        file_path=file_path,
+        original_file_path=original_file_path,
+        file_path=reported_file_path,
         benchmark_family=benchmark_family,
         aggregate_changed=aggregate_changed,
-        sample_file_path=sample_file_path
-        if sample_file_path.exists()
-        else None,
+        sample_file_path=reported_sample_file_path,
         sample_changed=sample_changed,
         changed_results=changed_results,
         sample_rows=sample_rows,
+        path_changed=path_changed,
     )
 
 
@@ -788,6 +1193,11 @@ def build_parser() -> argparse.ArgumentParser:
         action='store_true',
         help='Do not update companion *_samples.jsonl files.',
     )
+    parser.add_argument(
+        '--skip-path-normalization',
+        action='store_true',
+        help='Do not flatten over-nested datastore paths to benchmark/developer/model.',
+    )
     return parser
 
 
@@ -805,6 +1215,7 @@ def main(argv: list[str] | None = None) -> int:
             path,
             write_changes=args.write,
             update_samples=not args.skip_samples,
+            normalize_paths=not args.skip_path_normalization,
         )
         for path in aggregate_files
     ]
@@ -813,12 +1224,19 @@ def main(argv: list[str] | None = None) -> int:
 
     action = 'Updated' if args.write else 'Would update'
     for report in changed_reports:
+        details = [
+            f'results={report.changed_results}',
+            f'sample_rows={report.sample_rows}',
+            f'samples_changed={report.sample_changed}',
+        ]
+        if report.path_changed:
+            details.insert(
+                0, f'path={report.original_file_path} -> {report.file_path}'
+            )
         print(
             f'{action}: {report.file_path} '
             f'[{report.benchmark_family}] '
-            f'(results={report.changed_results}, '
-            f'sample_rows={report.sample_rows}, '
-            f'samples_changed={report.sample_changed})'
+            f'({", ".join(details)})'
         )
 
     print(
