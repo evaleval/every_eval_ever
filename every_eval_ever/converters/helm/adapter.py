@@ -18,7 +18,10 @@ try:
     )
     from helm.benchmark.metrics.metric import PerInstanceStats
     from helm.benchmark.metrics.statistic import Stat
-    from helm.benchmark.model_deployment_registry import get_model_deployment
+    from helm.benchmark.model_deployment_registry import (
+        ModelDeploymentNotFoundError,
+        get_model_deployment,
+    )
     from helm.benchmark.run_spec import RunSpec
     from helm.common.codec import from_json
 except (
@@ -32,6 +35,7 @@ except (
     get_model_deployment = register_builtin_configs_from_helm_package = (
         from_json
     ) = None  # type: ignore[assignment]
+    ModelDeploymentNotFoundError = Exception  # type: ignore[assignment]
 
 from every_eval_ever.converters import SCHEMA_VERSION
 from every_eval_ever.converters.common.adapter import (
@@ -118,9 +122,49 @@ class HELMAdapter(BaseEvaluationAdapter):
 
         return False
 
-    def _extract_model_info(self, model_deployment_name: str) -> ModelInfo:
-        """Extracts model metadata from the HELM deployment registry."""
-        deployment = get_model_deployment(model_deployment_name)
+    def _split_model_id(self, model_id: str | None) -> tuple[str, str]:
+        """Split a model id into developer/name pieces safely."""
+        model_id = (model_id or '').strip()
+        if not model_id:
+            return ('unknown', 'unknown')
+        if '/' in model_id:
+            return tuple(model_id.split('/', 1))
+        return ('unknown', model_id)
+
+    def _extract_model_info(self, adapter_spec: AdapterSpec) -> ModelInfo:
+        """Extracts model metadata from HELM, tolerating missing deployments."""
+        fallback_model_name = getattr(adapter_spec, 'model', None)
+        model_deployment_name = (
+            getattr(adapter_spec, 'model_deployment', None) or ''
+        ).strip()
+
+        if not model_deployment_name:
+            model_name = fallback_model_name or 'unknown'
+            developer, _ = self._split_model_id(model_name)
+            return ModelInfo(
+                name=model_name,
+                id=model_name,
+                developer=developer,
+                inference_platform='unknown',
+            )
+
+        try:
+            deployment = get_model_deployment(model_deployment_name)
+        except ModelDeploymentNotFoundError:
+            model_name = fallback_model_name or model_deployment_name
+            developer, _ = self._split_model_id(model_name)
+            inference_platform = (
+                model_deployment_name.split('/', 1)[0]
+                if '/' in model_deployment_name
+                else 'unknown'
+            )
+            return ModelInfo(
+                name=model_name,
+                id=model_name,
+                developer=developer,
+                inference_platform=inference_platform,
+            )
+
         client_args = getattr(deployment.client_spec, 'args', None)
 
         if 'huggingface' in deployment.name or not client_args:
@@ -130,10 +174,11 @@ class HELMAdapter(BaseEvaluationAdapter):
                 'pretrained_model_name_or_path', deployment.model_name
             )
 
+        developer, _ = self._split_model_id(deployment.model_name)
         return ModelInfo(
             name=deployment.model_name,
             id=model_id,
-            developer=deployment.model_name.split('/', 1)[0],
+            developer=developer,
             inference_platform=deployment.name.split('/', 1)[0],
         )
 
@@ -315,7 +360,7 @@ class HELMAdapter(BaseEvaluationAdapter):
             self._extract_evaluation_time(request_states) or retrieved_timestamp
         )
 
-        model_info = self._extract_model_info(adapter_spec.model_deployment)
+        model_info = self._extract_model_info(adapter_spec)
 
         dataset_name = self._extract_dataset_name(
             run_spec.name, scenario_dict.get('name') if scenario_dict else None
@@ -416,7 +461,7 @@ class HELMAdapter(BaseEvaluationAdapter):
         if request_states:
             parent_eval_output_dir = metadata_args.get('parent_eval_output_dir')
             detailed_results_id = f'{metadata_args.get("file_uuid")}_samples'
-            model_dev, model_name = model_info.id.split('/', 1)
+            model_dev, model_name = self._split_model_id(model_info.id)
             evaluation_dir = f'{parent_eval_output_dir}/{source_data.dataset_name}/{model_dev}/{model_name}'
 
             instance_level_log_path, instance_level_rows_number = (
