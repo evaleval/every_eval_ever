@@ -57,6 +57,7 @@ def parse_args():
             'HELM_Instruct',
             'HELM_MMLU',
             'HELM_AIR_Bench',
+            'HELM_Safety',
         ],
         help='HELM leaderboard name',
     )
