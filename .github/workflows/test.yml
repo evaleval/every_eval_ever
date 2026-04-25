@@ -1,0 +1,64 @@
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  core:
+    name: Core tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - uses: astral-sh/setup-uv@v7.6.0
+
+      - name: Install core dependencies
+        run: uv sync --locked
+
+      - name: Run core tests
+        run: |
+          uv run pytest \
+            tests/test_validate.py \
+            tests/test_check_duplicate_entries.py \
+            tests/test_inspect_uuid_utils.py \
+            tests/test_cli_inspect_uuid.py \
+            tests/test_lm_eval_adapter.py \
+            -v
+
+  inspect:
+    name: Inspect converter tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - uses: astral-sh/setup-uv@v7.6.0
+
+      - name: Install dependencies with inspect extra
+        run: uv sync --locked --extra inspect
+
+      - name: Run inspect tests
+        run: |
+          uv run pytest \
+            tests/test_inspect_adapter.py \
+            tests/test_inspect_instance_level_adapter.py \
+            -v
+
+  helm:
+    name: HELM converter tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - uses: astral-sh/setup-uv@v7.6.0
+
+      - name: Install dependencies with helm extra
+        run: uv sync --locked --extra helm
+
+      - name: Run HELM tests
+        run: |
+          uv run pytest \
+            tests/test_helm_adapter.py \
+            tests/test_helm_instance_level_adapter.py \
+            -v
