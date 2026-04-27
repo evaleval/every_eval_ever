@@ -242,6 +242,7 @@ def create_visualisations(con, schema_table, instance_table) -> None:
 
     os.makedirs(create_visualisations.outdir, exist_ok=True)
     output_path = Path(create_visualisations.outdir)
+    top_n = create_visualisations.top_n
 
     # score distribution across the most used benchmarks
     benchmark_top_scores = execute_query(
@@ -420,7 +421,7 @@ def create_visualisations(con, schema_table, instance_table) -> None:
         WHERE er.source_data.dataset_name IS NOT NULL
         GROUP BY benchmark
         ORDER BY n_models DESC
-        LIMIT 10;
+        LIMIT {top_n};
         """,
         df=True,
     )
@@ -461,7 +462,7 @@ def create_visualisations(con, schema_table, instance_table) -> None:
         WHERE er.source_data.dataset_name IS NOT NULL
         GROUP BY model
         ORDER BY n_benchmarks DESC
-        LIMIT 10;
+        LIMIT {top_n};
         """,
         df=True,
     )
@@ -510,7 +511,7 @@ def main():
     )
     parser.add_argument(
         '--top-n',
-        default=5,
+        default=10,
         type=int,
         help='Top-N groups to include in visualization charts',
     )
