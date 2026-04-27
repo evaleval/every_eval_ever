@@ -163,7 +163,7 @@ class HELMInstanceLevelDataAdapter:
                     evaluation_name=evaluation_name,
                     sample_id=str(state.instance.id),
                     sample_hash=sha256_string(
-                        state.request.prompt + correct_refs[0]
+                        state.request.prompt + (correct_refs[0] if correct_refs else '')
                     ),  # TODO use all references
                     interaction_type=InteractionType.single_turn,
                     input=Input(
