@@ -195,7 +195,7 @@ def test_gaia_instance_level():
 
 def test_serialize_input_skips_non_user_messages():
     adapter = InspectInstanceLevelDataAdapter(
-        'test_id', 'jsonl', 'sha256', '/tmp'
+        'test_id', 'test_id', 'jsonl', 'sha256', '/tmp'
     )
 
     user_msg = ChatMessageUser(content='user question')
@@ -208,7 +208,7 @@ def test_serialize_input_skips_non_user_messages():
 
 def test_serialize_input_concatenates_list_content():
     adapter = InspectInstanceLevelDataAdapter(
-        'test_id', 'jsonl', 'sha256', '/tmp'
+        'test_id', 'test_id', 'jsonl', 'sha256', '/tmp'
     )
 
     msg_str = ChatMessageUser(content='plain string content')
@@ -229,7 +229,7 @@ def _convert_single_synthetic_sample(
 ) -> InstanceLevelEvaluationLog:
     with tempfile.TemporaryDirectory() as tmpdir:
         adapter = InspectInstanceLevelDataAdapter(
-            'synthetic_test', 'jsonl', 'sha256', tmpdir
+            'synthetic_test', 'synthetic_test', 'jsonl', 'sha256', tmpdir
         )
         path, rows_count = adapter.convert_instance_level_logs(
             'synthetic_eval',
