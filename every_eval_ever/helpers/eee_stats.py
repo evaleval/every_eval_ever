@@ -372,47 +372,6 @@ def create_visualisations(con, schema_table, instance_table) -> None:
     )
     plt.close()
 
-    # distribution of evaluator_relationship across harnesses
-    harness_by_eval_rel = execute_query(
-        con,
-        f"""
-        SELECT
-            eval_library.name,
-            source_metadata.evaluator_relationship
-        FROM {schema_table}
-        WHERE eval_library.name NOT LIKE '%unknown%'
-        GROUP BY 1, 2
-        """,
-        df=True,
-    )
-    pivot = harness_by_eval_rel.pivot_table(
-        index='name',
-        columns='evaluator_relationship',
-        aggfunc='size',
-        fill_value=0,
-    )
-
-    fig, ax = plt.subplots(figsize=(8, 10))
-    sns.heatmap(
-        pivot,
-        annot=True,
-        fmt='d',
-        cmap='viridis',
-        linewidths=0.5,
-        linecolor='white',
-        ax=ax,
-    )
-    ax.set_xlabel('Evaluator Relationship', fontsize=11)
-    ax.set_ylabel('Eval Harness', fontsize=11)
-    ax.set_title('Evaluator Relationship across Harnesses', fontsize=12)
-    plt.tight_layout()
-    plt.savefig(
-        output_path / 'harness_evaluator_relationship.png',
-        dpi=300,
-        bbox_inches='tight',
-    )
-    plt.close()
-
     unique_org_runs = execute_query(
         con,
         f"""
@@ -461,7 +420,7 @@ def create_visualisations(con, schema_table, instance_table) -> None:
         WHERE er.source_data.dataset_name IS NOT NULL
         GROUP BY benchmark
         ORDER BY n_models DESC
-        LIMIT 5;
+        LIMIT 10;
         """,
         df=True,
     )
@@ -480,7 +439,7 @@ def create_visualisations(con, schema_table, instance_table) -> None:
     ax.set_xlabel('Number of Models', fontsize=11)
     ax.set_ylabel('Benchmark', fontsize=11)
     ax.set_title(
-        'Top 10 Models by Number of Benchmarks Evaluated On', fontsize=12
+        'Top 10 Benchmarks by Number of Models', fontsize=12
     )
     sns.despine()
     plt.tight_layout()
@@ -527,64 +486,6 @@ def create_visualisations(con, schema_table, instance_table) -> None:
     plt.tight_layout()
     plt.savefig(
         output_path / 'top10_models_by_benchmarks.png',
-        dpi=300,
-        bbox_inches='tight',
-    )
-    plt.close()
-
-    benchmark_std = execute_query(
-        con,
-        f"""
-        SELECT 
-            er.source_data.dataset_name AS benchmark,
-            STDDEV(er.score_details.score::DOUBLE) AS score_std,
-            AVG(er.score_details.score::DOUBLE) AS score_mean,
-            COUNT(DISTINCT model_info.id) AS n_models
-        FROM {schema_table},
-        LATERAL UNNEST(evaluation_results) AS t(er)
-        WHERE er.source_data.dataset_name IS NOT NULL
-        GROUP BY benchmark
-        HAVING COUNT(DISTINCT model_info.id) > 10
-        ORDER BY score_std DESC
-        LIMIT 10;
-        """,
-        df=True,
-    )
-
-    fig, ax = plt.subplots(figsize=(10, 7))
-    scatter = ax.scatter(
-        benchmark_std['score_mean'],
-        benchmark_std['score_std'],
-        c=benchmark_std['n_models'],
-        cmap='viridis',
-        s=100,
-        alpha=0.8,
-        edgecolors='white',
-        linewidth=0.5,
-    )
-    # annotate each point with benchmark name
-    for _, row in benchmark_std.iterrows():
-        ax.annotate(
-            row['benchmark'],
-            xy=(row['score_mean'], row['score_std']),
-            xytext=(5, 5),
-            textcoords='offset points',
-            fontsize=7,
-            alpha=0.85,
-        )
-
-    cbar = plt.colorbar(scatter, ax=ax)
-    cbar.set_label('Number of Models', fontsize=10)
-
-    ax.set_xlabel('Mean Score', fontsize=11)
-    ax.set_ylabel('Score Std Dev (Discriminability)', fontsize=11)
-    ax.set_title(
-        'Benchmark Discriminability: Mean vs Score Spread', fontsize=12
-    )
-    sns.despine()
-    plt.tight_layout()
-    plt.savefig(
-        output_path / 'benchmark_discriminability.png',
         dpi=300,
         bbox_inches='tight',
     )
