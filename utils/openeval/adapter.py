@@ -6,6 +6,7 @@ Data source:
 
 Usage:
     uv run python -m utils.openeval.adapter --output-dir data/openeval
+    uv run python -m utils.openeval.adapter --include-instances
     uv run python -m utils.openeval.adapter --input-json sample.json
 
 The offline JSON payload shape is:
@@ -14,6 +15,8 @@ The offline JSON payload shape is:
       "response": [...]
     }
 where rows match the Hugging Face ``bench`` and ``response`` table rows.
+Pass ``--include-instances`` with an ``item`` collection to write sibling
+``*_samples.jsonl`` files.
 """
 
 from __future__ import annotations
@@ -23,18 +26,22 @@ import hashlib
 import json
 import math
 import re
+import tempfile
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Iterable, TextIO
 
 from every_eval_ever.eval_types import (
+    DetailedEvaluationResults,
     EvalLibrary,
     EvaluationLog,
     EvaluationResult,
     EvaluatorRelationship,
+    Format,
     GenerationArgs,
     GenerationConfig,
+    HashAlgorithm,
     MetricConfig,
     ModelInfo,
     ScoreDetails,
@@ -50,6 +57,14 @@ from every_eval_ever.helpers import (
     get_model_id,
     sanitize_filename,
     save_evaluation_log,
+)
+from every_eval_ever.instance_level_types import (
+    AnswerAttributionItem,
+    Evaluation,
+    Input,
+    InstanceLevelEvaluationLog,
+    InteractionType,
+    Output,
 )
 
 HF_REPO_ID = 'human-centered-eval/OpenEval'
@@ -67,6 +82,9 @@ class LogBundle:
     log: EvaluationLog
     developer: str
     model: str
+    instance_path: Path | None = None
+    instance_count: int = 0
+    binary_result_ids: set[str] = field(default_factory=set)
 
 
 @dataclass
@@ -77,12 +95,16 @@ class MetricAccumulator:
     response_ids: list[str] = field(default_factory=list)
     metric_models: set[str] = field(default_factory=set)
     extra_artifact_types: set[str] = field(default_factory=set)
+    sample_ids: list[str] = field(default_factory=list)
 
     def add(
         self, value: float, response_id: str, metric: dict[str, Any]
     ) -> None:
         self.values.append(value)
         self.response_ids.append(response_id)
+        sample_id = response_item_id(response_id)
+        if sample_id is not None:
+            self.sample_ids.append(sample_id)
         models = metric.get('models')
         if isinstance(models, list):
             self.metric_models.update(str(model) for model in models if model)
@@ -99,6 +121,22 @@ class MetricAccumulator:
 class ModelGroup:
     generation_params: dict[str, Any]
     metrics: dict[str, MetricAccumulator] = field(default_factory=dict)
+    instance_path: Path | None = None
+    instance_handle: TextIO | None = None
+    instance_count: int = 0
+
+
+@dataclass(frozen=True)
+class PendingInstance:
+    response_id: str
+    sample_id: str
+    benchmark: dict[str, Any]
+    metric_name: str
+    score: float
+    raw_input: str
+    references: list[str]
+    output: list[str]
+    metadata: dict[str, str]
 
 
 def parse_args() -> argparse.Namespace:
@@ -135,6 +173,11 @@ def parse_args() -> argparse.Namespace:
         '--allow-unknown-benchmark',
         action='store_true',
         help='Keep responses whose benchmark cannot be matched from response_id.',
+    )
+    parser.add_argument(
+        '--include-instances',
+        action='store_true',
+        help='Also write instance-level *_samples.jsonl files.',
     )
     return parser.parse_args()
 
@@ -219,6 +262,13 @@ def validate_payload(
     return benches, responses
 
 
+def item_rows(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    item_payload = payload.get('item') or payload.get('items')
+    if item_payload is None:
+        return []
+    return extract_collection(item_payload, 'item')
+
+
 def build_index(
     rows: list[dict[str, Any]], key: str
 ) -> dict[str, dict[str, Any]]:
@@ -244,6 +294,7 @@ def build_benchmark_index(
 def fetch_payload(
     revision: str = HF_REVISION,
     max_response_shards: int | None = None,
+    include_instances: bool = False,
 ) -> dict[str, Any]:
     """Download public OpenEval parquet shards and aggregate them to rows.
 
@@ -265,6 +316,7 @@ def fetch_payload(
         HF_REPO_ID, repo_type='dataset', revision=revision
     )
     bench_files = [path for path in files if path.startswith('bench/')]
+    item_files = sorted(path for path in files if path.startswith('item/'))
     response_files = sorted(
         path for path in files if path.startswith('response/')
     )
@@ -275,6 +327,8 @@ def fetch_payload(
         raise ValueError(
             f'Could not find bench/response parquet files in {HF_REPO_ID}.'
         )
+    if include_instances and not item_files:
+        raise ValueError(f'Could not find item parquet files in {HF_REPO_ID}.')
 
     local_bench = [
         hf_hub_download(
@@ -294,18 +348,37 @@ def fetch_payload(
         )
         for path in response_files
     ]
+    local_item = []
+    if include_instances:
+        local_item = [
+            hf_hub_download(
+                HF_REPO_ID,
+                path,
+                repo_type='dataset',
+                revision=revision,
+            )
+            for path in item_files
+        ]
 
     con = duckdb.connect()
     bench_cursor = con.execute('SELECT * FROM read_parquet(?)', [local_bench])
     bench_columns = [item[0] for item in bench_cursor.description]
     benches = [dict(zip(bench_columns, row)) for row in bench_cursor.fetchall()]
+    items = []
+    if include_instances:
+        item_cursor = con.execute('SELECT * FROM read_parquet(?)', [local_item])
+        item_columns = [item[0] for item in item_cursor.description]
+        items = [dict(zip(item_columns, row)) for row in item_cursor.fetchall()]
     # Keep response rows lazy. The full response table is large enough that
     # materializing it would make the adapter harder to run on ordinary laptops.
     # Payloads returned by this live fetch path are therefore consumed once by
     # make_logs().
-    responses = _response_rows_from_parquet(con, local_response)
+    responses = _response_rows_from_parquet(
+        con, local_response, include_instances=include_instances
+    )
     return {
         'bench': benches,
+        'item': items,
         'response': responses,
         'source_metadata': {
             'hf_revision': revision,
@@ -313,15 +386,21 @@ def fetch_payload(
             'downloaded_response_shards': len(response_files),
             'total_response_shards': total_response_shards,
             'max_response_shards': max_response_shards,
+            'include_instances': include_instances,
         },
     }
 
 
 def _response_rows_from_parquet(
-    con: Any, parquet_paths: list[str]
+    con: Any,
+    parquet_paths: list[str],
+    include_instances: bool = False,
 ) -> Iterable[dict[str, Any]]:
+    columns = ['response_id', 'model', 'scores']
+    if include_instances:
+        columns.extend(['item_adaptation', 'response_content'])
     query = (
-        'SELECT response_id, model, scores '
+        f'SELECT {", ".join(columns)} '
         'FROM read_parquet(?) '
         'WHERE scores IS NOT NULL'
     )
@@ -343,6 +422,13 @@ def response_benchmark_id(response_id: str) -> str | None:
     model/run suffixes after that.
     """
     match = re.match(r'^(.+?)_\d{8}T\d{6}Z_\d+(?:_|$)', response_id)
+    if match:
+        return match.group(1)
+    return None
+
+
+def response_item_id(response_id: str) -> str | None:
+    match = re.match(r'^(.+?_\d{8}T\d{6}Z_\d+)(?:_|$)', response_id)
     if match:
         return match.group(1)
     return None
@@ -496,45 +582,82 @@ def aggregate_scores(
     responses: Iterable[dict[str, Any]],
     limit_responses: int | None = None,
     allow_unknown_benchmark: bool = False,
+    items: list[dict[str, Any]] | None = None,
+    include_instances: bool = False,
 ) -> dict[tuple[str, str, str], ModelGroup]:
     benchmark_index = build_benchmark_index(benches)
+    item_index = build_index(items or [], 'item_id')
     groups: dict[tuple[str, str, str], ModelGroup] = {}
+    seen_results: set[tuple[str, str]] = set()
 
-    for count, response in enumerate(responses, start=1):
-        if limit_responses is not None and count > limit_responses:
-            break
-        response_id = str(response.get('response_id') or '')
-        if not response_id:
-            continue
+    try:
+        for count, response in enumerate(responses, start=1):
+            if limit_responses is not None and count > limit_responses:
+                break
+            response_id = str(response.get('response_id') or '')
+            if not response_id:
+                continue
 
-        benchmark = benchmark_for_response_id(response_id, benchmark_index)
-        if (
-            benchmark.get('benchmark_name') == 'unknown'
-            and not allow_unknown_benchmark
-        ):
-            raise ValueError(
-                f'Could not match OpenEval response_id {response_id!r} '
-                'to a benchmark. Pass --allow-unknown-benchmark to keep '
-                'unmatched rows under the unknown benchmark.'
+            benchmark = benchmark_for_response_id(response_id, benchmark_index)
+            if (
+                benchmark.get('benchmark_name') == 'unknown'
+                and not allow_unknown_benchmark
+            ):
+                raise ValueError(
+                    f'Could not match OpenEval response_id {response_id!r} '
+                    'to a benchmark. Pass --allow-unknown-benchmark to keep '
+                    'unmatched rows under the unknown benchmark.'
+                )
+            name = model_name(response)
+            size = model_size(response)
+            params = generation_parameters(response)
+            key = (name, size or '', generation_key(params))
+            group = groups.setdefault(
+                key,
+                ModelGroup(generation_params=params),
             )
-        name = model_name(response)
-        size = model_size(response)
-        params = generation_parameters(response)
-        key = (name, size or '', generation_key(params))
-        group = groups.setdefault(
-            key,
-            ModelGroup(generation_params=params),
-        )
 
-        for metric_name, score, metric in numeric_score_values(
-            response.get('scores')
-        ):
-            accumulator_key = result_key(benchmark, metric_name)
-            accumulator = group.metrics.setdefault(
-                accumulator_key,
-                MetricAccumulator(benchmark=benchmark, metric_name=metric_name),
-            )
-            accumulator.add(score, response_id, metric)
+            sample_id = response_item_id(response_id) or response_id
+            for metric_name, score, metric in numeric_score_values(
+                response.get('scores')
+            ):
+                seen_key = (name, response_id, metric_name)
+                if seen_key in seen_results:
+                    continue
+                seen_results.add(seen_key)
+                accumulator_key = result_key(benchmark, metric_name)
+                accumulator = group.metrics.setdefault(
+                    accumulator_key,
+                    MetricAccumulator(
+                        benchmark=benchmark, metric_name=metric_name
+                    ),
+                )
+                accumulator.add(score, response_id, metric)
+                if include_instances:
+                    item = item_index.get(sample_id)
+                    append_pending_instance(
+                        group,
+                        PendingInstance(
+                            response_id=response_id,
+                            sample_id=sample_id,
+                            benchmark=benchmark,
+                            metric_name=metric_name,
+                            score=score,
+                            raw_input=input_text(item, response),
+                            references=reference_texts(item),
+                            output=response_texts(response),
+                            metadata=instance_metadata(
+                                response_id,
+                                benchmark,
+                                metric_name,
+                                metric,
+                                item,
+                                response,
+                            ),
+                        ),
+                    )
+    finally:
+        close_instance_files(groups)
 
     return groups
 
@@ -546,15 +669,22 @@ def result_key(benchmark: dict[str, Any], metric_name: str) -> str:
     )
 
 
-def metric_bounds(values: list[float]) -> tuple[float, float, str]:
+def values_are_binary(values: list[float]) -> bool:
+    return bool(values) and all(value in {0.0, 1.0} for value in values)
+
+
+def metric_bounds(values: list[float]) -> tuple[float, float, str, str]:
+    if values_are_binary(values):
+        return 0.0, 1.0, 'proportion', 'binary_values'
     if values and all(0.0 <= value <= 1.0 for value in values):
-        return 0.0, 1.0, 'proportion'
+        return 0.0, 1.0, 'score', 'normalized_observed_values'
     observed_min = min(values) if values else 0.0
     observed_max = max(values) if values else 1.0
     return (
         min(0.0, observed_min),
         max(1.0, observed_max),
         'points',
+        'observed_values',
     )
 
 
@@ -576,14 +706,17 @@ def make_evaluation_result(
 ) -> EvaluationResult:
     values = accumulator.values
     score = sum(values) / len(values)
-    min_score, max_score, unit = metric_bounds(values)
+    min_score, max_score, unit, bounds_source = metric_bounds(values)
     benchmark = accumulator.benchmark
     bench_slug = normalize_slug(benchmark_name(benchmark))
     metric_slug = normalize_slug(accumulator.metric_name)
+    unique_sample_count = len(set(accumulator.sample_ids)) or len(values)
     stddev = None
     stderr = None
     if len(values) > 1:
-        variance = sum((value - score) ** 2 for value in values) / len(values)
+        variance = sum((value - score) ** 2 for value in values) / (
+            len(values) - 1
+        )
         stddev = math.sqrt(variance)
         stderr = stddev / math.sqrt(len(values))
 
@@ -601,7 +734,7 @@ def make_evaluation_result(
             source_type='hf_dataset',
             hf_repo=HF_REPO_ID,
             hf_split='train',
-            samples_number=len(values),
+            samples_number=unique_sample_count,
             additional_details=stringify_details(
                 {
                     'benchmark_name': benchmark_name(benchmark),
@@ -631,6 +764,9 @@ def make_evaluation_result(
                     'aggregation': 'mean',
                     'raw_metric_name': accumulator.metric_name,
                     'response_count': len(values),
+                    'unique_sample_count': unique_sample_count,
+                    'score_values_are_binary': values_are_binary(values),
+                    'bounds_source': bounds_source,
                     'metric_models_json': sorted(accumulator.metric_models),
                     'extra_artifact_types_json': sorted(
                         accumulator.extra_artifact_types
@@ -660,11 +796,230 @@ def make_evaluation_result(
     )
 
 
+def list_of_strings(value: Any) -> list[str]:
+    if isinstance(value, list):
+        return [stringify(item) for item in value if item not in (None, '')]
+    if value in (None, ''):
+        return []
+    return [stringify(value)]
+
+
+def maybe_json(value: str) -> Any:
+    try:
+        return json.loads(value)
+    except json.JSONDecodeError:
+        return value
+
+
+def item_content(item: dict[str, Any] | None) -> dict[str, Any]:
+    if not isinstance(item, dict):
+        return {}
+    content = item.get('item_content')
+    return content if isinstance(content, dict) else {}
+
+
+def input_text(item: dict[str, Any] | None, response: dict[str, Any]) -> str:
+    content = item_content(item)
+    inputs = list_of_strings(content.get('input'))
+    if inputs:
+        return '\n'.join(inputs)
+
+    adaptation = response.get('item_adaptation')
+    if isinstance(adaptation, dict):
+        request_input = list_of_strings(adaptation.get('request_input'))
+        if request_input:
+            return '\n'.join(request_input)
+    return ''
+
+
+def reference_texts(item: dict[str, Any] | None) -> list[str]:
+    content = item_content(item)
+    references = []
+    for raw in list_of_strings(content.get('references')):
+        parsed = maybe_json(raw)
+        if isinstance(parsed, dict):
+            output = parsed.get('output')
+            if isinstance(output, dict) and output.get('text') not in (
+                None,
+                '',
+            ):
+                references.append(str(output['text']))
+                continue
+        references.append(raw)
+    return references
+
+
+def response_texts(response: dict[str, Any]) -> list[str]:
+    texts = []
+    for raw in list_of_strings(response.get('response_content')):
+        parsed = maybe_json(raw)
+        if isinstance(parsed, dict) and parsed.get('text') not in (None, ''):
+            texts.append(str(parsed['text']))
+        else:
+            texts.append(raw)
+    return texts
+
+
+def sample_hash(raw_input: str, references: list[str]) -> str:
+    payload = json.dumps(
+        {'raw': raw_input, 'reference': references},
+        sort_keys=True,
+        separators=(',', ':'),
+    )
+    return hashlib.sha256(payload.encode('utf-8')).hexdigest()
+
+
+def instance_metadata(
+    response_id: str,
+    benchmark: dict[str, Any],
+    metric_name: str,
+    metric: dict[str, Any],
+    item: dict[str, Any] | None,
+    response: dict[str, Any],
+) -> dict[str, str]:
+    item = item if isinstance(item, dict) else {}
+    item_meta = item.get('item_metadata') if isinstance(item, dict) else None
+    item_adaptation = response.get('item_adaptation')
+    metadata = {
+        'response_id': response_id,
+        'benchmark_name': benchmark_name(benchmark),
+        'metric_name': metric_name,
+        'raw_metric_name': metric.get('name'),
+        'metric_models_json': metric.get('models') or [],
+        'extra_artifact_types_json': (
+            metric.get('extra_artifacts', {}).get('type')
+            if isinstance(metric.get('extra_artifacts'), dict)
+            else []
+        ),
+        'item_schema_version': item.get('schema_version'),
+        'item_metadata_json': item_meta
+        if isinstance(item_meta, dict)
+        else None,
+        'item_adaptation_json': (
+            item_adaptation if isinstance(item_adaptation, dict) else None
+        ),
+    }
+    return stringify_details(metadata)
+
+
+def make_instance_log(
+    instance: PendingInstance,
+    evaluation_id: str,
+    model_id: str,
+    binary_result_ids: set[str] | None = None,
+) -> InstanceLevelEvaluationLog:
+    bench_slug = normalize_slug(benchmark_name(instance.benchmark))
+    metric_slug = normalize_slug(instance.metric_name)
+    evaluation_result_id = f'{bench_slug}::{metric_slug}'
+    extracted_value = instance.output[0] if instance.output else ''
+    is_binary_metric = evaluation_result_id in (binary_result_ids or set())
+    metadata = {
+        **instance.metadata,
+        'is_correct_applicable': stringify(is_binary_metric),
+        'is_correct_rule': (
+            'score == 1.0 for binary 0/1 metric'
+            if is_binary_metric
+            else 'false for non-binary metric; use evaluation.score'
+        ),
+    }
+
+    return InstanceLevelEvaluationLog(
+        schema_version=SCHEMA_VERSION,
+        evaluation_id=evaluation_id,
+        model_id=model_id,
+        evaluation_name=f'openeval.{bench_slug}.{metric_slug}',
+        evaluation_result_id=evaluation_result_id,
+        sample_id=instance.sample_id,
+        sample_hash=sample_hash(instance.raw_input, instance.references),
+        interaction_type=InteractionType.single_turn,
+        input=Input(raw=instance.raw_input, reference=instance.references),
+        output=Output(raw=instance.output),
+        answer_attribution=[
+            AnswerAttributionItem(
+                turn_idx=0,
+                source='output.raw',
+                extracted_value=extracted_value,
+                extraction_method=instance.metric_name,
+                is_terminal=True,
+            )
+        ],
+        evaluation=Evaluation(
+            score=instance.score,
+            is_correct=is_binary_metric and instance.score == 1.0,
+        ),
+        metadata=metadata,
+    )
+
+
+def pending_instance_to_json(instance: PendingInstance) -> str:
+    return json.dumps(
+        {
+            'response_id': instance.response_id,
+            'sample_id': instance.sample_id,
+            'benchmark': instance.benchmark,
+            'metric_name': instance.metric_name,
+            'score': instance.score,
+            'raw_input': instance.raw_input,
+            'references': instance.references,
+            'output': instance.output,
+            'metadata': instance.metadata,
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(',', ':'),
+    )
+
+
+def pending_instance_from_json(line: str) -> PendingInstance:
+    data = json.loads(line)
+    return PendingInstance(
+        response_id=str(data['response_id']),
+        sample_id=str(data['sample_id']),
+        benchmark=data['benchmark'],
+        metric_name=str(data['metric_name']),
+        score=float(data['score']),
+        raw_input=str(data['raw_input']),
+        references=list_of_strings(data.get('references')),
+        output=list_of_strings(data.get('output')),
+        metadata=stringify_details(data.get('metadata') or {}),
+    )
+
+
+def append_pending_instance(
+    group: ModelGroup, instance: PendingInstance
+) -> None:
+    if group.instance_path is None:
+        handle = tempfile.NamedTemporaryFile(
+            mode='w',
+            encoding='utf-8',
+            prefix='openeval-instances-',
+            suffix='.jsonl',
+            delete=False,
+        )
+        group.instance_path = Path(handle.name)
+        group.instance_handle = handle
+
+    if group.instance_handle is None:
+        group.instance_handle = group.instance_path.open('a', encoding='utf-8')
+    group.instance_handle.write(pending_instance_to_json(instance) + '\n')
+    group.instance_count += 1
+
+
+def close_instance_files(
+    groups: dict[tuple[str, str, str], ModelGroup],
+) -> None:
+    for group in groups.values():
+        if group.instance_handle is not None:
+            group.instance_handle.close()
+            group.instance_handle = None
+
+
 def source_metadata(
     revision: str,
     payload_metadata: dict[str, Any] | None = None,
     limit_responses: int | None = None,
     allow_unknown_benchmark: bool = False,
+    include_instances: bool = False,
 ) -> SourceMetadata:
     payload_metadata = payload_metadata or {}
     downloaded_shards = payload_metadata.get('downloaded_response_shards')
@@ -701,6 +1056,8 @@ def source_metadata(
                     'max_response_shards'
                 ),
                 'limit_responses': limit_responses,
+                'include_instances': include_instances
+                or payload_metadata.get('include_instances'),
                 'partial_export': partial_export,
                 'allow_unknown_benchmark': allow_unknown_benchmark,
                 'source_role': 'aggregator',
@@ -715,14 +1072,23 @@ def make_logs(
     revision: str = HF_REVISION,
     limit_responses: int | None = None,
     allow_unknown_benchmark: bool = False,
+    include_instances: bool = False,
 ) -> list[LogBundle]:
     benches, responses = validate_payload(payload)
+    items = item_rows(payload) if include_instances else []
+    if include_instances and not items:
+        raise ValueError(
+            'OpenEval instance-level output requires item records. '
+            'Include an "item" collection in --input-json or use live fetch.'
+        )
     timestamp = retrieved_timestamp or str(time.time())
     groups = aggregate_scores(
         benches,
         responses,
         limit_responses,
         allow_unknown_benchmark=allow_unknown_benchmark,
+        items=items,
+        include_instances=include_instances,
     )
     payload_metadata = (
         payload.get('source_metadata')
@@ -734,6 +1100,7 @@ def make_logs(
         payload_metadata,
         limit_responses,
         allow_unknown_benchmark,
+        include_instances,
     )
 
     bundles: list[LogBundle] = []
@@ -770,24 +1137,100 @@ def make_logs(
                 results, key=lambda item: item.evaluation_result_id or ''
             ),
         )
+        binary_result_ids = {
+            result.evaluation_result_id
+            for result in results
+            if result.evaluation_result_id
+            and (result.metric_config.additional_details or {}).get(
+                'score_values_are_binary'
+            )
+            == 'true'
+        }
         bundles.append(
-            LogBundle(log=log, developer=developer, model=model_slug)
+            LogBundle(
+                log=log,
+                developer=developer,
+                model=model_slug,
+                instance_path=group.instance_path,
+                instance_count=group.instance_count,
+                binary_result_ids=binary_result_ids,
+            )
         )
 
     return bundles
 
 
+def save_instance_logs(
+    pending_path: Path | None,
+    instance_count: int,
+    aggregate_path: Path,
+    evaluation_id: str,
+    model_id: str,
+    binary_result_ids: set[str] | None = None,
+) -> DetailedEvaluationResults | None:
+    if pending_path is None or instance_count == 0:
+        return None
+
+    sample_path = aggregate_path.with_name(
+        f'{aggregate_path.stem}_samples.jsonl'
+    )
+    file_hash = hashlib.sha256()
+    with (
+        pending_path.open('r', encoding='utf-8') as pending_handle,
+        sample_path.open('w', encoding='utf-8') as handle,
+    ):
+        for line in pending_handle:
+            if not line.strip():
+                continue
+            instance = pending_instance_from_json(line)
+            instance_log = make_instance_log(
+                instance, evaluation_id, model_id, binary_result_ids
+            )
+            output_line = (
+                json.dumps(
+                    instance_log.model_dump(mode='json', exclude_none=True),
+                    ensure_ascii=False,
+                )
+                + '\n'
+            )
+            file_hash.update(output_line.encode('utf-8'))
+            handle.write(output_line)
+
+    pending_path.unlink(missing_ok=True)
+
+    return DetailedEvaluationResults(
+        format=Format.jsonl,
+        file_path=sample_path.name,
+        hash_algorithm=HashAlgorithm.sha256,
+        checksum=file_hash.hexdigest(),
+        total_rows=instance_count,
+    )
+
+
 def export_logs(bundles: list[LogBundle], output_dir: Path) -> list[Path]:
     paths = []
     for bundle in bundles:
-        paths.append(
-            save_evaluation_log(
-                bundle.log,
-                output_dir,
-                bundle.developer,
-                bundle.model,
-            )
+        path = save_evaluation_log(
+            bundle.log,
+            output_dir,
+            bundle.developer,
+            bundle.model,
         )
+        detailed = save_instance_logs(
+            bundle.instance_path,
+            bundle.instance_count,
+            path,
+            bundle.log.evaluation_id,
+            bundle.log.model_info.id,
+            bundle.binary_result_ids,
+        )
+        if detailed is not None:
+            bundle.log.detailed_evaluation_results = detailed
+            path.write_text(
+                bundle.log.model_dump_json(indent=2, exclude_none=True),
+                encoding='utf-8',
+            )
+        paths.append(path)
     return paths
 
 
@@ -798,13 +1241,18 @@ def run(args: argparse.Namespace) -> int:
         max_response_shards = args.max_response_shards
         if args.limit_responses is not None and max_response_shards is None:
             max_response_shards = 1
-        payload = fetch_payload(args.revision, max_response_shards)
+        payload = fetch_payload(
+            args.revision,
+            max_response_shards,
+            include_instances=args.include_instances,
+        )
 
     bundles = make_logs(
         payload,
         revision=args.revision,
         limit_responses=args.limit_responses,
         allow_unknown_benchmark=args.allow_unknown_benchmark,
+        include_instances=args.include_instances,
     )
     paths = export_logs(bundles, args.output_dir)
     for path in paths:

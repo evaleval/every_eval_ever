@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from every_eval_ever.eval_types import EvaluationLog
+from every_eval_ever.instance_level_types import InstanceLevelEvaluationLog
 from every_eval_ever.validate import validate_file
 from utils.openeval import adapter
 
@@ -25,6 +27,35 @@ def sample_payload() -> dict:
                 'benchmark_tags': ['knowledge', 'multiple_choice'],
             },
         ],
+        'item': [
+            {
+                'item_id': 'ifeval_20260305T211125Z_0',
+                'schema_version': '1.0',
+                'item_metadata': {'source': 'ifeval'},
+                'item_content': {
+                    'input': ['Write one sentence.'],
+                    'references': ['{"output":{"text":"A sentence."}}'],
+                },
+            },
+            {
+                'item_id': 'ifeval_20260305T211125Z_1',
+                'schema_version': '1.0',
+                'item_metadata': {'source': 'ifeval'},
+                'item_content': {
+                    'input': ['Write two words.'],
+                    'references': ['{"output":{"text":"two words"}}'],
+                },
+            },
+            {
+                'item_id': 'mmlu-pro_20260305T211125Z_0',
+                'schema_version': '1.0',
+                'item_metadata': {'source': 'mmlu_pro'},
+                'item_content': {
+                    'input': ['Which answer is correct?'],
+                    'references': ['{"output":{"text":"B"}}'],
+                },
+            },
+        ],
         'response': [
             {
                 'response_id': 'ifeval_20260305T211125Z_0_gemma-2b-it_0',
@@ -43,6 +74,8 @@ def sample_payload() -> dict:
                     'metric': [{'name': 'ifeval_strict_accuracy'}],
                     'value': [0.0],
                 },
+                'response_content': ['{"text":"One sentence."}'],
+                'item_adaptation': {'request_input': ['Write one sentence.']},
             },
             {
                 'response_id': 'ifeval_20260305T211125Z_1_gemma-2b-it_0',
@@ -61,6 +94,8 @@ def sample_payload() -> dict:
                     'metric': [{'name': 'ifeval_strict_accuracy'}],
                     'value': [1.0],
                 },
+                'response_content': ['two words'],
+                'item_adaptation': {'request_input': ['Write two words.']},
             },
             {
                 'response_id': 'mmlu-pro_20260305T211125Z_0_gpt-4o_0',
@@ -80,6 +115,10 @@ def sample_payload() -> dict:
                         {'name': 'macro_f1'},
                     ],
                     'value': [0.75, 0.6],
+                },
+                'response_content': ['B'],
+                'item_adaptation': {
+                    'request_input': ['Which answer is correct?']
                 },
             },
         ],
@@ -134,6 +173,11 @@ def test_scores_are_aggregated_by_model_benchmark_and_metric():
     assert result.score_details.uncertainty.num_samples == 2
     assert result.metric_config.min_score == 0.0
     assert result.metric_config.max_score == 1.0
+    assert result.metric_config.metric_unit == 'proportion'
+    assert (
+        result.metric_config.additional_details['score_values_are_binary']
+        == 'true'
+    )
     assert result.source_data.source_type == 'hf_dataset'
     assert result.source_data.hf_repo == 'human-centered-eval/OpenEval'
     assert result.source_data.dataset_name == 'ifeval'
@@ -162,6 +206,14 @@ def test_benchmark_prefix_matching_handles_underscores():
     assert (
         accuracy.metric_config.additional_details['extra_artifact_types_json']
         == '["judge_trace"]'
+    )
+    assert accuracy.metric_config.metric_unit == 'score'
+    assert (
+        accuracy.metric_config.additional_details['score_values_are_binary']
+        == 'false'
+    )
+    assert accuracy.metric_config.additional_details['bounds_source'] == (
+        'normalized_observed_values'
     )
 
 
@@ -247,3 +299,131 @@ def test_export_paths_follow_datastore_layout(tmp_path: Path):
 
     assert (output_dir / 'google' / 'gemma-2b-it').is_dir()
     assert (output_dir / 'openai' / 'gpt-4o').is_dir()
+
+
+def test_include_instances_writes_valid_jsonl_sidecar(tmp_path: Path):
+    output_dir = tmp_path / 'data' / 'openeval'
+    bundles = adapter.make_logs(
+        sample_payload(),
+        retrieved_timestamp='1234567890.0',
+        include_instances=True,
+    )
+
+    gemma_bundle = next(
+        bundle
+        for bundle in bundles
+        if bundle.log.model_info.name == 'gemma-2b-it'
+    )
+    assert gemma_bundle.instance_count == 2
+    assert gemma_bundle.instance_path is not None
+    assert (
+        gemma_bundle.log.source_metadata.additional_details['include_instances']
+        == 'true'
+    )
+    first = adapter.pending_instance_from_json(
+        gemma_bundle.instance_path.read_text(encoding='utf-8').splitlines()[0]
+    )
+    first_log = adapter.make_instance_log(
+        first,
+        gemma_bundle.log.evaluation_id,
+        gemma_bundle.log.model_info.id,
+        gemma_bundle.binary_result_ids,
+    )
+    assert first_log.evaluation_id == gemma_bundle.log.evaluation_id
+    assert first_log.evaluation_result_id == 'ifeval::ifeval-strict-accuracy'
+    assert first_log.evaluation.is_correct is False
+    assert first_log.metadata['is_correct_applicable'] == 'true'
+    assert first.sample_id == 'ifeval_20260305T211125Z_0'
+    assert first.raw_input == 'Write one sentence.'
+    assert first.references == ['A sentence.']
+    assert first.output == ['One sentence.']
+
+    paths = adapter.export_logs([gemma_bundle], output_dir)
+    aggregate_path = paths[0]
+    sample_path = aggregate_path.with_name(
+        f'{aggregate_path.stem}_samples.jsonl'
+    )
+    assert sample_path.exists()
+
+    aggregate = EvaluationLog.model_validate(
+        json.loads(aggregate_path.read_text(encoding='utf-8'))
+    )
+    assert aggregate.detailed_evaluation_results is not None
+    assert aggregate.detailed_evaluation_results.total_rows == 2
+    assert aggregate.detailed_evaluation_results.format.value == 'jsonl'
+    assert aggregate.detailed_evaluation_results.file_path == sample_path.name
+    assert aggregate.detailed_evaluation_results.checksum
+
+    report = validate_file(sample_path)
+    assert report.valid, report.errors
+    rows = [
+        InstanceLevelEvaluationLog.model_validate(json.loads(line))
+        for line in sample_path.read_text(encoding='utf-8').splitlines()
+    ]
+    assert {row.evaluation_id for row in rows} == {aggregate.evaluation_id}
+
+
+def test_include_instances_requires_item_records():
+    payload = sample_payload()
+    payload.pop('item')
+
+    try:
+        adapter.make_logs(
+            payload,
+            retrieved_timestamp='1234567890.0',
+            include_instances=True,
+        )
+    except ValueError as exc:
+        assert 'requires item records' in str(exc)
+    else:
+        raise AssertionError('Expected missing item records to raise')
+
+
+def test_duplicate_response_metrics_are_deduped():
+    payload = sample_payload()
+    payload['response'].append(dict(payload['response'][0]))
+
+    bundles = adapter.make_logs(
+        payload,
+        retrieved_timestamp='1234567890.0',
+        include_instances=True,
+    )
+    gemma_bundle = next(
+        bundle
+        for bundle in bundles
+        if bundle.log.model_info.name == 'gemma-2b-it'
+    )
+
+    assert gemma_bundle.instance_count == 2
+    result = gemma_bundle.log.evaluation_results[0]
+    assert result.score_details.uncertainty.num_samples == 2
+    assert result.source_data.samples_number == 2
+
+
+def test_non_binary_instance_scores_do_not_claim_correctness():
+    bundles = adapter.make_logs(
+        sample_payload(),
+        retrieved_timestamp='1234567890.0',
+        include_instances=True,
+    )
+    gpt_bundle = next(
+        bundle for bundle in bundles if bundle.log.model_info.name == 'gpt-4o'
+    )
+    rows = [
+        adapter.pending_instance_from_json(line)
+        for line in gpt_bundle.instance_path.read_text(
+            encoding='utf-8'
+        ).splitlines()
+    ]
+    accuracy = next(row for row in rows if row.metric_name == 'accuracy')
+
+    instance = adapter.make_instance_log(
+        accuracy,
+        gpt_bundle.log.evaluation_id,
+        gpt_bundle.log.model_info.id,
+        gpt_bundle.binary_result_ids,
+    )
+
+    assert instance.evaluation.score == 0.75
+    assert instance.evaluation.is_correct is False
+    assert instance.metadata['is_correct_applicable'] == 'false'
