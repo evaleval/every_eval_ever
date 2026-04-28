@@ -1,8 +1,14 @@
 """Display and summarize Every Eval Ever dataset statistics."""
 
+import warnings
+
+warnings.filterwarnings('ignore')
+
 import argparse
+import os
 import re
 import sys
+from pathlib import Path
 from typing import List, Tuple
 
 import duckdb
@@ -18,8 +24,11 @@ FOLDER_PATH = 'viewer_parquets'
 HUGGING_FACE_DATASTORE = f'datasets/{REPO_ID}/{FOLDER_PATH}/**/*.parquet'
 
 
-def execute_query(con, sql):
-    return con.execute(sql).fetchall()
+def execute_query(con, sql, df=False):
+    if not df:
+        return con.execute(sql).fetchall()
+    if df:
+        return con.execute(sql).df()
 
 
 def section(title: str) -> None:
@@ -180,7 +189,310 @@ def analyze_data(con, schema_table, instance_table) -> None:
     else:
         print('  no params_billions data found')
 
+    unique_benchmark = execute_query(
+        con,
+        f"""
+        SELECT 
+            COUNT(DISTINCT er.source_data.dataset_name) AS n_unique_benchmarks
+        FROM {schema_table},
+        LATERAL UNNEST(evaluation_results) AS t(er)
+        WHERE er.source_data.dataset_name IS NOT NULL;
+        """,
+    )
+    section('unique benchmarks in dataset')
+    for bench in unique_benchmark:
+        print(f' - {bench}')
+
+    unique_inference = execute_query(
+        con,
+        f"""
+        SELECT DISTINCT
+            model_info.inference_platform
+        FROM {schema_table}
+        WHERE model_info.inference_platform NOT LIKE '%unknown%'
+        """,
+    )
+    section('unique inference platforms in dataset')
+    platforms = [platform for (platform,) in unique_inference]
+    print('  ' + ', '.join(str(p) for p in platforms))
+
+    unique_orgs = execute_query(
+        con,
+        f"""
+        SELECT DISTINCT 
+            source_metadata.source_organization_name
+        FROM {schema_table}
+        """,
+    )
+    section('unique organisations in dataset')
+    orgs = [org for (org,) in unique_orgs]
+    print('  ' + ', '.join(str(o) for o in orgs))
+
     print(f'\n{SEP}\n')
+
+
+def create_visualisations(con, schema_table, instance_table) -> None:
+    # for a benchmark, how do scores for that benchmark vary across
+    # eval_harnesses for the same evaluation / in general (get mean, range, get min, max)
+    try:
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+    except ModuleNotFoundError:
+        raise ImportError('seaborn or matplotlib not installed')
+
+    os.makedirs(create_visualisations.outdir, exist_ok=True)
+    output_path = Path(create_visualisations.outdir)
+    top_n = create_visualisations.top_n
+
+    # score distribution across the most used benchmarks
+    benchmark_top_scores = execute_query(
+        con,
+        f"""
+        SELECT 
+            er.source_data.dataset_name AS benchmark,
+            er.score_details.score::DOUBLE AS score
+        FROM {schema_table},
+        LATERAL UNNEST(evaluation_results) AS t(er)
+        WHERE er.source_data.dataset_name IN ('GPQA', 'IFEval')
+        ORDER BY benchmark, score DESC;
+        """,
+        df=True,
+    )
+
+    fig, axes = plt.subplots(2, 1, figsize=(10, 8), sharex=False)
+    benchmarks = ['GPQA', 'IFEval']
+    colors = sns.color_palette('viridis', 2)
+    for ax, benchmark, color in zip(axes, benchmarks, colors):
+        data = benchmark_top_scores[
+            benchmark_top_scores['benchmark'] == benchmark
+        ]['score']
+        sns.kdeplot(
+            data=data, fill=True, alpha=0.5, color=color, ax=ax, linewidth=1.5
+        )
+        ax.axvline(
+            data.median(),
+            color=color,
+            linestyle='--',
+            linewidth=1.2,
+            label=f'Median: {data.median():.3f}',
+        )
+        ax.axvline(
+            data.mean(),
+            color='gray',
+            linestyle=':',
+            linewidth=1.2,
+            label=f'Mean: {data.mean():.3f}',
+        )
+        ax.set_title(
+            f'{benchmark} Score Distribution (n={len(data):,})', fontsize=12
+        )
+        ax.set_xlabel('Score', fontsize=11)
+        ax.set_ylabel('Density', fontsize=11)
+        ax.legend(fontsize=9)
+        sns.despine(ax=ax)
+
+    plt.suptitle('Score Distributions: GPQA & IFEval', fontsize=13, y=1.02)
+    plt.tight_layout()
+    plt.savefig(
+        output_path / 'score_distribution_gpqa_ifeval.png',
+        dpi=300,
+        bbox_inches='tight',
+    )
+    plt.close()
+
+    # inference platform count
+    inference_count = execute_query(
+        con,
+        f"""
+        SELECT
+            model_info.inference_platform,
+            COUNT(*) as n_count
+        FROM {schema_table}
+        WHERE model_info.inference_platform NOT LIKE '%unknown%'
+        GROUP BY 1
+        ORDER BY 2 DESC;
+        """,
+        df=True,
+    )
+
+    sns.set_theme(style='whitegrid')
+    plt.figure(figsize=(10, 6))
+    ax = sns.barplot(
+        data=inference_count,
+        x='n_count',
+        y='inference_platform',
+        palette='viridis',
+    )
+    ax.set_title('Distribution of Inference Platforms', fontsize=15, pad=20)
+    ax.set_xlabel('Number of Evaluations', fontsize=12)
+    ax.set_ylabel('Platform', fontsize=12)
+    for i in ax.containers:
+        ax.bar_label(i, padding=3)
+    plt.suptitle('Inference Platform value count', fontsize=13, y=1.02)
+    plt.tight_layout()
+    plt.savefig(
+        output_path / 'inference_value_count.png', dpi=300, bbox_inches='tight'
+    )
+    plt.close()
+
+    # first party vs third party evaluator breakdown — who is doing the evaluating
+    evaluation_relationships = execute_query(
+        con,
+        f"""
+        SELECT
+            source_metadata.evaluator_relationship,
+            COUNT(evaluation_id)
+        FROM {schema_table}
+        GROUP BY 1
+        """,
+        df=True,
+    )
+
+    fig, ax = plt.subplots(figsize=(7, 7))
+    counts = evaluation_relationships.set_index('evaluator_relationship')[
+        'count(evaluation_id)'
+    ]
+    ax.pie(
+        counts,
+        labels=counts.index,
+        autopct='%1.1f%%',
+        colors=sns.color_palette('viridis', len(counts)),
+        startangle=90,
+        wedgeprops={'edgecolor': 'white', 'linewidth': 1.5},
+    )
+    ax.set_title(
+        'Evaluator Relationship Breakdown\n(First Party vs Third Party)',
+        fontsize=12,
+        pad=20,
+    )
+    plt.tight_layout()
+    plt.savefig(
+        output_path / 'evaluator_relationship_pie.png',
+        dpi=300,
+        bbox_inches='tight',
+    )
+    plt.close()
+
+    unique_org_runs = execute_query(
+        con,
+        f"""
+        SELECT 
+            CASE 
+                WHEN LENGTH(TRIM(source_metadata.source_organization_name)) > 40 
+                THEN LEFT(TRIM(source_metadata.source_organization_name), 40) || '...'
+                ELSE TRIM(source_metadata.source_organization_name)
+            END AS org,
+            COUNT(*) AS n_runs
+        FROM {schema_table}
+        WHERE source_metadata.source_organization_name IS NOT NULL
+        GROUP BY 1
+        ORDER BY 2 DESC;
+        """,
+        df=True,
+    )
+
+    fig, ax = plt.subplots(figsize=(10, 8))
+    sns.barplot(
+        data=unique_org_runs, x='n_runs', y='org', palette='viridis', ax=ax
+    )
+    for container in ax.containers:
+        ax.bar_label(container, fmt='%d', padding=4, fontsize=9)
+    ax.set_xlabel('Number of Evaluation Runs', fontsize=11)
+    ax.set_ylabel('Organization', fontsize=11)
+    ax.set_title(
+        f'Evaluation Runs by Source Organization (n={len(unique_org_runs)} orgs)',
+        fontsize=12,
+    )
+    sns.despine()
+    plt.tight_layout()
+    plt.savefig(
+        output_path / 'source_organizations.png', dpi=300, bbox_inches='tight'
+    )
+    plt.close()
+
+    benchmark_model_counts = execute_query(
+        con,
+        f"""
+        SELECT 
+            er.source_data.dataset_name AS benchmark,
+            COUNT(DISTINCT model_info.id) AS n_models
+        FROM {schema_table},
+        LATERAL UNNEST(evaluation_results) AS t(er)
+        WHERE er.source_data.dataset_name IS NOT NULL
+        GROUP BY benchmark
+        ORDER BY n_models DESC
+        LIMIT {top_n};
+        """,
+        df=True,
+    )
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    sns.barplot(
+        data=benchmark_model_counts,
+        x='n_models',
+        y='benchmark',
+        palette='viridis',
+        ax=ax,
+    )
+    for container in ax.containers:
+        ax.bar_label(container, fmt='%d', padding=4, fontsize=9)
+
+    ax.set_xlabel('Number of Models', fontsize=11)
+    ax.set_ylabel('Benchmark', fontsize=11)
+    ax.set_title(
+        'Top 10 Benchmarks by Number of Models', fontsize=12
+    )
+    sns.despine()
+    plt.tight_layout()
+    plt.savefig(
+        output_path / 'top10_benchmarks_by_models.png',
+        dpi=300,
+        bbox_inches='tight',
+    )
+    plt.close()
+
+    model_benchmark_counts = execute_query(
+        con,
+        f"""
+        SELECT 
+            model_info.id AS model,
+            COUNT(DISTINCT er.source_data.dataset_name) AS n_benchmarks
+        FROM {schema_table},
+        LATERAL UNNEST(evaluation_results) AS t(er)
+        WHERE er.source_data.dataset_name IS NOT NULL
+        GROUP BY model
+        ORDER BY n_benchmarks DESC
+        LIMIT {top_n};
+        """,
+        df=True,
+    )
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    sns.barplot(
+        data=model_benchmark_counts,
+        x='n_benchmarks',
+        y='model',
+        palette='viridis',
+        ax=ax,
+    )
+    for container in ax.containers:
+        ax.bar_label(container, fmt='%d', padding=4, fontsize=9)
+
+    ax.set_xlabel('Number of Benchmarks', fontsize=11)
+    ax.set_ylabel('Model', fontsize=11)
+    ax.set_title(
+        'Top 10 Models by Number of Benchmarks Evaluated On', fontsize=12
+    )
+    sns.despine()
+    plt.tight_layout()
+    plt.savefig(
+        output_path / 'top10_models_by_benchmarks.png',
+        dpi=300,
+        bbox_inches='tight',
+    )
+    plt.close()
+
+    print(f"All visualisations saved to {output_path.resolve()}")
 
 
 def main():
@@ -192,12 +504,27 @@ def main():
     parser.add_argument(
         '--table', default='eee', help='Table name for database'
     )
+    parser.add_argument(
+        '--viz-dir',
+        default='data/outputs/viz',
+        help='Output directory for generated visualization files',
+    )
+    parser.add_argument(
+        '--top-n',
+        default=10,
+        type=int,
+        help='Top-N groups to include in visualization charts',
+    )
 
     args = parser.parse_args()
     if not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*', args.table):
         parser.error('--table must be a valid SQL identifier')
 
     table_name = args.table
+
+    create_visualisations.outdir = args.viz_dir
+    create_visualisations.top_n = args.top_n
+
     schema_table = f'{table_name}_schema'
     instance_table = f'{table_name}_instances'
 
@@ -225,6 +552,7 @@ def main():
                 [schema_urls],
             )
             schema_loaded = True
+            print('Schema Table Successfully Loaded')
 
         if instance_urls:
             con.execute(
@@ -275,12 +603,14 @@ def main():
                     [url],
                 )
             instance_loaded = True
+            print('Instance Table Successfully Loaded')
 
         if not schema_loaded or not instance_loaded:
             print('Skipping combined analysis: one table was not loaded.')
             sys.exit(1)
 
         analyze_data(con, schema_table, instance_table)
+        create_visualisations(con, schema_table, instance_table)
 
 
 if __name__ == '__main__':
