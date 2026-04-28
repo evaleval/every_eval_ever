@@ -1,0 +1,91 @@
+{
+  "schema_version": "0.2.2",
+  "evaluation_id": "hal-scienceagentbench/hal-generalist-agent/o4-mini-low-april-2025/1777366846.636041",
+  "retrieved_timestamp": "1777366846.636041",
+  "source_metadata": {
+    "source_name": "HAL Leaderboard — ScienceAgentBench",
+    "source_type": "documentation",
+    "source_organization_name": "Princeton SAgE Team",
+    "source_organization_url": "https://hal.cs.princeton.edu",
+    "evaluator_relationship": "third_party",
+    "additional_details": {
+      "paper": "https://arxiv.org/pdf/2510.11977",
+      "benchmark_category": "Scientific Programming",
+      "benchmark_slug": "scienceagentbench"
+    }
+  },
+  "eval_library": {
+    "name": "HAL",
+    "version": "unknown"
+  },
+  "model_info": {
+    "name": "o4-mini Low (April 2025)",
+    "id": "openai/o4-mini",
+    "developer": "openai",
+    "additional_details": {
+      "hal_model_name": "o4-mini Low (April 2025)",
+      "agent_scaffold": "HAL Generalist Agent",
+      "benchmark": "ScienceAgentBench",
+      "inference_effort": "low",
+      "total_cost_usd": "77.32"
+    }
+  },
+  "evaluation_results": [
+    {
+      "evaluation_name": "ScienceAgentBench",
+      "source_data": {
+        "source_type": "url",
+        "dataset_name": "ScienceAgentBench",
+        "url": [
+          "https://osu-nlp-group.github.io/ScienceAgentBench/",
+          "https://hal.cs.princeton.edu/scienceagentbench"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "Success rate on ScienceAgentBench tasks (0.0–1.0)",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.1961,
+        "details": {
+          "accuracy_raw": "19.61%"
+        }
+      },
+      "generation_config": {
+        "generation_args": {
+          "agentic_eval_config": {
+            "available_tools": [
+              {
+                "name": "python",
+                "description": "Execute Python code for data analysis"
+              },
+              {
+                "name": "bash",
+                "description": "Execute shell commands"
+              },
+              {
+                "name": "read_file",
+                "description": "Read datasets and files"
+              },
+              {
+                "name": "write_file",
+                "description": "Write output files and results"
+              }
+            ]
+          }
+        },
+        "additional_details": {
+          "agent_scaffold": "HAL Generalist Agent",
+          "hal_rank": "15",
+          "runs": "1",
+          "verified": "True",
+          "is_pareto": "False",
+          "total_cost_usd": "77.32"
+        }
+      }
+    }
+  ]
+}

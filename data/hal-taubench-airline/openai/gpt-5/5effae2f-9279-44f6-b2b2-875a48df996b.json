@@ -1,0 +1,79 @@
+{
+  "schema_version": "0.2.2",
+  "evaluation_id": "hal-taubench-airline/hal-generalist-agent/gpt-5-medium-august-2025/1777366846.636041",
+  "retrieved_timestamp": "1777366846.636041",
+  "source_metadata": {
+    "source_name": "HAL Leaderboard — TAU-bench Airline",
+    "source_type": "documentation",
+    "source_organization_name": "Princeton SAgE Team",
+    "source_organization_url": "https://hal.cs.princeton.edu",
+    "evaluator_relationship": "third_party",
+    "additional_details": {
+      "paper": "https://arxiv.org/pdf/2510.11977",
+      "benchmark_category": "Customer Service",
+      "benchmark_slug": "taubench_airline"
+    }
+  },
+  "eval_library": {
+    "name": "HAL",
+    "version": "unknown"
+  },
+  "model_info": {
+    "name": "GPT-5 Medium (August 2025)",
+    "id": "openai/gpt-5",
+    "developer": "openai",
+    "additional_details": {
+      "hal_model_name": "GPT-5 Medium (August 2025)",
+      "agent_scaffold": "HAL Generalist Agent",
+      "benchmark": "TAU-bench Airline",
+      "inference_effort": "medium",
+      "total_cost_usd": "52.78"
+    }
+  },
+  "evaluation_results": [
+    {
+      "evaluation_name": "TAU-bench Airline",
+      "source_data": {
+        "source_type": "url",
+        "dataset_name": "TAU-bench Airline",
+        "url": [
+          "https://github.com/sierra-research/tau-bench",
+          "https://hal.cs.princeton.edu/taubench_airline"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "Task success rate on TAU-bench Airline (0.0–1.0)",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.3,
+        "details": {
+          "accuracy_raw": "30.00%"
+        }
+      },
+      "generation_config": {
+        "generation_args": {
+          "agentic_eval_config": {
+            "available_tools": [
+              {
+                "name": "function_calling",
+                "description": "Call predefined airline service API functions"
+              }
+            ]
+          }
+        },
+        "additional_details": {
+          "agent_scaffold": "HAL Generalist Agent",
+          "hal_rank": "18",
+          "runs": "1",
+          "verified": "True",
+          "is_pareto": "False",
+          "total_cost_usd": "52.78"
+        }
+      }
+    }
+  ]
+}

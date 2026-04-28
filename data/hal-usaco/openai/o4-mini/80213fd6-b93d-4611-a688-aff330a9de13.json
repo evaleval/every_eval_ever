@@ -1,0 +1,83 @@
+{
+  "schema_version": "0.2.2",
+  "evaluation_id": "hal-usaco/usaco-episodic-semantic/o4-mini-high-april-2025/1777366846.636041",
+  "retrieved_timestamp": "1777366846.636041",
+  "source_metadata": {
+    "source_name": "HAL Leaderboard — USACO",
+    "source_type": "documentation",
+    "source_organization_name": "Princeton SAgE Team",
+    "source_organization_url": "https://hal.cs.princeton.edu",
+    "evaluator_relationship": "third_party",
+    "additional_details": {
+      "paper": "https://arxiv.org/pdf/2510.11977",
+      "benchmark_category": "Programming",
+      "benchmark_slug": "usaco"
+    }
+  },
+  "eval_library": {
+    "name": "HAL",
+    "version": "unknown"
+  },
+  "model_info": {
+    "name": "o4-mini High (April 2025)",
+    "id": "openai/o4-mini",
+    "developer": "openai",
+    "additional_details": {
+      "hal_model_name": "o4-mini High (April 2025)",
+      "agent_scaffold": "USACO Episodic + Semantic",
+      "benchmark": "USACO",
+      "inference_effort": "high",
+      "total_cost_usd": "44.04"
+    }
+  },
+  "evaluation_results": [
+    {
+      "evaluation_name": "USACO",
+      "source_data": {
+        "source_type": "url",
+        "dataset_name": "USACO",
+        "url": [
+          "https://usaco.guide",
+          "https://hal.cs.princeton.edu/usaco"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "Fraction of USACO problems solved (0.0–1.0)",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.5798,
+        "details": {
+          "accuracy_raw": "57.98%"
+        }
+      },
+      "generation_config": {
+        "generation_args": {
+          "agentic_eval_config": {
+            "available_tools": [
+              {
+                "name": "bash",
+                "description": "Execute shell commands and compile/run code"
+              },
+              {
+                "name": "python",
+                "description": "Execute Python code"
+              }
+            ]
+          }
+        },
+        "additional_details": {
+          "agent_scaffold": "USACO Episodic + Semantic",
+          "hal_rank": "2",
+          "runs": "1",
+          "verified": "True",
+          "is_pareto": "True",
+          "total_cost_usd": "44.04"
+        }
+      }
+    }
+  ]
+}

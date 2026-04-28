@@ -1,0 +1,87 @@
+{
+  "schema_version": "0.2.2",
+  "evaluation_id": "hal-assistantbench/browser-use/claude-opus-4-1-august-2025/1777366846.636041",
+  "retrieved_timestamp": "1777366846.636041",
+  "source_metadata": {
+    "source_name": "HAL Leaderboard — AssistantBench",
+    "source_type": "documentation",
+    "source_organization_name": "Princeton SAgE Team",
+    "source_organization_url": "https://hal.cs.princeton.edu",
+    "evaluator_relationship": "third_party",
+    "additional_details": {
+      "paper": "https://arxiv.org/pdf/2510.11977",
+      "benchmark_category": "Web Assistance",
+      "benchmark_slug": "assistantbench"
+    }
+  },
+  "eval_library": {
+    "name": "HAL",
+    "version": "unknown"
+  },
+  "model_info": {
+    "name": "Claude Opus 4.1 (August 2025)",
+    "id": "anthropic/claude-opus-4-1",
+    "developer": "anthropic",
+    "additional_details": {
+      "hal_model_name": "Claude Opus 4.1 (August 2025)",
+      "agent_scaffold": "Browser-Use",
+      "benchmark": "AssistantBench",
+      "total_cost_usd": "385.43"
+    }
+  },
+  "evaluation_results": [
+    {
+      "evaluation_name": "AssistantBench",
+      "source_data": {
+        "source_type": "url",
+        "dataset_name": "AssistantBench",
+        "url": [
+          "https://assistantbench.github.io",
+          "https://hal.cs.princeton.edu/assistantbench"
+        ],
+        "additional_details": {
+          "tasks_evaluated": "33",
+          "full_benchmark_size": "214",
+          "note": "HAL evaluates on a 33-task subset; full AssistantBench has 214 tasks"
+        }
+      },
+      "metric_config": {
+        "evaluation_description": "Accuracy on HAL's 33-task AssistantBench split (0.0–1.0)",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.0726,
+        "details": {
+          "accuracy_raw": "7.26%"
+        }
+      },
+      "generation_config": {
+        "generation_args": {
+          "agentic_eval_config": {
+            "available_tools": [
+              {
+                "name": "browser",
+                "description": "Navigate and interact with live web pages"
+              },
+              {
+                "name": "web_search",
+                "description": "Search the web for information"
+              }
+            ]
+          }
+        },
+        "additional_details": {
+          "agent_scaffold": "Browser-Use",
+          "hal_rank": "11",
+          "runs": "1",
+          "verified": "True",
+          "is_pareto": "False",
+          "total_cost_usd": "385.43"
+        }
+      }
+    }
+  ]
+}

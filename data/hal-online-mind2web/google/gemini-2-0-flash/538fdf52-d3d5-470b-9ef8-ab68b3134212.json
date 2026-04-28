@@ -1,0 +1,90 @@
+{
+  "schema_version": "0.2.2",
+  "evaluation_id": "hal-online-mind2web/browser-use/gemini-2-0-flash-february-2025/1777366846.636041",
+  "retrieved_timestamp": "1777366846.636041",
+  "source_metadata": {
+    "source_name": "HAL Leaderboard — Online Mind2Web",
+    "source_type": "documentation",
+    "source_organization_name": "Princeton SAgE Team",
+    "source_organization_url": "https://hal.cs.princeton.edu",
+    "evaluator_relationship": "third_party",
+    "additional_details": {
+      "paper": "https://arxiv.org/pdf/2510.11977",
+      "benchmark_category": "Web Assistance",
+      "benchmark_slug": "online_mind2web"
+    }
+  },
+  "eval_library": {
+    "name": "HAL",
+    "version": "unknown"
+  },
+  "model_info": {
+    "name": "Gemini 2.0 Flash (February 2025)",
+    "id": "google/gemini-2.0-flash",
+    "developer": "google",
+    "additional_details": {
+      "hal_model_name": "Gemini 2.0 Flash (February 2025)",
+      "agent_scaffold": "Browser-Use",
+      "benchmark": "Online Mind2Web",
+      "total_cost_usd": "8.83"
+    }
+  },
+  "evaluation_results": [
+    {
+      "evaluation_name": "Online Mind2Web",
+      "source_data": {
+        "source_type": "url",
+        "dataset_name": "Online Mind2Web",
+        "url": [
+          "https://osu-nlp-group.github.io/Mind2Web/",
+          "https://hal.cs.princeton.edu/online_mind2web"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "Task success rate on Online Mind2Web (0.0–1.0)",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.29,
+        "details": {
+          "accuracy_raw": "29.00%"
+        }
+      },
+      "generation_config": {
+        "generation_args": {
+          "agentic_eval_config": {
+            "available_tools": [
+              {
+                "name": "browser",
+                "description": "Navigate and interact with live web pages"
+              },
+              {
+                "name": "click",
+                "description": "Click on web page elements"
+              },
+              {
+                "name": "type",
+                "description": "Type text into web page inputs"
+              },
+              {
+                "name": "scroll",
+                "description": "Scroll web pages"
+              }
+            ]
+          }
+        },
+        "additional_details": {
+          "agent_scaffold": "Browser-Use",
+          "hal_rank": "16",
+          "runs": "1",
+          "verified": "True",
+          "is_pareto": "True",
+          "total_cost_usd": "8.83"
+        }
+      }
+    }
+  ]
+}

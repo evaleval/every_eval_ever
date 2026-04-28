@@ -1,0 +1,86 @@
+{
+  "schema_version": "0.2.2",
+  "evaluation_id": "hal-swebench-verified-mini/swe-agent/claude-sonnet-4-5-september-2025/1777366846.636041",
+  "retrieved_timestamp": "1777366846.636041",
+  "source_metadata": {
+    "source_name": "HAL Leaderboard — SWE-bench Verified Mini",
+    "source_type": "documentation",
+    "source_organization_name": "Princeton SAgE Team",
+    "source_organization_url": "https://hal.cs.princeton.edu",
+    "evaluator_relationship": "third_party",
+    "additional_details": {
+      "paper": "https://arxiv.org/pdf/2510.11977",
+      "benchmark_category": "Software Engineering",
+      "benchmark_slug": "swebench_verified_mini"
+    }
+  },
+  "eval_library": {
+    "name": "HAL",
+    "version": "unknown"
+  },
+  "model_info": {
+    "name": "Claude Sonnet 4.5 (September 2025)",
+    "id": "anthropic/claude-sonnet-4-5",
+    "developer": "anthropic",
+    "additional_details": {
+      "hal_model_name": "Claude Sonnet 4.5 (September 2025)",
+      "agent_scaffold": "SWE-Agent",
+      "benchmark": "SWE-bench Verified Mini",
+      "total_cost_usd": "505.92"
+    }
+  },
+  "evaluation_results": [
+    {
+      "evaluation_name": "SWE-bench Verified Mini",
+      "source_data": {
+        "source_type": "url",
+        "dataset_name": "SWE-bench Verified Mini",
+        "url": [
+          "https://www.swebench.com",
+          "https://hal.cs.princeton.edu/swebench_verified_mini"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "Fraction of 50 verified GitHub issues resolved (0.0–1.0)",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.68,
+        "details": {
+          "accuracy_raw": "68.00%"
+        }
+      },
+      "generation_config": {
+        "generation_args": {
+          "agentic_eval_config": {
+            "available_tools": [
+              {
+                "name": "bash",
+                "description": "Execute shell commands"
+              },
+              {
+                "name": "edit_file",
+                "description": "Edit files in the repository"
+              },
+              {
+                "name": "read_file",
+                "description": "Read files from the repository"
+              }
+            ]
+          }
+        },
+        "additional_details": {
+          "agent_scaffold": "SWE-Agent",
+          "hal_rank": "2",
+          "runs": "1",
+          "verified": "True",
+          "is_pareto": "False",
+          "total_cost_usd": "505.92"
+        }
+      }
+    }
+  ]
+}
