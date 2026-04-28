@@ -552,7 +552,7 @@ def main():
                 [schema_urls],
             )
             schema_loaded = True
-            print(f'Schema Table Successfully Loaded')
+            print('Schema Table Successfully Loaded')
 
         if instance_urls:
             con.execute(
@@ -603,7 +603,7 @@ def main():
                     [url],
                 )
             instance_loaded = True
-            print(f'Instance Table Successfully Loaded')
+            print('Instance Table Successfully Loaded')
 
         if not schema_loaded or not instance_loaded:
             print('Skipping combined analysis: one table was not loaded.')
