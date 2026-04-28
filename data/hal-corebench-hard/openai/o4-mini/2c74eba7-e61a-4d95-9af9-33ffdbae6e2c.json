@@ -1,0 +1,91 @@
+{
+  "schema_version": "0.2.2",
+  "evaluation_id": "hal-corebench-hard/core-agent/o4-mini-high-april-2025/1777366846.636041",
+  "retrieved_timestamp": "1777366846.636041",
+  "source_metadata": {
+    "source_name": "HAL Leaderboard — CORE-Bench Hard",
+    "source_type": "documentation",
+    "source_organization_name": "Princeton SAgE Team",
+    "source_organization_url": "https://hal.cs.princeton.edu",
+    "evaluator_relationship": "third_party",
+    "additional_details": {
+      "paper": "https://arxiv.org/pdf/2510.11977",
+      "benchmark_category": "Scientific Programming",
+      "benchmark_slug": "corebench_hard"
+    }
+  },
+  "eval_library": {
+    "name": "HAL",
+    "version": "unknown"
+  },
+  "model_info": {
+    "name": "o4-mini High (April 2025)",
+    "id": "openai/o4-mini",
+    "developer": "openai",
+    "additional_details": {
+      "hal_model_name": "o4-mini High (April 2025)",
+      "agent_scaffold": "CORE-Agent",
+      "benchmark": "CORE-Bench Hard",
+      "inference_effort": "high",
+      "total_cost_usd": "61.35"
+    }
+  },
+  "evaluation_results": [
+    {
+      "evaluation_name": "CORE-Bench Hard",
+      "source_data": {
+        "source_type": "url",
+        "dataset_name": "CORE-Bench Hard",
+        "url": [
+          "https://github.com/siegelz/core-bench",
+          "https://hal.cs.princeton.edu/corebench_hard"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "Fraction of CORE-Bench Hard tasks solved (0.0–1.0)",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.2667,
+        "details": {
+          "accuracy_raw": "26.67%"
+        }
+      },
+      "generation_config": {
+        "generation_args": {
+          "agentic_eval_config": {
+            "available_tools": [
+              {
+                "name": "bash",
+                "description": "Execute shell commands"
+              },
+              {
+                "name": "python",
+                "description": "Execute Python code"
+              },
+              {
+                "name": "read_file",
+                "description": "Read files from the filesystem"
+              },
+              {
+                "name": "write_file",
+                "description": "Write files to the filesystem"
+              }
+            ]
+          }
+        },
+        "additional_details": {
+          "agent_scaffold": "CORE-Agent",
+          "hal_rank": "27",
+          "runs": "1",
+          "verified": "True",
+          "is_pareto": "False",
+          "total_cost_usd": "61.35"
+        }
+      }
+    }
+  ]
+}

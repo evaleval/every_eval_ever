@@ -1,0 +1,82 @@
+{
+  "schema_version": "0.2.2",
+  "evaluation_id": "hal-scicode/scicode-tool-calling-agent/deepseek-r1-may-2025/1777366846.636041",
+  "retrieved_timestamp": "1777366846.636041",
+  "source_metadata": {
+    "source_name": "HAL Leaderboard — Scicode",
+    "source_type": "documentation",
+    "source_organization_name": "Princeton SAgE Team",
+    "source_organization_url": "https://hal.cs.princeton.edu",
+    "evaluator_relationship": "third_party",
+    "additional_details": {
+      "paper": "https://arxiv.org/pdf/2510.11977",
+      "benchmark_category": "Scientific Programming",
+      "benchmark_slug": "scicode"
+    }
+  },
+  "eval_library": {
+    "name": "HAL",
+    "version": "unknown"
+  },
+  "model_info": {
+    "name": "DeepSeek R1 (May 2025)",
+    "id": "deepseek/deepseek-r1",
+    "developer": "deepseek",
+    "additional_details": {
+      "hal_model_name": "DeepSeek R1 (May 2025)",
+      "agent_scaffold": "Scicode Tool Calling Agent",
+      "benchmark": "Scicode",
+      "total_cost_usd": "57.62"
+    }
+  },
+  "evaluation_results": [
+    {
+      "evaluation_name": "Scicode",
+      "source_data": {
+        "source_type": "url",
+        "dataset_name": "Scicode",
+        "url": [
+          "https://scicode-bench.github.io",
+          "https://hal.cs.princeton.edu/scicode"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "Fraction of Scicode problems solved (0.0–1.0)",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.0,
+        "details": {
+          "accuracy_raw": "0.00%"
+        }
+      },
+      "generation_config": {
+        "generation_args": {
+          "agentic_eval_config": {
+            "available_tools": [
+              {
+                "name": "python",
+                "description": "Execute Python code for scientific computation"
+              },
+              {
+                "name": "bash",
+                "description": "Execute shell commands"
+              }
+            ]
+          }
+        },
+        "additional_details": {
+          "agent_scaffold": "Scicode Tool Calling Agent",
+          "hal_rank": "29",
+          "runs": "1",
+          "verified": "True",
+          "is_pareto": "False",
+          "total_cost_usd": "57.62"
+        }
+      }
+    }
+  ]
+}

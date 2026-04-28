@@ -1,0 +1,250 @@
+{
+  "schema_version": "0.2.2",
+  "evaluation_id": "hal-gaia/hf-open-deep-research/o4-mini-high-april-2025/1777366846.636041",
+  "retrieved_timestamp": "1777366846.636041",
+  "source_metadata": {
+    "source_name": "HAL Leaderboard — GAIA",
+    "source_type": "documentation",
+    "source_organization_name": "Princeton SAgE Team",
+    "source_organization_url": "https://hal.cs.princeton.edu",
+    "evaluator_relationship": "third_party",
+    "additional_details": {
+      "paper": "https://arxiv.org/pdf/2510.11977",
+      "benchmark_category": "Web Assistance",
+      "benchmark_slug": "gaia"
+    }
+  },
+  "eval_library": {
+    "name": "HAL",
+    "version": "unknown"
+  },
+  "model_info": {
+    "name": "o4-mini High (April 2025)",
+    "id": "openai/o4-mini",
+    "developer": "openai",
+    "additional_details": {
+      "hal_model_name": "o4-mini High (April 2025)",
+      "agent_scaffold": "HF Open Deep Research",
+      "benchmark": "GAIA",
+      "inference_effort": "high",
+      "total_cost_usd": "184.87"
+    }
+  },
+  "evaluation_results": [
+    {
+      "evaluation_name": "GAIA",
+      "source_data": {
+        "source_type": "url",
+        "dataset_name": "GAIA",
+        "url": [
+          "https://huggingface.co/datasets/gaia-benchmark/GAIA",
+          "https://hal.cs.princeton.edu/gaia"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "Overall accuracy on GAIA validation set (0.0–1.0)",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.5576,
+        "details": {
+          "accuracy_raw": "55.76%"
+        }
+      },
+      "generation_config": {
+        "generation_args": {
+          "agentic_eval_config": {
+            "available_tools": [
+              {
+                "name": "web_search",
+                "description": "Search the web for information"
+              },
+              {
+                "name": "browser",
+                "description": "Navigate and interact with live web pages"
+              },
+              {
+                "name": "python",
+                "description": "Execute Python code for computation"
+              },
+              {
+                "name": "read_file",
+                "description": "Read and process files"
+              }
+            ]
+          }
+        },
+        "additional_details": {
+          "agent_scaffold": "HF Open Deep Research",
+          "hal_rank": "13",
+          "runs": "1",
+          "verified": "True",
+          "is_pareto": "False",
+          "total_cost_usd": "184.87"
+        }
+      }
+    },
+    {
+      "evaluation_name": "GAIA - GAIA Level 1",
+      "source_data": {
+        "source_type": "url",
+        "dataset_name": "GAIA",
+        "url": [
+          "https://huggingface.co/datasets/gaia-benchmark/GAIA",
+          "https://hal.cs.princeton.edu/gaia"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "Accuracy on Level 1 questions (simplest) (0.0–1.0)",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.6981
+      },
+      "generation_config": {
+        "generation_args": {
+          "agentic_eval_config": {
+            "available_tools": [
+              {
+                "name": "web_search",
+                "description": "Search the web for information"
+              },
+              {
+                "name": "browser",
+                "description": "Navigate and interact with live web pages"
+              },
+              {
+                "name": "python",
+                "description": "Execute Python code for computation"
+              },
+              {
+                "name": "read_file",
+                "description": "Read and process files"
+              }
+            ]
+          }
+        },
+        "additional_details": {
+          "agent_scaffold": "HF Open Deep Research",
+          "hal_rank": "13",
+          "runs": "1",
+          "verified": "True",
+          "is_pareto": "False",
+          "total_cost_usd": "184.87"
+        }
+      }
+    },
+    {
+      "evaluation_name": "GAIA - GAIA Level 2",
+      "source_data": {
+        "source_type": "url",
+        "dataset_name": "GAIA",
+        "url": [
+          "https://huggingface.co/datasets/gaia-benchmark/GAIA",
+          "https://hal.cs.princeton.edu/gaia"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "Accuracy on Level 2 questions (moderate) (0.0–1.0)",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.5116
+      },
+      "generation_config": {
+        "generation_args": {
+          "agentic_eval_config": {
+            "available_tools": [
+              {
+                "name": "web_search",
+                "description": "Search the web for information"
+              },
+              {
+                "name": "browser",
+                "description": "Navigate and interact with live web pages"
+              },
+              {
+                "name": "python",
+                "description": "Execute Python code for computation"
+              },
+              {
+                "name": "read_file",
+                "description": "Read and process files"
+              }
+            ]
+          }
+        },
+        "additional_details": {
+          "agent_scaffold": "HF Open Deep Research",
+          "hal_rank": "13",
+          "runs": "1",
+          "verified": "True",
+          "is_pareto": "False",
+          "total_cost_usd": "184.87"
+        }
+      }
+    },
+    {
+      "evaluation_name": "GAIA - GAIA Level 3",
+      "source_data": {
+        "source_type": "url",
+        "dataset_name": "GAIA",
+        "url": [
+          "https://huggingface.co/datasets/gaia-benchmark/GAIA",
+          "https://hal.cs.princeton.edu/gaia"
+        ]
+      },
+      "metric_config": {
+        "evaluation_description": "Accuracy on Level 3 questions (hardest) (0.0–1.0)",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0
+      },
+      "score_details": {
+        "score": 0.4231
+      },
+      "generation_config": {
+        "generation_args": {
+          "agentic_eval_config": {
+            "available_tools": [
+              {
+                "name": "web_search",
+                "description": "Search the web for information"
+              },
+              {
+                "name": "browser",
+                "description": "Navigate and interact with live web pages"
+              },
+              {
+                "name": "python",
+                "description": "Execute Python code for computation"
+              },
+              {
+                "name": "read_file",
+                "description": "Read and process files"
+              }
+            ]
+          }
+        },
+        "additional_details": {
+          "agent_scaffold": "HF Open Deep Research",
+          "hal_rank": "13",
+          "runs": "1",
+          "verified": "True",
+          "is_pareto": "False",
+          "total_cost_usd": "184.87"
+        }
+      }
+    }
+  ]
+}

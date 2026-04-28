@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Tuple
 
 _HELM_IMPORT_ERROR: Exception | None = None
 try:
+    from dacite import Config as DaciteConfig
     from dacite import from_dict
     from helm.benchmark.adaptation.scenario_state import (
         AdapterSpec,
@@ -18,20 +19,24 @@ try:
     )
     from helm.benchmark.metrics.metric import PerInstanceStats
     from helm.benchmark.metrics.statistic import Stat
-    from helm.benchmark.model_deployment_registry import get_model_deployment
+    from helm.benchmark.model_deployment_registry import (
+        ModelDeploymentNotFoundError,
+        get_model_deployment,
+    )
     from helm.benchmark.run_spec import RunSpec
     from helm.common.codec import from_json
 except (
     Exception
 ) as ex:  # pragma: no cover - exercised only when optional deps missing
     _HELM_IMPORT_ERROR = ex
-    from_dict = None  # type: ignore[assignment]
+    DaciteConfig = from_dict = None  # type: ignore[assignment]
     PerInstanceStats = AdapterSpec = RequestState = ScenarioState = Stat = (
         RunSpec
     ) = Any  # type: ignore[assignment]
     get_model_deployment = register_builtin_configs_from_helm_package = (
         from_json
     ) = None  # type: ignore[assignment]
+    ModelDeploymentNotFoundError = Exception  # type: ignore[assignment]
 
 from every_eval_ever.converters import SCHEMA_VERSION
 from every_eval_ever.converters.common.adapter import (
@@ -118,9 +123,49 @@ class HELMAdapter(BaseEvaluationAdapter):
 
         return False
 
-    def _extract_model_info(self, model_deployment_name: str) -> ModelInfo:
-        """Extracts model metadata from the HELM deployment registry."""
-        deployment = get_model_deployment(model_deployment_name)
+    def _split_model_id(self, model_id: str | None) -> tuple[str, str]:
+        """Split a model id into developer/name pieces safely."""
+        model_id = (model_id or '').strip()
+        if not model_id:
+            return ('unknown', 'unknown')
+        if '/' in model_id:
+            return tuple(model_id.split('/', 1))
+        return ('unknown', model_id)
+
+    def _extract_model_info(self, adapter_spec: AdapterSpec) -> ModelInfo:
+        """Extracts model metadata from HELM, tolerating missing deployments."""
+        fallback_model_name = getattr(adapter_spec, 'model', None)
+        model_deployment_name = (
+            getattr(adapter_spec, 'model_deployment', None) or ''
+        ).strip()
+
+        if not model_deployment_name:
+            model_name = fallback_model_name or 'unknown'
+            developer, _ = self._split_model_id(model_name)
+            return ModelInfo(
+                name=model_name,
+                id=model_name,
+                developer=developer,
+                inference_platform='unknown',
+            )
+
+        try:
+            deployment = get_model_deployment(model_deployment_name)
+        except ModelDeploymentNotFoundError:
+            model_name = fallback_model_name or model_deployment_name
+            developer, _ = self._split_model_id(model_name)
+            inference_platform = (
+                model_deployment_name.split('/', 1)[0]
+                if '/' in model_deployment_name
+                else 'unknown'
+            )
+            return ModelInfo(
+                name=model_name,
+                id=model_name,
+                developer=developer,
+                inference_platform=inference_platform,
+            )
+
         client_args = getattr(deployment.client_spec, 'args', None)
 
         if 'huggingface' in deployment.name or not client_args:
@@ -130,10 +175,11 @@ class HELMAdapter(BaseEvaluationAdapter):
                 'pretrained_model_name_or_path', deployment.model_name
             )
 
+        developer, _ = self._split_model_id(deployment.model_name)
         return ModelInfo(
             name=deployment.model_name,
             id=model_id,
-            developer=deployment.model_name.split('/', 1)[0],
+            developer=developer,
             inference_platform=deployment.name.split('/', 1)[0],
         )
 
@@ -238,6 +284,10 @@ class HELMAdapter(BaseEvaluationAdapter):
         max_tokens = req.max_tokens if req.max_tokens is not None else getattr(
             adapter_spec, 'max_tokens', None
         )
+        # multiple_choice_separate_* methods score by log-prob and set max_tokens=0;
+        # GenerationArgs requires max_tokens >= 1, so treat 0 as None (not applicable)
+        if max_tokens == 0:
+            max_tokens = None
         top_p = req.top_p if req.top_p is not None else getattr(
             adapter_spec, 'top_p', None
         )
@@ -297,9 +347,23 @@ class HELMAdapter(BaseEvaluationAdapter):
         self, raw_data: Dict, metadata_args: Dict[str, Any]
     ) -> Tuple[EvaluationLog, List[InstanceLevelEvaluationLog]]:
         run_spec = from_dict(data_class=RunSpec, data=raw_data['run_spec_dict'])
-        scenario_state = from_dict(
-            data_class=ScenarioState, data=raw_data['scenario_state_dict']
-        )
+        # cast=[str] coerces int instance IDs to str; newer HELM versions
+        # (e.g. long-context suite) store instance.id as int in the JSON.
+        try:
+            scenario_state = from_dict(
+                data_class=ScenarioState,
+                data=raw_data['scenario_state_dict'],
+                config=DaciteConfig(cast=[str]),
+            )
+        except AssertionError as exc:
+            # MediaObject.__post_init__ asserts that local media files exist.
+            # Speech/audio/vision benchmarks store media as local paths; if the
+            # asset files were not downloaded alongside the run JSON, this fires.
+            raise FileNotFoundError(
+                f'Run requires local media assets that are not present on this '
+                f'machine. Download the benchmark media files alongside the run '
+                f'directory and retry. Original assertion: {exc}'
+            ) from exc
         scenario_dict = raw_data['scenario_dict']
         stats_raw = [
             from_dict(data_class=Stat, data=s)
@@ -315,7 +379,7 @@ class HELMAdapter(BaseEvaluationAdapter):
             self._extract_evaluation_time(request_states) or retrieved_timestamp
         )
 
-        model_info = self._extract_model_info(adapter_spec.model_deployment)
+        model_info = self._extract_model_info(adapter_spec)
 
         dataset_name = self._extract_dataset_name(
             run_spec.name, scenario_dict.get('name') if scenario_dict else None
@@ -416,7 +480,7 @@ class HELMAdapter(BaseEvaluationAdapter):
         if request_states:
             parent_eval_output_dir = metadata_args.get('parent_eval_output_dir')
             detailed_results_id = f'{metadata_args.get("file_uuid")}_samples'
-            model_dev, model_name = model_info.id.split('/', 1)
+            model_dev, model_name = self._split_model_id(model_info.id)
             evaluation_dir = f'{parent_eval_output_dir}/{source_data.dataset_name}/{model_dev}/{model_name}'
 
             instance_level_log_path, instance_level_rows_number = (
