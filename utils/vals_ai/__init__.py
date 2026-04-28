@@ -1,0 +1,1 @@
+"""Vals.ai leaderboard adapter."""
