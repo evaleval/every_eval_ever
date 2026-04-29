@@ -13,12 +13,14 @@ def row(
     max_score: float | None = 1.0,
     lower_is_better: bool = False,
     score_type: str | None = 'continuous',
+    inference_engine: str | None = None,
 ) -> dict:
     return {
         'schema_version': '0.2.2',
         'evaluation_id': f'{model_id}/{benchmark}/{evaluation_name}',
         'model_id': model_id,
         'model_developer': model_id.split('/')[0],
+        'inference_engine': inference_engine,
         'benchmark': benchmark,
         'evaluation_name': evaluation_name,
         'score': score,
@@ -139,8 +141,50 @@ def test_json_report_shape():
 
     assert set(report) == {'descriptive', 'observational'}
     assert report['descriptive']['counts']['result_rows'] == 2
+    assert 'inference_engines' in report['descriptive']
+    assert 'models_per_benchmark' in report['descriptive']
     assert 'coverage_aware_model_summaries' in report['observational']
     assert 'pairwise_model_comparisons' in report['observational']
+
+
+def test_models_per_benchmark_dedupes_model_counts():
+    rows = [
+        row('model/a', 'bench-one', 'eval-a', 0.9),
+        row('model/a', 'bench-one', 'eval-b', 0.8),
+        row('model/b', 'bench-one', 'eval-a', 0.7),
+        row('model/c', 'bench-two', 'eval-a', 0.6),
+    ]
+
+    summaries = stats.models_per_benchmark(rows)
+
+    assert summaries == [
+        {
+            'benchmark': 'bench-one',
+            'unique_models': 2,
+            'result_rows': 3,
+        },
+        {
+            'benchmark': 'bench-two',
+            'unique_models': 1,
+            'result_rows': 1,
+        },
+    ]
+
+
+def test_inference_engine_counts_group_missing_as_unknown():
+    rows = [
+        row('model/a', 'bench', 'eval', 0.9, inference_engine='vllm'),
+        row('model/b', 'bench', 'eval', 0.8, inference_engine=''),
+        row('model/c', 'bench', 'eval', 0.7, inference_engine=None),
+        row('model/d', 'bench', 'eval', 0.6, inference_engine='ollama'),
+        row('model/e', 'bench', 'eval', 0.5, inference_engine='vllm'),
+    ]
+
+    assert stats.count_values_with_unknown(rows, 'inference_engine') == [
+        {'value': 'vllm', 'count': 2},
+        {'value': 'unknown', 'count': 2},
+        {'value': 'ollama', 'count': 1},
+    ]
 
 
 def test_cli_help_uses_summary_limit_not_top_n(capsys):

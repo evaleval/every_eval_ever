@@ -47,9 +47,7 @@ def load_schema_table(con: Any, table: str) -> None:
     )
 
 
-def extract_result_rows(
-    con: Any, schema_table: str
-) -> list[dict[str, Any]]:
+def extract_result_rows(con: Any, schema_table: str) -> list[dict[str, Any]]:
     rows = con.execute(
         f"""
         SELECT
@@ -57,6 +55,7 @@ def extract_result_rows(
             evaluation_id,
             model_info.id AS model_id,
             model_info.developer AS model_developer,
+            model_info.inference_platform AS inference_engine,
             er.evaluation_name AS evaluation_name,
             er.source_data.dataset_name AS benchmark,
             er.metric_config.score_type AS score_type,
@@ -79,6 +78,7 @@ def extract_result_rows(
         'evaluation_id',
         'model_id',
         'model_developer',
+        'inference_engine',
         'evaluation_name',
         'benchmark',
         'score_type',
@@ -236,11 +236,53 @@ def distinct_count(rows: list[dict[str, Any]], key: str) -> int:
 def count_values(
     rows: list[dict[str, Any]], key: str
 ) -> list[dict[str, int | str]]:
-    counts = Counter(str(row.get(key)) for row in rows if row.get(key) is not None)
+    counts = Counter(
+        str(row.get(key)) for row in rows if row.get(key) is not None
+    )
     return [
         {'value': value, 'count': count}
         for value, count in counts.most_common()
     ]
+
+
+def count_values_with_unknown(
+    rows: list[dict[str, Any]], key: str, unknown: str = 'unknown'
+) -> list[dict[str, int | str]]:
+    counts = Counter()
+    for row in rows:
+        value = row.get(key)
+        normalized = unknown if value is None else str(value).strip()
+        counts[normalized or unknown] += 1
+    return [
+        {'value': value, 'count': count}
+        for value, count in counts.most_common()
+    ]
+
+
+def models_per_benchmark(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        benchmark = row.get('benchmark')
+        if benchmark is not None:
+            grouped[str(benchmark)].append(row)
+
+    summaries = []
+    for benchmark, items in grouped.items():
+        summaries.append(
+            {
+                'benchmark': benchmark,
+                'unique_models': distinct_count(items, 'model_id'),
+                'result_rows': len(items),
+            }
+        )
+    summaries.sort(
+        key=lambda item: (
+            -int(item['unique_models']),
+            -int(item['result_rows']),
+            str(item['benchmark']),
+        )
+    )
+    return summaries
 
 
 def grouped_summaries(
@@ -328,16 +370,17 @@ def coverage_aware_model_summaries(
             percentile(bootstrap_scores, 0.025),
             percentile(bootstrap_scores, 0.975),
         ]
-        support = (
-            sum(score > corpus_mean for score in bootstrap_scores)
-            / len(bootstrap_scores)
+        support = sum(score > corpus_mean for score in bootstrap_scores) / len(
+            bootstrap_scores
         )
         summaries.append(
             {
                 'model_id': model_id,
                 'result_count': len(items),
                 'benchmark_count': distinct_count(items, 'benchmark'),
-                'evaluation_count': distinct_count(items, 'shared_evaluation_key'),
+                'evaluation_count': distinct_count(
+                    items, 'shared_evaluation_key'
+                ),
                 'mean_normalized_score': raw_mean,
                 'benchmark_centered_score': centered_mean,
                 'stabilized_score': stabilized,
@@ -364,7 +407,9 @@ def pairwise_model_comparisons(
     by_model_key: dict[str, dict[str, list[float]]] = defaultdict(
         lambda: defaultdict(list)
     )
-    model_counts = Counter(row['model_id'] for row in rows if row.get('model_id'))
+    model_counts = Counter(
+        row['model_id'] for row in rows if row.get('model_id')
+    )
     top_models = {
         model
         for model, _ in model_counts.most_common(top_model_limit)
@@ -443,6 +488,10 @@ def descriptive_statistics(
             'unique_evaluations': distinct_count(rows, 'evaluation_name'),
         },
         'schema_versions': count_values(rows, 'schema_version'),
+        'inference_engines': count_values_with_unknown(
+            rows, 'inference_engine'
+        ),
+        'models_per_benchmark': models_per_benchmark(rows),
         'quality': quality_counts(rows),
         'normalization_exclusions': exclusions,
         'score_summaries': grouped_summaries(
@@ -533,6 +582,18 @@ def print_report(report: dict[str, Any], descriptive_only: bool) -> None:
     section('normalization exclusions')
     for key, value in report['observational']['exclusions'].items():
         print(f'  {key:<32} {value:>10,}')
+
+    section('inference engines')
+    print_table(
+        descriptive['inference_engines'][:10],
+        ['value', 'count'],
+    )
+
+    section('models per benchmark')
+    print_table(
+        descriptive['models_per_benchmark'][:10],
+        ['benchmark', 'unique_models', 'result_rows'],
+    )
 
     section('score summaries')
     print_table(
