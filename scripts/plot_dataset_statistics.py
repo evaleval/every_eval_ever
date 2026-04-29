@@ -398,7 +398,6 @@ def plot_inference_engine_spread(
                 'count': sum(int(row['count']) for row in remaining),
             }
         ]
-    selected = list(reversed(selected))
     labels = [short_label(str(row['value']), 48) for row in selected]
     counts = [row['count'] for row in selected]
 
@@ -408,6 +407,10 @@ def plot_inference_engine_spread(
             sns.barplot(x=counts, y=labels, hue=labels, ax=ax, legend=False)
         else:
             ax.barh(labels, counts)
+        ax.set_xscale('log')
+        ax.set_xlim(left=1)
+        if ax.get_ylim()[0] < ax.get_ylim()[1]:
+            ax.invert_yaxis()
     else:
         ax.text(
             0.5,
@@ -417,7 +420,7 @@ def plot_inference_engine_spread(
             va='center',
             transform=ax.transAxes,
         )
-    ax.set_xlabel('Result rows')
+    ax.set_xlabel('Result rows (log scale)')
     ax.set_ylabel('')
     ax.set_title('Recorded Inference Engine/Platform Spread')
 
