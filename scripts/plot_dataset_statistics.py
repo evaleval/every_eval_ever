@@ -197,7 +197,7 @@ def plot_top_evaluation_coverage(
     sns: Any | None,
     top_n: int,
 ) -> Path:
-    selected = list(reversed(top_rows(rows, 'count', top_n)))
+    selected = top_rows(rows, 'count', top_n)
     labels = [short_label(label(row), 58) for row in selected]
     counts = [row['count'] for row in selected]
 
@@ -206,6 +206,8 @@ def plot_top_evaluation_coverage(
         sns.barplot(x=counts, y=labels, hue=labels, ax=ax, legend=False)
     else:
         ax.barh(labels, counts)
+    if ax.get_ylim()[0] < ax.get_ylim()[1]:
+        ax.invert_yaxis()
     ax.set_xlabel('Normalized result rows')
     ax.set_ylabel('')
     ax.set_title(f'Top {len(selected)} Evaluations By Coverage')
