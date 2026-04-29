@@ -91,6 +91,17 @@ def test_expand_paths_returns_json_files(tmp_path):
     missing = tmp_path / 'missing.json'
     with pytest.raises(Exception, match='Could not find file or directory'):
         check_module.expand_paths([str(missing)])
+    
+    with pytest.raises(Exception, match='Could not find file or directory'):
+        check_module.expand_paths([str(ignored)])
+
+
+def test_main_raises_on_invalid_json(tmp_path):
+    bad = tmp_path / 'bad.json'
+    bad.write_text('{not valid json', encoding='utf-8')
+
+    with pytest.raises(json.JSONDecodeError):
+        check_module.main([str(bad)])
 
 
 def test_main_reports_duplicates(sample_payloads, tmp_path, capsys):
@@ -103,4 +114,29 @@ def test_main_reports_duplicates(sample_payloads, tmp_path, capsys):
 
     assert check_module.main([str(file_a), str(file_b)]) == 1
     captured = capsys.readouterr().out
-    assert 'Found duplicate entries' in captured
+    assert 'Found duplicate entries (ignoring keys: `evaluation_id`, `retrieved_timestamp`)' in captured
+
+
+def test_main_reports_no_duplicates(sample_payloads, tmp_path, capsys):
+    payload = sample_payloads[0]
+    file_a = tmp_path / 'a.json'
+    file_c = tmp_path / 'c.json'
+    write_json(file_a, payload)
+
+
+    payload_a = clone_payload(payload)
+    payload_a['evaluation_id'] = 'eval-c'
+    payload_a['retrieved_timestamp'] = '2024-01-03'
+    if (
+        isinstance(payload_a.get('evaluation_results'), list)
+        and payload_a['evaluation_results']
+    ):
+        payload_a['evaluation_results'][0]['score_details']['score'] = (
+            payload_a['evaluation_results'][0]['score_details']['score'] + 0.001
+        )
+    
+    write_json(file_c, payload_a)
+
+    assert check_module.main([str(file_a), str(file_c)]) == 0
+    captured = capsys.readouterr().out
+    assert 'No duplicates found.' in captured
