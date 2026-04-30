@@ -12,12 +12,14 @@ Each adapter is run with `uv run python -m utils.<name>.adapter`.
 |---------|-------------|-------------|
 | `arc_agi` | ARC Prize leaderboard JSON | Converts ARC-AGI leaderboard data and merges canonical model aliases. |
 | `artificial_analysis` | Artificial Analysis LLM API | Converts Artificial Analysis LLM benchmark, pricing, and performance results into `data/artificial-analysis-llms/`. |
+| `vals_ai` | Vals.ai benchmark leaderboards | Scrapes Vals.ai benchmark pages and converts their embedded leaderboard results into `data/vals-ai/`. |
 | `bfcl` | BFCL leaderboard CSV | Converts BFCL leaderboard data with per-metric evaluation names and bounded continuous scores. |
 | `sciarena` | SciArena leaderboard API | Converts SciArena leaderboard results. |
 | `global-mmlu-lite` | Kaggle API | Fetches Global MMLU Lite leaderboard results from Kaggle. |
 | `hfopenllm_v2` | HuggingFace Spaces API | Fetches the Open LLM Leaderboard v2 (4576+ models). |
 | `helm` | HELM leaderboard | Converts HELM leaderboard data. Supports `--leaderboard_name` for Capabilities/Lite/Classic/Instruct/MMLU. |
 | `llm_stats` | LLM Stats API | Converts LLM Stats model, benchmark, and score API data into `data/llm-stats/`. |
+| `openeval` | HuggingFace | Converts OpenEval response scores from `human-centered-eval/OpenEval` into `data/openeval/`; pass `--include-instances` to also write `*_samples.jsonl` sidecars. |
 | `rewardbench` | HuggingFace | Fetches RewardBench v1 (CSV) and RewardBench v2 (JSON) leaderboard data. |
 | `terminal_bench_2` | tbench.ai | Fetches Terminal-Bench 2.0 agentic coding benchmark results. |
 
@@ -28,3 +30,41 @@ Each adapter is run with `uv run python -m utils.<name>.adapter`.
 - Some adapters (e.g. `rewardbench`, `helm`) may take several minutes to complete due to the number of models.
 - Run `uv run python -m utils.<name>.adapter --help` for adapter-specific options.
 - The script for livecodebenchpro is out-dated and will be updated at a later date.
+- Generated adapter outputs under `data/<source>/` and saved raw payloads are
+  generated artifacts. Prefer temporary output paths for smoke runs unless a
+  data refresh is intentionally part of the change.
+
+### Vals.ai
+
+Run a live smoke export from the repository root, writing generated output
+outside the repo:
+
+```bash
+uv run python -m utils.vals_ai.adapter --output-dir /tmp/eee-vals-ai
+```
+
+To intentionally prepare a data refresh, use `--output-dir data/vals-ai` and
+validate the result before deciding whether to include generated files.
+
+For smaller smoke runs, fetch one benchmark:
+
+```bash
+uv run python -m utils.vals_ai.adapter \
+  --benchmark finance_agent \
+  --output-dir /tmp/eee-vals-ai-smoke \
+  --save-raw-json /tmp/eee-vals-ai-raw.json
+```
+
+Replay a saved normalized payload without hitting the network:
+
+```bash
+uv run python -m utils.vals_ai.adapter \
+  --input-json /tmp/eee-vals-ai-raw.json \
+  --output-dir /tmp/eee-vals-ai-replay
+```
+
+Validate generated records with:
+
+```bash
+uv run python -m every_eval_ever validate /tmp/eee-vals-ai-smoke
+```
