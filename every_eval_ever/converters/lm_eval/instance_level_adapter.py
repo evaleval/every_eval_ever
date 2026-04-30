@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-from every_eval_ever.converters import SCHEMA_VERSION
+from every_eval_ever.converters import INSTANCE_LEVEL_SCHEMA_VERSION
 from every_eval_ever.eval_types import (
     DetailedEvaluationResults,
     Format,
@@ -161,7 +161,7 @@ class LMEvalInstanceLevelAdapter:
         ]
 
         return InstanceLevelEvaluationLog(
-            schema_version=SCHEMA_VERSION,
+            schema_version=INSTANCE_LEVEL_SCHEMA_VERSION,
             evaluation_id=evaluation_id,
             model_id=model_id,
             evaluation_name=eval_name,
