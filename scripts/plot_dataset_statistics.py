@@ -19,6 +19,7 @@ PLOT_FILES = {
     'range': 'score_range_by_eval.pdf',
     'models_per_dataset': 'models_per_dataset_histogram.pdf',
     'engine_spread': 'inference_engine_spread.pdf',
+    'writeup_overview': 'writeup_dataset_statistics_overview.pdf',
 }
 
 
@@ -88,6 +89,10 @@ def label(row: dict[str, Any]) -> str:
 
 def short_label(value: str, width: int = 46) -> str:
     return textwrap.shorten(value, width=width, placeholder='...')
+
+
+def wrapped_label(value: str, width: int = 16) -> str:
+    return '\n'.join(textwrap.wrap(value, width=width, break_long_words=False))
 
 
 def columns(
@@ -253,6 +258,22 @@ def plot_normalized_score_means(
 def plot_score_variability(
     rows: list[dict[str, Any]], output_dir: Path, plt: Any, sns: Any | None
 ) -> Path:
+    fig, ax = plt.subplots(figsize=(10, 7))
+    draw_score_landscape(ax, rows, sns)
+    ax.set_title('Normalized Score Level vs. Variability')
+
+    path = output_dir / PLOT_FILES['variability']
+    save(fig, path)
+    plt.close(fig)
+    return path
+
+
+def draw_score_landscape(
+    ax: Any,
+    rows: list[dict[str, Any]],
+    sns: Any | None,
+    annotation_limit: int = 8,
+) -> None:
     plot_rows = [
         {
             'mean': row['mean'],
@@ -261,13 +282,25 @@ def plot_score_variability(
             'label': label(row),
         }
         for row in rows
+        if row.get('mean') is not None
     ]
+    if not plot_rows:
+        ax.text(
+            0.5,
+            0.5,
+            'No normalized score summaries available',
+            ha='center',
+            va='center',
+            transform=ax.transAxes,
+        )
+        ax.set_axis_off()
+        return
+
     max_count = max(row['count'] for row in plot_rows)
     sizes = [
         45 + 455 * math.sqrt(row['count'] / max_count) for row in plot_rows
     ]
 
-    fig, ax = plt.subplots(figsize=(10, 7))
     if sns is not None:
         sns.scatterplot(
             data=columns(plot_rows, ('mean', 'stddev', 'count')),
@@ -289,13 +322,16 @@ def plot_score_variability(
     ax.set_xlim(0, 1)
     ax.set_xlabel('Mean normalized score')
     ax.set_ylabel('Standard deviation')
-    ax.set_title('Normalized Score Level vs. Variability')
 
     notable = sorted(
         plot_rows,
-        key=lambda row: (row['stddev'], abs(row['mean'] - 0.5)),
+        key=lambda row: (
+            row['stddev'] * math.log1p(row['count']),
+            row['count'],
+            abs(row['mean'] - 0.5),
+        ),
         reverse=True,
-    )[:8]
+    )[:annotation_limit]
     for row in notable:
         ax.annotate(
             short_label(row['label'], 24),
@@ -304,11 +340,6 @@ def plot_score_variability(
             textcoords='offset points',
             fontsize=8,
         )
-
-    path = output_dir / PLOT_FILES['variability']
-    save(fig, path)
-    plt.close(fig)
-    return path
 
 
 def plot_score_ranges(
@@ -435,6 +466,100 @@ def plot_inference_engine_spread(
     return path
 
 
+def plot_writeup_overview(
+    stats: dict[str, Any], output_dir: Path, plt: Any, sns: Any | None
+) -> Path:
+    fig, (ax_missing, ax_score) = plt.subplots(
+        1,
+        2,
+        figsize=(14, 6.6),
+        gridspec_kw={'width_ratios': [1.35, 1.0], 'wspace': 0.34},
+    )
+    draw_metadata_completeness(ax_missing, stats, plt, sns)
+    draw_score_landscape(
+        ax_score,
+        stats['descriptive'].get('normalized_score_summaries', []),
+        sns,
+        annotation_limit=7,
+    )
+    ax_score.set_title('B. Score landscape by metric')
+    ax_score.title.set_fontsize(15)
+
+    path = output_dir / PLOT_FILES['writeup_overview']
+    save(fig, path)
+    plt.close(fig)
+    return path
+
+
+def draw_metadata_completeness(
+    ax: Any, stats: dict[str, Any], plt: Any, sns: Any | None
+) -> None:
+    completeness = stats['descriptive'].get('metadata_completeness', {})
+    fields = completeness.get('fields', [])
+    benchmarks = completeness.get('benchmarks', [])
+    matrix_rows = completeness.get('matrix', [])
+    if not fields or not benchmarks or not matrix_rows:
+        ax.text(
+            0.5,
+            0.5,
+            'No metadata completeness summary available',
+            ha='center',
+            va='center',
+            transform=ax.transAxes,
+        )
+        ax.set_axis_off()
+        return
+
+    field_order = [field['key'] for field in fields]
+    field_labels = [wrapped_label(str(field['label']), 13) for field in fields]
+    benchmark_order = [benchmark['benchmark'] for benchmark in benchmarks]
+    benchmark_labels = [
+        short_label(str(benchmark['label']), 38) for benchmark in benchmarks
+    ]
+    value_by_cell = {
+        (row['benchmark'], row['field']): 100.0 * row['present_rate']
+        for row in matrix_rows
+    }
+    values = [
+        [
+            value_by_cell.get((benchmark, field), 0.0)
+            for field in field_order
+        ]
+        for benchmark in benchmark_order
+    ]
+
+    if sns is not None:
+        sns.heatmap(
+            values,
+            ax=ax,
+            vmin=0,
+            vmax=100,
+            cmap='RdYlGn',
+            xticklabels=field_labels,
+            yticklabels=benchmark_labels,
+            linewidths=0.35,
+            linecolor='white',
+            cbar_kws={'label': '% present', 'fraction': 0.05, 'pad': 0.05},
+        )
+    else:
+        image = ax.imshow(values, vmin=0, vmax=100, cmap='RdYlGn')
+        colorbar = plt.colorbar(image, ax=ax, fraction=0.046, pad=0.04)
+        colorbar.set_label('% present')
+        ax.set_xticks(range(len(field_labels)))
+        ax.set_xticklabels(field_labels)
+        ax.set_yticks(range(len(benchmark_labels)))
+        ax.set_yticklabels(benchmark_labels)
+
+    ax.set_title('A. Reporting completeness is uneven')
+    ax.title.set_fontsize(15)
+    ax.set_xlabel('')
+    ax.set_ylabel('')
+    ax.tick_params(axis='x', labelrotation=0, labelsize=9, pad=2)
+    ax.tick_params(axis='y', labelsize=10)
+    for tick in ax.get_xticklabels():
+        tick.set_ha('center')
+
+
 def main() -> None:
     args = parse_args()
     if args.top_n < 1:
@@ -467,6 +592,9 @@ def main() -> None:
         ),
         'engine_spread': plot_inference_engine_spread(
             stats, output_dir, plt, sns, args.top_n
+        ),
+        'writeup_overview': plot_writeup_overview(
+            stats, output_dir, plt, sns
         ),
     }
     print(f'Wrote {len(plot_paths)} PDF plots to {output_dir}')

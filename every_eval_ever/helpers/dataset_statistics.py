@@ -32,6 +32,24 @@ SCORE_GROUP_KEYS = (
     'metric_kind',
     'metric_unit',
 )
+METADATA_FIELD_CANDIDATES = (
+    {'key': 'generation_config_present', 'label': 'generation config'},
+    {'key': 'generation_temperature', 'label': 'temperature'},
+    {'key': 'generation_max_tokens', 'label': 'max tokens'},
+    {'key': 'generation_agentic_config_present', 'label': 'agentic config'},
+    {'key': 'inference_engine', 'label': 'runtime/platform'},
+    {'key': 'source_locator', 'label': 'source URL / HF repo'},
+    {'key': 'source_organization_url', 'label': 'source org URL'},
+    {'key': 'evaluator_relationship', 'label': 'evaluator relationship'},
+    {'key': 'detailed_results_file', 'label': 'detailed results'},
+    {'key': 'has_uncertainty', 'label': 'uncertainty'},
+    {'key': 'uncertainty_num_samples', 'label': 'sample count'},
+    {'key': 'metric_id', 'label': 'metric ID'},
+    {'key': 'metric_kind', 'label': 'metric kind'},
+    {'key': 'metric_unit', 'label': 'metric unit'},
+    {'key': 'model_parameters', 'label': 'model parameters'},
+    {'key': 'model_license', 'label': 'model license'},
+)
 
 
 def read_data(datastore: str) -> list[str]:
@@ -76,7 +94,28 @@ def extract_result_rows(con: Any, schema_table: str) -> list[dict[str, Any]]:
             er.metric_config.metric_name AS metric_name,
             er.metric_config.metric_kind AS metric_kind,
             er.metric_config.metric_unit AS metric_unit,
-            source_metadata.source_organization_name AS source_organization
+            source_metadata.source_organization_name AS source_organization,
+            er.generation_config IS NOT NULL AS generation_config_present,
+            TRY_CAST(
+                er.generation_config.generation_args.temperature AS DOUBLE
+            ) AS generation_temperature,
+            TRY_CAST(
+                er.generation_config.generation_args.max_tokens AS BIGINT
+            ) AS generation_max_tokens,
+            er.generation_config.generation_args.agentic_eval_config IS NOT NULL
+                AS generation_agentic_config_present,
+            er.source_data.source_type AS source_data_type,
+            er.source_data.hf_repo AS source_hf_repo,
+            er.source_data.url AS source_urls,
+            source_metadata.source_organization_url
+                AS source_organization_url,
+            source_metadata.evaluator_relationship AS evaluator_relationship,
+            detailed_evaluation_results.file_path AS detailed_results_file,
+            TRY_CAST(
+                er.score_details.uncertainty.num_samples AS BIGINT
+            ) AS uncertainty_num_samples,
+            to_json(model_info.additional_details)
+                AS model_additional_details_json
         FROM {schema_table},
         LATERAL UNNEST(evaluation_results) AS t(er)
         """
@@ -100,8 +139,50 @@ def extract_result_rows(con: Any, schema_table: str) -> list[dict[str, Any]]:
         'metric_kind',
         'metric_unit',
         'source_organization',
+        'generation_config_present',
+        'generation_temperature',
+        'generation_max_tokens',
+        'generation_agentic_config_present',
+        'source_data_type',
+        'source_hf_repo',
+        'source_urls',
+        'source_organization_url',
+        'evaluator_relationship',
+        'detailed_results_file',
+        'uncertainty_num_samples',
+        'model_additional_details_json',
     ]
-    return [dict(zip(columns, row)) for row in rows]
+    extracted = []
+    for row in rows:
+        item = dict(zip(columns, row))
+        source_urls = item.get('source_urls')
+        item['source_locator'] = item.get('source_hf_repo') or source_urls
+        model_details = parse_json_mapping(
+            item.pop('model_additional_details_json', None)
+        )
+        item['model_parameters'] = (
+            model_details.get('params_billions')
+            or model_details.get('parameters')
+            or model_details.get('parameter_count')
+        )
+        item['model_license'] = model_details.get('license')
+        extracted.append(item)
+    return extracted
+
+
+def parse_json_mapping(value: Any) -> dict[str, Any]:
+    if not value:
+        return {}
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError:
+            return {}
+        if isinstance(parsed, dict):
+            return parsed
+    return {}
 
 
 def normalize_score(
@@ -290,6 +371,189 @@ def models_per_benchmark(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         )
     )
     return summaries
+
+
+def has_value(value: Any) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return bool(value.strip())
+    if isinstance(value, list | tuple | set | dict):
+        return bool(value)
+    return True
+
+
+def benchmark_name(row: dict[str, Any]) -> str:
+    value = row.get('benchmark')
+    if value is None:
+        return 'unknown'
+    text = str(value).strip()
+    return text or 'unknown'
+
+
+def format_benchmark_label(benchmark: str, result_rows: int) -> str:
+    return f'{benchmark} (n={result_rows:,})'
+
+
+def field_present_rate(rows: list[dict[str, Any]], field: str) -> float:
+    if not rows:
+        return 0.0
+    return sum(has_value(row.get(field)) for row in rows) / len(rows)
+
+
+def metadata_completeness(
+    rows: list[dict[str, Any]],
+    top_benchmarks: int = 12,
+    top_fields: int = 12,
+) -> dict[str, Any]:
+    candidate_fields = [
+        field
+        for field in METADATA_FIELD_CANDIDATES
+        if any(field['key'] in row for row in rows)
+    ]
+    if not rows or not candidate_fields:
+        return {
+            'fields': [],
+            'benchmarks': [],
+            'matrix': [],
+            'top_benchmark_count': top_benchmarks,
+            'other_result_rows': 0,
+        }
+
+    rows_by_benchmark: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        rows_by_benchmark[benchmark_name(row)].append(row)
+
+    field_summaries = []
+    for field in candidate_fields:
+        key = str(field['key'])
+        benchmark_rates = [
+            field_present_rate(items, key)
+            for items in rows_by_benchmark.values()
+        ]
+        present_rate = field_present_rate(rows, key)
+        missing_rate = 1.0 - present_rate
+        benchmark_stddev = (
+            statistics.pstdev(benchmark_rates)
+            if len(benchmark_rates) > 1
+            else 0.0
+        )
+        selection_score = missing_rate * max(benchmark_stddev, 0.05)
+        field_summaries.append(
+            {
+                'key': key,
+                'label': str(field['label']),
+                'missing_rate': missing_rate,
+                'benchmark_stddev': benchmark_stddev,
+                'selection_score': selection_score,
+            }
+        )
+    field_summaries.sort(
+        key=lambda item: (
+            -float(item['selection_score']),
+            -float(item['missing_rate']),
+            str(item['label']),
+        )
+    )
+    selected_fields = field_summaries[:top_fields]
+
+    top_benchmark_names = [
+        benchmark
+        for benchmark, _ in sorted(
+            (
+                (benchmark, len(items))
+                for benchmark, items in rows_by_benchmark.items()
+            ),
+            key=lambda item: (-item[1], item[0]),
+        )[:top_benchmarks]
+    ]
+    selected_field_keys = [field['key'] for field in selected_fields]
+
+    benchmark_summaries = []
+    benchmark_groups: dict[str, list[dict[str, Any]]] = {}
+    for benchmark in top_benchmark_names:
+        items = rows_by_benchmark[benchmark]
+        benchmark_groups[benchmark] = items
+        benchmark_summaries.append(
+            {
+                'benchmark': benchmark,
+                'label': format_benchmark_label(benchmark, len(items)),
+                'result_rows': len(items),
+                'overall_completeness': average_completeness(
+                    items, selected_field_keys
+                ),
+            }
+        )
+
+    other_rows = [
+        row
+        for benchmark, items in rows_by_benchmark.items()
+        if benchmark not in top_benchmark_names
+        for row in items
+    ]
+    if other_rows:
+        benchmark_groups['Other'] = other_rows
+        benchmark_summaries.append(
+            {
+                'benchmark': 'Other',
+                'label': format_benchmark_label('Other', len(other_rows)),
+                'result_rows': len(other_rows),
+                'overall_completeness': average_completeness(
+                    other_rows, selected_field_keys
+                ),
+            }
+        )
+
+    benchmark_summaries.sort(
+        key=lambda item: (
+            item['benchmark'] == 'Other',
+            float(item['overall_completeness']),
+            str(item['benchmark']),
+        )
+    )
+
+    matrix = []
+    selected_fields_by_key = {
+        str(field['key']): field for field in selected_fields
+    }
+    for benchmark_summary in benchmark_summaries:
+        benchmark = str(benchmark_summary['benchmark'])
+        items = benchmark_groups[benchmark]
+        for field_key in selected_field_keys:
+            present_rate = field_present_rate(items, str(field_key))
+            field = selected_fields_by_key[str(field_key)]
+            matrix.append(
+                {
+                    'benchmark': benchmark,
+                    'benchmark_label': benchmark_summary['label'],
+                    'field': str(field_key),
+                    'field_label': field['label'],
+                    'present_rate': present_rate,
+                    'missing_rate': 1.0 - present_rate,
+                    'result_rows': len(items),
+                }
+            )
+
+    return {
+        'fields': selected_fields,
+        'benchmarks': benchmark_summaries,
+        'matrix': matrix,
+        'top_benchmark_count': top_benchmarks,
+        'other_result_rows': len(other_rows),
+    }
+
+
+def average_completeness(
+    rows: list[dict[str, Any]], fields: list[str]
+) -> float:
+    if not rows or not fields:
+        return 0.0
+    present = sum(
+        has_value(row.get(field)) for row in rows for field in fields
+    )
+    return present / (len(rows) * len(fields))
 
 
 def grouped_summaries(
@@ -499,6 +763,7 @@ def descriptive_statistics(
             rows, 'inference_engine'
         ),
         'models_per_benchmark': models_per_benchmark(rows),
+        'metadata_completeness': metadata_completeness(rows),
         'quality': quality_counts(rows),
         'normalization_exclusions': exclusions,
         'score_summaries': grouped_summaries(

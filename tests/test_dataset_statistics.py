@@ -18,8 +18,9 @@ def row(
     metric_name: str | None = 'Score',
     metric_kind: str | None = 'accuracy',
     metric_unit: str | None = 'proportion',
+    **metadata,
 ) -> dict:
-    return {
+    result = {
         'schema_version': '0.2.2',
         'evaluation_id': f'{model_id}/{benchmark}/{evaluation_name}',
         'model_id': model_id,
@@ -38,6 +39,8 @@ def row(
         'metric_kind': metric_kind,
         'metric_unit': metric_unit,
     }
+    result.update(metadata)
+    return result
 
 
 def test_normalization_respects_lower_is_better():
@@ -164,6 +167,7 @@ def test_json_report_shape():
     assert report['descriptive']['counts']['result_rows'] == 2
     assert 'inference_engines' in report['descriptive']
     assert 'models_per_benchmark' in report['descriptive']
+    assert 'metadata_completeness' in report['descriptive']
     assert 'metric_id' in report['descriptive']['score_summaries'][0]
     assert 'coverage_aware_model_summaries' in report['observational']
     assert 'pairwise_model_comparisons' in report['observational']
@@ -247,6 +251,102 @@ def test_inference_engine_counts_group_missing_as_unknown():
         {'value': 'unknown', 'count': 2},
         {'value': 'ollama', 'count': 1},
     ]
+
+
+def test_metadata_completeness_counts_present_and_missing_values():
+    rows = [
+        row(
+            'model/a',
+            'bench-a',
+            'eval',
+            0.9,
+            inference_engine='vllm',
+            generation_temperature=0.2,
+            source_locator='https://example.test/data',
+            has_uncertainty=True,
+        ),
+        row(
+            'model/b',
+            'bench-a',
+            'eval',
+            0.8,
+            inference_engine='  ',
+            generation_temperature=None,
+            source_locator=[],
+            has_uncertainty=False,
+        ),
+    ]
+
+    summary = stats.metadata_completeness(
+        rows, top_benchmarks=1, top_fields=16
+    )
+    matrix = {
+        (item['benchmark'], item['field']): item
+        for item in summary['matrix']
+    }
+
+    assert matrix[('bench-a', 'inference_engine')]['present_rate'] == 0.5
+    assert matrix[('bench-a', 'generation_temperature')][
+        'present_rate'
+    ] == 0.5
+    assert matrix[('bench-a', 'source_locator')]['present_rate'] == 0.5
+    assert matrix[('bench-a', 'has_uncertainty')]['present_rate'] == 0.5
+
+
+def test_metadata_completeness_aggregates_other_benchmarks():
+    rows = [
+        row('model/a', 'bench-a', 'eval', 0.9, generation_temperature=0.1),
+        row('model/b', 'bench-a', 'eval', 0.8, generation_temperature=0.2),
+        row('model/c', 'bench-b', 'eval', 0.7, generation_temperature=None),
+        row('model/d', 'bench-b', 'eval', 0.6, generation_temperature=None),
+        row('model/e', 'bench-c', 'eval', 0.5, generation_temperature=0.3),
+    ]
+
+    summary = stats.metadata_completeness(
+        rows, top_benchmarks=2, top_fields=16
+    )
+
+    assert summary['other_result_rows'] == 1
+    assert summary['benchmarks'][-1]['benchmark'] == 'Other'
+    assert summary['benchmarks'][-1]['label'] == 'Other (n=1)'
+    assert summary['benchmarks'][-1]['result_rows'] == 1
+    assert any(
+        item['benchmark'] == 'Other'
+        and item['field'] == 'generation_temperature'
+        and item['present_rate'] == 1.0
+        for item in summary['matrix']
+    )
+
+
+def test_metadata_field_selection_favors_missing_and_uneven_fields():
+    rows = [
+        row(
+            f'model/a-{index}',
+            'bench-complete',
+            'eval',
+            0.9,
+            generation_temperature=0.2,
+            source_locator=None,
+        )
+        for index in range(5)
+    ] + [
+        row(
+            f'model/b-{index}',
+            'bench-missing',
+            'eval',
+            0.8,
+            generation_temperature=None,
+            source_locator=None,
+        )
+        for index in range(5)
+    ]
+
+    summary = stats.metadata_completeness(
+        rows, top_benchmarks=2, top_fields=1
+    )
+
+    assert summary['fields'][0]['key'] == 'generation_temperature'
+    assert summary['fields'][0]['selection_score'] > 0.05
 
 
 def test_cli_help_uses_summary_limit_not_top_n(capsys):
