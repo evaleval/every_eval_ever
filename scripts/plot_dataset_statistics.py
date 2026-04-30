@@ -469,20 +469,41 @@ def plot_inference_engine_spread(
 def plot_writeup_overview(
     stats: dict[str, Any], output_dir: Path, plt: Any, sns: Any | None
 ) -> Path:
-    fig, (ax_missing, ax_score) = plt.subplots(
+    fig, (ax_benchmark, ax_model_family, ax_score) = plt.subplots(
         1,
-        2,
-        figsize=(14, 6.6),
-        gridspec_kw={'width_ratios': [1.35, 1.0], 'wspace': 0.34},
+        3,
+        figsize=(22.5, 9.6),
+        gridspec_kw={'width_ratios': [1.55, 1.35, 1.0], 'wspace': 0.34},
     )
-    draw_metadata_completeness(ax_missing, stats, plt, sns)
+    draw_metadata_completeness(
+        ax_benchmark,
+        stats,
+        plt,
+        sns,
+        completeness_key='metadata_completeness',
+        rows_key='benchmarks',
+        row_key='benchmark',
+        title='A. Reporting completeness by benchmark',
+        show_colorbar=False,
+    )
+    draw_metadata_completeness(
+        ax_model_family,
+        stats,
+        plt,
+        sns,
+        completeness_key='model_family_metadata_completeness',
+        rows_key='model_families',
+        row_key='model_family',
+        title='B. Reporting completeness by model family',
+        show_colorbar=False,
+    )
     draw_score_landscape(
         ax_score,
         stats['descriptive'].get('normalized_score_summaries', []),
         sns,
         annotation_limit=7,
     )
-    ax_score.set_title('B. Score landscape by metric')
+    ax_score.set_title('C. Score landscape by metric')
     ax_score.title.set_fontsize(15)
 
     path = output_dir / PLOT_FILES['writeup_overview']
@@ -492,13 +513,21 @@ def plot_writeup_overview(
 
 
 def draw_metadata_completeness(
-    ax: Any, stats: dict[str, Any], plt: Any, sns: Any | None
+    ax: Any,
+    stats: dict[str, Any],
+    plt: Any,
+    sns: Any | None,
+    completeness_key: str,
+    rows_key: str,
+    row_key: str,
+    title: str,
+    show_colorbar: bool,
 ) -> None:
-    completeness = stats['descriptive'].get('metadata_completeness', {})
+    completeness = stats['descriptive'].get(completeness_key, {})
     fields = completeness.get('fields', [])
-    benchmarks = completeness.get('benchmarks', [])
+    row_groups = completeness.get(rows_key, [])
     matrix_rows = completeness.get('matrix', [])
-    if not fields or not benchmarks or not matrix_rows:
+    if not fields or not row_groups or not matrix_rows:
         ax.text(
             0.5,
             0.5,
@@ -512,23 +541,31 @@ def draw_metadata_completeness(
 
     field_order = [field['key'] for field in fields]
     field_labels = [wrapped_label(str(field['label']), 13) for field in fields]
-    benchmark_order = [benchmark['benchmark'] for benchmark in benchmarks]
-    benchmark_labels = [
-        short_label(str(benchmark['label']), 38) for benchmark in benchmarks
+    field_groups = [str(field.get('group', 'metadata')) for field in fields]
+    row_order = [row_group[row_key] for row_group in row_groups]
+    row_labels = [
+        short_label(str(row_group['label']), 38) for row_group in row_groups
     ]
     value_by_cell = {
-        (row['benchmark'], row['field']): 100.0 * row['present_rate']
+        (row.get(row_key, row.get('benchmark')), row['field']): (
+            100.0 * row['present_rate']
+        )
         for row in matrix_rows
     }
     values = [
         [
-            value_by_cell.get((benchmark, field), 0.0)
+            value_by_cell.get((row_group, field), 0.0)
             for field in field_order
         ]
-        for benchmark in benchmark_order
+        for row_group in row_order
     ]
 
     if sns is not None:
+        cbar_kws = (
+            {'label': '% present', 'fraction': 0.05, 'pad': 0.05}
+            if show_colorbar
+            else {}
+        )
         sns.heatmap(
             values,
             ax=ax,
@@ -536,28 +573,101 @@ def draw_metadata_completeness(
             vmax=100,
             cmap='RdYlGn',
             xticklabels=field_labels,
-            yticklabels=benchmark_labels,
+            yticklabels=row_labels,
             linewidths=0.35,
             linecolor='white',
-            cbar_kws={'label': '% present', 'fraction': 0.05, 'pad': 0.05},
+            alpha=0.68,
+            cbar=show_colorbar,
+            cbar_kws=cbar_kws,
         )
     else:
-        image = ax.imshow(values, vmin=0, vmax=100, cmap='RdYlGn')
-        colorbar = plt.colorbar(image, ax=ax, fraction=0.046, pad=0.04)
-        colorbar.set_label('% present')
-        ax.set_xticks(range(len(field_labels)))
+        image = ax.imshow(
+            values,
+            vmin=0,
+            vmax=100,
+            cmap='RdYlGn',
+            alpha=0.68,
+            extent=(0, len(field_labels), len(row_labels), 0),
+        )
+        if show_colorbar:
+            colorbar = plt.colorbar(image, ax=ax, fraction=0.046, pad=0.04)
+            colorbar.set_label('% present')
+        ax.set_xticks([index + 0.5 for index in range(len(field_labels))])
         ax.set_xticklabels(field_labels)
-        ax.set_yticks(range(len(benchmark_labels)))
-        ax.set_yticklabels(benchmark_labels)
+        ax.set_yticks(
+            [index + 0.5 for index in range(len(row_labels))]
+        )
+        ax.set_yticklabels(row_labels)
+    draw_heatmap_values(ax, values)
+    draw_metadata_field_groups(ax, field_groups)
 
-    ax.set_title('A. Reporting completeness is uneven')
+    ax.set_title(title, pad=28)
     ax.title.set_fontsize(15)
     ax.set_xlabel('')
     ax.set_ylabel('')
-    ax.tick_params(axis='x', labelrotation=0, labelsize=9, pad=2)
+    ax.tick_params(axis='x', labelrotation=60, labelsize=9, pad=2)
     ax.tick_params(axis='y', labelsize=10)
     for tick in ax.get_xticklabels():
-        tick.set_ha('center')
+        tick.set_ha('right')
+        tick.set_rotation_mode('anchor')
+
+
+def draw_heatmap_values(ax: Any, values: list[list[float]]) -> None:
+    for y_index, row in enumerate(values):
+        for x_index, value in enumerate(row):
+            ax.text(
+                x_index + 0.5,
+                y_index + 0.5,
+                f'{value:.0f}',
+                ha='center',
+                va='center',
+                color='#111111',
+                fontsize=6.2,
+                bbox={
+                    'facecolor': 'white',
+                    'edgecolor': 'none',
+                    'boxstyle': 'round,pad=0.12',
+                    'alpha': 0.58,
+                },
+            )
+
+
+def draw_metadata_field_groups(ax: Any, field_groups: list[str]) -> None:
+    if not field_groups:
+        return
+
+    start = 0
+    while start < len(field_groups):
+        group = field_groups[start]
+        end = start + 1
+        while end < len(field_groups) and field_groups[end] == group:
+            end += 1
+
+        center = (start + end) / 2
+        ax.text(
+            center,
+            1.03,
+            group,
+            transform=ax.get_xaxis_transform(),
+            ha='center',
+            va='bottom',
+            fontsize=8.5,
+            fontweight='bold',
+            color='#303030',
+            clip_on=False,
+        )
+        ax.plot(
+            [start + 0.1, end - 0.1],
+            [1.025, 1.025],
+            transform=ax.get_xaxis_transform(),
+            color='#303030',
+            linewidth=0.8,
+            clip_on=False,
+        )
+        if end < len(field_groups):
+            ax.axvline(end, color='white', linewidth=2.0)
+            ax.axvline(end, color='#303030', linewidth=0.55, alpha=0.55)
+        start = end
 
 
 def main() -> None:

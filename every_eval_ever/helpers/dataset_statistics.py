@@ -11,7 +11,7 @@ import statistics
 import sys
 from collections import Counter, defaultdict
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
 
 SEP = '=' * 72
 SUB = '-' * 72
@@ -32,23 +32,93 @@ SCORE_GROUP_KEYS = (
     'metric_kind',
     'metric_unit',
 )
+METADATA_FIELD_GROUP_ORDER = (
+    'eval metadata',
+    'benchmark metadata',
+    'model metadata',
+)
+REQUIRED_METADATA_FIELDS = ('inference_engine',)
 METADATA_FIELD_CANDIDATES = (
-    {'key': 'generation_config_present', 'label': 'generation config'},
-    {'key': 'generation_temperature', 'label': 'temperature'},
-    {'key': 'generation_max_tokens', 'label': 'max tokens'},
-    {'key': 'generation_agentic_config_present', 'label': 'agentic config'},
-    {'key': 'inference_engine', 'label': 'runtime/platform'},
-    {'key': 'source_locator', 'label': 'source URL / HF repo'},
-    {'key': 'source_organization_url', 'label': 'source org URL'},
-    {'key': 'evaluator_relationship', 'label': 'evaluator relationship'},
-    {'key': 'detailed_results_file', 'label': 'detailed results'},
-    {'key': 'has_uncertainty', 'label': 'uncertainty'},
-    {'key': 'uncertainty_num_samples', 'label': 'sample count'},
-    {'key': 'metric_id', 'label': 'metric ID'},
-    {'key': 'metric_kind', 'label': 'metric kind'},
-    {'key': 'metric_unit', 'label': 'metric unit'},
-    {'key': 'model_parameters', 'label': 'model parameters'},
-    {'key': 'model_license', 'label': 'model license'},
+    {
+        'key': 'generation_config_present',
+        'label': 'generation config',
+        'group': 'eval metadata',
+    },
+    {
+        'key': 'generation_temperature',
+        'label': 'temperature',
+        'group': 'eval metadata',
+    },
+    {
+        'key': 'generation_max_tokens',
+        'label': 'max tokens',
+        'group': 'eval metadata',
+    },
+    {
+        'key': 'generation_agentic_config_present',
+        'label': 'agentic config',
+        'group': 'eval metadata',
+    },
+    {
+        'key': 'inference_engine',
+        'label': 'inference engine/platform',
+        'group': 'eval metadata',
+    },
+    {
+        'key': 'source_locator',
+        'label': 'source URL / HF repo',
+        'group': 'benchmark metadata',
+    },
+    {
+        'key': 'source_organization_url',
+        'label': 'source org URL',
+        'group': 'benchmark metadata',
+    },
+    {
+        'key': 'evaluator_relationship',
+        'label': 'evaluator relationship',
+        'group': 'benchmark metadata',
+    },
+    {
+        'key': 'detailed_results_file',
+        'label': 'detailed results',
+        'group': 'benchmark metadata',
+    },
+    {
+        'key': 'has_uncertainty',
+        'label': 'uncertainty',
+        'group': 'benchmark metadata',
+    },
+    {
+        'key': 'uncertainty_num_samples',
+        'label': 'sample count',
+        'group': 'benchmark metadata',
+    },
+    {
+        'key': 'metric_id',
+        'label': 'metric ID',
+        'group': 'benchmark metadata',
+    },
+    {
+        'key': 'metric_kind',
+        'label': 'metric kind',
+        'group': 'benchmark metadata',
+    },
+    {
+        'key': 'metric_unit',
+        'label': 'metric unit',
+        'group': 'benchmark metadata',
+    },
+    {
+        'key': 'model_parameters',
+        'label': 'model parameters',
+        'group': 'model metadata',
+    },
+    {
+        'key': 'model_license',
+        'label': 'model license',
+        'group': 'model metadata',
+    },
 )
 
 
@@ -403,10 +473,29 @@ def field_present_rate(rows: list[dict[str, Any]], field: str) -> float:
     return sum(has_value(row.get(field)) for row in rows) / len(rows)
 
 
-def metadata_completeness(
+def model_family_name(row: dict[str, Any]) -> str:
+    value = row.get('model_developer') or row.get('model_id')
+    if value is None:
+        return 'unknown'
+    text = str(value).strip()
+    return text or 'unknown'
+
+
+def format_group_label(group: str, result_rows: int) -> str:
+    return f'{group} (n={result_rows:,})'
+
+
+def metadata_completeness_by_group(
     rows: list[dict[str, Any]],
-    top_benchmarks: int = 12,
-    top_fields: int = 12,
+    group_name: Callable[[dict[str, Any]], str],
+    group_key: str,
+    groups_key: str,
+    top_count_key: str,
+    other_count_key: str,
+    selection_key: str,
+    selection_description: str,
+    top_groups: int,
+    top_fields: int,
 ) -> dict[str, Any]:
     candidate_fields = [
         field
@@ -416,37 +505,40 @@ def metadata_completeness(
     if not rows or not candidate_fields:
         return {
             'fields': [],
-            'benchmarks': [],
+            groups_key: [],
             'matrix': [],
-            'top_benchmark_count': top_benchmarks,
-            'other_result_rows': 0,
+            top_count_key: top_groups,
+            other_count_key: 0,
+            selection_key: selection_description,
+            'field_group_order': list(METADATA_FIELD_GROUP_ORDER),
         }
 
-    rows_by_benchmark: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    rows_by_group: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for row in rows:
-        rows_by_benchmark[benchmark_name(row)].append(row)
+        rows_by_group[group_name(row)].append(row)
 
     field_summaries = []
     for field in candidate_fields:
         key = str(field['key'])
-        benchmark_rates = [
-            field_present_rate(items, key)
-            for items in rows_by_benchmark.values()
+        group_rates = [
+            field_present_rate(items, key) for items in rows_by_group.values()
         ]
         present_rate = field_present_rate(rows, key)
         missing_rate = 1.0 - present_rate
-        benchmark_stddev = (
-            statistics.pstdev(benchmark_rates)
-            if len(benchmark_rates) > 1
+        group_stddev = (
+            statistics.pstdev(group_rates)
+            if len(group_rates) > 1
             else 0.0
         )
-        selection_score = missing_rate * max(benchmark_stddev, 0.05)
+        selection_score = missing_rate * max(group_stddev, 0.05)
         field_summaries.append(
             {
                 'key': key,
                 'label': str(field['label']),
+                'group': str(field['group']),
                 'missing_rate': missing_rate,
-                'benchmark_stddev': benchmark_stddev,
+                'benchmark_stddev': group_stddev,
+                'group_stddev': group_stddev,
                 'selection_score': selection_score,
             }
         )
@@ -458,28 +550,46 @@ def metadata_completeness(
         )
     )
     selected_fields = field_summaries[:top_fields]
+    selected_field_keys_set = {field['key'] for field in selected_fields}
+    required_fields = [
+        field
+        for field in field_summaries
+        if field['key'] in REQUIRED_METADATA_FIELDS
+        and field['key'] not in selected_field_keys_set
+    ]
+    selected_fields.extend(required_fields)
+    group_rank = {
+        group: index for index, group in enumerate(METADATA_FIELD_GROUP_ORDER)
+    }
+    selected_fields.sort(
+        key=lambda item: (
+            group_rank.get(str(item['group']), len(group_rank)),
+            -float(item['selection_score']),
+            str(item['label']),
+        )
+    )
 
-    top_benchmark_names = [
-        benchmark
-        for benchmark, _ in sorted(
+    top_group_names = [
+        group
+        for group, _ in sorted(
             (
-                (benchmark, len(items))
-                for benchmark, items in rows_by_benchmark.items()
+                (group, len(items))
+                for group, items in rows_by_group.items()
             ),
             key=lambda item: (-item[1], item[0]),
-        )[:top_benchmarks]
+        )[:top_groups]
     ]
     selected_field_keys = [field['key'] for field in selected_fields]
 
-    benchmark_summaries = []
-    benchmark_groups: dict[str, list[dict[str, Any]]] = {}
-    for benchmark in top_benchmark_names:
-        items = rows_by_benchmark[benchmark]
-        benchmark_groups[benchmark] = items
-        benchmark_summaries.append(
+    group_summaries = []
+    selected_groups: dict[str, list[dict[str, Any]]] = {}
+    for group in top_group_names:
+        items = rows_by_group[group]
+        selected_groups[group] = items
+        group_summaries.append(
             {
-                'benchmark': benchmark,
-                'label': format_benchmark_label(benchmark, len(items)),
+                group_key: group,
+                'label': format_group_label(group, len(items)),
                 'result_rows': len(items),
                 'overall_completeness': average_completeness(
                     items, selected_field_keys
@@ -489,16 +599,16 @@ def metadata_completeness(
 
     other_rows = [
         row
-        for benchmark, items in rows_by_benchmark.items()
-        if benchmark not in top_benchmark_names
+        for group, items in rows_by_group.items()
+        if group not in top_group_names
         for row in items
     ]
     if other_rows:
-        benchmark_groups['Other'] = other_rows
-        benchmark_summaries.append(
+        selected_groups['Other'] = other_rows
+        group_summaries.append(
             {
-                'benchmark': 'Other',
-                'label': format_benchmark_label('Other', len(other_rows)),
+                group_key: 'Other',
+                'label': format_group_label('Other', len(other_rows)),
                 'result_rows': len(other_rows),
                 'overall_completeness': average_completeness(
                     other_rows, selected_field_keys
@@ -506,11 +616,11 @@ def metadata_completeness(
             }
         )
 
-    benchmark_summaries.sort(
+    group_summaries.sort(
         key=lambda item: (
-            item['benchmark'] == 'Other',
+            item[group_key] == 'Other',
             float(item['overall_completeness']),
-            str(item['benchmark']),
+            str(item[group_key]),
         )
     )
 
@@ -518,16 +628,18 @@ def metadata_completeness(
     selected_fields_by_key = {
         str(field['key']): field for field in selected_fields
     }
-    for benchmark_summary in benchmark_summaries:
-        benchmark = str(benchmark_summary['benchmark'])
-        items = benchmark_groups[benchmark]
+    for group_summary in group_summaries:
+        group = str(group_summary[group_key])
+        items = selected_groups[group]
         for field_key in selected_field_keys:
             present_rate = field_present_rate(items, str(field_key))
             field = selected_fields_by_key[str(field_key)]
             matrix.append(
                 {
-                    'benchmark': benchmark,
-                    'benchmark_label': benchmark_summary['label'],
+                    group_key: group,
+                    f'{group_key}_label': group_summary['label'],
+                    'benchmark': group,
+                    'benchmark_label': group_summary['label'],
                     'field': str(field_key),
                     'field_label': field['label'],
                     'present_rate': present_rate,
@@ -538,11 +650,59 @@ def metadata_completeness(
 
     return {
         'fields': selected_fields,
-        'benchmarks': benchmark_summaries,
+        groups_key: group_summaries,
         'matrix': matrix,
-        'top_benchmark_count': top_benchmarks,
-        'other_result_rows': len(other_rows),
+        top_count_key: top_groups,
+        other_count_key: len(other_rows),
+        selection_key: selection_description,
+        'field_group_order': list(METADATA_FIELD_GROUP_ORDER),
     }
+
+
+def metadata_completeness(
+    rows: list[dict[str, Any]],
+    top_benchmarks: int = 20,
+    top_fields: int = 12,
+) -> dict[str, Any]:
+    return metadata_completeness_by_group(
+        rows,
+        group_name=benchmark_name,
+        group_key='benchmark',
+        groups_key='benchmarks',
+        top_count_key='top_benchmark_count',
+        other_count_key='other_result_rows',
+        selection_key='benchmark_selection',
+        selection_description=(
+            'Top benchmarks by result-row count, with remaining benchmarks '
+            'aggregated as Other; rows are sorted by overall metadata '
+            'completeness.'
+        ),
+        top_groups=top_benchmarks,
+        top_fields=top_fields,
+    )
+
+
+def model_family_metadata_completeness(
+    rows: list[dict[str, Any]],
+    top_model_families: int = 20,
+    top_fields: int = 12,
+) -> dict[str, Any]:
+    return metadata_completeness_by_group(
+        rows,
+        group_name=model_family_name,
+        group_key='model_family',
+        groups_key='model_families',
+        top_count_key='top_model_family_count',
+        other_count_key='other_result_rows',
+        selection_key='model_family_selection',
+        selection_description=(
+            'Top model families/developers by result-row count, with '
+            'remaining families aggregated as Other; rows are sorted by '
+            'overall metadata completeness.'
+        ),
+        top_groups=top_model_families,
+        top_fields=top_fields,
+    )
 
 
 def average_completeness(
@@ -747,7 +907,10 @@ def pairwise_model_comparisons(
 
 
 def descriptive_statistics(
-    rows: list[dict[str, Any]], summary_limit: int
+    rows: list[dict[str, Any]],
+    summary_limit: int,
+    metadata_top_benchmarks: int,
+    metadata_top_model_families: int,
 ) -> dict[str, Any]:
     valid_rows, exclusions = valid_normalized_rows(rows)
     return {
@@ -763,7 +926,14 @@ def descriptive_statistics(
             rows, 'inference_engine'
         ),
         'models_per_benchmark': models_per_benchmark(rows),
-        'metadata_completeness': metadata_completeness(rows),
+        'metadata_completeness': metadata_completeness(
+            rows, top_benchmarks=metadata_top_benchmarks
+        ),
+        'model_family_metadata_completeness': (
+            model_family_metadata_completeness(
+                rows, top_model_families=metadata_top_model_families
+            )
+        ),
         'quality': quality_counts(rows),
         'normalization_exclusions': exclusions,
         'score_summaries': grouped_summaries(
@@ -784,6 +954,8 @@ def descriptive_statistics(
 def build_statistics_report(
     rows: list[dict[str, Any]],
     summary_limit: int,
+    metadata_top_benchmarks: int,
+    metadata_top_model_families: int,
     comparison_limit: int,
     top_model_limit: int,
     min_shared_evals: int,
@@ -791,7 +963,12 @@ def build_statistics_report(
 ) -> dict[str, Any]:
     valid_rows, exclusions = valid_normalized_rows(rows)
     report = {
-        'descriptive': descriptive_statistics(rows, summary_limit),
+        'descriptive': descriptive_statistics(
+            rows,
+            summary_limit,
+            metadata_top_benchmarks,
+            metadata_top_model_families,
+        ),
         'observational': {
             'valid_normalized_rows': len(valid_rows),
             'exclusions': exclusions,
@@ -942,6 +1119,24 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help='Number of descriptive summary rows to print',
     )
     parser.add_argument(
+        '--metadata-top-benchmarks',
+        default=20,
+        type=int,
+        help=(
+            'Number of largest benchmarks to show in metadata completeness; '
+            'remaining benchmarks are aggregated as Other'
+        ),
+    )
+    parser.add_argument(
+        '--metadata-top-model-families',
+        default=20,
+        type=int,
+        help=(
+            'Number of largest model families/developers to show in metadata '
+            'completeness; remaining families are aggregated as Other'
+        ),
+    )
+    parser.add_argument(
         '--comparison-limit',
         default=50,
         type=int,
@@ -969,6 +1164,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         parser.error('--table must be a valid SQL identifier')
     if args.summary_limit < 1:
         parser.error('--summary-limit must be at least 1')
+    if args.metadata_top_benchmarks < 1:
+        parser.error('--metadata-top-benchmarks must be at least 1')
+    if args.metadata_top_model_families < 1:
+        parser.error('--metadata-top-model-families must be at least 1')
     if args.comparison_limit < 1:
         parser.error('--comparison-limit must be at least 1')
     if args.top_model_limit < 1:
@@ -996,6 +1195,8 @@ def main(argv: list[str] | None = None) -> None:
     report = build_statistics_report(
         rows,
         summary_limit=args.summary_limit,
+        metadata_top_benchmarks=args.metadata_top_benchmarks,
+        metadata_top_model_families=args.metadata_top_model_families,
         comparison_limit=args.comparison_limit,
         top_model_limit=args.top_model_limit,
         min_shared_evals=args.min_shared_evals,

@@ -157,6 +157,8 @@ def test_json_report_shape():
     report = stats.build_statistics_report(
         rows,
         summary_limit=5,
+        metadata_top_benchmarks=12,
+        metadata_top_model_families=20,
         comparison_limit=5,
         top_model_limit=5,
         min_shared_evals=1,
@@ -168,6 +170,7 @@ def test_json_report_shape():
     assert 'inference_engines' in report['descriptive']
     assert 'models_per_benchmark' in report['descriptive']
     assert 'metadata_completeness' in report['descriptive']
+    assert 'model_family_metadata_completeness' in report['descriptive']
     assert 'metric_id' in report['descriptive']['score_summaries'][0]
     assert 'coverage_aware_model_summaries' in report['observational']
     assert 'pairwise_model_comparisons' in report['observational']
@@ -193,6 +196,8 @@ def test_score_summaries_group_by_metric_identity():
     report = stats.build_statistics_report(
         rows,
         summary_limit=10,
+        metadata_top_benchmarks=12,
+        metadata_top_model_families=20,
         comparison_limit=5,
         top_model_limit=5,
         min_shared_evals=1,
@@ -318,6 +323,63 @@ def test_metadata_completeness_aggregates_other_benchmarks():
     )
 
 
+def test_metadata_top_benchmarks_argument_controls_report_shape():
+    rows = [
+        row('model/a', 'bench-a', 'eval', 0.9, generation_temperature=0.1),
+        row('model/b', 'bench-a', 'eval', 0.8, generation_temperature=0.2),
+        row('model/c', 'bench-b', 'eval', 0.7, generation_temperature=None),
+        row('model/d', 'bench-c', 'eval', 0.6, generation_temperature=None),
+    ]
+
+    report = stats.build_statistics_report(
+        rows,
+        summary_limit=5,
+        metadata_top_benchmarks=1,
+        metadata_top_model_families=20,
+        comparison_limit=5,
+        top_model_limit=5,
+        min_shared_evals=1,
+        descriptive_only=True,
+    )
+    completeness = report['descriptive']['metadata_completeness']
+
+    assert completeness['top_benchmark_count'] == 1
+    assert [item['benchmark'] for item in completeness['benchmarks']] == [
+        'bench-a',
+        'Other',
+    ]
+    assert completeness['other_result_rows'] == 2
+
+
+def test_metadata_top_model_families_argument_controls_report_shape():
+    rows = [
+        row('family-a/model-1', 'bench', 'eval', 0.9, model_license='mit'),
+        row('family-a/model-2', 'bench', 'eval', 0.8, model_license='apache'),
+        row('family-b/model-1', 'bench', 'eval', 0.7, model_license=None),
+        row('family-c/model-1', 'bench', 'eval', 0.6, model_license=None),
+    ]
+
+    report = stats.build_statistics_report(
+        rows,
+        summary_limit=5,
+        metadata_top_benchmarks=20,
+        metadata_top_model_families=1,
+        comparison_limit=5,
+        top_model_limit=5,
+        min_shared_evals=1,
+        descriptive_only=True,
+    )
+    completeness = report['descriptive'][
+        'model_family_metadata_completeness'
+    ]
+
+    assert completeness['top_model_family_count'] == 1
+    assert [
+        item['model_family'] for item in completeness['model_families']
+    ] == ['family-a', 'Other']
+    assert completeness['other_result_rows'] == 2
+
+
 def test_metadata_field_selection_favors_missing_and_uneven_fields():
     rows = [
         row(
@@ -357,4 +419,6 @@ def test_cli_help_uses_summary_limit_not_top_n(capsys):
 
     output = capsys.readouterr().out
     assert '--summary-limit' in output
+    assert '--metadata-top-benchmarks' in output
+    assert '--metadata-top-model-families' in output
     assert '--top-n' not in output
