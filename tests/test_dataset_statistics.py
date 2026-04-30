@@ -14,6 +14,10 @@ def row(
     lower_is_better: bool = False,
     score_type: str | None = 'continuous',
     inference_engine: str | None = None,
+    metric_id: str | None = 'score',
+    metric_name: str | None = 'Score',
+    metric_kind: str | None = 'accuracy',
+    metric_unit: str | None = 'proportion',
 ) -> dict:
     return {
         'schema_version': '0.2.2',
@@ -29,6 +33,10 @@ def row(
         'lower_is_better': lower_is_better,
         'score_type': score_type,
         'has_uncertainty': False,
+        'metric_id': metric_id,
+        'metric_name': metric_name,
+        'metric_kind': metric_kind,
+        'metric_unit': metric_unit,
     }
 
 
@@ -59,11 +67,24 @@ def test_invalid_rows_are_excluded_and_counted():
     }
 
 
-def test_shared_evaluation_key_includes_score_scale_and_direction():
+def test_shared_evaluation_key_includes_metric_scale_and_direction():
     base = row('a', 'bench', 'eval', 0.8)
+    different_metric = row(
+        'a',
+        'bench',
+        'eval',
+        0.7,
+        metric_id='cost_per_task',
+        metric_name='Cost per task',
+        metric_kind='cost',
+        metric_unit='usd',
+    )
     different_scale = row('a', 'bench', 'eval', 80.0, max_score=100.0)
     different_direction = row('a', 'bench', 'eval', 0.2, lower_is_better=True)
 
+    assert stats.shared_evaluation_key(base) != stats.shared_evaluation_key(
+        different_metric
+    )
     assert stats.shared_evaluation_key(base) != stats.shared_evaluation_key(
         different_scale
     )
@@ -143,8 +164,49 @@ def test_json_report_shape():
     assert report['descriptive']['counts']['result_rows'] == 2
     assert 'inference_engines' in report['descriptive']
     assert 'models_per_benchmark' in report['descriptive']
+    assert 'metric_id' in report['descriptive']['score_summaries'][0]
     assert 'coverage_aware_model_summaries' in report['observational']
     assert 'pairwise_model_comparisons' in report['observational']
+
+
+def test_score_summaries_group_by_metric_identity():
+    rows = [
+        row('model/a', 'arc', 'v1_Semi_Private', 0.98),
+        row(
+            'model/a',
+            'arc',
+            'v1_Semi_Private',
+            17.0,
+            max_score=77.2,
+            lower_is_better=True,
+            metric_id='cost_per_task',
+            metric_name='Cost per task',
+            metric_kind='cost',
+            metric_unit='usd',
+        ),
+    ]
+
+    report = stats.build_statistics_report(
+        rows,
+        summary_limit=10,
+        comparison_limit=5,
+        top_model_limit=5,
+        min_shared_evals=1,
+        descriptive_only=True,
+    )
+
+    raw_summaries = report['descriptive']['score_summaries']
+    normalized_summaries = report['descriptive']['normalized_score_summaries']
+
+    assert {item['metric_id'] for item in raw_summaries} == {
+        'score',
+        'cost_per_task',
+    }
+    assert {item['count'] for item in raw_summaries} == {1}
+    assert {item['metric_id'] for item in normalized_summaries} == {
+        'score',
+        'cost_per_task',
+    }
 
 
 def test_models_per_benchmark_dedupes_model_counts():

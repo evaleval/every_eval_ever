@@ -76,9 +76,14 @@ def import_plotting() -> tuple[Any, Any | None]:
 def label(row: dict[str, Any]) -> str:
     benchmark = str(row['benchmark'])
     evaluation = str(row['evaluation_name'])
+    metric = row.get('metric_id') or row.get('metric_name')
     if benchmark == evaluation:
-        return benchmark
-    return f'{benchmark}: {evaluation}'
+        base = benchmark
+    else:
+        base = f'{benchmark}: {evaluation}'
+    if metric:
+        return f'{base} [{metric}]'
+    return base
 
 
 def short_label(value: str, width: int = 46) -> str:

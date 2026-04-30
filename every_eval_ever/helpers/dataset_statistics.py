@@ -24,6 +24,14 @@ CONTINUOUS_SCORE_TYPE = 'continuous'
 STABILIZATION_WEIGHT = 5.0
 BOOTSTRAP_ITERATIONS = 400
 RANDOM_SEED = 20260429
+SCORE_GROUP_KEYS = (
+    'benchmark',
+    'evaluation_name',
+    'metric_id',
+    'metric_name',
+    'metric_kind',
+    'metric_unit',
+)
 
 
 def read_data(datastore: str) -> list[str]:
@@ -144,8 +152,7 @@ def numeric_summary(values: Iterable[float]) -> dict[str, float | int | None]:
 
 def shared_evaluation_key(row: dict[str, Any]) -> str:
     parts = [
-        row.get('benchmark'),
-        row.get('evaluation_name'),
+        *(row.get(key) for key in SCORE_GROUP_KEYS),
         row.get('score_type'),
         row.get('min_score'),
         row.get('max_score'),
@@ -497,13 +504,13 @@ def descriptive_statistics(
         'score_summaries': grouped_summaries(
             rows,
             'score',
-            ('benchmark', 'evaluation_name'),
+            SCORE_GROUP_KEYS,
             summary_limit,
         ),
         'normalized_score_summaries': grouped_summaries(
             valid_rows,
             'normalized_score',
-            ('benchmark', 'evaluation_name'),
+            SCORE_GROUP_KEYS,
             summary_limit,
         ),
     }
@@ -598,13 +605,29 @@ def print_report(report: dict[str, Any], descriptive_only: bool) -> None:
     section('score summaries')
     print_table(
         descriptive['score_summaries'],
-        ['benchmark', 'evaluation_name', 'count', 'mean', 'median', 'stddev'],
+        [
+            'benchmark',
+            'evaluation_name',
+            'metric_id',
+            'count',
+            'mean',
+            'median',
+            'stddev',
+        ],
     )
 
     section('normalized score summaries')
     print_table(
         descriptive['normalized_score_summaries'],
-        ['benchmark', 'evaluation_name', 'count', 'mean', 'median', 'stddev'],
+        [
+            'benchmark',
+            'evaluation_name',
+            'metric_id',
+            'count',
+            'mean',
+            'median',
+            'stddev',
+        ],
     )
 
     if descriptive_only:
