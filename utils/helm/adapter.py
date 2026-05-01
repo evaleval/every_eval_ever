@@ -248,6 +248,7 @@ def convert(
                 if is_new_metric:
                     metric_config = MetricConfig(
                         evaluation_description=evaluation_description,
+                        metric_name=metric_name,
                         lower_is_better=header.get('lower_is_better', False),
                         min_score=(
                             0.0
@@ -332,7 +333,7 @@ def convert(
         )
 
         eval_log = EvaluationLog(
-            schema_version='0.2.1',
+            schema_version='0.2.2',
             evaluation_id=evaluation_id,
             retrieved_timestamp=retrieved_timestamp,
             source_metadata=make_source_metadata(
