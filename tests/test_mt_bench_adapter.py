@@ -141,3 +141,47 @@ def test_source_data_url_contains_judgment_url():
     overall = log.evaluation_results[0]
     assert adapter.JUDGMENT_URL in overall.source_data.url
     assert overall.source_data.source_type == 'url'
+
+
+def test_judge_model_not_duplicated_in_additional_details():
+    """Per reviewer feedback on HF datastore PR (akornilo on #125): judge
+    model info should live in metric_config.llm_scoring.judges[] only
+    (schema L586), not be scattered across multiple additional_details
+    bags. Mirrors the same guard added to the HLE adapter.
+    """
+    bundles = adapter.make_logs(
+        sample_rows(), retrieved_timestamp='1234567890.0'
+    )
+    for log, _, _ in bundles:
+        meta_extras = log.source_metadata.additional_details or {}
+        assert 'judge_model' not in meta_extras
+        assert 'judge_models_json' not in meta_extras
+        for result in log.evaluation_results:
+            metric_extras = result.metric_config.additional_details or {}
+            assert 'judge_model' not in metric_extras
+            assert 'judge_models_json' not in metric_extras
+            source_extras = result.source_data.additional_details or {}
+            assert 'judge_model' not in source_extras
+            assert 'judge_models_json' not in source_extras
+            # Sanity: judge IS in the prescribed slot.
+            judges = result.metric_config.llm_scoring.judges
+            assert len(judges) == 1
+            assert judges[0].model_info.id == 'openai/gpt-4'
+
+
+def test_judge_prompt_templates_appear_only_once():
+    """The verbatim FastChat template identifiers ('single-v1',
+    'single-v1-multi-turn') previously appeared in BOTH source_metadata
+    and metric_config additional_details. They should now appear in only
+    one place — metric_config.additional_details — to avoid the same
+    'scattered duplicates' issue akornilo flagged for judge_model.
+    """
+    bundles = adapter.make_logs(
+        sample_rows(), retrieved_timestamp='1234567890.0'
+    )
+    for log, _, _ in bundles:
+        meta_extras = log.source_metadata.additional_details or {}
+        assert 'judge_prompt_templates_json' not in meta_extras
+        for result in log.evaluation_results:
+            metric_extras = result.metric_config.additional_details or {}
+            assert 'judge_prompt_templates_json' in metric_extras

@@ -260,7 +260,6 @@ def make_source_data() -> SourceDataUrl:
         source_type='url',
         url=[JUDGMENT_URL, GITHUB_URL, PAPER_URL],
         additional_details={
-            'judge_model': JUDGE_MODEL_NAME,
             'paper_url': PAPER_URL,
         },
     )
@@ -272,7 +271,6 @@ def make_metric_config(
     metric_name: str,
     description: str,
     judge_prompt_templates: list[str],
-    judge_models: list[str],
     sample_count: int,
     judge_model_info: ModelInfo,
 ) -> MetricConfig:
@@ -290,9 +288,12 @@ def make_metric_config(
             judges=[JudgeConfig(model_info=judge_model_info)],
             input_prompt=JUDGE_PROMPT_DESCRIPTION,
         ),
+        # Note: judge model lives only in llm_scoring.judges[0].model_info
+        # (schema L586). The prompt template identifiers below are the
+        # verbatim FastChat template names ('single-v1', 'single-v1-multi-turn')
+        # — not duplicated by any structured schema slot.
         additional_details={
             'aggregation': 'mean',
-            'judge_models_json': json.dumps(judge_models, sort_keys=True),
             'judge_prompt_templates_json': json.dumps(
                 judge_prompt_templates, sort_keys=True
             ),
@@ -329,7 +330,6 @@ def make_evaluation_result(
     description: str,
     values: list[float],
     judge_prompt_templates: list[str],
-    judge_models: list[str],
     judge_model_info: ModelInfo,
 ) -> EvaluationResult:
     return EvaluationResult(
@@ -341,7 +341,6 @@ def make_evaluation_result(
             metric_name=name,
             description=description,
             judge_prompt_templates=judge_prompt_templates,
-            judge_models=judge_models,
             sample_count=len(values),
             judge_model_info=judge_model_info,
         ),
@@ -360,7 +359,6 @@ def make_log(
     model_id = get_model_id(scores.model, developer)
     judge_model_info = make_judge_model_info()
     judge_prompt_templates = sorted(scores.judge_prompt_templates)
-    judge_models = sorted(scores.judge_models)
 
     results = [
         make_evaluation_result(
@@ -372,7 +370,6 @@ def make_log(
             ),
             values=scores.overall,
             judge_prompt_templates=judge_prompt_templates,
-            judge_models=judge_models,
             judge_model_info=judge_model_info,
         )
     ]
@@ -387,7 +384,6 @@ def make_log(
                 ),
                 values=scores.turn1,
                 judge_prompt_templates=judge_prompt_templates,
-                judge_models=judge_models,
                 judge_model_info=judge_model_info,
             )
         )
@@ -402,18 +398,18 @@ def make_log(
                 ),
                 values=scores.turn2,
                 judge_prompt_templates=judge_prompt_templates,
-                judge_models=judge_models,
                 judge_model_info=judge_model_info,
             )
         )
 
     sanitized_model_id = model_id.replace('/', '_')
+    # Judge model lives in metric_config.llm_scoring.judges[].model_info
+    # (schema L586); judge prompt template identifiers live in
+    # metric_config.additional_details. Not duplicated here.
     additional_source_details = {
         'judgment_url': JUDGMENT_URL,
         'github_url': GITHUB_URL,
         'paper_url': PAPER_URL,
-        'judge_model': JUDGE_MODEL_NAME,
-        'judge_prompt_templates_json': json.dumps(judge_prompt_templates),
         'distinct_questions': str(len(scores.question_ids)),
     }
     if scores.earliest_judgment_ts is not None:
