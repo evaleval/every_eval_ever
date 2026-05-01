@@ -48,6 +48,8 @@ from every_eval_ever.eval_types import (
     EvaluationLog,
     EvaluationResult,
     EvaluatorRelationship,
+    GenerationArgs,
+    GenerationConfig,
     JudgeConfig,
     LlmScoring,
     MetricConfig,
@@ -288,14 +290,21 @@ def make_judge_model_info() -> ModelInfo:
     )
 
 
+def make_generation_config() -> GenerationConfig:
+    """Per Scale SEAL's published methodology, the model under evaluation
+    runs at temperature 0.0. Per the schema, that belongs on
+    ``EvaluationResult.generation_config.generation_args.temperature``
+    (eval.schema.json L400) — not in source/metric ``additional_details``.
+    """
+    return GenerationConfig(generation_args=GenerationArgs(temperature=0.0))
+
+
 def make_source_data() -> SourceDataUrl:
     return SourceDataUrl(
         dataset_name="Humanity's Last Exam (Scale SEAL leaderboard)",
         source_type='url',
         url=[LEADERBOARD_URL, HLE_HOME_URL, HLE_DATASET_HF_URL],
         additional_details={
-            'judge_model': JUDGE_MODEL_ID,
-            'temperature': '0.0',
             'dataset_total_questions': str(DATASET_TOTAL_QUESTIONS),
         },
     )
@@ -356,10 +365,10 @@ def make_accuracy_result(
             ),
             additional_details={
                 'aggregation': 'accuracy_over_full_dataset',
-                'judge_model': JUDGE_MODEL_ID,
             },
         ),
         score_details=ScoreDetails(**score_details_kwargs),
+        generation_config=make_generation_config(),
     )
 
 
@@ -391,11 +400,9 @@ def make_calibration_result(
                 judges=[JudgeConfig(model_info=judge_model_info)],
                 input_prompt=JUDGE_PROMPT_DESCRIPTION,
             ),
-            additional_details={
-                'judge_model': JUDGE_MODEL_ID,
-            },
         ),
         score_details=ScoreDetails(score=float(row.calibration_error)),
+        generation_config=make_generation_config(),
     )
 
 
@@ -442,8 +449,6 @@ def make_log(
                 'leaderboard_url': LEADERBOARD_URL,
                 'hle_home_url': HLE_HOME_URL,
                 'hle_dataset_hf_url': HLE_DATASET_HF_URL,
-                'judge_model': JUDGE_MODEL_ID,
-                'temperature': '0.0',
             },
         ),
         eval_library=EvalLibrary(

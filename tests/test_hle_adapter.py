@@ -149,6 +149,39 @@ def test_metric_config_uses_percent_scale_with_judge():
     assert judge.model_info.id == adapter.JUDGE_MODEL_ID
 
 
+def test_generation_config_carries_model_temperature():
+    """Per reviewer feedback on HF datastore PR #125: model-under-eval
+    temperature belongs on generation_config.generation_args.temperature
+    (schema L400), not in source/metric additional_details.
+    """
+    bundles = adapter.make_logs(sample_rows(), retrieved_timestamp='123.0')
+    for log, _, _ in bundles:
+        for result in log.evaluation_results:
+            assert result.generation_config is not None
+            assert result.generation_config.generation_args is not None
+            assert result.generation_config.generation_args.temperature == 0.0
+
+
+def test_judge_and_temperature_not_duplicated_in_additional_details():
+    """The same reviewer asked us not to scatter judge_model/temperature
+    across multiple additional_details fields. Judge info now lives only
+    in metric_config.llm_scoring.judges; temperature lives only in
+    generation_config.generation_args.
+    """
+    bundles = adapter.make_logs(sample_rows(), retrieved_timestamp='123.0')
+    for log, _, _ in bundles:
+        meta_extras = log.source_metadata.additional_details or {}
+        assert 'judge_model' not in meta_extras
+        assert 'temperature' not in meta_extras
+        for result in log.evaluation_results:
+            metric_extras = result.metric_config.additional_details or {}
+            assert 'judge_model' not in metric_extras
+            assert 'temperature' not in metric_extras
+            source_extras = result.source_data.additional_details or {}
+            assert 'judge_model' not in source_extras
+            assert 'temperature' not in source_extras
+
+
 def test_parse_rsc_payload_handles_minimal_chunk():
     rows_json = (
         '[{\\"model\\":\\"foo\\",\\"company\\":\\"openai\\",\\"rank\\":1,'
