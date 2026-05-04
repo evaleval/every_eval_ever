@@ -91,7 +91,7 @@ def read_data(datastore) -> Tuple[List[str], List[str]]:
     return schema_urls, instance_urls
 
 
-def analyze_data(con, schema_table, instance_table) -> None:
+def analyze_data(con, schema_table, instance_table, csv_path) -> None:
     print(f'\n{SEP}')
     print(f'Tables: {schema_table}, {instance_table}')
     print(SEP)
@@ -125,7 +125,7 @@ def analyze_data(con, schema_table, instance_table) -> None:
         f"""
         SELECT column_name FROM information_schema.columns
         WHERE table_name = '{schema_table}';
-    """,
+        """,
     )
     section(f'columns  ({len(schema_cols)} total)')
     for (scc,) in schema_cols:
@@ -136,39 +136,33 @@ def analyze_data(con, schema_table, instance_table) -> None:
         f"""
         SELECT column_name FROM information_schema.columns
         WHERE table_name = '{instance_table}';
-    """,
+        """,
     )
     section(f'columns  ({len(instance_cols)} total)')
     for (inc,) in instance_cols:
         print(f'  - {inc}')
 
-    # schema eval library names
-    lib_count = execute_query(
-        con,
-        f"""
-        SELECT eval_library.name AS lib, COUNT(*) AS n
-        FROM {schema_table}
-        WHERE eval_library IS NOT NULL
-        GROUP BY 1 ORDER BY 2 DESC;
-    """,
-    )
-    section('eval library usage  (schema level)')
-    for lib, n in lib_count:
-        print(f'  {str(lib):<42} {n:>8,}')
-
     # schema source metadata
     src_counts = execute_query(
         con,
         f"""
-        SELECT source_metadata.source_type AS src, COUNT(*) AS n
-        FROM {schema_table}
+        SELECT 
+            source_metadata.source_type AS src, 
+            COUNT(*) AS n
+        FROM {schema_table},
+        LATERAL UNNEST(evaluation_results) AS t(er)
         WHERE source_metadata.source_type IS NOT NULL
         GROUP BY 1 ORDER BY 2 DESC;
-    """,
+        """,
+        df=True,
     )
-    section('source type breakdown  (schema level)')
-    for src, n in src_counts:
-        print(f'  {str(src):<42} {n:>8,}')
+    src_counts.to_csv(
+        f'{csv_path}/source_types.csv',
+        encoding='utf-8',
+        index=False,
+        header=True,
+    )
+    section(f'source type table saved to {csv_path}')
 
     # parameter range
     param_range = execute_query(
@@ -179,7 +173,7 @@ def analyze_data(con, schema_table, instance_table) -> None:
             MAX(CAST(model_info.additional_details.params_billions AS FLOAT))
         FROM {schema_table}
         WHERE model_info.additional_details.params_billions IS NOT NULL;
-    """,
+        """,
     )
     section('model parameter range  (billions)')
     if param_range and param_range[0][0] is not None:
@@ -189,51 +183,141 @@ def analyze_data(con, schema_table, instance_table) -> None:
     else:
         print('  no params_billions data found')
 
-    unique_benchmark = execute_query(
+    benchmark_popularity = execute_query(
         con,
         f"""
-        SELECT 
-            COUNT(DISTINCT er.source_data.dataset_name) AS n_unique_benchmarks
+        SELECT
+            er.source_data.dataset_name AS benchmark,
+            COUNT(DISTINCT model_info.id) AS n_models,
         FROM {schema_table},
         LATERAL UNNEST(evaluation_results) AS t(er)
-        WHERE er.source_data.dataset_name IS NOT NULL;
+        WHERE er.source_data.dataset_name IS NOT NULL
+        GROUP BY 1
+        ORDER BY 2;
         """,
+        df=True,
     )
     section('unique benchmarks in dataset')
-    for bench in unique_benchmark:
+    for bench in benchmark_popularity:
         print(f' - {bench}')
 
-    unique_inference = execute_query(
+    benchmark_popularity.to_csv(
+        f'{csv_path}/benchmark_popularity.csv',
+        encoding='utf-8',
+        index=False,
+        header=True,
+    )
+
+    count_inference_platform = execute_query(
         con,
         f"""
-        SELECT DISTINCT
-            model_info.inference_platform
-        FROM {schema_table}
-        WHERE model_info.inference_platform NOT LIKE '%unknown%'
+        SELECT
+            COALESCE(model_info.inference_platform, 'unreported') AS platform_inference,
+            COUNT(*) AS n_result_rows,
+            COUNT(DISTINCT model_info.id) AS n_models,
+        FROM {schema_table},
+        LATERAL UNNEST(evaluation_results) AS t(er)
+        GROUP BY 1
+        ORDER BY 2 DESC;
         """,
+        df=True,
     )
-    section('unique inference platforms in dataset')
-    platforms = [platform for (platform,) in unique_inference]
-    print('  ' + ', '.join(str(p) for p in platforms))
+    count_inference_platform.to_csv(
+        f'{csv_path}/inference_platform.csv',
+        encoding='utf-8',
+        index=False,
+        header=True,
+    )
+
+    section(f'unique inference platform tables saved to {csv_path}')
 
     unique_orgs = execute_query(
         con,
         f"""
-        SELECT DISTINCT 
-            source_metadata.source_organization_name
-        FROM {schema_table}
+        SELECT 
+            TRIM(REGEXP_REPLACE(source_metadata.source_organization_name, '[^a-zA-Z0-9, ]', '')) AS organization,
+            COUNT(*) AS n_result_rows,
+            COUNT(DISTINCT evaluation_id) AS n_evaluation_runs,
+            COUNT(DISTINCT model_info.id) AS n_models,
+            COUNT(DISTINCT eval_library.name) AS n_harnesses
+        FROM {schema_table},
+        LATERAL UNNEST(evaluation_results) AS t(er)
+        WHERE source_metadata.source_organization_name IS NOT NULL
+        GROUP BY 1
+        ORDER BY 2 DESC;
         """,
+        df=True,
     )
-    section('unique organisations in dataset')
-    orgs = [org for (org,) in unique_orgs]
-    print('  ' + ', '.join(str(o) for o in orgs))
+
+    unique_orgs.to_csv(
+        f'{csv_path}/org_name.csv',
+        encoding='utf-8',
+        index=False,
+        header=True,
+    )
+    section(f'unique organisations in dataset saved to {csv_path}')
+
+    table_counts = execute_query(
+        con,
+        f"""
+        SELECT 'Result Rows' AS statistic, COUNT(*) AS value 
+        FROM {schema_table}, LATERAL UNNEST(evaluation_results) AS t(er)
+        UNION ALL
+        SELECT 'Schema-Level Data', COUNT(DISTINCT evaluation_id) FROM {schema_table}
+        UNION ALL
+        SELECT 'Unique Models', COUNT(DISTINCT model_info.id) FROM {schema_table}
+        UNION ALL
+        SELECT 'Unique Benchmarks', COUNT(DISTINCT er.source_data.dataset_name) 
+        FROM {schema_table}, LATERAL UNNEST(evaluation_results) AS t(er)
+        WHERE er.source_data.dataset_name IS NOT NULL
+        UNION ALL
+        SELECT 'Unique Evaluation Harnesses', COUNT(DISTINCT eval_library.name) FROM {schema_table}
+        UNION ALL
+        SELECT 'Unique Source Organizations', COUNT(DISTINCT TRIM(source_metadata.source_organization_name)) 
+        FROM {schema_table}
+        WHERE source_metadata.source_organization_name IS NOT NULL
+        UNION ALL
+        SELECT 'Instance-Level Data', COUNT(DISTINCT evaluation_id) FROM {instance_table};
+        """,
+        df=True,
+    )
+
+    table_counts.to_csv(
+        f'{csv_path}/table_counts.csv',
+        encoding='utf-8',
+        index=False,
+        header=True,
+    )
+    section(f'unique counts across tables saved to {csv_path}')
+
+    benchmark_model_harness = execute_query(
+        con,
+        f"""
+        SELECT
+            eval_library.name,
+            COUNT(*) AS n_result_rows,
+            COUNT(DISTINCT er.source_data.dataset_name) AS n_benchmarks,
+            COUNT(DISTINCT model_info.id) AS n_models,
+        FROM {schema_table},
+        LATERAL UNNEST(evaluation_results) AS t(er)
+        GROUP BY 1
+        ORDER BY 2 DESC;
+        """,
+        df=True,
+    )
+
+    benchmark_model_harness.to_csv(
+        f'{csv_path}/benchmark_model_harness.csv',
+        encoding='utf-8',
+        index=False,
+        header=True,
+    )
+    section(f'model and benchmark counts per harness saved to {csv_path}')
 
     print(f'\n{SEP}\n')
 
 
-def create_visualisations(con, schema_table, instance_table) -> None:
-    # for a benchmark, how do scores for that benchmark vary across
-    # eval_harnesses for the same evaluation / in general (get mean, range, get min, max)
+def create_visualisations(con, schema_table, instance_table, csv_path) -> None:
     try:
         import matplotlib.pyplot as plt
         import seaborn as sns
@@ -261,7 +345,7 @@ def create_visualisations(con, schema_table, instance_table) -> None:
 
     fig, axes = plt.subplots(2, 1, figsize=(10, 8), sharex=False)
     benchmarks = ['GPQA', 'IFEval']
-    colors = sns.color_palette('viridis', 2)
+    colors = sns.color_palette('pastel', 2, as_cmap=True)
     for ax, benchmark, color in zip(axes, benchmarks, colors):
         data = benchmark_top_scores[
             benchmark_top_scores['benchmark'] == benchmark
@@ -288,50 +372,70 @@ def create_visualisations(con, schema_table, instance_table) -> None:
         )
         ax.set_xlabel('Score', fontsize=11)
         ax.set_ylabel('Density', fontsize=11)
-        ax.legend(fontsize=9)
+        ax.legend(fontsize=9, frameon=False)
         sns.despine(ax=ax)
 
-    plt.suptitle('Score Distributions: GPQA & IFEval', fontsize=13, y=1.02)
+    # plt.suptitle('Score Distributions: GPQA & IFEval', fontsize=13, y=1.02)
     plt.tight_layout()
     plt.savefig(
-        output_path / 'score_distribution_gpqa_ifeval.png',
+        output_path / 'score_distribution_gpqa_ifeval.pdf',
         dpi=300,
         bbox_inches='tight',
     )
     plt.close()
 
-    # inference platform count
-    inference_count = execute_query(
+    # score distribution across the most used benchmarks
+    benchmark_top_scores = execute_query(
         con,
         f"""
-        SELECT
-            model_info.inference_platform,
-            COUNT(*) as n_count
-        FROM {schema_table}
-        WHERE model_info.inference_platform NOT LIKE '%unknown%'
-        GROUP BY 1
-        ORDER BY 2 DESC;
+        SELECT 
+            er.source_data.dataset_name AS benchmark,
+            er.score_details.score::DOUBLE AS score
+        FROM {schema_table},
+        LATERAL UNNEST(evaluation_results) AS t(er)
+        WHERE er.source_data.dataset_name IN ('BBH', 'Artificial Analysis LLM API')
+        ORDER BY benchmark, score DESC;
         """,
         df=True,
     )
 
-    sns.set_theme(style='whitegrid')
-    plt.figure(figsize=(10, 6))
-    ax = sns.barplot(
-        data=inference_count,
-        x='n_count',
-        y='inference_platform',
-        palette='viridis',
-    )
-    ax.set_title('Distribution of Inference Platforms', fontsize=15, pad=20)
-    ax.set_xlabel('Number of Evaluations', fontsize=12)
-    ax.set_ylabel('Platform', fontsize=12)
-    for i in ax.containers:
-        ax.bar_label(i, padding=3)
-    plt.suptitle('Inference Platform value count', fontsize=13, y=1.02)
+    fig, axes = plt.subplots(2, 1, figsize=(10, 8), sharex=False)
+    benchmarks = ['BBH', 'Artificial Analysis LLM API']
+    colors = sns.color_palette('pastel', 2, as_cmap=True)
+    for ax, benchmark, color in zip(axes, benchmarks, colors):
+        data = benchmark_top_scores[
+            benchmark_top_scores['benchmark'] == benchmark
+        ]['score']
+        sns.kdeplot(
+            data=data, fill=True, alpha=0.5, color=color, ax=ax, linewidth=1.5
+        )
+        ax.axvline(
+            data.median(),
+            color=color,
+            linestyle='--',
+            linewidth=1.2,
+            label=f'Median: {data.median():.3f}',
+        )
+        ax.axvline(
+            data.mean(),
+            color='gray',
+            linestyle=':',
+            linewidth=1.2,
+            label=f'Mean: {data.mean():.3f}',
+        )
+        ax.set_title(
+            f'{benchmark} Score Distribution (n={len(data):,})', fontsize=12
+        )
+        ax.set_xlabel('Score', fontsize=11)
+        ax.set_ylabel('Density', fontsize=11)
+        ax.legend(fontsize=9, frameon=False)
+        sns.despine(ax=ax)
+
     plt.tight_layout()
     plt.savefig(
-        output_path / 'inference_value_count.png', dpi=300, bbox_inches='tight'
+        output_path / 'score_distribution_bbh_art_llm_api.pdf',
+        dpi=300,
+        bbox_inches='tight',
     )
     plt.close()
 
@@ -341,8 +445,9 @@ def create_visualisations(con, schema_table, instance_table) -> None:
         f"""
         SELECT
             source_metadata.evaluator_relationship,
-            COUNT(evaluation_id)
-        FROM {schema_table}
+            COUNT(*) AS eval_runs
+        FROM {schema_table},
+        LATERAL UNNEST(evaluation_results) AS t(er)
         GROUP BY 1
         """,
         df=True,
@@ -350,7 +455,7 @@ def create_visualisations(con, schema_table, instance_table) -> None:
 
     fig, ax = plt.subplots(figsize=(7, 7))
     counts = evaluation_relationships.set_index('evaluator_relationship')[
-        'count(evaluation_id)'
+        'eval_runs'
     ]
     ax.pie(
         counts,
@@ -367,13 +472,13 @@ def create_visualisations(con, schema_table, instance_table) -> None:
     )
     plt.tight_layout()
     plt.savefig(
-        output_path / 'evaluator_relationship_pie.png',
+        output_path / 'evaluator_relationship_pie.pdf',
         dpi=300,
         bbox_inches='tight',
     )
     plt.close()
 
-    unique_org_runs = execute_query(
+    org_runs = execute_query(
         con,
         f"""
         SELECT 
@@ -383,7 +488,8 @@ def create_visualisations(con, schema_table, instance_table) -> None:
                 ELSE TRIM(source_metadata.source_organization_name)
             END AS org,
             COUNT(*) AS n_runs
-        FROM {schema_table}
+        FROM {schema_table},
+        LATERAL UNNEST(evaluation_results) AS t(er)
         WHERE source_metadata.source_organization_name IS NOT NULL
         GROUP BY 1
         ORDER BY 2 DESC;
@@ -392,35 +498,33 @@ def create_visualisations(con, schema_table, instance_table) -> None:
     )
 
     fig, ax = plt.subplots(figsize=(10, 8))
-    sns.barplot(
-        data=unique_org_runs, x='n_runs', y='org', palette='viridis', ax=ax
-    )
+    sns.barplot(data=org_runs, x='n_runs', y='org', palette='viridis', ax=ax)
     for container in ax.containers:
         ax.bar_label(container, fmt='%d', padding=4, fontsize=9)
     ax.set_xlabel('Number of Evaluation Runs', fontsize=11)
     ax.set_ylabel('Organization', fontsize=11)
     ax.set_title(
-        f'Evaluation Runs by Source Organization (n={len(unique_org_runs)} orgs)',
+        f'Evaluation Runs by Source Organization (n={len(org_runs)} orgs)',
         fontsize=12,
     )
     sns.despine()
     plt.tight_layout()
     plt.savefig(
-        output_path / 'source_organizations.png', dpi=300, bbox_inches='tight'
+        output_path / 'source_organizations.pdf', dpi=300, bbox_inches='tight'
     )
     plt.close()
 
-    benchmark_model_counts = execute_query(
+    benchmark_evaluation_counts = execute_query(
         con,
         f"""
         SELECT 
             er.source_data.dataset_name AS benchmark,
-            COUNT(DISTINCT model_info.id) AS n_models
+            COUNT(*) AS n_result_rows,
         FROM {schema_table},
         LATERAL UNNEST(evaluation_results) AS t(er)
         WHERE er.source_data.dataset_name IS NOT NULL
         GROUP BY benchmark
-        ORDER BY n_models DESC
+        ORDER BY n_result_rows DESC
         LIMIT {top_n};
         """,
         df=True,
@@ -428,51 +532,59 @@ def create_visualisations(con, schema_table, instance_table) -> None:
 
     fig, ax = plt.subplots(figsize=(10, 6))
     sns.barplot(
-        data=benchmark_model_counts,
-        x='n_models',
+        data=benchmark_evaluation_counts,
+        x='n_result_rows',
         y='benchmark',
-        palette='viridis',
+        palette='pastel',
         ax=ax,
     )
     for container in ax.containers:
         ax.bar_label(container, fmt='%d', padding=4, fontsize=9)
 
-    ax.set_xlabel('Number of Models', fontsize=11)
-    ax.set_ylabel('Benchmark', fontsize=11)
-    ax.set_title(
-        'Top 10 Benchmarks by Number of Models', fontsize=12
-    )
+    ax.set_xlabel('Number of Evaluations', fontsize=11)
+    ax.set_ylabel('Benchmarks', fontsize=11)
+    ax.set_title(f'Top {top_n} Benchmarks Evaluations Count', fontsize=12)
     sns.despine()
     plt.tight_layout()
     plt.savefig(
-        output_path / 'top10_benchmarks_by_models.png',
+        output_path / f'top{top_n}_benchmarks_evaluation_count.pdf',
         dpi=300,
         bbox_inches='tight',
     )
     plt.close()
 
-    model_benchmark_counts = execute_query(
+    model_evaluation_counts = execute_query(
         con,
         f"""
         SELECT 
             model_info.id AS model,
-            COUNT(DISTINCT er.source_data.dataset_name) AS n_benchmarks
+            COUNT(*) AS n_result_rows,
+            COUNT(DISTINCT evaluation_id) AS n_evaluation_runs,
+            COUNT(DISTINCT eval_library.name) AS n_harnesses,
+            COUNT(DISTINCT TRIM(source_metadata.source_organization_name)) AS n_orgs
         FROM {schema_table},
         LATERAL UNNEST(evaluation_results) AS t(er)
-        WHERE er.source_data.dataset_name IS NOT NULL
+        WHERE model_info.id IS NOT NULL
         GROUP BY model
-        ORDER BY n_benchmarks DESC
+        ORDER BY n_result_rows DESC
         LIMIT {top_n};
         """,
         df=True,
     )
+    model_evaluation_counts.to_csv(
+        f'{csv_path}/model_per_benchmark.csv',
+        encoding='utf-8',
+        index=False,
+        header=True,
+    )
 
     fig, ax = plt.subplots(figsize=(10, 6))
     sns.barplot(
-        data=model_benchmark_counts,
-        x='n_benchmarks',
+        data=model_evaluation_counts,
+        x='n_result_rows',
         y='model',
-        palette='viridis',
+        palette='pastel',
+        color='#0072b2',
         ax=ax,
     )
     for container in ax.containers:
@@ -480,19 +592,76 @@ def create_visualisations(con, schema_table, instance_table) -> None:
 
     ax.set_xlabel('Number of Benchmarks', fontsize=11)
     ax.set_ylabel('Model', fontsize=11)
-    ax.set_title(
-        'Top 10 Models by Number of Benchmarks Evaluated On', fontsize=12
-    )
+    ax.set_title(f'Top {top_n} Models Evaluation Count', fontsize=12)
     sns.despine()
     plt.tight_layout()
     plt.savefig(
-        output_path / 'top10_models_by_benchmarks.png',
+        output_path / f'top{top_n}_models_evaluation_count.pdf',
         dpi=300,
         bbox_inches='tight',
     )
     plt.close()
 
-    print(f"All visualisations saved to {output_path.resolve()}")
+    # harness coverage grouped bar
+    harness_df = execute_query(
+        con,
+        f"""
+        SELECT
+            eval_library.name AS framework,
+            COUNT(DISTINCT evaluation_id) AS n_evaluation_runs,
+            COUNT(model_info.id) AS n_models,
+            COUNT(DISTINCT er.source_data.dataset_name) AS n_benchmarks,
+            COUNT(*) AS n_runs,
+        FROM {schema_table}, 
+        LATERAL UNNEST(evaluation_results) AS t(er)
+        GROUP BY 1 ORDER BY n_runs DESC;
+    """,
+        df=True,
+    )
+
+    fig, ax = plt.subplots(figsize=(12, 6))
+    x = range(len(harness_df))
+    width = 0.25
+    colors = sns.color_palette('pastel', 3)
+    ax.bar(
+        [i - width for i in x],
+        harness_df['n_runs'],
+        width,
+        label='Total Runs',
+        color=colors[0],
+    )
+    ax.bar(
+        [i for i in x],
+        harness_df['n_models'],
+        width,
+        label='Models',
+        color=colors[1],
+    )
+    ax.bar(
+        [i + width for i in x],
+        harness_df['n_evaluation_runs'],
+        width,
+        label='Evaluations',
+        color=colors[2],
+    )
+    ax.set_xticks(list(x))
+    ax.set_xticklabels(
+        harness_df['framework'], rotation=35, ha='right', fontsize=9
+    )
+    ax.set_yscale('log')
+    ax.set_ylabel('Count (log scale)', fontsize=11)
+    ax.set_title(
+        'Harness Coverage: Total Runs, Models, Evaluations', fontsize=12
+    )
+    ax.legend()
+    sns.despine()
+    plt.tight_layout()
+    plt.savefig(
+        output_path / 'harness_coverage.pdf', dpi=300, bbox_inches='tight'
+    )
+    plt.close()
+
+    print(f'All visualisations saved to {output_path.resolve()}')
 
 
 def main():
@@ -510,8 +679,13 @@ def main():
         help='Output directory for generated visualization files',
     )
     parser.add_argument(
+        '--csv-path',
+        default='data/outputs/tables',
+        help='Output directory for generated tables',
+    )
+    parser.add_argument(
         '--top-n',
-        default=10,
+        default=25,
         type=int,
         help='Top-N groups to include in visualization charts',
     )
@@ -521,6 +695,10 @@ def main():
         parser.error('--table must be a valid SQL identifier')
 
     table_name = args.table
+    csv_path = args.csv_path
+
+    os.makedirs(csv_path, exist_ok=True)
+    csv_path = Path(csv_path)
 
     create_visualisations.outdir = args.viz_dir
     create_visualisations.top_n = args.top_n
@@ -609,8 +787,8 @@ def main():
             print('Skipping combined analysis: one table was not loaded.')
             sys.exit(1)
 
-        analyze_data(con, schema_table, instance_table)
-        create_visualisations(con, schema_table, instance_table)
+        analyze_data(con, schema_table, instance_table, csv_path)
+        create_visualisations(con, schema_table, instance_table, csv_path)
 
 
 if __name__ == '__main__':
