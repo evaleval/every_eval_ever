@@ -1,8 +1,14 @@
 """Display and summarize Every Eval Ever dataset statistics."""
 
+import warnings
+
+warnings.filterwarnings('ignore')
+
 import argparse
+import os
 import re
 import sys
+from pathlib import Path
 from typing import List, Tuple
 
 import duckdb
@@ -18,8 +24,11 @@ FOLDER_PATH = 'viewer_parquets'
 HUGGING_FACE_DATASTORE = f'datasets/{REPO_ID}/{FOLDER_PATH}/**/*.parquet'
 
 
-def execute_query(con, sql):
-    return con.execute(sql).fetchall()
+def execute_query(con, sql, df=False):
+    if not df:
+        return con.execute(sql).fetchall()
+    if df:
+        return con.execute(sql).df()
 
 
 def section(title: str) -> None:
@@ -82,7 +91,7 @@ def read_data(datastore) -> Tuple[List[str], List[str]]:
     return schema_urls, instance_urls
 
 
-def analyze_data(con, schema_table, instance_table) -> None:
+def analyze_data(con, schema_table, instance_table, csv_path) -> None:
     print(f'\n{SEP}')
     print(f'Tables: {schema_table}, {instance_table}')
     print(SEP)
@@ -116,7 +125,7 @@ def analyze_data(con, schema_table, instance_table) -> None:
         f"""
         SELECT column_name FROM information_schema.columns
         WHERE table_name = '{schema_table}';
-    """,
+        """,
     )
     section(f'columns  ({len(schema_cols)} total)')
     for (scc,) in schema_cols:
@@ -127,39 +136,33 @@ def analyze_data(con, schema_table, instance_table) -> None:
         f"""
         SELECT column_name FROM information_schema.columns
         WHERE table_name = '{instance_table}';
-    """,
+        """,
     )
     section(f'columns  ({len(instance_cols)} total)')
     for (inc,) in instance_cols:
         print(f'  - {inc}')
 
-    # schema eval library names
-    lib_count = execute_query(
-        con,
-        f"""
-        SELECT eval_library.name AS lib, COUNT(*) AS n
-        FROM {schema_table}
-        WHERE eval_library IS NOT NULL
-        GROUP BY 1 ORDER BY 2 DESC;
-    """,
-    )
-    section('eval library usage  (schema level)')
-    for lib, n in lib_count:
-        print(f'  {str(lib):<42} {n:>8,}')
-
     # schema source metadata
     src_counts = execute_query(
         con,
         f"""
-        SELECT source_metadata.source_type AS src, COUNT(*) AS n
-        FROM {schema_table}
+        SELECT 
+            source_metadata.source_type AS src, 
+            COUNT(*) AS n
+        FROM {schema_table},
+        LATERAL UNNEST(evaluation_results) AS t(er)
         WHERE source_metadata.source_type IS NOT NULL
         GROUP BY 1 ORDER BY 2 DESC;
-    """,
+        """,
+        df=True,
     )
-    section('source type breakdown  (schema level)')
-    for src, n in src_counts:
-        print(f'  {str(src):<42} {n:>8,}')
+    src_counts.to_csv(
+        f'{csv_path}/source_types.csv',
+        encoding='utf-8',
+        index=False,
+        header=True,
+    )
+    section(f'source type table saved to {csv_path}')
 
     # parameter range
     param_range = execute_query(
@@ -170,7 +173,7 @@ def analyze_data(con, schema_table, instance_table) -> None:
             MAX(CAST(model_info.additional_details.params_billions AS FLOAT))
         FROM {schema_table}
         WHERE model_info.additional_details.params_billions IS NOT NULL;
-    """,
+        """,
     )
     section('model parameter range  (billions)')
     if param_range and param_range[0][0] is not None:
@@ -180,7 +183,517 @@ def analyze_data(con, schema_table, instance_table) -> None:
     else:
         print('  no params_billions data found')
 
+    eval_harness_df = execute_query(
+        con,
+        f"""
+        SELECT 
+            CASE 
+                WHEN eval_library.name IS NULL THEN 'no harness'
+                WHEN eval_library.name IN ('unknown', 'custom') THEN 'unknown/custom'
+                ELSE 'named harness'
+            END AS harness_status,
+            COUNT(DISTINCT evaluation_id) AS n_evaluation_runs,
+            ROUND(100.0 * COUNT(DISTINCT evaluation_id) / SUM(COUNT(DISTINCT evaluation_id)) OVER (), 1) AS pct
+        FROM {schema_table}
+        GROUP BY 1
+        ORDER BY n_evaluation_runs DESC;
+        """,
+        df=True,
+    )
+    eval_harness_df.to_csv(
+        f'{csv_path}/eval_harness_df.csv',
+        encoding='utf-8',
+        index=False,
+        header=True,
+    )
+    section(f'eval harness percentage saved to {csv_path}')
+
+    count_inference_platform = execute_query(
+        con,
+        f"""
+        SELECT
+            COALESCE(model_info.inference_platform, 'unreported') AS platform_inference,
+            COUNT(*) AS n_result_rows,
+            COUNT(DISTINCT model_info.id) AS n_models,
+        FROM {schema_table},
+        LATERAL UNNEST(evaluation_results) AS t(er)
+        GROUP BY 1
+        ORDER BY 2 DESC;
+        """,
+        df=True,
+    )
+    count_inference_platform.to_csv(
+        f'{csv_path}/inference_platform.csv',
+        encoding='utf-8',
+        index=False,
+        header=True,
+    )
+    section(f'unique inference platform tables saved to {csv_path}')
+
+    unique_orgs = execute_query(
+        con,
+        f"""
+        SELECT 
+            TRIM(REGEXP_REPLACE(source_metadata.source_organization_name, '[^a-zA-Z0-9, ]', '')) AS organization,
+            COUNT(*) AS n_result_rows,
+            COUNT(DISTINCT evaluation_id) AS n_evaluation_runs,
+            COUNT(DISTINCT model_info.id) AS n_models,
+            COUNT(DISTINCT eval_library.name) AS n_harnesses
+        FROM {schema_table},
+        LATERAL UNNEST(evaluation_results) AS t(er)
+        WHERE source_metadata.source_organization_name IS NOT NULL
+        GROUP BY 1
+        ORDER BY 2 DESC;
+        """,
+        df=True,
+    )
+
+    unique_orgs.to_csv(
+        f'{csv_path}/org_name.csv',
+        encoding='utf-8',
+        index=False,
+        header=True,
+    )
+    section(f'unique organisations in dataset saved to {csv_path}')
+
+    table_counts = execute_query(
+        con,
+        f"""
+        SELECT 'Result Rows' AS statistic, COUNT(*) AS value 
+        FROM {schema_table}, LATERAL UNNEST(evaluation_results) AS t(er)
+        UNION ALL
+        SELECT 'Schema-Level Data', COUNT(DISTINCT evaluation_id) FROM {schema_table}
+        UNION ALL
+        SELECT 'Unique Models', COUNT(DISTINCT model_info.id) FROM {schema_table}
+        UNION ALL
+        SELECT 'Unique Benchmarks', COUNT(DISTINCT er.source_data.dataset_name) 
+        FROM {schema_table}, LATERAL UNNEST(evaluation_results) AS t(er)
+        WHERE er.source_data.dataset_name IS NOT NULL
+        UNION ALL
+        SELECT 'Unique Evaluation Harnesses', COUNT(DISTINCT eval_library.name) FROM {schema_table}
+        UNION ALL
+        SELECT 'Unique Source Organizations', COUNT(DISTINCT TRIM(source_metadata.source_organization_name)) 
+        FROM {schema_table}
+        WHERE source_metadata.source_organization_name IS NOT NULL
+        UNION ALL
+        SELECT 'Instance-Level Data', COUNT(DISTINCT evaluation_id) FROM {instance_table};
+        """,
+        df=True,
+    )
+
+    table_counts.to_csv(
+        f'{csv_path}/table_counts.csv',
+        encoding='utf-8',
+        index=False,
+        header=True,
+    )
+    section(f'unique counts across tables saved to {csv_path}')
+
+    benchmark_model_harness = execute_query(
+        con,
+        f"""
+        SELECT
+            eval_library.name,
+            COUNT(*) AS n_result_rows,
+            COUNT(DISTINCT er.source_data.dataset_name) AS n_benchmarks,
+            COUNT(DISTINCT model_info.id) AS n_models,
+        FROM {schema_table},
+        LATERAL UNNEST(evaluation_results) AS t(er)
+        GROUP BY 1
+        ORDER BY 2 DESC;
+        """,
+        df=True,
+    )
+
+    benchmark_model_harness.to_csv(
+        f'{csv_path}/benchmark_model_harness.csv',
+        encoding='utf-8',
+        index=False,
+        header=True,
+    )
+    section(f'model and benchmark counts per harness saved to {csv_path}')
+
+    benchmark_popularity = execute_query(
+        con,
+        f"""
+        SELECT
+            er.source_data.dataset_name AS benchmark,
+            COUNT(*) AS evaluation_runs
+        FROM {schema_table},
+        LATERAL UNNEST(evaluation_results) AS t(er)
+        WHERE er.source_data.dataset_name IS NOT NULL
+        GROUP BY 1
+        ORDER BY 2 DESC;
+        """,
+        df=True,
+    )
+
+    benchmark_popularity.to_csv(
+        f'{csv_path}/benchmark_popularity.csv',
+        encoding='utf-8',
+        index=False,
+        header=True,
+    )
+    section(f'saving becnhmark per eval run to {csv_path}')
+
     print(f'\n{SEP}\n')
+
+
+def create_visualisations(con, schema_table, instance_table, csv_path) -> None:
+
+    try:
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+        from matplotlib.colors import LinearSegmentedColormap
+    except ModuleNotFoundError:
+        raise ImportError('seaborn or matplotlib not installed')
+
+    # EvalEval color constants
+    EVALEVAL_DARK = '#2C2E36'
+    EVALEVAL_BLUE_DARK = '#5BACD1'
+    EVALEVAL_BLUE = '#92D4F3'
+    PLOT_ALPHA = 0.68
+
+    os.makedirs(create_visualisations.outdir, exist_ok=True)
+    output_path = Path(create_visualisations.outdir)
+    top_n = create_visualisations.top_n
+
+    # score distribution across the most used benchmarks
+    benchmark_top_scores = execute_query(
+        con,
+        f"""
+        SELECT 
+            er.source_data.dataset_name AS benchmark,
+            er.score_details.score::DOUBLE AS score
+        FROM {schema_table},
+        LATERAL UNNEST(evaluation_results) AS t(er)
+        WHERE er.source_data.dataset_name IN ('GPQA', 'IFEval')
+        ORDER BY benchmark, score DESC;
+        """,
+        df=True,
+    )
+
+    fig, axes = plt.subplots(2, 1, figsize=(10, 8), sharex=False)
+    benchmarks = ['GPQA', 'IFEval']
+    # Use EvalEval palette for the two benchmarks
+    colors = [EVALEVAL_BLUE, EVALEVAL_BLUE_DARK]
+    for ax, benchmark, color in zip(axes, benchmarks, colors):
+        data = benchmark_top_scores[
+            benchmark_top_scores['benchmark'] == benchmark
+        ]['score']
+        sns.kdeplot(
+            data=data,
+            fill=True,
+            alpha=PLOT_ALPHA,
+            color=color,
+            ax=ax,
+            linewidth=1.5,
+        )
+        ax.axvline(
+            data.median(),
+            color=color,
+            linestyle='--',
+            linewidth=1.2,
+            label=f'Median: {data.median():.3f}',
+        )
+        ax.axvline(
+            data.mean(),
+            color=EVALEVAL_DARK,
+            linestyle=':',
+            linewidth=1.2,
+            label=f'Mean: {data.mean():.3f}',
+        )
+        ax.legend(fontsize=9, frameon=False)
+        ax.set_xlabel('Score', fontsize=11)
+        ax.set_ylabel('Density', fontsize=11)
+        sns.despine(ax=ax)
+
+    plt.tight_layout()
+    plt.savefig(
+        output_path / 'score_distribution_gpqa_ifeval.pdf',
+        dpi=300,
+        bbox_inches='tight',
+    )
+    plt.close()
+
+    # score distribution across the most used benchmarks
+    benchmark_top_scores = execute_query(
+        con,
+        f"""
+        SELECT 
+            er.source_data.dataset_name AS benchmark,
+            er.score_details.score::DOUBLE AS score
+        FROM {schema_table},
+        LATERAL UNNEST(evaluation_results) AS t(er)
+        WHERE er.source_data.dataset_name IN ('BBH', 'Artificial Analysis LLM API')
+        ORDER BY benchmark, score DESC;
+        """,
+        df=True,
+    )
+
+    fig, axes = plt.subplots(2, 1, figsize=(10, 8), sharex=False)
+    benchmarks = ['BBH', 'Artificial Analysis LLM API']
+    colors = sns.color_palette('pastel', 2, as_cmap=True)
+    for ax, benchmark, color in zip(axes, benchmarks, colors):
+        data = benchmark_top_scores[
+            benchmark_top_scores['benchmark'] == benchmark
+        ]['score']
+        sns.kdeplot(
+            data=data, fill=True, alpha=0.5, color=color, ax=ax, linewidth=1.5
+        )
+        ax.axvline(
+            data.median(),
+            color=color,
+            linestyle='--',
+            linewidth=1.2,
+            label=f'Median: {data.median():.3f}',
+        )
+        ax.axvline(
+            data.mean(),
+            color='gray',
+            linestyle=':',
+            linewidth=1.2,
+            label=f'Mean: {data.mean():.3f}',
+        )
+        ax.set_title(
+            f'{benchmark} Score Distribution (n={len(data):,})', fontsize=12
+        )
+        ax.set_xlabel('Score', fontsize=11)
+        ax.set_ylabel('Density', fontsize=11)
+        ax.legend(fontsize=9, frameon=False)
+        sns.despine(ax=ax)
+
+    plt.tight_layout()
+    plt.savefig(
+        output_path / 'score_distribution_bbh_art_llm_api.pdf',
+        dpi=300,
+        bbox_inches='tight',
+    )
+    plt.close()
+
+    # first party vs third party evaluator breakdown — who is doing the evaluating
+    evaluation_relationships = execute_query(
+        con,
+        f"""
+        SELECT
+            source_metadata.evaluator_relationship,
+            COUNT(*) AS eval_runs
+        FROM {schema_table},
+        LATERAL UNNEST(evaluation_results) AS t(er)
+        GROUP BY 1
+        """,
+        df=True,
+    )
+
+    fig, ax = plt.subplots(figsize=(7, 7))
+    counts = evaluation_relationships.set_index('evaluator_relationship')[
+        'eval_runs'
+    ]
+    ax.pie(
+        counts,
+        labels=counts.index,
+        autopct='%1.1f%%',
+        colors=sns.color_palette('viridis', len(counts)),
+        startangle=90,
+        wedgeprops={'edgecolor': 'white', 'linewidth': 1.5},
+    )
+    ax.set_title(
+        'Evaluator Relationship Breakdown\n(First Party vs Third Party)',
+        fontsize=12,
+        pad=20,
+    )
+    plt.tight_layout()
+    plt.savefig(
+        output_path / 'evaluator_relationship_pie.pdf',
+        dpi=300,
+        bbox_inches='tight',
+    )
+    plt.close()
+
+    org_runs = execute_query(
+        con,
+        f"""
+        SELECT 
+            CASE 
+                WHEN LENGTH(TRIM(source_metadata.source_organization_name)) > 40 
+                THEN LEFT(TRIM(source_metadata.source_organization_name), 40) || '...'
+                ELSE TRIM(source_metadata.source_organization_name)
+            END AS org,
+            COUNT(*) AS n_runs
+        FROM {schema_table},
+        LATERAL UNNEST(evaluation_results) AS t(er)
+        WHERE source_metadata.source_organization_name IS NOT NULL
+        GROUP BY 1
+        ORDER BY 2 DESC;
+        """,
+        df=True,
+    )
+
+    fig, ax = plt.subplots(figsize=(10, 8))
+    sns.barplot(data=org_runs, x='n_runs', y='org', palette='viridis', ax=ax)
+    for container in ax.containers:
+        ax.bar_label(container, fmt='%d', padding=4, fontsize=9)
+    ax.set_xlabel('Number of Evaluation Runs', fontsize=11)
+    ax.set_ylabel('Organization', fontsize=11)
+    ax.set_title(
+        f'Evaluation Runs by Source Organization (n={len(org_runs)} orgs)',
+        fontsize=12,
+    )
+    sns.despine()
+    plt.tight_layout()
+    plt.savefig(
+        output_path / 'source_organizations.pdf', dpi=300, bbox_inches='tight'
+    )
+    plt.close()
+
+    benchmark_evaluation_counts = execute_query(
+        con,
+        f"""
+        SELECT 
+            er.source_data.dataset_name AS benchmark,
+            COUNT(*) AS n_result_rows,
+        FROM {schema_table},
+        LATERAL UNNEST(evaluation_results) AS t(er)
+        WHERE er.source_data.dataset_name IS NOT NULL
+        GROUP BY benchmark
+        ORDER BY n_result_rows DESC
+        LIMIT {top_n};
+        """,
+        df=True,
+    )
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    sns.barplot(
+        data=benchmark_evaluation_counts,
+        x='n_result_rows',
+        y='benchmark',
+        palette='pastel',
+        ax=ax,
+    )
+    for container in ax.containers:
+        ax.bar_label(container, fmt='%d', padding=4, fontsize=9)
+
+    ax.set_xlabel('Number of Evaluations', fontsize=11)
+    ax.set_ylabel('Benchmarks', fontsize=11)
+    ax.set_title(f'Top {top_n} Benchmarks Evaluations Count', fontsize=12)
+    sns.despine()
+    plt.tight_layout()
+    plt.savefig(
+        output_path / f'top{top_n}_benchmarks_evaluation_count.pdf',
+        dpi=300,
+        bbox_inches='tight',
+    )
+    plt.close()
+
+    model_evaluation_counts = execute_query(
+        con,
+        f"""
+        SELECT 
+            model_info.id AS model,
+            COUNT(*) AS n_result_rows,
+            COUNT(DISTINCT evaluation_id) AS n_evaluation_runs,
+            COUNT(DISTINCT eval_library.name) AS n_harnesses,
+            COUNT(DISTINCT TRIM(source_metadata.source_organization_name)) AS n_orgs
+        FROM {schema_table},
+        LATERAL UNNEST(evaluation_results) AS t(er)
+        WHERE model_info.id IS NOT NULL
+        GROUP BY model
+        ORDER BY n_result_rows DESC
+        LIMIT {top_n};
+        """,
+        df=True,
+    )
+    model_evaluation_counts.to_csv(
+        f'{csv_path}/model_per_benchmark.csv',
+        encoding='utf-8',
+        index=False,
+        header=True,
+    )
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    sns.barplot(
+        data=model_evaluation_counts,
+        x='n_result_rows',
+        y='model',
+        palette='pastel',
+        color='#0072b2',
+        ax=ax,
+    )
+    for container in ax.containers:
+        ax.bar_label(container, fmt='%d', padding=4, fontsize=9)
+
+    ax.set_xlabel('Number of Benchmarks', fontsize=11)
+    ax.set_ylabel('Model', fontsize=11)
+    ax.set_title(f'Top {top_n} Models Evaluation Count', fontsize=12)
+    sns.despine()
+    plt.tight_layout()
+    plt.savefig(
+        output_path / f'top{top_n}_models_evaluation_count.pdf',
+        dpi=300,
+        bbox_inches='tight',
+    )
+    plt.close()
+
+    # harness coverage grouped bar
+    harness_df = execute_query(
+        con,
+        f"""
+        SELECT
+            eval_library.name AS framework,
+            COUNT(DISTINCT evaluation_id) AS n_evaluation_runs,
+            COUNT(model_info.id) AS n_models,
+            COUNT(DISTINCT er.source_data.dataset_name) AS n_benchmarks,
+            COUNT(*) AS n_runs,
+        FROM {schema_table}, 
+        LATERAL UNNEST(evaluation_results) AS t(er)
+        GROUP BY 1 ORDER BY n_runs DESC;
+    """,
+        df=True,
+    )
+
+    fig, ax = plt.subplots(figsize=(12, 6))
+    x = range(len(harness_df))
+    width = 0.25
+    colors = sns.color_palette('pastel', 3)
+    ax.bar(
+        [i - width for i in x],
+        harness_df['n_runs'],
+        width,
+        label='Total Runs',
+        color=colors[0],
+    )
+    ax.bar(
+        [i for i in x],
+        harness_df['n_models'],
+        width,
+        label='Models',
+        color=colors[1],
+    )
+    ax.bar(
+        [i + width for i in x],
+        harness_df['n_evaluation_runs'],
+        width,
+        label='Evaluations',
+        color=colors[2],
+    )
+    ax.set_xticks(list(x))
+    ax.set_xticklabels(
+        harness_df['framework'], rotation=35, ha='right', fontsize=9
+    )
+    ax.set_yscale('log')
+    ax.set_ylabel('Count (log scale)', fontsize=11)
+    ax.set_title(
+        'Harness Coverage: Total Runs, Models, Evaluations', fontsize=12
+    )
+    ax.legend()
+    sns.despine()
+    plt.tight_layout()
+    plt.savefig(
+        output_path / 'harness_coverage.pdf', dpi=300, bbox_inches='tight'
+    )
+    plt.close()
+
+    print(f'All visualisations saved to {output_path.resolve()}')
 
 
 def main():
@@ -192,12 +705,36 @@ def main():
     parser.add_argument(
         '--table', default='eee', help='Table name for database'
     )
+    parser.add_argument(
+        '--viz-dir',
+        default='data/outputs/viz',
+        help='Output directory for generated visualization files',
+    )
+    parser.add_argument(
+        '--csv-path',
+        default='data/outputs/tables',
+        help='Output directory for generated tables',
+    )
+    parser.add_argument(
+        '--top-n',
+        default=25,
+        type=int,
+        help='Top-N groups to include in visualization charts',
+    )
 
     args = parser.parse_args()
     if not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*', args.table):
         parser.error('--table must be a valid SQL identifier')
 
     table_name = args.table
+    csv_path = args.csv_path
+
+    os.makedirs(csv_path, exist_ok=True)
+    csv_path = Path(csv_path)
+
+    create_visualisations.outdir = args.viz_dir
+    create_visualisations.top_n = args.top_n
+
     schema_table = f'{table_name}_schema'
     instance_table = f'{table_name}_instances'
 
@@ -225,6 +762,7 @@ def main():
                 [schema_urls],
             )
             schema_loaded = True
+            print('Schema Table Successfully Loaded')
 
         if instance_urls:
             con.execute(
@@ -275,12 +813,14 @@ def main():
                     [url],
                 )
             instance_loaded = True
+            print('Instance Table Successfully Loaded')
 
         if not schema_loaded or not instance_loaded:
             print('Skipping combined analysis: one table was not loaded.')
             sys.exit(1)
 
-        analyze_data(con, schema_table, instance_table)
+        analyze_data(con, schema_table, instance_table, csv_path)
+        create_visualisations(con, schema_table, instance_table, csv_path)
 
 
 if __name__ == '__main__':
