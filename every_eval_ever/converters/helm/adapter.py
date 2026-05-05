@@ -485,10 +485,11 @@ class HELMAdapter(BaseEvaluationAdapter):
 
             instance_level_log_path, instance_level_rows_number = (
                 HELMInstanceLevelDataAdapter(
-                    detailed_results_id,
+                    evaluation_id,
                     Format.jsonl.value,
                     HashAlgorithm.sha256.value,
                     evaluation_dir,
+                    file_stem=detailed_results_id,
                 ).convert_instance_level_logs(
                     dataset_name,
                     model_info.id,

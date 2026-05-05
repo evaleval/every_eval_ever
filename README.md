@@ -199,6 +199,24 @@ uv run python -m every_eval_ever validate --format github data/
 
 Exit code is `0` if all files pass and `1` if any fail.
 
+### Canonical identity backfill + audit
+
+For legacy aggregate files missing canonical metric identity fields, you can backfill and then audit coverage:
+
+```sh
+# Dry-run canonical augmentation
+uv run python -m every_eval_ever augment-canonical-identity data/
+
+# Apply canonical augmentation in place (also updates companion *_samples.jsonl when present)
+uv run python -m every_eval_ever augment-canonical-identity data/ --write
+
+# Audit missing/malformed canonical identity fields
+uv run python -m every_eval_ever check-canonical-identity data/
+
+# CI mode (exit 1 if issues remain)
+uv run python -m every_eval_ever check-canonical-identity data/ --fail-on-issues
+```
+
 ## 🗂️ Data Structure
 
 Evaluation data is hosted on the [Hugging Face datastore](https://huggingface.co/datasets/evaleval/EEE_datastore). The folder structure is:

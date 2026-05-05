@@ -289,6 +289,83 @@ def build_parser() -> argparse.ArgumentParser:
         help='One or more JSON files or directories containing JSON files.',
     )
 
+    check_canonical_parser = subparsers.add_parser(
+        'check-canonical-identity',
+        help='Audit canonical metric/eval identity coverage',
+        description=(
+            'Audit aggregate JSON files for missing or malformed canonical '
+            'metric/result identity fields.'
+        ),
+    )
+    check_canonical_parser.add_argument(
+        'paths',
+        nargs='+',
+        help='One or more aggregate JSON files or directories to audit.',
+    )
+    check_canonical_parser.add_argument(
+        '--format',
+        choices=['text', 'json'],
+        default='text',
+        dest='canonical_output_format',
+        help='Output format.',
+    )
+    check_canonical_parser.add_argument(
+        '--top',
+        type=int,
+        default=20,
+        help='How many benchmarks to show per missing field in the report.',
+    )
+    check_canonical_parser.add_argument(
+        '--fail-on-issues',
+        action='store_true',
+        help='Exit with status 1 if missing/malformed identity fields exist.',
+    )
+
+    augment_parser = subparsers.add_parser(
+        'augment-canonical-identity',
+        help='Backfill canonical metric/eval identity into datastore JSON',
+        description=(
+            'Backfill metric fields, evaluation_result_id values, and '
+            'metric-free evaluation_name values for known legacy '
+            'benchmark families in the datastore.'
+        ),
+    )
+    augment_parser.add_argument(
+        'paths',
+        nargs='+',
+        help='One or more aggregate JSON files or directories to augment.',
+    )
+    augment_parser.add_argument(
+        '--write',
+        action='store_true',
+        help='Write changes in place. Without this flag, run as a dry run.',
+    )
+    augment_parser.add_argument(
+        '--skip-samples',
+        action='store_true',
+        help='Do not update companion *_samples.jsonl files.',
+    )
+
+    schema_version_parser = subparsers.add_parser(
+        'upgrade-schema-version',
+        help='Normalize datastore schema_version fields to 0.2.2',
+        description=(
+            'Update aggregate JSON files to schema_version=0.2.2 and '
+            'instance JSONL rows to '
+            'schema_version=instance_level_eval_0.2.2.'
+        ),
+    )
+    schema_version_parser.add_argument(
+        'paths',
+        nargs='+',
+        help='One or more JSON/JSONL files or directories to normalize.',
+    )
+    schema_version_parser.add_argument(
+        '--write',
+        action='store_true',
+        help='Write changes in place. Without this flag, run as a dry run.',
+    )
+
     convert_parser = subparsers.add_parser(
         'convert',
         help='Convert source eval logs to every_eval_ever',
@@ -411,6 +488,44 @@ def main(argv: list[str] | None = None) -> int:
         )
 
         return check_duplicates_main(args.paths)
+
+    if args.command == 'check-canonical-identity':
+        from every_eval_ever.check_canonical_identity import (
+            main as check_canonical_identity_main,
+        )
+
+        forwarded_args = [
+            *args.paths,
+            '--format',
+            args.canonical_output_format,
+            '--top',
+            str(args.top),
+        ]
+        if args.fail_on_issues:
+            forwarded_args.append('--fail-on-issues')
+        return check_canonical_identity_main(forwarded_args)
+
+    if args.command == 'augment-canonical-identity':
+        from every_eval_ever.augment_canonical_identity import (
+            main as augment_canonical_identity_main,
+        )
+
+        forwarded_args = [*args.paths]
+        if args.write:
+            forwarded_args.append('--write')
+        if args.skip_samples:
+            forwarded_args.append('--skip-samples')
+        return augment_canonical_identity_main(forwarded_args)
+
+    if args.command == 'upgrade-schema-version':
+        from every_eval_ever.upgrade_schema_version import (
+            main as upgrade_schema_version_main,
+        )
+
+        forwarded_args = [*args.paths]
+        if args.write:
+            forwarded_args.append('--write')
+        return upgrade_schema_version_main(forwarded_args)
 
     if args.command == 'convert':
         if args.source == 'lm_eval':
