@@ -183,30 +183,30 @@ def analyze_data(con, schema_table, instance_table, csv_path) -> None:
     else:
         print('  no params_billions data found')
 
-    benchmark_popularity = execute_query(
+    eval_harness_df = execute_query(
         con,
         f"""
-        SELECT
-            er.source_data.dataset_name AS benchmark,
-            COUNT(DISTINCT model_info.id) AS n_models,
-        FROM {schema_table},
-        LATERAL UNNEST(evaluation_results) AS t(er)
-        WHERE er.source_data.dataset_name IS NOT NULL
+        SELECT 
+            CASE 
+                WHEN eval_library.name IS NULL THEN 'no harness'
+                WHEN eval_library.name IN ('unknown', 'custom') THEN 'unknown/custom'
+                ELSE 'named harness'
+            END AS harness_status,
+            COUNT(DISTINCT evaluation_id) AS n_evaluation_runs,
+            ROUND(100.0 * COUNT(DISTINCT evaluation_id) / SUM(COUNT(DISTINCT evaluation_id)) OVER (), 1) AS pct
+        FROM {schema_table}
         GROUP BY 1
-        ORDER BY 2;
+        ORDER BY n_evaluation_runs DESC;
         """,
         df=True,
     )
-    section('unique benchmarks in dataset')
-    for bench in benchmark_popularity:
-        print(f' - {bench}')
-
-    benchmark_popularity.to_csv(
-        f'{csv_path}/benchmark_popularity.csv',
+    eval_harness_df.to_csv(
+        f'{csv_path}/eval_harness_df.csv',
         encoding='utf-8',
         index=False,
         header=True,
     )
+    section(f'eval harness percentage saved to {csv_path}')
 
     count_inference_platform = execute_query(
         con,
@@ -228,7 +228,6 @@ def analyze_data(con, schema_table, instance_table, csv_path) -> None:
         index=False,
         header=True,
     )
-
     section(f'unique inference platform tables saved to {csv_path}')
 
     unique_orgs = execute_query(
@@ -314,15 +313,46 @@ def analyze_data(con, schema_table, instance_table, csv_path) -> None:
     )
     section(f'model and benchmark counts per harness saved to {csv_path}')
 
+    benchmark_popularity = execute_query(
+        con,
+        f"""
+        SELECT
+            er.source_data.dataset_name AS benchmark,
+            COUNT(*) AS evaluation_runs
+        FROM {schema_table},
+        LATERAL UNNEST(evaluation_results) AS t(er)
+        WHERE er.source_data.dataset_name IS NOT NULL
+        GROUP BY 1
+        ORDER BY 2 DESC;
+        """,
+        df=True,
+    )
+
+    benchmark_popularity.to_csv(
+        f'{csv_path}/benchmark_popularity.csv',
+        encoding='utf-8',
+        index=False,
+        header=True,
+    )
+    section(f'saving becnhmark per eval run to {csv_path}')
+
     print(f'\n{SEP}\n')
 
 
 def create_visualisations(con, schema_table, instance_table, csv_path) -> None:
+
     try:
         import matplotlib.pyplot as plt
         import seaborn as sns
+        from matplotlib.colors import LinearSegmentedColormap
     except ModuleNotFoundError:
         raise ImportError('seaborn or matplotlib not installed')
+
+    # EvalEval color constants
+    EVALEVAL_DARK = '#2C2E36'
+    EVALEVAL_BLUE_DARK = '#5BACD1'
+    EVALEVAL_BLUE = '#92D4F3'
+    PLOT_ALPHA = 0.68
 
     os.makedirs(create_visualisations.outdir, exist_ok=True)
     output_path = Path(create_visualisations.outdir)
@@ -345,13 +375,19 @@ def create_visualisations(con, schema_table, instance_table, csv_path) -> None:
 
     fig, axes = plt.subplots(2, 1, figsize=(10, 8), sharex=False)
     benchmarks = ['GPQA', 'IFEval']
-    colors = sns.color_palette('pastel', 2, as_cmap=True)
+    # Use EvalEval palette for the two benchmarks
+    colors = [EVALEVAL_BLUE, EVALEVAL_BLUE_DARK]
     for ax, benchmark, color in zip(axes, benchmarks, colors):
         data = benchmark_top_scores[
             benchmark_top_scores['benchmark'] == benchmark
         ]['score']
         sns.kdeplot(
-            data=data, fill=True, alpha=0.5, color=color, ax=ax, linewidth=1.5
+            data=data,
+            fill=True,
+            alpha=PLOT_ALPHA,
+            color=color,
+            ax=ax,
+            linewidth=1.5,
         )
         ax.axvline(
             data.median(),
@@ -362,20 +398,16 @@ def create_visualisations(con, schema_table, instance_table, csv_path) -> None:
         )
         ax.axvline(
             data.mean(),
-            color='gray',
+            color=EVALEVAL_DARK,
             linestyle=':',
             linewidth=1.2,
             label=f'Mean: {data.mean():.3f}',
         )
-        ax.set_title(
-            f'{benchmark} Score Distribution (n={len(data):,})', fontsize=12
-        )
+        ax.legend(fontsize=9, frameon=False)
         ax.set_xlabel('Score', fontsize=11)
         ax.set_ylabel('Density', fontsize=11)
-        ax.legend(fontsize=9, frameon=False)
         sns.despine(ax=ax)
 
-    # plt.suptitle('Score Distributions: GPQA & IFEval', fontsize=13, y=1.02)
     plt.tight_layout()
     plt.savefig(
         output_path / 'score_distribution_gpqa_ifeval.pdf',
