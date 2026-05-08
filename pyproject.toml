@@ -31,9 +31,16 @@ helm = [
     "crfm-helm>=0.5.12",
     "typer>=0.12,<1.0",
 ]
+# Optional codecs for transparent compression of EEE result files
+# (see ``every_eval_ever.io``). gzip, bzip2, and lzma/xz are stdlib;
+# zstd and lz4 each need a third-party package.
+zst = ["zstandard>=0.22"]
+lz4 = ["lz4>=4"]
 all = [
     "every-eval-ever[inspect]",
     "every-eval-ever[helm]",
+    "every-eval-ever[zst]",
+    "every-eval-ever[lz4]",
 ]
 
 [project.scripts]

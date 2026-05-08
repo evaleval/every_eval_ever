@@ -177,6 +177,44 @@ uv run python -m every_eval_ever validate file1.json file2_samples.jsonl data/
 
 File type is determined by extension: `.json` validates against `EvaluationLog`, `.jsonl` validates each line against `InstanceLevelEvaluationLog`.
 
+#### Compressed files
+
+Validation, discovery, and the converter writers all transparently
+support compressed result files alongside the plain forms:
+
+```
+<uuid>.json{,.gz,.zst,.bz2,.xz,.lz4}
+<uuid>_samples.jsonl{,.gz,.zst,.bz2,.xz,.lz4}
+```
+
+Codecs match what the [HuggingFace Hub natively decompresses](https://huggingface.co/docs/hub/en/datasets-adding#file-formats).
+The schema is unchanged; compression is purely a transport / storage
+concern. A given `(folder, uuid, kind)` may have **at most one
+physical variant** — the validator emits a `duplicate_variant` error
+if both `abc.json` and `abc.json.gz` are committed in the same folder.
+
+`gzip`, `bzip2`, and `lzma/xz` use the standard library. `zstd` and
+`lz4` are optional extras; install with `pip install 'every-eval-ever[zst]'`
+or `[lz4]` (or `[all]` to pull in everything).
+
+To **write** compressed output during conversion, pass one of the
+new flags to any `convert` subcommand:
+
+```sh
+# Default codec for both aggregate and per-instance files
+uv run python -m every_eval_ever convert helm \
+    --log_path runs/ --output_dir data/ \
+    --compress gz
+
+# Only compress per-instance samples (recommended for public submissions —
+# aggregate JSON stays browsable on the HF web UI)
+uv run python -m every_eval_ever convert helm \
+    --log_path runs/ --output_dir data/ \
+    --compress-samples gz
+```
+
+Defaults remain uncompressed for full backwards compatibility.
+
 #### Output formats
 
 ```sh
