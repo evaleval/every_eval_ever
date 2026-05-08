@@ -489,6 +489,7 @@ class HELMAdapter(BaseEvaluationAdapter):
                     Format.jsonl.value,
                     HashAlgorithm.sha256.value,
                     evaluation_dir,
+                    compression=metadata_args.get('samples_compression', 'none'),
                 ).convert_instance_level_logs(
                     dataset_name,
                     model_info.id,

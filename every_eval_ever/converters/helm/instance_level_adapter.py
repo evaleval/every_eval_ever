@@ -2,6 +2,8 @@ import json
 from pathlib import Path
 from typing import Any, List, Tuple
 
+from every_eval_ever import io as eee_io
+
 _HELM_IMPORT_ERROR: Exception | None = None
 try:
     from helm.benchmark.adaptation.scenario_state import RequestState
@@ -42,20 +44,24 @@ class HELMInstanceLevelDataAdapter:
         format: str,
         hash_algorithm: str,
         evaluation_dir: str,
+        compression: str = eee_io.COMPRESSION_NONE,
     ):
         _require_helm_dependencies()
         self.evaluation_id = evaulation_id
         self.format = format
         self.hash_algorithm = hash_algorithm
         self.evaluation_dir = evaluation_dir
-        self.path = f'{evaluation_dir}/{evaulation_id}.{format}'
+        self.compression = compression
+        # On-disk path includes the codec suffix when compression is set.
+        base_path = Path(evaluation_dir) / f'{evaulation_id}.{format}'
+        self.path = str(eee_io.add_compression_suffix(base_path, compression))
 
     def _save_json(self, items: List[InstanceLevelEvaluationLog]):
         eval_dir_path = Path(self.evaluation_dir)
         eval_dir_path.mkdir(parents=True, exist_ok=True)
         path = Path(self.path)
 
-        with path.open('w', encoding='utf-8') as f:
+        with eee_io.open_eee_text(path, 'w') as f:
             for item in items:
                 json_line = json.dumps(
                     item.model_dump(mode='json'), ensure_ascii=False

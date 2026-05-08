@@ -63,7 +63,7 @@ def test_convert_inspect_file_mode_reuses_generated_uuid_for_aggregate_file(
 
     captured_eval_uuids: list[str | None] = []
 
-    def fake_write_log(_log, _base_output, eval_uuid=None):
+    def fake_write_log(_log, _base_output, eval_uuid=None, compression="none"):
         captured_eval_uuids.append(eval_uuid)
         return Path('/tmp/fake_aggregate.json')
 
@@ -113,7 +113,7 @@ def test_convert_inspect_directory_mode_reuses_generated_uuids_for_aggregate_fil
 
     captured_eval_uuids: list[str | None] = []
 
-    def fake_write_log(_log, _base_output, eval_uuid=None):
+    def fake_write_log(_log, _base_output, eval_uuid=None, compression="none"):
         captured_eval_uuids.append(eval_uuid)
         return Path('/tmp/fake_aggregate.json')
 
@@ -160,7 +160,7 @@ def test_convert_helm_single_run_reuses_generated_uuid_for_aggregate_file(
 
     captured_eval_uuids: list[str | None] = []
 
-    def fake_write_log(_log, _base_output, eval_uuid=None):
+    def fake_write_log(_log, _base_output, eval_uuid=None, compression="none"):
         captured_eval_uuids.append(eval_uuid)
         return Path('/tmp/fake_aggregate.json')
 
@@ -208,7 +208,7 @@ def test_convert_helm_directory_mode_reuses_generated_uuids_for_aggregate_file(
 
     captured_eval_uuids: list[str | None] = []
 
-    def fake_write_log(_log, _base_output, eval_uuid=None):
+    def fake_write_log(_log, _base_output, eval_uuid=None, compression="none"):
         captured_eval_uuids.append(eval_uuid)
         return Path('/tmp/fake_aggregate.json')
 
