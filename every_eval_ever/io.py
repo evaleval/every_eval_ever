@@ -79,16 +79,17 @@ _SUFFIX_BY_COMPRESSION: dict[str, str] = {
     name: suf for suf, name in _COMPRESSION_BY_SUFFIX.items()
 }
 
-# Canonical kind -> base suffix (the part *before* any compression suffix).
-_BASE_SUFFIX_BY_KIND: dict[str, str] = {
-    'aggregate': '.json',
-    'samples': '_samples.jsonl',
+# Canonical filename suffixes for each kind. The kind detector matches on
+# the *first* listed suffix that ends the filename (after stripping any
+# compression suffix). The ordering matters: ``.jsonl`` must be checked
+# before ``.json`` because ``.jsonl`` does not end in ``.json`` — but for
+# kinds that share a final extension (none currently do) this would matter.
+_KIND_SUFFIXES: dict[str, tuple[str, ...]] = {
+    'samples': ('_samples.jsonl', '.jsonl'),
+    'aggregate': ('.json',),
 }
 
-# Order matters: 'samples' must be checked before 'aggregate' because
-# ``_samples.jsonl`` ends in ``.jsonl`` not ``.json`` (different base suffix
-# overall) but the kind detector should not be confused by future shape
-# changes.
+# Order in which kinds are tried by the detector.
 _KIND_ORDER: tuple[str, ...] = ('samples', 'aggregate')
 
 
@@ -118,28 +119,37 @@ def _strip_compression_suffix(name: str) -> str:
 def is_eee_result(path: Path | str) -> str | None:
     """Classify a path as ``'aggregate'``, ``'samples'``, or ``None``.
 
-    Recognizes both plain and compressed forms. Returns ``None`` for any
-    path that does not match an EEE result filename convention.
+    Recognizes both plain and compressed forms. Lenient about the bare
+    ``.jsonl`` extension to keep parity with existing converter outputs
+    that don't always include the ``_samples`` prefix (lm-eval emits
+    ``samples_<task>_<datetime>.jsonl`` when no UUID is supplied).
+    Returns ``None`` for any path that does not match an EEE result
+    filename convention.
     """
     name = _strip_compression_suffix(Path(path).name)
     for kind in _KIND_ORDER:
-        if name.endswith(_BASE_SUFFIX_BY_KIND[kind]):
-            return kind
+        for suffix in _KIND_SUFFIXES[kind]:
+            if name.endswith(suffix):
+                return kind
     return None
 
 
 def eee_uuid_stem(path: Path | str) -> str | None:
     """Return the bare UUID portion of an EEE result filename, or ``None``.
 
-    Strips both the compression suffix (if any) and the kind-specific base
-    suffix. ``abc_samples.jsonl.gz`` and ``abc.json.zst`` both yield
-    ``'abc'``.
+    Strips the compression suffix (if any) and the kind-specific suffix.
+    For ``abc_samples.jsonl`` returns ``'abc'``; for ``samples_task.jsonl``
+    (which lacks the canonical ``_samples`` prefix) returns
+    ``'samples_task'``. The duplicate-variant rule keys on this stem, so
+    files that share a stem and a kind across compressed/uncompressed
+    variants will be flagged as collisions regardless of which suffix
+    convention is in use.
     """
     name = _strip_compression_suffix(Path(path).name)
     for kind in _KIND_ORDER:
-        base = _BASE_SUFFIX_BY_KIND[kind]
-        if name.endswith(base):
-            return name[: -len(base)]
+        for suffix in _KIND_SUFFIXES[kind]:
+            if name.endswith(suffix):
+                return name[: -len(suffix)]
     return None
 
 

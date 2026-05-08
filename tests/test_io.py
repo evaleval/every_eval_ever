@@ -30,6 +30,11 @@ from every_eval_ever import io as eee_io
         ('abc_samples.jsonl.bz2', 'samples'),
         ('abc_samples.jsonl.xz', 'samples'),
         ('abc_samples.jsonl.lz4', 'samples'),
+        # Lenient: bare *.jsonl (no _samples prefix) still recognized
+        # as samples, since lm-eval and other converters produce these.
+        ('samples_mmlu_2025-01-01.jsonl', 'samples'),
+        ('whatever.jsonl', 'samples'),
+        ('whatever.jsonl.gz', 'samples'),
         ('abc.txt', None),
         ('abc.parquet', None),
         ('manifest.json', 'aggregate'),  # any *.json is aggregate by shape
@@ -49,6 +54,9 @@ def test_is_eee_result(name: str, expected: str | None) -> None:
         ('a-b-c.json.zst', 'a-b-c'),
         ('abc_samples.jsonl', 'abc'),
         ('abc_samples.jsonl.gz', 'abc'),
+        # Bare .jsonl: stem is the whole pre-extension filename.
+        ('samples_mmlu_2025.jsonl', 'samples_mmlu_2025'),
+        ('whatever.jsonl.bz2', 'whatever'),
         ('abc.txt', None),
         ('abc.json.zip', None),
     ],
