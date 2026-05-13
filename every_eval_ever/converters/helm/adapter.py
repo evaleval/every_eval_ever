@@ -3,7 +3,7 @@ import json
 import os
 import uuid
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union, cast
 
 _HELM_IMPORT_ERROR: Exception | None = None
 try:
@@ -29,14 +29,18 @@ except (
     Exception
 ) as ex:  # pragma: no cover - exercised only when optional deps missing
     _HELM_IMPORT_ERROR = ex
-    DaciteConfig = from_dict = None  # type: ignore[assignment]
-    PerInstanceStats = AdapterSpec = RequestState = ScenarioState = Stat = (
-        RunSpec
-    ) = Any  # type: ignore[assignment]
-    get_model_deployment = register_builtin_configs_from_helm_package = (
-        from_json
-    ) = None  # type: ignore[assignment]
-    ModelDeploymentNotFoundError = Exception  # type: ignore[assignment]
+    DaciteConfig = cast(Any, None)
+    from_dict = cast(Any, None)
+    PerInstanceStats = cast(Any, None)
+    AdapterSpec = cast(Any, None)
+    RequestState = cast(Any, None)
+    ScenarioState = cast(Any, None)
+    Stat = cast(Any, None)
+    RunSpec = cast(Any, None)
+    get_model_deployment = cast(Any, None)
+    register_builtin_configs_from_helm_package = cast(Any, None)
+    from_json = cast(Any, None)
+    ModelDeploymentNotFoundError = cast(Any, Exception)
 
 from every_eval_ever.converters import SCHEMA_VERSION
 from every_eval_ever.converters.common.adapter import (
@@ -108,6 +112,7 @@ class HELMAdapter(BaseEvaluationAdapter):
         return AdapterMetadata(
             name='HELMAdapter',
             version='0.0.1',
+            supported_library_versions=['helm'],
             description='HELM adapter with dynamic metrics and unified JSONL instance logging',
         )
 
@@ -131,7 +136,8 @@ class HELMAdapter(BaseEvaluationAdapter):
         if not model_id:
             return ('unknown', 'unknown')
         if '/' in model_id:
-            return tuple(model_id.split('/', 1))
+            developer, name = model_id.split('/', 1)
+            return (developer, name)
         return ('unknown', model_id)
 
     def _extract_model_info(self, adapter_spec: AdapterSpec) -> ModelInfo:
@@ -213,13 +219,18 @@ class HELMAdapter(BaseEvaluationAdapter):
         }
 
     def transform_from_directory(
-        self, dir_path: str, output_path: str, metadata_args: Dict[str, Any]
-    ):
+        self,
+        dir_path: str | Path,
+        metadata_args: Dict[str, Any] | None = None,
+        output_path: str | None = None,
+    ) -> List[EvaluationLog]:
         """
         Transforms HELM results into one aggregate EvaluationLog and one
         instance-level JSONL file containing all samples.
         """
         aggregate_logs: List[EvaluationLog] = []
+        metadata_args = metadata_args or {}
+        dir_path = str(dir_path)
 
         file_uuids = metadata_args.get('file_uuids')
 
@@ -261,7 +272,6 @@ class HELMAdapter(BaseEvaluationAdapter):
                     agg = self._transform_single(data, per_log_metadata_args)
                     aggregate_logs.append(agg)
                     converted_idx += 1
-
 
         return aggregate_logs
 

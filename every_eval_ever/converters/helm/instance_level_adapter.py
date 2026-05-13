@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Any, List, Tuple
+from typing import Any, List, Tuple, cast
 
 _HELM_IMPORT_ERROR: Exception | None = None
 try:
@@ -9,7 +9,7 @@ except (
     Exception
 ) as ex:  # pragma: no cover - exercised only when optional deps missing
     _HELM_IMPORT_ERROR = ex
-    RequestState = Any  # type: ignore[assignment]
+    RequestState = cast(Any, None)
 
 
 def _require_helm_dependencies() -> None:
@@ -335,9 +335,12 @@ class HELMInstanceLevelDataAdapter:
                         ),
                         token_usage=token_usage,
                         performance=Performance(
-                            generation_time_ms=state.result.request_time * 1000
-                            if state.result.request_time
-                            else None
+                            generation_time_ms=(
+                                state.result.request_time * 1000
+                                if state.result
+                                and state.result.request_time
+                                else None
+                            )
                         ),
                     )
                 )
