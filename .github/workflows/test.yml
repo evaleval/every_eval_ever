@@ -17,19 +17,11 @@ jobs:
           - deps: core
             resolution: locked
             sync: uv sync --locked
-            pytest_args: >-
-              tests
-              --ignore-glob=tests/test_inspect*.py
-              --ignore-glob=tests/test_helm*.py
-              -v
+            pytest_args: tests -v
           - deps: core
             resolution: loose
             sync: uv sync --upgrade
-            pytest_args: >-
-              tests
-              --ignore-glob=tests/test_inspect*.py
-              --ignore-glob=tests/test_helm*.py
-              -v
+            pytest_args: tests -v
           - deps: full
             resolution: locked
             sync: uv sync --locked --all-extras
