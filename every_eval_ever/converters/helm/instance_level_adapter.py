@@ -41,13 +41,43 @@ def _score_from_stat(stat) -> float | None:
         count = getattr(stat, 'count', None)
         total = getattr(stat, 'sum', None)
         if count:
-            value = total / count
+            try:
+                value = total / count
+            except (TypeError, ValueError, ZeroDivisionError):
+                return None
     if value is None:
         return None
     try:
         return float(value)
     except (TypeError, ValueError):
         return None
+
+
+def _stat_name_part(value) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return value or None
+    if isinstance(value, dict):
+        return value.get('name') or str(value)
+    return getattr(value, 'name', None) or str(value)
+
+
+def _evaluation_result_id(
+    metric_name: str | None,
+    split=None,
+    perturbation=None,
+) -> str | None:
+    if metric_name is None:
+        return None
+    parts = [metric_name]
+    split_part = _stat_name_part(split)
+    perturbation_part = _stat_name_part(perturbation)
+    if split_part:
+        parts.append(split_part)
+    if perturbation_part:
+        parts.append(perturbation_part)
+    return ':'.join(parts)
 
 
 # Metric names whose per-instance score is a correctness signal in [0, 1]
@@ -208,6 +238,7 @@ class HELMInstanceLevelDataAdapter:
             for stat in metric_stats:
                 if stat is None:
                     metric_name = None
+                    evaluation_result_id = None
                     score = fallback_score
                     # Fallback path: ``score`` here is an exact-match
                     # proxy from completion-vs-reference matching, so
@@ -215,7 +246,13 @@ class HELMInstanceLevelDataAdapter:
                     # as the legacy single-row behavior.
                     is_correct = score > 0
                 else:
-                    metric_name = getattr(getattr(stat, 'name', None), 'name', None)
+                    stat_name = getattr(stat, 'name', None)
+                    metric_name = getattr(stat_name, 'name', None)
+                    evaluation_result_id = _evaluation_result_id(
+                        metric_name,
+                        getattr(stat_name, 'split', None),
+                        getattr(stat_name, 'perturbation', None),
+                    )
                     score = _score_from_stat(stat)
                     if score is None:
                         continue
@@ -226,7 +263,7 @@ class HELMInstanceLevelDataAdapter:
                         evaluation_id=self.evaluation_id,
                         model_id=model_id,
                         evaluation_name=evaluation_name,
-                        evaluation_result_id=metric_name,
+                        evaluation_result_id=evaluation_result_id,
                         sample_id=str(state.instance.id),
                         sample_hash=sha256_string(
                             state.request.prompt + (correct_refs[0] if correct_refs else '')

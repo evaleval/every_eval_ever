@@ -47,6 +47,8 @@ from every_eval_ever.converters.common.adapter import (
 from every_eval_ever.converters.common.utils import sha256_file
 from every_eval_ever.converters.helm.instance_level_adapter import (
     HELMInstanceLevelDataAdapter,
+    _evaluation_result_id,
+    _score_from_stat,
 )
 from every_eval_ever.converters.helm.utils import extract_reasoning
 from every_eval_ever.eval_types import (
@@ -402,80 +404,95 @@ class HELMAdapter(BaseEvaluationAdapter):
 
         evaluation_id = f'{source_data.dataset_name}/{model_info.id.replace("/", "_")}/{evaluation_timestamp}'
 
-        metric_names = self._extract_metric_names(run_spec)
-
+        # Build aggregate results from the numeric HELM stats themselves, not
+        # only from run_spec.metric_specs. The instance-level converter emits
+        # one row per numeric per-instance stat, so aggregate IDs must cover
+        # the same stat namespace for detailed rows to be joinable.
         evaluation_results: List[EvaluationResult] = []
+        seen_evaluation_result_ids: set[str] = set()
 
-        for metric_name in set(metric_names):
+        for stat in stats_raw:
+            metric_name = getattr(getattr(stat, 'name', None), 'name', None)
+            score = _score_from_stat(stat)
+            if metric_name is None or score is None:
+                continue
+
+            evaluation_result_id = _evaluation_result_id(
+                metric_name,
+                getattr(stat.name, 'split', None),
+                getattr(stat.name, 'perturbation', None),
+            )
+            if evaluation_result_id is None:
+                continue
+            if evaluation_result_id in seen_evaluation_result_ids:
+                continue
+            seen_evaluation_result_ids.add(evaluation_result_id)
+
             metric_config = MetricConfig(
                 evaluation_description=metric_name,
                 lower_is_better=False,  # TODO schema.json check
                 score_type=ScoreType.continuous,
                 min_score=0,
-                max_score=1,
+                max_score=max(1.0, score),
             )
 
-            matching_stats = [
-                s
-                for s in stats_raw
-                if s.name.name == metric_name and not s.name.perturbation
-            ]
+            split = getattr(stat.name, 'split', None)
+            perturbation = getattr(stat.name, 'perturbation', None)
+            name_parts = [metric_name]
+            if split:
+                name_parts.append(str(split))
+            if perturbation:
+                name_parts.append(str(perturbation))
+            evaluation_name = (
+                f'{" ".join(name_parts)} on {source_data.dataset_name}'
+            )
 
-            for stat in matching_stats:
-                evaluation_name = (
-                    f'{metric_name} on {source_data.dataset_name}'
-                    if not stat.name.split
-                    else f'{metric_name} {stat.name.split} on {source_data.dataset_name}'
-                )
-
-                evaluation_results.append(
-                    EvaluationResult(
-                        evaluation_name=evaluation_name,
-                        source_data=source_data,
-                        evaluation_timestamp=evaluation_timestamp,
-                        metric_config=metric_config,
-                        score_details=ScoreDetails(
-                            score=stat.mean
-                            or (stat.sum / stat.count if stat.count else 0.0),
-                            uncertainty=Uncertainty(
-                                standard_deviation=stat.stddev,
-                                num_samples=adapter_spec.max_eval_instances
-                                or len(request_states),
-                            ),
-                            details={
-                                'count': str(stat.count),
-                                'split': str(stat.name.split)
-                                if stat.name.split
-                                else '',
-                                'perturbation': str(stat.name.perturbation)
-                                if stat.name.perturbation
-                                else '',
-                            },
+            evaluation_results.append(
+                EvaluationResult(
+                    evaluation_result_id=evaluation_result_id,
+                    evaluation_name=evaluation_name,
+                    source_data=source_data,
+                    evaluation_timestamp=evaluation_timestamp,
+                    metric_config=metric_config,
+                    score_details=ScoreDetails(
+                        score=score,
+                        uncertainty=Uncertainty(
+                            standard_deviation=getattr(stat, 'stddev', None),
+                            num_samples=adapter_spec.max_eval_instances
+                            or len(request_states),
                         ),
-                        generation_config=GenerationConfig(
-                            generation_args=self._extract_generation_args(
-                                adapter_spec=adapter_spec,
-                                request_state=request_states[0],
-                            ),
-                            additional_details={
-                                'stop_sequences': json.dumps(
-                                    request_states[0].request.stop_sequences
-                                )
-                                if request_states[0].request.stop_sequences
-                                else '[]',
-                                'presence_penalty': str(
-                                    request_states[0].request.presence_penalty
-                                ),
-                                'frequency_penalty': str(
-                                    request_states[0].request.frequency_penalty
-                                ),
-                                'num_completions': str(
-                                    request_states[0].request.num_completions
-                                ),
-                            },
+                        details={
+                            'count': str(getattr(stat, 'count', '')),
+                            'split': str(split) if split else '',
+                            'perturbation': str(perturbation)
+                            if perturbation
+                            else '',
+                        },
+                    ),
+                    generation_config=GenerationConfig(
+                        generation_args=self._extract_generation_args(
+                            adapter_spec=adapter_spec,
+                            request_state=request_states[0],
                         ),
-                    )
+                        additional_details={
+                            'stop_sequences': json.dumps(
+                                request_states[0].request.stop_sequences
+                            )
+                            if request_states[0].request.stop_sequences
+                            else '[]',
+                            'presence_penalty': str(
+                                request_states[0].request.presence_penalty
+                            ),
+                            'frequency_penalty': str(
+                                request_states[0].request.frequency_penalty
+                            ),
+                            'num_completions': str(
+                                request_states[0].request.num_completions
+                            ),
+                        },
+                    ),
                 )
+            )
 
         if request_states:
             parent_eval_output_dir = metadata_args.get('parent_eval_output_dir')
