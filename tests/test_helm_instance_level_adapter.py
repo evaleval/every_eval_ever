@@ -1,23 +1,33 @@
 import pytest
 
-pytest.importorskip(
-    'helm', reason='crfm-helm not installed; install with: uv sync --extra helm'
-)
-
 import json
 import tempfile
 from pathlib import Path
+from types import SimpleNamespace
 
 from every_eval_ever.converters.helm.adapter import HELMAdapter
 from every_eval_ever.converters.helm.instance_level_adapter import (
+    HELMInstanceLevelDataAdapter,
     _BINARY_CORRECTNESS_METRIC_NAMES,
     _is_correct_for_metric,
+    _score_from_stat,
 )
 from every_eval_ever.eval_types import EvaluatorRelationship
 from every_eval_ever.instance_level_types import (
     InstanceLevelEvaluationLog,
     InteractionType,
 )
+
+
+def _make_helm_adapter():
+    from every_eval_ever.converters.helm import adapter as helm_adapter_mod
+
+    if helm_adapter_mod._HELM_IMPORT_ERROR is not None:
+        pytest.skip(
+            'HELM converter dependencies are missing; install with: '
+            'uv sync --extra helm (or pip install every_eval_ever[helm])'
+        )
+    return HELMAdapter()
 
 
 def _load_instance_level_data(adapter, filepath, metadata_args):
@@ -57,7 +67,7 @@ def _by_sample_and_metric(
 
 
 def test_mmlu_instance_level():
-    adapter = HELMAdapter()
+    adapter = _make_helm_adapter()
 
     with tempfile.TemporaryDirectory() as tmpdir:
         metadata_args = {
@@ -117,7 +127,7 @@ def test_mmlu_instance_level():
 
 
 def test_hellaswag_instance_level():
-    adapter = HELMAdapter()
+    adapter = _make_helm_adapter()
 
     with tempfile.TemporaryDirectory() as tmpdir:
         metadata_args = {
@@ -161,7 +171,7 @@ def test_hellaswag_instance_level():
 
 
 def test_narrativeqa_instance_level():
-    adapter = HELMAdapter()
+    adapter = _make_helm_adapter()
 
     with tempfile.TemporaryDirectory() as tmpdir:
         metadata_args = {
@@ -220,7 +230,7 @@ def test_per_sample_per_metric_rows_are_emitted():
     (``training_co2_cost`` and ``training_energy_cost``) carry no value;
     we expect 25 rows for that sample.
     """
-    adapter = HELMAdapter()
+    adapter = _make_helm_adapter()
     with tempfile.TemporaryDirectory() as tmpdir:
         metadata_args = {
             'source_organization_name': 'TestOrg',
@@ -252,7 +262,7 @@ def test_is_correct_only_claimed_for_correctness_metrics():
     every row, which overclaimed correctness on these. The fix gates
     ``is_correct`` on a tight allowlist of correctness metric names.
     """
-    adapter = HELMAdapter()
+    adapter = _make_helm_adapter()
     with tempfile.TemporaryDirectory() as tmpdir:
         metadata_args = {
             'source_organization_name': 'TestOrg',
@@ -321,7 +331,7 @@ def test_is_correct_is_true_for_correct_exact_match_rows():
     Run the converter and pick any exact_match row whose score happens to
     be 1.0. The MMLU fixture contains at least one correct id (id7).
     """
-    adapter = HELMAdapter()
+    adapter = _make_helm_adapter()
     with tempfile.TemporaryDirectory() as tmpdir:
         metadata_args = {
             'source_organization_name': 'TestOrg',
@@ -365,6 +375,183 @@ def test_is_correct_for_metric_helper():
         assert _is_correct_for_metric(name, 0.0) is False
 
 
+def _score_from_stat_dict(stat_dict):
+    """Mirror the converter's numeric-score policy for fixture assertions."""
+    value = stat_dict.get('mean')
+    if value is None:
+        count = stat_dict.get('count')
+        total = stat_dict.get('sum')
+        if count and total is not None:
+            value = total / count
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _expected_numeric_stat_rows(per_instance_stats_path):
+    """Count rows the per-(sample, numeric stat) policy should emit."""
+    per_instance_stats = json.loads(Path(per_instance_stats_path).read_text())
+    return sum(
+        1
+        for inst_stats in per_instance_stats
+        for stat in inst_stats.get('stats', [])
+        if _score_from_stat_dict(stat) is not None
+    )
+
+
+def test_total_rows_matches_numeric_per_instance_stats():
+    """The row count should be exact, not just >= the sample count."""
+    adapter = _make_helm_adapter()
+    fixture_path = Path(
+        'tests/data/helm/'
+        'mmlu:subject=philosophy,method=multiple_choice_joint,'
+        'model=openai_gpt2'
+    )
+    with tempfile.TemporaryDirectory() as tmpdir:
+        metadata_args = {
+            'source_organization_name': 'TestOrg',
+            'evaluator_relationship': EvaluatorRelationship.first_party,
+            'parent_eval_output_dir': tmpdir,
+            'file_uuid': 'test_exact_total_rows',
+        }
+        converted_eval, instance_logs = _load_instance_level_data(
+            adapter,
+            fixture_path,
+            metadata_args,
+        )
+
+        expected_rows = _expected_numeric_stat_rows(
+            fixture_path / 'per_instance_stats.json'
+        )
+        assert converted_eval.detailed_evaluation_results.total_rows == len(
+            instance_logs
+        )
+        assert len(instance_logs) == expected_rows
+
+        sample_metric_keys = {
+            (log.sample_id, log.evaluation_result_id)
+            for log in instance_logs
+        }
+        assert len(sample_metric_keys) == len(instance_logs)
+
+
+def test_instance_evaluation_result_ids_join_to_aggregate_results():
+    """Every non-null instance result id should join to an aggregate row."""
+    adapter = _make_helm_adapter()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        metadata_args = {
+            'source_organization_name': 'TestOrg',
+            'evaluator_relationship': EvaluatorRelationship.first_party,
+            'parent_eval_output_dir': tmpdir,
+            'file_uuid': 'test_join_keys',
+        }
+        converted_eval, instance_logs = _load_instance_level_data(
+            adapter,
+            'tests/data/helm/mmlu:subject=philosophy,'
+            'method=multiple_choice_joint,model=openai_gpt2',
+            metadata_args,
+        )
+
+        aggregate_ids = {
+            result.evaluation_result_id
+            for result in converted_eval.evaluation_results
+            if result.evaluation_result_id is not None
+        }
+        detail_ids = {
+            log.evaluation_result_id
+            for log in instance_logs
+            if log.evaluation_result_id is not None
+        }
+
+        assert aggregate_ids, (
+            'Aggregate HELM results must set evaluation_result_id when '
+            'instance rows use evaluation_result_id as a join key.'
+        )
+        assert detail_ids <= aggregate_ids
+
+
+def test_score_from_stat_helper_edge_cases():
+    """Cover scalar extraction paths and malformed empty stats."""
+    assert _score_from_stat(
+        SimpleNamespace(mean=0.25, sum=10, count=2)
+    ) == 0.25
+    assert _score_from_stat(
+        SimpleNamespace(mean=None, sum=3, count=2)
+    ) == 1.5
+    assert _score_from_stat(
+        SimpleNamespace(mean=None, sum=0, count=0)
+    ) is None
+    assert _score_from_stat(
+        SimpleNamespace(mean='not-a-number', sum=0, count=1)
+    ) is None
+    assert _score_from_stat(
+        SimpleNamespace(mean=None, sum=None, count=1)
+    ) is None
+
+
+def test_missing_inst_stats_uses_legacy_exact_match_fallback(monkeypatch):
+    """No per-instance stats should still produce one legacy EM row."""
+    correct_reference = SimpleNamespace(
+        output=SimpleNamespace(text='expected answer'),
+        tags=['correct'],
+    )
+    distractor_reference = SimpleNamespace(
+        output=SimpleNamespace(text='distractor'),
+        tags=[],
+    )
+    state = SimpleNamespace(
+        instance=SimpleNamespace(
+            id='sample-1',
+            references=[correct_reference, distractor_reference],
+        ),
+        request=SimpleNamespace(prompt='Question?'),
+        result=SimpleNamespace(
+            completions=[SimpleNamespace(text='expected answer')],
+            request_time=0.25,
+        ),
+        output_mapping=None,
+    )
+
+    from every_eval_ever.converters.helm import instance_level_adapter as mod
+
+    # This test only needs the converter logic and a synthetic state object;
+    # bypass the optional HELM dependency guard so it can run in core installs.
+    monkeypatch.setattr(mod, '_HELM_IMPORT_ERROR', None)
+    monkeypatch.setattr(mod, 'extract_all_reasonings', lambda state: None)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        path, total_rows = HELMInstanceLevelDataAdapter(
+            'fallback_eval',
+            'jsonl',
+            'sha256',
+            tmpdir,
+        ).convert_instance_level_logs(
+            'synthetic_eval',
+            'synthetic/model',
+            [state],
+            [],
+        )
+
+        assert total_rows == 1
+        with Path(path).open('r', encoding='utf-8') as file:
+            rows = [
+                InstanceLevelEvaluationLog.model_validate(json.loads(line))
+                for line in file
+                if line.strip()
+            ]
+
+        assert len(rows) == 1
+        log = rows[0]
+        assert log.evaluation_result_id is None
+        assert log.evaluation.score == 1.0
+        assert log.evaluation.is_correct is True
+        assert log.input.reference == ['expected answer']
+        assert log.output.raw == ['expected answer']
+
+
 def test_reasoning_traces_none_does_not_break_conversion(monkeypatch):
     """Patch the upstream extractor to return None and ensure conversion works.
 
@@ -375,7 +562,7 @@ def test_reasoning_traces_none_does_not_break_conversion(monkeypatch):
 
     monkeypatch.setattr(mod, 'extract_all_reasonings', lambda state: None)
 
-    adapter = HELMAdapter()
+    adapter = _make_helm_adapter()
     with tempfile.TemporaryDirectory() as tmpdir:
         metadata_args = {
             'source_organization_name': 'TestOrg',
