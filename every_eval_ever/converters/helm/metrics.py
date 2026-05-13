@@ -1,101 +1,33 @@
-"""HELM metric classification helpers.
-
-Only core metrics are promoted to EEE aggregate/detail metric rows.
-Bookkeeping stats are intentionally kept out of ``evaluation_result_id``
-rows; selected telemetry can be mapped to structured fields such as
-``token_usage`` or ``performance``.
-"""
+"""HELM metric filtering helpers."""
 
 from __future__ import annotations
 
 from typing import Optional
 
 
-class METRIC_PREFIXES:
-    """Registry of HELM metric prefixes used by the converter."""
-
-    CORE_PREFIXES: tuple[str, ...] = (
-        'exact_match',
-        'quasi_exact_match',
-        'prefix_exact_match',
-        'quasi_prefix_exact_match',
-        'classification_micro_f1',
-        'classification_macro_f1',
-        'f1_score',
-        'rouge_l',
-        'bleu_',
-        'ifeval_strict_accuracy',
-        'wildbench_score',
-        'wildbench_score_rescaled',
-        'omni_math_accuracy',
-        'chain_of_thought_correctness',
-        'math_equiv',
-        'math_equiv_chain_of_thought',
-        'safety_score',
-        'safety_gpt_score',
-        'safety_llama_score',
-        'air_score',
-        'air_category_',
-    )
-
-    BOOKKEEPING_PREFIXES: tuple[str, ...] = (
-        # token/size/runtime/resource accounting
-        'num_',
-        'training_',
-        'inference_',
-        'batch_size',
-        'max_prob',
-        'logprob',
-        'num_perplexity_tokens',
-        'num_bytes',
-        'perplexity',
-        'bits_per_byte',
-        'logprob_per_byte',
-        # decoding/stopping bookkeeping
-        'finish_reason_',
-        'prompt_truncated',
-        # calibration/fitting plumbing
-        'ece_',
-        'platt_',
-        'selective_',
-        # meta/dataset sizing
-        'num_instances',
-        'num_train_',
-        'num_references',
-    )
-
-
-def classify_metric(metric_name: Optional[str]) -> tuple[str, str | None]:
-    """Classify a HELM metric as core, bookkeeping, or untracked."""
-    if not metric_name:
-        return ('untracked', None)
-    for prefix in METRIC_PREFIXES.CORE_PREFIXES:
-        if metric_name.startswith(prefix):
-            return ('core', prefix)
-    for prefix in METRIC_PREFIXES.BOOKKEEPING_PREFIXES:
-        if metric_name.startswith(prefix):
-            return ('bookkeeping', prefix)
-    return ('untracked', None)
+# HELM emits both benchmark metrics and bookkeeping telemetry in stats.json /
+# per_instance_stats.json. In this PR, only benchmark-quality metrics become
+# EEE aggregate/detail metric rows. Bookkeeping can be mapped to token_usage,
+# performance, metadata, or additional_details in a future follow-up.
+CORE_METRIC_PREFIXES: tuple[str, ...] = (
+    'exact_match',
+    'quasi_exact_match',
+    'prefix_exact_match',
+    'quasi_prefix_exact_match',
+    'classification_micro_f1',
+    'classification_macro_f1',
+    'f1_score',
+    'rouge_l',
+    'bleu_',
+    'ifeval_strict_accuracy',
+    'chain_of_thought_correctness',
+    'math_equiv',
+    'math_equiv_chain_of_thought',
+)
 
 
 def is_core_metric(metric_name: Optional[str]) -> bool:
     """Return True when a HELM stat should become an EEE metric row."""
-    metric_class, _ = classify_metric(metric_name)
-    return metric_class == 'core'
-
-
-def metric_family(metric_name: Optional[str]) -> str:
-    """Return a lightweight metric family name for summaries/debugging."""
-    if not metric_name:
-        return '?'
-    if metric_name.startswith('air_'):
-        return 'air'
-    if metric_name.startswith('bias_metric:'):
-        return 'bias_metric'
-    if metric_name.startswith('safety_'):
-        return 'safety'
-    if metric_name.startswith('bbq_'):
-        return 'bbq'
-    if '@' in metric_name:
-        return metric_name.split('@', 1)[0]
-    return metric_name.split('_', 1)[0].split(':', 1)[0]
+    return bool(metric_name) and any(
+        metric_name.startswith(prefix) for prefix in CORE_METRIC_PREFIXES
+    )
