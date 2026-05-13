@@ -179,7 +179,7 @@ class LMEvalAdapter(BaseEvaluationAdapter):
         self, task_config: Dict[str, Any]
     ) -> Optional[GenerationConfig]:
         """Build generation config from task config."""
-        gen_kwargs = task_config.get('generation_kwargs', {})
+        gen_kwargs = task_config.get('generation_kwargs', {}) or task_config.get('gen_kwargs', {})
         if not gen_kwargs:
             return None
 
@@ -207,7 +207,7 @@ class LMEvalAdapter(BaseEvaluationAdapter):
     ) -> List[EvaluationResult]:
         """Build EvaluationResult list for a single task."""
         task_results = raw_data['results'][task_name]
-        task_config = raw_data.get('configs', {}).get(task_name, {})
+        task_config = raw_data.get('configs', {}).get(task_name, {}) or raw_data.get('config', {})
         higher_is_better = raw_data.get('higher_is_better', {}).get(
             task_name, {}
         )
@@ -348,6 +348,9 @@ class LMEvalAdapter(BaseEvaluationAdapter):
             'task_name': task_name,
         }
 
+        additional_details = {}
+        if raw_data.get('group_subtasks', None):
+            additional_details['group_subtasks'] = next(iter(raw_data['group_subtasks'])) or ""
         return EvaluationLog(
             schema_version=SCHEMA_VERSION,
             evaluation_id=evaluation_id,
@@ -357,6 +360,7 @@ class LMEvalAdapter(BaseEvaluationAdapter):
             eval_library=eval_library,
             model_info=model_info,
             evaluation_results=evaluation_results,
+            additional_details=additional_details,
         )
 
     def transform_from_file(
