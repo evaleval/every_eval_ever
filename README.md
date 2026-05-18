@@ -155,6 +155,18 @@ For agentic evaluations (e.g., SWE-Bench, GAIA), the aggregate schema captures c
 
 At the instance level, agentic evaluations use `interaction_type: "agentic"` with full tool call traces recorded in the `messages` array. See the [Inspect AI test fixture](tests/data/inspect/) for a GAIA example with docker sandbox and tool usage.
 
+### Text-to-Image Evaluations
+
+The schema supports text-to-image (T2I) generation models (FLUX, SDXL, Imagen, …) alongside LLMs. Three small additions cover it; everything else (sampler args, image dimensions, sha256, rater pools, …) goes through the existing `additional_details` escape hatches.
+
+- **`modality`** — optional enum (`"text"` | `"text_to_image"`) on each `evaluation_results[]` entry and on each instance record. Absent means `"text"` (backwards compatibility).
+- **`output.media: MediaRef[]`** — generated artifacts on the instance record. A `MediaRef` is just `{media_type, uri}` plus an `additional_details` bag (sha256, mime_type, width/height, seed, index, …). Required when `modality == "text_to_image"`.
+- **`evaluation.is_correct`** is now `boolean | null` — set to `null` when the metric is continuous (FID, CLIPScore, ImageReward, etc.).
+
+T2I uses `interaction_type: "single_turn"`; `modality` is the orthogonal axis. Sampler args (`num_inference_steps`, `guidance_scale`, `width/height`, `scheduler`, `seed`, …) go in `generation_config.additional_details` as stringified key-value pairs. Human-rater pools (MTurk Likert critique, pairwise photorealism comparisons à la HEIM) go in `metric_config.additional_details` until a follow-up PR adds first-class structure for them.
+
+See [`tests/data/t2i/`](tests/data/t2i/) for a GenEval / SDXL worked example.
+
 ## ✅ Data Validation
 
 Validation uses Pydantic models generated from the JSON schemas. This validates aggregate `.json` files against `EvaluationLog` and instance-level `_samples.jsonl` files line-by-line against `InstanceLevelEvaluationLog`. Requires [uv](https://docs.astral.sh/uv/).
