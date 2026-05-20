@@ -192,9 +192,10 @@ def analyze_data(con, schema_table, instance_table, csv_path) -> None:
                 WHEN eval_library.name IN ('unknown', 'custom') THEN 'unknown/custom'
                 ELSE 'named harness'
             END AS harness_status,
-            COUNT(DISTINCT evaluation_id) AS n_evaluation_runs,
-            ROUND(100.0 * COUNT(DISTINCT evaluation_id) / SUM(COUNT(DISTINCT evaluation_id)) OVER (), 1) AS pct
-        FROM {schema_table}
+            COUNT(*) AS n_evaluation_runs,
+            ROUND(100.0 * COUNT(*) / SUM(COUNT(*)) OVER (), 1) AS pct
+        FROM {schema_table},
+        LATERAL UNNEST(evaluation_results) AS t(er)
         GROUP BY 1
         ORDER BY n_evaluation_runs DESC;
         """,
@@ -207,6 +208,17 @@ def analyze_data(con, schema_table, instance_table, csv_path) -> None:
         header=True,
     )
     section(f'eval harness percentage saved to {csv_path}')
+
+    unique_inference = execute_query(
+        con,
+        f"""
+        SELECT DISTINCT
+            -- COALESCE(model_info.inference_platform, 'unreported') AS platform_inference --
+            COUNT(DISTINCT model_info.inference_platform) AS platform_inference
+        FROM {schema_table}
+        """
+    )
+    section(f'unique inference platforms {unique_inference}')
 
     count_inference_platform = execute_query(
         con,
@@ -820,7 +832,7 @@ def main():
             sys.exit(1)
 
         analyze_data(con, schema_table, instance_table, csv_path)
-        create_visualisations(con, schema_table, instance_table, csv_path)
+        # create_visualisations(con, schema_table, instance_table, csv_path)
 
 
 if __name__ == '__main__':
