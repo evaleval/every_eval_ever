@@ -1,0 +1,39 @@
+name: Tests
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  tests:
+    name: ${{ matrix.deps }} / ${{ matrix.resolution }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - deps: core
+            resolution: locked
+            sync: uv sync --locked
+            pytest_args: tests -v
+          - deps: core
+            resolution: loose
+            sync: uv sync --upgrade
+            pytest_args: tests -v
+          - deps: full
+            resolution: locked
+            sync: uv sync --locked --all-extras
+            pytest_args: tests -v
+          - deps: full
+            resolution: loose
+            sync: uv sync --upgrade --all-extras
+            pytest_args: tests -v
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - uses: astral-sh/setup-uv@v7.6.0
+      - name: Install dependencies
+        run: ${{ matrix.sync }}
+      - name: Run tests
+        run: uv run pytest ${{ matrix.pytest_args }}

@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Tuple, Union
@@ -40,6 +41,7 @@ def _require_inspect_dependencies() -> None:
             'Inspect converter dependencies are missing. '
             "Install with: pip install 'every_eval_ever[inspect]'"
         ) from _INSPECT_IMPORT_ERROR
+
 
 from every_eval_ever.converters import SCHEMA_VERSION
 from every_eval_ever.converters.common.adapter import (
@@ -83,6 +85,7 @@ from every_eval_ever.eval_types import (
     ScoreDetails,
     ScoreType,
     SourceDataHf,
+    SourceDataPrivate,
     SourceMetadata,
     SourceType,
     StandardError,
@@ -138,7 +141,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         num_samples: int = 0,
     ) -> EvaluationResult:
         return EvaluationResult(
-            evaluation_name=f"{metric_info.name} on {evaluation_task_name} for scorer {scorer_name}",
+            evaluation_name=f'{metric_info.name} on {evaluation_task_name} for scorer {scorer_name}',
             source_data=source_data,
             evaluation_timestamp=evaluation_timestamp,
             metric_config=MetricConfig(
@@ -228,9 +231,75 @@ class InspectAIAdapter(BaseEvaluationAdapter):
 
         return results
 
+    # A HuggingFace repo identifier: exactly `namespace/name` with no
+    # extra path segments, schemes, or path-unsafe prefixes. We use an
+    # allowlist regex because the set of "real HF repos" is much easier
+    # to characterize precisely than the set of "local paths".
+    _HF_REPO_RE = re.compile(r'^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$')
+
+    @classmethod
+    def _looks_like_local_path(cls, location: str | None) -> bool:
+        """Heuristic: is `dataset.location` a local filesystem path rather
+        than a HuggingFace repo identifier?
+
+        A valid HF repo is exactly `namespace/name`. Anything else —
+        absolute/relative paths (`/`, `./`, `../`, `~`), Windows drive
+        letters, URL schemes (`file://`, `http://`), three-or-more
+        segment paths (e.g. `inspect_evals/gaia_dataset/GAIA` from older
+        Inspect versions), or plain single words — we treat as local.
+        """
+        if not location:
+            return False
+        return not cls._HF_REPO_RE.match(location)
+
     def _extract_source_data(
         self, dataset: EvalDataset, task_name: str
-    ) -> SourceDataHf:
+    ) -> SourceDataHf | SourceDataPrivate:
+        sample_ids = (
+            [str(sid) for sid in dataset.sample_ids]
+            if dataset.sample_ids is not None
+            else None
+        )
+
+        if self._looks_like_local_path(dataset.location):
+            # dataset.location is not a valid HF repo identifier: it may
+            # be an absolute filesystem path (e.g. a cached HF dataset
+            # or a benchmark's bundled challenges directory) or some
+            # other non-HF reference. We can't claim this is an HF
+            # dataset, and `dataset.name` is often an internal filename
+            # that doesn't identify the benchmark (e.g. 'challenges' for
+            # cyberseceval_2 vulnerability_exploit, 'ic_ctf' for
+            # gdm_intercode_ctf). Use the canonical inspect_evals task
+            # name as `dataset_name`, and preserve the harness-provided
+            # `dataset.name` and `dataset.location` in
+            # `additional_details` for anyone who needs the raw values.
+            dataset_name = (
+                task_name.split('/')[-1]
+                if task_name
+                else (dataset.name.split('/')[-1] if dataset.name else '')
+            )
+            additional_details: dict[str, str] = {
+                'shuffled': str(dataset.shuffled),
+            }
+            if dataset.location:
+                additional_details['inspect_dataset_location'] = str(
+                    dataset.location
+                )
+            if dataset.name:
+                additional_details['inspect_dataset_name'] = dataset.name
+            if dataset.samples is not None:
+                additional_details['samples_number'] = str(dataset.samples)
+            if sample_ids is not None:
+                additional_details['sample_ids'] = ','.join(sample_ids)
+            return SourceDataPrivate(
+                source_type='other',
+                dataset_name=dataset_name,
+                additional_details=additional_details,
+            )
+
+        # Real HF dataset: trust `dataset.name` as the benchmark
+        # identifier. When the harness sets it to the full repo id
+        # (e.g. `bigbio/pubmed_qa`), take the final path segment.
         dataset_name = (
             dataset.name.split('/')[-1]
             if dataset.name
@@ -241,9 +310,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
             dataset_name=dataset_name,
             hf_repo=dataset.location,
             samples_number=dataset.samples,
-            sample_ids=[str(sid) for sid in dataset.sample_ids]
-            if dataset.sample_ids is not None
-            else None,
+            sample_ids=sample_ids,
             additional_details={'shuffled': str(dataset.shuffled)},
         )
 
@@ -537,7 +604,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         )
 
         supplemental_eval_details = parse_supplemental_eval_details(
-            metadata_args.get("supplemental_eval_details")
+            metadata_args.get('supplemental_eval_details')
         )
 
         apply_supplemental_eval_details(
@@ -546,7 +613,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
             supplemental_eval_details=supplemental_eval_details,
         )
 
-        evaluation_id = f'{source_data.dataset_name}/{model_path.replace('/', '_')}/{evaluation_unix_timestamp}'
+        evaluation_id = f'{source_data.dataset_name}/{model_path.replace("/", "_")}/{evaluation_unix_timestamp}'
 
         parent_eval_output_dir = metadata_args.get(
             'parent_eval_output_dir', 'data'
@@ -566,19 +633,25 @@ class InspectAIAdapter(BaseEvaluationAdapter):
             else:
                 model_dev, model_name = 'unknown', model_info.id
             evaluation_dir = f'{parent_eval_output_dir}/{source_data.dataset_name}/{model_dev}/{model_name}'
-            detailed_results_id = f'{file_uuid}_samples'
+            # The aggregate `evaluation_id` is the foreign key consumers
+            # use to join instance-level records back to the aggregate,
+            # so pass it through verbatim. The file basename is a
+            # separate, filesystem-safe identifier since the aggregate
+            # id contains slashes and other path-unsafe characters.
+            file_basename = f'{file_uuid}_samples'
 
             instance_level_log_path, instance_level_rows_number = (
                 InspectInstanceLevelDataAdapter(
-                    detailed_results_id,
-                    Format.jsonl.value,
-                    HashAlgorithm.sha256.value,
-                    evaluation_dir,
+                    evaluation_id=evaluation_id,
+                    file_basename=file_basename,
+                    format=Format.jsonl.value,
+                    hash_algorithm=HashAlgorithm.sha256.value,
+                    evaluation_dir=evaluation_dir,
                 ).convert_instance_level_logs(
                     evaluation_task_name,
                     model_info.id,
                     raw_eval_log.samples,
-                    getattr(raw_eval_log, "reductions", None),
+                    getattr(raw_eval_log, 'reductions', None),
                 )
             )
 

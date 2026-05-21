@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Tuple
 
 _HELM_IMPORT_ERROR: Exception | None = None
 try:
+    from dacite import Config as DaciteConfig
     from dacite import from_dict
     from helm.benchmark.adaptation.scenario_state import (
         AdapterSpec,
@@ -28,7 +29,7 @@ except (
     Exception
 ) as ex:  # pragma: no cover - exercised only when optional deps missing
     _HELM_IMPORT_ERROR = ex
-    from_dict = None  # type: ignore[assignment]
+    DaciteConfig = from_dict = None  # type: ignore[assignment]
     PerInstanceStats = AdapterSpec = RequestState = ScenarioState = Stat = (
         RunSpec
     ) = Any  # type: ignore[assignment]
@@ -283,6 +284,10 @@ class HELMAdapter(BaseEvaluationAdapter):
         max_tokens = req.max_tokens if req.max_tokens is not None else getattr(
             adapter_spec, 'max_tokens', None
         )
+        # multiple_choice_separate_* methods score by log-prob and set max_tokens=0;
+        # GenerationArgs requires max_tokens >= 1, so treat 0 as None (not applicable)
+        if max_tokens == 0:
+            max_tokens = None
         top_p = req.top_p if req.top_p is not None else getattr(
             adapter_spec, 'top_p', None
         )
@@ -342,9 +347,23 @@ class HELMAdapter(BaseEvaluationAdapter):
         self, raw_data: Dict, metadata_args: Dict[str, Any]
     ) -> Tuple[EvaluationLog, List[InstanceLevelEvaluationLog]]:
         run_spec = from_dict(data_class=RunSpec, data=raw_data['run_spec_dict'])
-        scenario_state = from_dict(
-            data_class=ScenarioState, data=raw_data['scenario_state_dict']
-        )
+        # cast=[str] coerces int instance IDs to str; newer HELM versions
+        # (e.g. long-context suite) store instance.id as int in the JSON.
+        try:
+            scenario_state = from_dict(
+                data_class=ScenarioState,
+                data=raw_data['scenario_state_dict'],
+                config=DaciteConfig(cast=[str]),
+            )
+        except AssertionError as exc:
+            # MediaObject.__post_init__ asserts that local media files exist.
+            # Speech/audio/vision benchmarks store media as local paths; if the
+            # asset files were not downloaded alongside the run JSON, this fires.
+            raise FileNotFoundError(
+                f'Run requires local media assets that are not present on this '
+                f'machine. Download the benchmark media files alongside the run '
+                f'directory and retry. Original assertion: {exc}'
+            ) from exc
         scenario_dict = raw_data['scenario_dict']
         stats_raw = [
             from_dict(data_class=Stat, data=s)

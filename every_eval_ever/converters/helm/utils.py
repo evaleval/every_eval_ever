@@ -23,8 +23,11 @@ def extract_all_reasonings(request_state: RequestState) -> List[str] | None:
     if not (request_state.result and request_state.result.completions):
         return None
 
-    return [
+    traces = [
         getattr(getattr(c, 'thinking', None), 'text', None)
         for c in request_state.result.completions
         if getattr(c, 'thinking', None) is not None
     ]
+    # thinking.text can itself be None; drop those to satisfy list[str] schema
+    traces = [t for t in traces if t is not None]
+    return traces if traces else None
