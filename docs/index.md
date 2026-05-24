@@ -10,9 +10,9 @@ nav_order: 1
 
 **Every Eval Ever** is a shared schema and crowdsourced eval database. It defines a standardized metadata format for storing AI evaluation results — from leaderboard scrapes and research papers to local evaluation runs — so that results from different frameworks can be compared, reproduced, and reused. The three components that make it work:
 
-- 📋 **A metadata schema** ([eval.schema.json](https://github.com/gbemike/every_eval_ever/blob/add-read-the-docs/eval.schema.json)) that defines the information needed for meaningful comparison of evaluation results, including [instance-level data](https://github.com/gbemike/every_eval_ever/blob/add-read-the-docs/instance_level_eval.schema.json)
+- 📋 **A metadata schema** ([eval.schema.json](https://github.com/evaleval/every_eval_ever/blob/main/eval.schema.json)) that defines the information needed for meaningful comparison of evaluation results, including [instance-level data](https://github.com/evaleval/every_eval_ever/blob/main/instance_level_eval.schema.json)
 - 🔧 **Validation** that checks data against the schema before it enters the repository
-- 🔌 **Converters** for [Inspect AI](https://github.com/gbemike/every_eval_ever/tree/add-read-the-docs/every_eval_ever/converters/inspect), [HELM](https://github.com/gbemike/every_eval_ever/blob/add-read-the-docs/every_eval_ever/converters/helm), and [lm-eval-harness](https://github.com/gbemike/every_eval_ever/blob/add-read-the-docs/every_eval_ever/converters/lm_eval), so you can transform your existing evaluation logs into the standard format
+- 🔌 **Converters** for [Inspect AI](https://github.com/evaleval/every_eval_ever/tree/main/every_eval_ever/converters/inspect), [HELM](https://github.com/evaleval/every_eval_ever/tree/main/every_eval_ever/converters/helm), and [lm-eval-harness](https://github.com/evaleval/every_eval_ever/tree/main/every_eval_ever/converters/lm_eval), so you can transform your existing evaluation logs into the standard format
 
 ## Project Components
 

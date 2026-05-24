@@ -10,7 +10,7 @@ Supported conversion targets:
 
 - Inspect AI
 - HELM
-- lm-evaluation-harness
+- lm-eval-harness
 
 These are the three main general-purpose converters expected to be supported in the core package.
 
@@ -22,6 +22,6 @@ uv run python -m every_eval_ever convert helm --log_path <path>
 uv run python -m every_eval_ever convert lm_eval --log_path <path>
 ```
 
-Adapter source code lives under [every_eval_ever/converters](../../every_eval_ever/converters/).
+Adapter source code lives under [every_eval_ever/converters](https://github.com/evaleval/every_eval_ever/tree/main/every_eval_ever/converters).
 
-One-off adapters also exist under [utils](../../utils/) for source-specific parsing and business logic.
+One-off adapters also exist under [utils](https://github.com/evaleval/every_eval_ever/tree/main/utils) for source-specific parsing and business logic.
