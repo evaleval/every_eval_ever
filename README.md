@@ -73,8 +73,42 @@ Note: Each file can contain multiple individual results related to one model. Se
 4. [Optional] Include a [`utils/`](utils/) folder in your benchmark name folder with any scripts used to generate the data (see e.g. [`utils/global-mmlu-lite/adapter.py`](utils/global-mmlu-lite/adapter.py)).
 5. [Submit] Two ways to submit your evaluation data:
    - **Option A: Drag & drop via Hugging Face** — Go to [evaleval/EEE_datastore](https://huggingface.co/datasets/evaleval/EEE_datastore) → click "Files and versions" → "Contribute" → "Upload files" → drag and drop your data → select "Open as a pull request to the main branch". See [step-by-step screenshots](https://docs.google.com/document/d/1dxTQF8ncGCzaAOIj0RX7E9Hg4THmUBzezDOYUp_XdCY/edit?usp=sharing).
-   - **Option B: Clone & PR** — Clone the [Hugging Face repository](https://huggingface.co/datasets/evaleval/EEE_datastore), add your data under `data/`, and open a pull request
+   - **Option B: Upload via `huggingface_hub`** — Useful for larger submissions or many files.
 
+     ```python
+     from huggingface_hub import HfApi
+
+     api = HfApi()
+
+     pr_url = api.upload_folder(
+         folder_path="data/my-eval",
+         path_in_repo="data/my-eval",
+         repo_id="evaleval/EEE_datastore",
+         repo_type="dataset",
+         commit_message="[Submission] Add my eval",
+         commit_description="Adds evaluation data for my eval.",
+         create_pr=True,  # opens a PR instead of committing directly
+     )
+
+     print(pr_url)
+     ```
+
+     To add more files to the same PR, use the PR ref returned by Hugging Face (for example, `refs/pr/XX`):
+
+     ```python
+     from huggingface_hub import HfApi
+
+     api = HfApi()
+
+     api.upload_file(
+         path_or_fileobj="data/my-eval/developer/model/uuid_samples.jsonl",
+         path_in_repo="data/my-eval/developer/model/uuid_samples.jsonl",
+         repo_id="evaleval/EEE_datastore",
+         repo_type="dataset",
+         revision="refs/pr/XX",  # upload to an existing PR
+         commit_message="[Submission] Add instance-level samples",
+     )
+     ```
 ### Schema Instructions
 
 1. **`model_info`**: Use Hugging Face formatting (`developer_name/model_name`). If a model does not come from Hugging Face, use the exact API reference. Check [examples in data/livecodebenchpro](https://huggingface.co/datasets/evaleval/EEE_datastore/tree/main/data/livecodebenchpro). Notably, some do have a **date included in the model name**, but others **do not**. For example:
