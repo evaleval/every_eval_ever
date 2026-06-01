@@ -45,6 +45,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
       tag: ${{ steps.version.outputs.tag }}
+      is_prerelease: ${{ steps.version.outputs.is_prerelease }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
@@ -57,6 +58,14 @@ jobs:
       # The package version is the single source of truth for release naming.
       # Both TestPyPI and PyPI receive the exact version from pyproject.toml.
       # No CI-only version rewriting happens in this workflow.
+      #
+      # Release candidates are represented directly in pyproject.toml using
+      # normal Python packaging / PEP 440 spelling, e.g. 0.2.0rc1. That gives:
+      #   package version: 0.2.0rc1
+      #   git tag:         v0.2.0rc1
+      #   GitHub Release:  prerelease=true
+      # Later, the final release should change pyproject.toml to 0.2.0, which
+      # produces tag v0.2.0 and a non-prerelease GitHub Release.
       - name: Read package version
         id: version
         shell: bash
@@ -67,10 +76,24 @@ jobs:
               print(tomllib.load(file)['project']['version'])
           PY
           )"
+          is_prerelease="$(VERSION="${version}" python3 - <<'PY'
+          import os
+          import re
+          version = os.environ['VERSION'].lower()
+          # Keep this intentionally small: we only need to decide whether the
+          # GitHub Release should be marked as a prerelease. The packaging
+          # backend remains responsible for validating the project version.
+          # Matches common prerelease spellings such as 0.2.0a1, 0.2.0b1,
+          # 0.2.0rc1, and normalized/separator variants like 0.2.0-rc1.
+          print('true' if re.search(r'(^|[0-9._+-])(a|b|rc)[0-9]+($|[0-9._+-])', version) else 'false')
+          PY
+          )"
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "tag=v${version}" >> "$GITHUB_OUTPUT"
+          echo "is_prerelease=${is_prerelease}" >> "$GITHUB_OUTPUT"
           echo "Package version: ${version}"
           echo "Release tag: v${version}"
+          echo "GitHub prerelease: ${is_prerelease}"
 
       # Use uv directly and require the lockfile to match the project metadata.
       # If dependencies changed without updating the lockfile, this fails early.
@@ -229,8 +252,19 @@ jobs:
 
       # Create the GitHub Release only after PyPI publish succeeds, so the GitHub
       # release page means the package is live on PyPI.
+      #
+      # If pyproject.toml contains an RC / alpha / beta version such as
+      # 0.2.0rc1, the GitHub Release is marked as a prerelease automatically.
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.build.outputs.tag }}
-        run: gh release create "${TAG}" dist/* --title "${TAG}" --generate-notes
+          IS_PRERELEASE: ${{ needs.build.outputs.is_prerelease }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=(release create "${TAG}" dist/* --title "${TAG}" --generate-notes)
+          if [[ "${IS_PRERELEASE}" == "true" ]]; then
+              args+=(--prerelease)
+          fi
+          gh "${args[@]}"
