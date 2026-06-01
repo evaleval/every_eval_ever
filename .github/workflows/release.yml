@@ -1,0 +1,236 @@
+# Branch-based publishing workflow.
+#
+# Release policy:
+#   - Pushing/merging into test-release publishes the exact package version to TestPyPI.
+#   - Pushing/merging into release publishes the exact package version to PyPI,
+#     creates the matching git tag, and creates the GitHub Release.
+#   - Pushing/merging into main is intentionally not a release trigger.
+#
+# Common maintainer commands:
+#   git push origin main:test-release   # TestPyPI rehearsal
+#   git push origin main:release        # Real PyPI release
+#
+# Web UI equivalent:
+#   Open a PR with base=test-release or base=release and compare=main, then merge it.
+#
+# Trusted publishing setup:
+#   Configure pending/trusted publishers on TestPyPI and PyPI with:
+#     Repository: evaleval/every_eval_ever
+#     Workflow: release.yml
+#     Environment: testpypi  # for TestPyPI
+#     Environment: pypi      # for PyPI
+#
+# This workflow intentionally does not use PyPI API tokens. The publish jobs request
+# id-token: write only inside their protected environments, which allows PyPI's
+# trusted-publishing/OIDC handshake to issue short-lived credentials.
+
+name: Release
+
+on:
+  push:
+    branches:
+      - test-release
+      - release
+
+# Default to no permissions. Each job opts into only what it needs.
+permissions: {}
+
+jobs:
+  build:
+    name: Test and build distributions
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7.6.0
+        with:
+          enable-cache: true
+
+      # The package version is the single source of truth for release naming.
+      # Both TestPyPI and PyPI receive the exact version from pyproject.toml.
+      # No CI-only version rewriting happens in this workflow.
+      - name: Read package version
+        id: version
+        shell: bash
+        run: |
+          version="$(python3 - <<'PY'
+          import tomllib
+          with open('pyproject.toml', 'rb') as file:
+              print(tomllib.load(file)['project']['version'])
+          PY
+          )"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${version}" >> "$GITHUB_OUTPUT"
+          echo "Package version: ${version}"
+          echo "Release tag: v${version}"
+
+      # Use uv directly and require the lockfile to match the project metadata.
+      # If dependencies changed without updating the lockfile, this fails early.
+      - name: Run tests
+        run: uv run --locked pytest tests -v
+
+      # Build both wheel and sdist into dist/ using the project's configured backend.
+      - name: Build package
+        run: uv build
+
+      - name: Show built distributions
+        run: ls -la dist
+
+      # The publish jobs consume the exact artifacts built and tested here.
+      # This keeps the trusted-publishing jobs small and avoids rebuilding in
+      # jobs that have elevated OIDC publishing permissions.
+      - name: Upload distributions
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-distributions
+          path: dist/*
+          if-no-files-found: error
+
+  prepare-release-tag:
+    name: Prepare release tag
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      # The release branch uses this job to push v<project.version>.
+      # The test-release branch runs the same logic but uses git push --dry-run,
+      # which exercises the refspec/auth path without creating a remote tag.
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+        with:
+          fetch-depth: 0
+
+      # This job is what makes the branch workflow safer than manual tagging:
+      # maintainers push/merge main into release, and CI derives the tag from
+      # pyproject.toml. If the tag already exists, it must point at this exact
+      # commit; otherwise the workflow fails rather than moving an existing tag.
+      #
+      # On test-release, this creates the tag locally and dry-runs the remote
+      # push. That gives confidence in the release tag logic without cluttering
+      # the repository with rehearsal tags.
+      - name: Create, verify, or rehearse tag
+        shell: bash
+        env:
+          TAG: ${{ needs.build.outputs.tag }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          git fetch --force --tags origin
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+          if git rev-parse --verify --quiet "${TAG}^{commit}" >/dev/null; then
+              tag_target="$(git rev-list -n 1 "${TAG}")"
+              if [[ "${tag_target}" != "${GITHUB_SHA}" ]]; then
+                  echo "Tag ${TAG} already exists but points at ${tag_target}, not ${GITHUB_SHA}" >&2
+                  exit 1
+              fi
+              echo "Tag ${TAG} already points at this commit."
+          else
+              echo "Creating local annotated tag ${TAG} at ${GITHUB_SHA}."
+              git tag -a "${TAG}" -m "${TAG}"
+          fi
+
+          if [[ "${BRANCH}" == "release" ]]; then
+              echo "Pushing ${TAG} for the real release."
+              git push origin "${TAG}"
+          elif [[ "${BRANCH}" == "test-release" ]]; then
+              echo "Dry-running ${TAG} push for TestPyPI rehearsal."
+              git push --dry-run origin "${TAG}"
+              echo "Dry-run complete. No remote tag was created."
+          else
+              echo "Unexpected branch: ${BRANCH}" >&2
+              exit 1
+          fi
+
+  publish-testpypi:
+    name: Publish to TestPyPI
+    needs:
+      - build
+      - prepare-release-tag
+    if: github.ref == 'refs/heads/test-release'
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/every-eval-ever
+    permissions:
+      contents: read
+      # Required for PyPI/TestPyPI trusted publishing. Do not replace this with
+      # username/password or TWINE_* secrets.
+      id-token: write
+    steps:
+      - name: Download distributions
+        uses: actions/download-artifact@v4
+        with:
+          name: python-distributions
+          path: dist
+
+      # TestPyPI is a rehearsal lane. skip-existing makes repeated attempts with
+      # the same version harmless, which is useful while validating publisher setup.
+      - name: Publish to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          skip-existing: true
+
+  publish-pypi:
+    name: Publish to PyPI
+    needs:
+      - build
+      - prepare-release-tag
+    if: github.ref == 'refs/heads/release'
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/every-eval-ever
+    permissions:
+      contents: read
+      # Required for PyPI trusted publishing. Keep this permission scoped to the
+      # publishing job, not the whole workflow.
+      id-token: write
+    steps:
+      - name: Download distributions
+        uses: actions/download-artifact@v4
+        with:
+          name: python-distributions
+          path: dist
+
+      # Real PyPI releases should fail on duplicate versions, so skip-existing is
+      # intentionally not set here.
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+  github-release:
+    name: Create GitHub Release
+    needs:
+      - build
+      - publish-pypi
+    if: github.ref == 'refs/heads/release'
+    runs-on: ubuntu-latest
+    permissions:
+      # Needed for gh release create.
+      contents: write
+    steps:
+      - name: Download distributions
+        uses: actions/download-artifact@v4
+        with:
+          name: python-distributions
+          path: dist
+
+      # Create the GitHub Release only after PyPI publish succeeds, so the GitHub
+      # release page means the package is live on PyPI.
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.build.outputs.tag }}
+        run: gh release create "${TAG}" dist/* --title "${TAG}" --generate-notes
