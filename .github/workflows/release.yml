@@ -253,6 +253,10 @@ jobs:
       # Create the GitHub Release only after PyPI publish succeeds, so the GitHub
       # release page means the package is live on PyPI.
       #
+      # This job intentionally does not check out the repository. Pass --repo so
+      # gh knows which repository to operate on, and pass --verify-tag so the
+      # release can only be created for the tag pushed by prepare-release-tag.
+      #
       # If pyproject.toml contains an RC / alpha / beta version such as
       # 0.2.0rc1, the GitHub Release is marked as a prerelease automatically.
       - name: Create GitHub Release
@@ -263,7 +267,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          args=(release create "${TAG}" dist/* --title "${TAG}" --generate-notes)
+          args=(
+              release create "${TAG}" dist/*
+              --repo "${GITHUB_REPOSITORY}"
+              --verify-tag
+              --title "${TAG}"
+              --generate-notes
+          )
           if [[ "${IS_PRERELEASE}" == "true" ]]; then
               args+=(--prerelease)
           fi
