@@ -27,7 +27,6 @@ from every_eval_ever.eval_types import (
     SourceType,
     Uncertainty,
 )
-from every_eval_ever.helpers.developer import get_developer, get_model_id
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +55,76 @@ class LeaderboardRow:
     score: float
 
 
+@dataclass(frozen=True)
+class ModelIdentity:
+    """Canonical model identity used for Every Eval Ever output paths."""
+
+    developer: str
+    model_id: str
+
+
+_MODEL_IDENTITIES = {
+    'Apertus-70B': ModelIdentity('swiss-ai', 'swiss-ai/Apertus-70B'),
+    'Apertus-8B': ModelIdentity('swiss-ai', 'swiss-ai/Apertus-8B'),
+    'Claude-3.7-Sonnet': ModelIdentity(
+        'anthropic', 'anthropic/Claude-3.7-Sonnet'
+    ),
+    'Claude-4.5-Sonnet': ModelIdentity(
+        'anthropic', 'anthropic/Claude-4.5-Sonnet'
+    ),
+    'DeepSeek-R1': ModelIdentity('deepseek-ai', 'deepseek-ai/DeepSeek-R1'),
+    'DeepSeek-V3': ModelIdentity('deepseek-ai', 'deepseek-ai/DeepSeek-V3'),
+    'DeepSeek-V3.2-Exp': ModelIdentity(
+        'deepseek-ai', 'deepseek-ai/DeepSeek-V3.2-Exp'
+    ),
+    'DeepSeek-V3.2-chat': ModelIdentity(
+        'deepseek-ai', 'deepseek-ai/DeepSeek-V3.2-chat'
+    ),
+    'DeepSeek-V3.2-reasoner': ModelIdentity(
+        'deepseek-ai', 'deepseek-ai/DeepSeek-V3.2-reasoner'
+    ),
+    'EuroLLM-9B-it': ModelIdentity(
+        'utter-project', 'utter-project/EuroLLM-9B-it'
+    ),
+    'GPT-4.1': ModelIdentity('openai', 'openai/GPT-4.1'),
+    'GPT-4.1-mini': ModelIdentity('openai', 'openai/GPT-4.1-mini'),
+    'GPT-4.1-nano': ModelIdentity('openai', 'openai/GPT-4.1-nano'),
+    'GPT-4o': ModelIdentity('openai', 'openai/GPT-4o'),
+    'GPT-4o-mini': ModelIdentity('openai', 'openai/GPT-4o-mini'),
+    'GPT-5': ModelIdentity('openai', 'openai/GPT-5'),
+    'GPT-5-mini': ModelIdentity('openai', 'openai/GPT-5-mini'),
+    'GPT-5-nano': ModelIdentity('openai', 'openai/GPT-5-nano'),
+    'GPT-OSS-120B': ModelIdentity('openai', 'openai/GPT-OSS-120B'),
+    'GPT-OSS-20B': ModelIdentity('openai', 'openai/GPT-OSS-20B'),
+    'Gemini-2.5-Pro': ModelIdentity('google', 'google/Gemini-2.5-Pro'),
+    'Gemini-3-Pro-preview': ModelIdentity(
+        'google', 'google/Gemini-3-Pro-preview'
+    ),
+    'Gemma-2-9B-it': ModelIdentity('google', 'google/Gemma-2-9B-it'),
+    'Gemma-3-12B-it': ModelIdentity('google', 'google/Gemma-3-12B-it'),
+    'Llama-3.1-405B-it': ModelIdentity(
+        'meta-llama', 'meta-llama/Llama-3.1-405B-it'
+    ),
+    'Llama-3.1-8B-it': ModelIdentity(
+        'meta-llama', 'meta-llama/Llama-3.1-8B-it'
+    ),
+    'Llama-3.3-70B-it': ModelIdentity(
+        'meta-llama', 'meta-llama/Llama-3.3-70B-it'
+    ),
+    'Llama-4-Maverick': ModelIdentity(
+        'meta-llama', 'meta-llama/Llama-4-Maverick'
+    ),
+    'Ministral-8B-it': ModelIdentity('mistralai', 'mistralai/Ministral-8B-it'),
+    'O3-mini': ModelIdentity('openai', 'openai/O3-mini'),
+    'Phi-4': ModelIdentity('microsoft', 'microsoft/Phi-4'),
+    'QwQ-32B': ModelIdentity('qwen', 'qwen/QwQ-32B'),
+    'Qwen-2.5-7B-it': ModelIdentity('qwen', 'qwen/Qwen-2.5-7B-it'),
+    'Qwen3-235B': ModelIdentity('qwen', 'qwen/Qwen3-235B'),
+    'Qwen3-32B': ModelIdentity('qwen', 'qwen/Qwen3-32B'),
+    'Qwen3-Next': ModelIdentity('qwen', 'qwen/Qwen3-Next'),
+}
+
+
 def _fetch_html(url: str = LEADERBOARD_URL) -> str:
     """Download leaderboard HTML from *url*."""
     resp = requests.get(url, timeout=30)
@@ -66,6 +135,15 @@ def _fetch_html(url: str = LEADERBOARD_URL) -> str:
 def _clean_model_name(raw_name: str) -> str:
     """Strip medal glyphs and whitespace from a leaderboard model name."""
     return _MEDAL_RE.sub('', raw_name).strip()
+
+
+def _model_identity(model_name: str) -> ModelIdentity:
+    """Return the explicit model identity for a LEXam leaderboard name."""
+    if model_name not in _MODEL_IDENTITIES:
+        raise ValueError(
+            f'No model identity mapping for LEXam leaderboard model: {model_name}'
+        )
+    return _MODEL_IDENTITIES[model_name]
 
 
 def _extract_section_rows(
@@ -114,23 +192,29 @@ def _extract_section_rows(
 
 def _open_question_source() -> SourceDataHf:
     return SourceDataHf(
-        dataset_name='LEXam Open Questions',
+        dataset_name=BENCHMARK_KEY,
         source_type='hf_dataset',
         hf_repo=HF_REPO,
         hf_split='test',
         samples_number=OPEN_QUESTIONS_SAMPLES,
-        additional_details={'config': 'open_question'},
+        additional_details={
+            'benchmark_section': 'open_questions',
+            'config': 'open_question',
+        },
     )
 
 
 def _mcq_source() -> SourceDataHf:
     return SourceDataHf(
-        dataset_name='LEXam Multiple-Choice Questions',
+        dataset_name=BENCHMARK_KEY,
         source_type='hf_dataset',
         hf_repo=HF_REPO,
         hf_split='test',
         samples_number=MCQ_SAMPLES,
-        additional_details={'configs': MCQ_CONFIGS},
+        additional_details={
+            'benchmark_section': 'multiple_choice_questions',
+            'configs': MCQ_CONFIGS,
+        },
     )
 
 
@@ -261,14 +345,13 @@ class LEXamAdapter:
             if not evaluation_results:
                 continue
 
-            developer = get_developer(model_name)
-            model_id = get_model_id(model_name, developer)
+            identity = _model_identity(model_name)
 
             logs.append(
                 EvaluationLog(
                     schema_version=SCHEMA_VERSION,
                     evaluation_id=(
-                        f'{BENCHMARK_KEY}/{model_id}/{retrieved_ts}'
+                        f'{BENCHMARK_KEY}/{identity.model_id}/{retrieved_ts}'
                     ),
                     retrieved_timestamp=retrieved_ts,
                     eval_library=EvalLibrary(
@@ -294,8 +377,8 @@ class LEXamAdapter:
                     ),
                     model_info=ModelInfo(
                         name=model_name,
-                        id=model_id,
-                        developer=developer,
+                        id=identity.model_id,
+                        developer=identity.developer,
                     ),
                     evaluation_results=evaluation_results,
                 )

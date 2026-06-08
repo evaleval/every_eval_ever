@@ -204,7 +204,7 @@ def _cmd_convert_lexam(args: argparse.Namespace) -> int:
             log.source_metadata.source_organization_url = (
                 args.source_organization_url
             )
-        if args.evaluator_relationship != 'third_party':
+        if args.evaluator_relationship != 'collaborative':
             from every_eval_ever.eval_types import EvaluatorRelationship
 
             log.source_metadata.evaluator_relationship = EvaluatorRelationship(
@@ -360,7 +360,7 @@ def build_parser() -> argparse.ArgumentParser:
         source_parser.add_argument(
             '--evaluator_relationship',
             '--evaluator-relationship',
-            default='third_party',
+            default=('collaborative' if source == 'lexam' else 'third_party'),
             choices=EVALUATOR_RELATIONSHIP_CHOICES,
             help='Relationship between evaluator and model developer.',
         )

@@ -8,6 +8,7 @@ from every_eval_ever.converters.lexam.adapter import (
     LEXamAdapter,
     _clean_model_name,
     _extract_section_rows,
+    _model_identity,
 )
 from every_eval_ever.eval_types import EvaluationLog
 
@@ -37,7 +38,7 @@ def test_extract_section_rows_mcq() -> None:
         'Leaderboard on LEXam – Multiple-Choice Questions',
     )
     assert len(rows) == 3
-    assert rows[2].model_name == 'MCQ-Only-Model'
+    assert rows[2].model_name == 'Phi-4'
     assert rows[2].score == 25.0
 
 
@@ -52,8 +53,8 @@ def test_fetch_leaderboard_combines_metrics_per_model() -> None:
 
     assert len(logs) == 4
     assert len(by_name['GPT-5'].evaluation_results) == 2
-    assert len(by_name['Open-Only-Model'].evaluation_results) == 1
-    assert len(by_name['MCQ-Only-Model'].evaluation_results) == 1
+    assert len(by_name['Gemini-3-Pro-preview'].evaluation_results) == 1
+    assert len(by_name['Phi-4'].evaluation_results) == 1
 
 
 def test_fetch_leaderboard_open_question_score() -> None:
@@ -126,6 +127,11 @@ def test_fetch_leaderboard_model_developer_inference() -> None:
 
     assert gpt5.model_info.developer == 'openai'
     assert gpt5.model_info.id == 'openai/GPT-5'
+
+
+def test_unknown_model_identity_raises() -> None:
+    with pytest.raises(ValueError, match='No model identity mapping'):
+        _model_identity('New-Unmapped-Model')
 
 
 def test_fetch_leaderboard_output_validates_as_evaluation_log() -> None:
