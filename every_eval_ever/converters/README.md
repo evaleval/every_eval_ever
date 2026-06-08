@@ -1,5 +1,5 @@
 ## Automatic Evaluation Log Converters
-A collection of scripts to convert evaluation logs from local evaluation frameworks (e.g., `Inspect AI` and `lm-eval-harness`) and public leaderboards (e.g., AlpacaEval) into the unified Every Eval Ever schema.
+A collection of scripts to convert evaluation logs from local evaluation frameworks (e.g., `Inspect AI` and `lm-eval-harness`) and public leaderboards (e.g., AlpacaEval and LEXam) into the unified Every Eval Ever schema.
 
 ### Installation
 
@@ -269,5 +269,38 @@ usage: every_eval_ever convert alpaca_eval [-h] [--log_path LOG_PATH]
 
 options:
   --version {v1,v2}            Which leaderboard to convert. Omit to convert both (default).
+  --output_dir OUTPUT_DIR      Base output directory (default: data).
+```
+
+## LEXam
+
+The LEXam converter fetches the public leaderboard HTML from the LEXam project
+website repository and converts all model entries into the unified schema.
+No local log files are required.
+
+Metrics converted per model:
+
+| Metric | Description |
+|---|---|
+| Open Question Judge Score | Mean expert-validated LLM-judge score on open-ended law exam questions (0-100) |
+| Multiple-Choice Accuracy | Accuracy across all LEXam MCQ configs (0-100) |
+
+### Usage
+
+```bash
+uv run every_eval_ever convert lexam --output_dir data
+```
+
+Full argument list:
+
+```
+usage: every_eval_ever convert lexam [-h] [--output_dir OUTPUT_DIR]
+                                     [--source_organization_name ...]
+                                     [--evaluator_relationship ...]
+                                     [--source_organization_url ...]
+                                     [--eval_library_name ...]
+                                     [--eval_library_version ...]
+
+options:
   --output_dir OUTPUT_DIR      Base output directory (default: data).
 ```
