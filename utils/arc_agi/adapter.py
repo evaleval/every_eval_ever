@@ -11,8 +11,7 @@ from pathlib import Path
 
 from every_eval_ever.helpers import SCHEMA_VERSION
 
-SOURCE_URL = "https://arcprize.org/media/data/leaderboard/evaluations.json"
-
+SOURCE_URL = "https://github.com/fchollet/ARC-AGI/tree/master/data"
 
 def make_source_data() -> dict:
     return {
@@ -307,9 +306,10 @@ def make_log(
 
 
 def write_log(log: dict, out_root: Path, developer: str, model: str) -> Path:
-    out_dir = out_root / "arc-agi" / developer / model
+    filename = uuid.uuid4()
+    out_dir = out_root / filename[0:2] / filename[2:4] 
     out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / f"{uuid.uuid4()}.json"
+    out_path = out_dir / f"{filename}.json"
     out_path.write_text(json.dumps(log, indent=2) + "\n", encoding="utf-8")
     return out_path
 
