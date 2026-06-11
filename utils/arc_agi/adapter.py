@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import time
@@ -11,7 +12,8 @@ from pathlib import Path
 
 from every_eval_ever.helpers import SCHEMA_VERSION
 
-SOURCE_URL = "https://github.com/fchollet/ARC-AGI/tree/master/data"
+SOURCE_URL = "https://arcprize.org/media/data/leaderboard/evaluations.json"
+
 
 def make_source_data() -> dict:
     return {
@@ -306,14 +308,61 @@ def make_log(
 
 
 def write_log(log: dict, out_root: Path, developer: str, model: str) -> Path:
-    filename = str(uuid.uuid4())
-    out_dir = out_root / filename[:2] / filename[2:4]
+    out_dir = out_root / "arc-agi" / developer / model
     out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / f"{filename}.json"
-    out_path.write_text(
-        json.dumps(log, indent=2) + "\n",
-        encoding="utf-8"
-    )
+    uuid_str = str(uuid.uuid4())
+    out_path = out_dir / f"{uuid_str}.json"
+    
+    content_str = json.dumps(log, indent=2) + "\n"
+    content_bytes = content_str.encode("utf-8")
+    out_path.write_bytes(content_bytes)
+
+    size_bytes = len(content_bytes)
+    sha256 = hashlib.sha256(content_bytes).hexdigest()
+    
+    try:
+        legacy_path = out_path.relative_to(out_root.parent).as_posix()
+    except ValueError:
+        legacy_path = f"data/arc-agi/{developer}/{model}/{uuid_str}.json"
+
+    object_path = f"flat/objects/{uuid_str[:2]}/{uuid_str[2:4]}/{uuid_str}.json"
+
+    aggregate_record = {
+        "benchmark": "arc-agi",
+        "eval_schema_version": SCHEMA_VERSION,
+        "legacy_path": legacy_path,
+        "object_path": object_path,
+        "object_uuid": uuid_str,
+        "record_type": "aggregate",
+        "sha256": sha256,
+        "size_bytes": size_bytes
+    }
+
+    instance_record = {
+        "benchmark": "arc-agi",
+        "eval_schema_version": SCHEMA_VERSION,
+        "instance_object_path": None,
+        "instance_sha256": None,
+        "instance_size_bytes": None,
+        "legacy_path": legacy_path,
+        "object_path": object_path,
+        "object_uuid": uuid_str,
+        "record_type": "aggregate",
+        "sha256": sha256,
+        "size_bytes": size_bytes
+    }
+
+    index_dir = out_dir / "indexes" / "by_collection" / "arc-agi"
+    index_dir.mkdir(parents=True, exist_ok=True)
+
+    aggregate_index_path = index_dir / "aggregate.jsonl"
+    with open(aggregate_index_path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(aggregate_record) + "\n")
+
+    instance_index_path = index_dir / "instance_level.jsonl"
+    with open(instance_index_path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(instance_record) + "\n")
+
     return out_path
 
 
