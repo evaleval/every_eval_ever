@@ -1,0 +1,590 @@
+{
+  "schema_version": "0.2.2",
+  "evaluation_id": "mmlu-pro/01-ai_yi-1.5-34b-chat/tiger-lab/1777613486.918081",
+  "retrieved_timestamp": "1777613486.918081",
+  "source_metadata": {
+    "source_name": "MMLU-Pro Leaderboard",
+    "source_type": "documentation",
+    "source_organization_name": "TIGER-Lab",
+    "source_organization_url": "https://tiger-ai-lab.github.io",
+    "evaluator_relationship": "third_party",
+    "additional_details": {
+      "leaderboard_space_url": "https://huggingface.co/spaces/TIGER-Lab/MMLU-Pro",
+      "results_csv_url": "https://huggingface.co/datasets/TIGER-Lab/mmlu_pro_leaderboard_submission/resolve/main/results.csv",
+      "paper_url": "https://arxiv.org/abs/2406.01574",
+      "github_url": "https://github.com/TIGER-AI-Lab/MMLU-Pro",
+      "leaderboard_data_source": "TIGER-Lab"
+    }
+  },
+  "eval_library": {
+    "name": "MMLU-Pro leaderboard (TIGER-Lab)",
+    "version": "unknown"
+  },
+  "model_info": {
+    "name": "Yi-1.5-34B-Chat",
+    "id": "01-ai/yi-1.5-34b-chat",
+    "developer": "01-ai",
+    "additional_details": {
+      "raw_model_name": "Yi-1.5-34B-Chat",
+      "size_billions_parameters": "34.0",
+      "leaderboard_data_source": "TIGER-Lab"
+    }
+  },
+  "evaluation_results": [
+    {
+      "evaluation_result_id": "mmlu_pro/overall",
+      "evaluation_name": "MMLU-Pro (overall)",
+      "source_data": {
+        "dataset_name": "MMLU-Pro leaderboard submissions (TIGER-Lab)",
+        "source_type": "hf_dataset",
+        "hf_repo": "TIGER-Lab/mmlu_pro_leaderboard_submission",
+        "hf_split": "train",
+        "additional_details": {
+          "results_csv_url": "https://huggingface.co/datasets/TIGER-Lab/mmlu_pro_leaderboard_submission/resolve/main/results.csv",
+          "leaderboard_space_url": "https://huggingface.co/spaces/TIGER-Lab/MMLU-Pro",
+          "benchmark_hf_repo": "TIGER-Lab/MMLU-Pro",
+          "paper_url": "https://arxiv.org/abs/2406.01574",
+          "github_url": "https://github.com/TIGER-AI-Lab/MMLU-Pro",
+          "dataset_total_questions": "12000",
+          "prompt_style": "5-shot CoT"
+        }
+      },
+      "metric_config": {
+        "evaluation_description": "Overall accuracy across the ~12,000-question MMLU-Pro benchmark, evaluated 5-shot with chain-of-thought.",
+        "metric_id": "mmlu_pro/overall",
+        "metric_name": "MMLU-Pro (overall)",
+        "metric_kind": "accuracy",
+        "metric_unit": "proportion",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0,
+        "additional_details": {
+          "aggregation": "accuracy_over_subset",
+          "prompt_style": "5-shot CoT"
+        }
+      },
+      "score_details": {
+        "score": 0.5229
+      }
+    },
+    {
+      "evaluation_result_id": "mmlu_pro/biology",
+      "evaluation_name": "MMLU-Pro (Biology)",
+      "source_data": {
+        "dataset_name": "MMLU-Pro leaderboard submissions (TIGER-Lab)",
+        "source_type": "hf_dataset",
+        "hf_repo": "TIGER-Lab/mmlu_pro_leaderboard_submission",
+        "hf_split": "train",
+        "additional_details": {
+          "results_csv_url": "https://huggingface.co/datasets/TIGER-Lab/mmlu_pro_leaderboard_submission/resolve/main/results.csv",
+          "leaderboard_space_url": "https://huggingface.co/spaces/TIGER-Lab/MMLU-Pro",
+          "benchmark_hf_repo": "TIGER-Lab/MMLU-Pro",
+          "paper_url": "https://arxiv.org/abs/2406.01574",
+          "github_url": "https://github.com/TIGER-AI-Lab/MMLU-Pro",
+          "dataset_total_questions": "12000",
+          "prompt_style": "5-shot CoT"
+        }
+      },
+      "metric_config": {
+        "evaluation_description": "Accuracy on the MMLU-Pro Biology subset, evaluated 5-shot with chain-of-thought.",
+        "metric_id": "mmlu_pro/biology",
+        "metric_name": "MMLU-Pro (Biology)",
+        "metric_kind": "accuracy",
+        "metric_unit": "proportion",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0,
+        "additional_details": {
+          "aggregation": "accuracy_over_subset",
+          "prompt_style": "5-shot CoT"
+        }
+      },
+      "score_details": {
+        "score": 0.7141
+      }
+    },
+    {
+      "evaluation_result_id": "mmlu_pro/business",
+      "evaluation_name": "MMLU-Pro (Business)",
+      "source_data": {
+        "dataset_name": "MMLU-Pro leaderboard submissions (TIGER-Lab)",
+        "source_type": "hf_dataset",
+        "hf_repo": "TIGER-Lab/mmlu_pro_leaderboard_submission",
+        "hf_split": "train",
+        "additional_details": {
+          "results_csv_url": "https://huggingface.co/datasets/TIGER-Lab/mmlu_pro_leaderboard_submission/resolve/main/results.csv",
+          "leaderboard_space_url": "https://huggingface.co/spaces/TIGER-Lab/MMLU-Pro",
+          "benchmark_hf_repo": "TIGER-Lab/MMLU-Pro",
+          "paper_url": "https://arxiv.org/abs/2406.01574",
+          "github_url": "https://github.com/TIGER-AI-Lab/MMLU-Pro",
+          "dataset_total_questions": "12000",
+          "prompt_style": "5-shot CoT"
+        }
+      },
+      "metric_config": {
+        "evaluation_description": "Accuracy on the MMLU-Pro Business subset, evaluated 5-shot with chain-of-thought.",
+        "metric_id": "mmlu_pro/business",
+        "metric_name": "MMLU-Pro (Business)",
+        "metric_kind": "accuracy",
+        "metric_unit": "proportion",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0,
+        "additional_details": {
+          "aggregation": "accuracy_over_subset",
+          "prompt_style": "5-shot CoT"
+        }
+      },
+      "score_details": {
+        "score": 0.5843
+      }
+    },
+    {
+      "evaluation_result_id": "mmlu_pro/chemistry",
+      "evaluation_name": "MMLU-Pro (Chemistry)",
+      "source_data": {
+        "dataset_name": "MMLU-Pro leaderboard submissions (TIGER-Lab)",
+        "source_type": "hf_dataset",
+        "hf_repo": "TIGER-Lab/mmlu_pro_leaderboard_submission",
+        "hf_split": "train",
+        "additional_details": {
+          "results_csv_url": "https://huggingface.co/datasets/TIGER-Lab/mmlu_pro_leaderboard_submission/resolve/main/results.csv",
+          "leaderboard_space_url": "https://huggingface.co/spaces/TIGER-Lab/MMLU-Pro",
+          "benchmark_hf_repo": "TIGER-Lab/MMLU-Pro",
+          "paper_url": "https://arxiv.org/abs/2406.01574",
+          "github_url": "https://github.com/TIGER-AI-Lab/MMLU-Pro",
+          "dataset_total_questions": "12000",
+          "prompt_style": "5-shot CoT"
+        }
+      },
+      "metric_config": {
+        "evaluation_description": "Accuracy on the MMLU-Pro Chemistry subset, evaluated 5-shot with chain-of-thought.",
+        "metric_id": "mmlu_pro/chemistry",
+        "metric_name": "MMLU-Pro (Chemistry)",
+        "metric_kind": "accuracy",
+        "metric_unit": "proportion",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0,
+        "additional_details": {
+          "aggregation": "accuracy_over_subset",
+          "prompt_style": "5-shot CoT"
+        }
+      },
+      "score_details": {
+        "score": 0.4753
+      }
+    },
+    {
+      "evaluation_result_id": "mmlu_pro/computer_science",
+      "evaluation_name": "MMLU-Pro (Computer Science)",
+      "source_data": {
+        "dataset_name": "MMLU-Pro leaderboard submissions (TIGER-Lab)",
+        "source_type": "hf_dataset",
+        "hf_repo": "TIGER-Lab/mmlu_pro_leaderboard_submission",
+        "hf_split": "train",
+        "additional_details": {
+          "results_csv_url": "https://huggingface.co/datasets/TIGER-Lab/mmlu_pro_leaderboard_submission/resolve/main/results.csv",
+          "leaderboard_space_url": "https://huggingface.co/spaces/TIGER-Lab/MMLU-Pro",
+          "benchmark_hf_repo": "TIGER-Lab/MMLU-Pro",
+          "paper_url": "https://arxiv.org/abs/2406.01574",
+          "github_url": "https://github.com/TIGER-AI-Lab/MMLU-Pro",
+          "dataset_total_questions": "12000",
+          "prompt_style": "5-shot CoT"
+        }
+      },
+      "metric_config": {
+        "evaluation_description": "Accuracy on the MMLU-Pro Computer Science subset, evaluated 5-shot with chain-of-thought.",
+        "metric_id": "mmlu_pro/computer_science",
+        "metric_name": "MMLU-Pro (Computer Science)",
+        "metric_kind": "accuracy",
+        "metric_unit": "proportion",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0,
+        "additional_details": {
+          "aggregation": "accuracy_over_subset",
+          "prompt_style": "5-shot CoT"
+        }
+      },
+      "score_details": {
+        "score": 0.539
+      }
+    },
+    {
+      "evaluation_result_id": "mmlu_pro/economics",
+      "evaluation_name": "MMLU-Pro (Economics)",
+      "source_data": {
+        "dataset_name": "MMLU-Pro leaderboard submissions (TIGER-Lab)",
+        "source_type": "hf_dataset",
+        "hf_repo": "TIGER-Lab/mmlu_pro_leaderboard_submission",
+        "hf_split": "train",
+        "additional_details": {
+          "results_csv_url": "https://huggingface.co/datasets/TIGER-Lab/mmlu_pro_leaderboard_submission/resolve/main/results.csv",
+          "leaderboard_space_url": "https://huggingface.co/spaces/TIGER-Lab/MMLU-Pro",
+          "benchmark_hf_repo": "TIGER-Lab/MMLU-Pro",
+          "paper_url": "https://arxiv.org/abs/2406.01574",
+          "github_url": "https://github.com/TIGER-AI-Lab/MMLU-Pro",
+          "dataset_total_questions": "12000",
+          "prompt_style": "5-shot CoT"
+        }
+      },
+      "metric_config": {
+        "evaluation_description": "Accuracy on the MMLU-Pro Economics subset, evaluated 5-shot with chain-of-thought.",
+        "metric_id": "mmlu_pro/economics",
+        "metric_name": "MMLU-Pro (Economics)",
+        "metric_kind": "accuracy",
+        "metric_unit": "proportion",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0,
+        "additional_details": {
+          "aggregation": "accuracy_over_subset",
+          "prompt_style": "5-shot CoT"
+        }
+      },
+      "score_details": {
+        "score": 0.6457
+      }
+    },
+    {
+      "evaluation_result_id": "mmlu_pro/engineering",
+      "evaluation_name": "MMLU-Pro (Engineering)",
+      "source_data": {
+        "dataset_name": "MMLU-Pro leaderboard submissions (TIGER-Lab)",
+        "source_type": "hf_dataset",
+        "hf_repo": "TIGER-Lab/mmlu_pro_leaderboard_submission",
+        "hf_split": "train",
+        "additional_details": {
+          "results_csv_url": "https://huggingface.co/datasets/TIGER-Lab/mmlu_pro_leaderboard_submission/resolve/main/results.csv",
+          "leaderboard_space_url": "https://huggingface.co/spaces/TIGER-Lab/MMLU-Pro",
+          "benchmark_hf_repo": "TIGER-Lab/MMLU-Pro",
+          "paper_url": "https://arxiv.org/abs/2406.01574",
+          "github_url": "https://github.com/TIGER-AI-Lab/MMLU-Pro",
+          "dataset_total_questions": "12000",
+          "prompt_style": "5-shot CoT"
+        }
+      },
+      "metric_config": {
+        "evaluation_description": "Accuracy on the MMLU-Pro Engineering subset, evaluated 5-shot with chain-of-thought.",
+        "metric_id": "mmlu_pro/engineering",
+        "metric_name": "MMLU-Pro (Engineering)",
+        "metric_kind": "accuracy",
+        "metric_unit": "proportion",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0,
+        "additional_details": {
+          "aggregation": "accuracy_over_subset",
+          "prompt_style": "5-shot CoT"
+        }
+      },
+      "score_details": {
+        "score": 0.3437
+      }
+    },
+    {
+      "evaluation_result_id": "mmlu_pro/health",
+      "evaluation_name": "MMLU-Pro (Health)",
+      "source_data": {
+        "dataset_name": "MMLU-Pro leaderboard submissions (TIGER-Lab)",
+        "source_type": "hf_dataset",
+        "hf_repo": "TIGER-Lab/mmlu_pro_leaderboard_submission",
+        "hf_split": "train",
+        "additional_details": {
+          "results_csv_url": "https://huggingface.co/datasets/TIGER-Lab/mmlu_pro_leaderboard_submission/resolve/main/results.csv",
+          "leaderboard_space_url": "https://huggingface.co/spaces/TIGER-Lab/MMLU-Pro",
+          "benchmark_hf_repo": "TIGER-Lab/MMLU-Pro",
+          "paper_url": "https://arxiv.org/abs/2406.01574",
+          "github_url": "https://github.com/TIGER-AI-Lab/MMLU-Pro",
+          "dataset_total_questions": "12000",
+          "prompt_style": "5-shot CoT"
+        }
+      },
+      "metric_config": {
+        "evaluation_description": "Accuracy on the MMLU-Pro Health subset, evaluated 5-shot with chain-of-thought.",
+        "metric_id": "mmlu_pro/health",
+        "metric_name": "MMLU-Pro (Health)",
+        "metric_kind": "accuracy",
+        "metric_unit": "proportion",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0,
+        "additional_details": {
+          "aggregation": "accuracy_over_subset",
+          "prompt_style": "5-shot CoT"
+        }
+      },
+      "score_details": {
+        "score": 0.5819
+      }
+    },
+    {
+      "evaluation_result_id": "mmlu_pro/history",
+      "evaluation_name": "MMLU-Pro (History)",
+      "source_data": {
+        "dataset_name": "MMLU-Pro leaderboard submissions (TIGER-Lab)",
+        "source_type": "hf_dataset",
+        "hf_repo": "TIGER-Lab/mmlu_pro_leaderboard_submission",
+        "hf_split": "train",
+        "additional_details": {
+          "results_csv_url": "https://huggingface.co/datasets/TIGER-Lab/mmlu_pro_leaderboard_submission/resolve/main/results.csv",
+          "leaderboard_space_url": "https://huggingface.co/spaces/TIGER-Lab/MMLU-Pro",
+          "benchmark_hf_repo": "TIGER-Lab/MMLU-Pro",
+          "paper_url": "https://arxiv.org/abs/2406.01574",
+          "github_url": "https://github.com/TIGER-AI-Lab/MMLU-Pro",
+          "dataset_total_questions": "12000",
+          "prompt_style": "5-shot CoT"
+        }
+      },
+      "metric_config": {
+        "evaluation_description": "Accuracy on the MMLU-Pro History subset, evaluated 5-shot with chain-of-thought.",
+        "metric_id": "mmlu_pro/history",
+        "metric_name": "MMLU-Pro (History)",
+        "metric_kind": "accuracy",
+        "metric_unit": "proportion",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0,
+        "additional_details": {
+          "aggregation": "accuracy_over_subset",
+          "prompt_style": "5-shot CoT"
+        }
+      },
+      "score_details": {
+        "score": 0.5276
+      }
+    },
+    {
+      "evaluation_result_id": "mmlu_pro/law",
+      "evaluation_name": "MMLU-Pro (Law)",
+      "source_data": {
+        "dataset_name": "MMLU-Pro leaderboard submissions (TIGER-Lab)",
+        "source_type": "hf_dataset",
+        "hf_repo": "TIGER-Lab/mmlu_pro_leaderboard_submission",
+        "hf_split": "train",
+        "additional_details": {
+          "results_csv_url": "https://huggingface.co/datasets/TIGER-Lab/mmlu_pro_leaderboard_submission/resolve/main/results.csv",
+          "leaderboard_space_url": "https://huggingface.co/spaces/TIGER-Lab/MMLU-Pro",
+          "benchmark_hf_repo": "TIGER-Lab/MMLU-Pro",
+          "paper_url": "https://arxiv.org/abs/2406.01574",
+          "github_url": "https://github.com/TIGER-AI-Lab/MMLU-Pro",
+          "dataset_total_questions": "12000",
+          "prompt_style": "5-shot CoT"
+        }
+      },
+      "metric_config": {
+        "evaluation_description": "Accuracy on the MMLU-Pro Law subset, evaluated 5-shot with chain-of-thought.",
+        "metric_id": "mmlu_pro/law",
+        "metric_name": "MMLU-Pro (Law)",
+        "metric_kind": "accuracy",
+        "metric_unit": "proportion",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0,
+        "additional_details": {
+          "aggregation": "accuracy_over_subset",
+          "prompt_style": "5-shot CoT"
+        }
+      },
+      "score_details": {
+        "score": 0.3479
+      }
+    },
+    {
+      "evaluation_result_id": "mmlu_pro/math",
+      "evaluation_name": "MMLU-Pro (Math)",
+      "source_data": {
+        "dataset_name": "MMLU-Pro leaderboard submissions (TIGER-Lab)",
+        "source_type": "hf_dataset",
+        "hf_repo": "TIGER-Lab/mmlu_pro_leaderboard_submission",
+        "hf_split": "train",
+        "additional_details": {
+          "results_csv_url": "https://huggingface.co/datasets/TIGER-Lab/mmlu_pro_leaderboard_submission/resolve/main/results.csv",
+          "leaderboard_space_url": "https://huggingface.co/spaces/TIGER-Lab/MMLU-Pro",
+          "benchmark_hf_repo": "TIGER-Lab/MMLU-Pro",
+          "paper_url": "https://arxiv.org/abs/2406.01574",
+          "github_url": "https://github.com/TIGER-AI-Lab/MMLU-Pro",
+          "dataset_total_questions": "12000",
+          "prompt_style": "5-shot CoT"
+        }
+      },
+      "metric_config": {
+        "evaluation_description": "Accuracy on the MMLU-Pro Math subset, evaluated 5-shot with chain-of-thought.",
+        "metric_id": "mmlu_pro/math",
+        "metric_name": "MMLU-Pro (Math)",
+        "metric_kind": "accuracy",
+        "metric_unit": "proportion",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0,
+        "additional_details": {
+          "aggregation": "accuracy_over_subset",
+          "prompt_style": "5-shot CoT"
+        }
+      },
+      "score_details": {
+        "score": 0.5618
+      }
+    },
+    {
+      "evaluation_result_id": "mmlu_pro/philosophy",
+      "evaluation_name": "MMLU-Pro (Philosophy)",
+      "source_data": {
+        "dataset_name": "MMLU-Pro leaderboard submissions (TIGER-Lab)",
+        "source_type": "hf_dataset",
+        "hf_repo": "TIGER-Lab/mmlu_pro_leaderboard_submission",
+        "hf_split": "train",
+        "additional_details": {
+          "results_csv_url": "https://huggingface.co/datasets/TIGER-Lab/mmlu_pro_leaderboard_submission/resolve/main/results.csv",
+          "leaderboard_space_url": "https://huggingface.co/spaces/TIGER-Lab/MMLU-Pro",
+          "benchmark_hf_repo": "TIGER-Lab/MMLU-Pro",
+          "paper_url": "https://arxiv.org/abs/2406.01574",
+          "github_url": "https://github.com/TIGER-AI-Lab/MMLU-Pro",
+          "dataset_total_questions": "12000",
+          "prompt_style": "5-shot CoT"
+        }
+      },
+      "metric_config": {
+        "evaluation_description": "Accuracy on the MMLU-Pro Philosophy subset, evaluated 5-shot with chain-of-thought.",
+        "metric_id": "mmlu_pro/philosophy",
+        "metric_name": "MMLU-Pro (Philosophy)",
+        "metric_kind": "accuracy",
+        "metric_unit": "proportion",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0,
+        "additional_details": {
+          "aggregation": "accuracy_over_subset",
+          "prompt_style": "5-shot CoT"
+        }
+      },
+      "score_details": {
+        "score": 0.4629
+      }
+    },
+    {
+      "evaluation_result_id": "mmlu_pro/physics",
+      "evaluation_name": "MMLU-Pro (Physics)",
+      "source_data": {
+        "dataset_name": "MMLU-Pro leaderboard submissions (TIGER-Lab)",
+        "source_type": "hf_dataset",
+        "hf_repo": "TIGER-Lab/mmlu_pro_leaderboard_submission",
+        "hf_split": "train",
+        "additional_details": {
+          "results_csv_url": "https://huggingface.co/datasets/TIGER-Lab/mmlu_pro_leaderboard_submission/resolve/main/results.csv",
+          "leaderboard_space_url": "https://huggingface.co/spaces/TIGER-Lab/MMLU-Pro",
+          "benchmark_hf_repo": "TIGER-Lab/MMLU-Pro",
+          "paper_url": "https://arxiv.org/abs/2406.01574",
+          "github_url": "https://github.com/TIGER-AI-Lab/MMLU-Pro",
+          "dataset_total_questions": "12000",
+          "prompt_style": "5-shot CoT"
+        }
+      },
+      "metric_config": {
+        "evaluation_description": "Accuracy on the MMLU-Pro Physics subset, evaluated 5-shot with chain-of-thought.",
+        "metric_id": "mmlu_pro/physics",
+        "metric_name": "MMLU-Pro (Physics)",
+        "metric_kind": "accuracy",
+        "metric_unit": "proportion",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0,
+        "additional_details": {
+          "aggregation": "accuracy_over_subset",
+          "prompt_style": "5-shot CoT"
+        }
+      },
+      "score_details": {
+        "score": 0.4935
+      }
+    },
+    {
+      "evaluation_result_id": "mmlu_pro/psychology",
+      "evaluation_name": "MMLU-Pro (Psychology)",
+      "source_data": {
+        "dataset_name": "MMLU-Pro leaderboard submissions (TIGER-Lab)",
+        "source_type": "hf_dataset",
+        "hf_repo": "TIGER-Lab/mmlu_pro_leaderboard_submission",
+        "hf_split": "train",
+        "additional_details": {
+          "results_csv_url": "https://huggingface.co/datasets/TIGER-Lab/mmlu_pro_leaderboard_submission/resolve/main/results.csv",
+          "leaderboard_space_url": "https://huggingface.co/spaces/TIGER-Lab/MMLU-Pro",
+          "benchmark_hf_repo": "TIGER-Lab/MMLU-Pro",
+          "paper_url": "https://arxiv.org/abs/2406.01574",
+          "github_url": "https://github.com/TIGER-AI-Lab/MMLU-Pro",
+          "dataset_total_questions": "12000",
+          "prompt_style": "5-shot CoT"
+        }
+      },
+      "metric_config": {
+        "evaluation_description": "Accuracy on the MMLU-Pro Psychology subset, evaluated 5-shot with chain-of-thought.",
+        "metric_id": "mmlu_pro/psychology",
+        "metric_name": "MMLU-Pro (Psychology)",
+        "metric_kind": "accuracy",
+        "metric_unit": "proportion",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0,
+        "additional_details": {
+          "aggregation": "accuracy_over_subset",
+          "prompt_style": "5-shot CoT"
+        }
+      },
+      "score_details": {
+        "score": 0.6429
+      }
+    },
+    {
+      "evaluation_result_id": "mmlu_pro/other",
+      "evaluation_name": "MMLU-Pro (Other)",
+      "source_data": {
+        "dataset_name": "MMLU-Pro leaderboard submissions (TIGER-Lab)",
+        "source_type": "hf_dataset",
+        "hf_repo": "TIGER-Lab/mmlu_pro_leaderboard_submission",
+        "hf_split": "train",
+        "additional_details": {
+          "results_csv_url": "https://huggingface.co/datasets/TIGER-Lab/mmlu_pro_leaderboard_submission/resolve/main/results.csv",
+          "leaderboard_space_url": "https://huggingface.co/spaces/TIGER-Lab/MMLU-Pro",
+          "benchmark_hf_repo": "TIGER-Lab/MMLU-Pro",
+          "paper_url": "https://arxiv.org/abs/2406.01574",
+          "github_url": "https://github.com/TIGER-AI-Lab/MMLU-Pro",
+          "dataset_total_questions": "12000",
+          "prompt_style": "5-shot CoT"
+        }
+      },
+      "metric_config": {
+        "evaluation_description": "Accuracy on the MMLU-Pro Other subset, evaluated 5-shot with chain-of-thought.",
+        "metric_id": "mmlu_pro/other",
+        "metric_name": "MMLU-Pro (Other)",
+        "metric_kind": "accuracy",
+        "metric_unit": "proportion",
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 1.0,
+        "additional_details": {
+          "aggregation": "accuracy_over_subset",
+          "prompt_style": "5-shot CoT"
+        }
+      },
+      "score_details": {
+        "score": 0.5162
+      }
+    }
+  ]
+}
