@@ -1,3 +1,9 @@
+---
+layout: default
+title: HF Community Evals
+nav_order: 6
+---
+
 # EEE -> HF Community Evals
 
 Built and maintained by Harsha Nelaturu · EvalEval Coalition · June 2026.

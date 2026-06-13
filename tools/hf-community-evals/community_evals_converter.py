@@ -2902,10 +2902,6 @@ def main(argv: list[str] | None = None) -> int:
     try:
         collection_name = _safe_collection_name(args.collection_name)
         manifest_output, yaml_dir, review_output = _default_paths(collection_name)
-        console.rule(
-            '[bold cyan]EEE -> HF Community Evals[/] '
-            '[dim](built by Harsha Nelaturu, June 2026)[/]'
-        )
         with Progress(
             SpinnerColumn(),
             TextColumn(
