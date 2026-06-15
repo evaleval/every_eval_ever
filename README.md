@@ -8,7 +8,7 @@
 
 - 📋 **A metadata schema** ([`eval.schema.json`](eval.schema.json)) that defines the information needed for meaningful comparison of evaluation results, including [instance-level data](instance_level_eval.schema.json)
 - 🔧 **Validation** that checks data against the schema before it enters the repository
-- 🔌 **Converters** for [Inspect AI](every_eval_ever/converters/inspect/), [HELM](every_eval_ever/converters/helm/), and [lm-eval-harness](every_eval_ever/converters/lm_eval/), so you can transform your existing evaluation logs into the standard format
+- 🔌 **Converters** for [Inspect AI](every_eval_ever/converters/inspect/), [HELM](every_eval_ever/converters/helm/), [lm-eval-harness](every_eval_ever/converters/lm_eval/), [AlpacaEval](every_eval_ever/converters/alpaca_eval/), and [LEXam](every_eval_ever/converters/lexam/), so you can transform your existing evaluation logs into the standard format
 
 Install the package:
 
@@ -327,13 +327,15 @@ uv run python post_codegen.py
 
 ## 🔌 Eval Converters
 
-We have prepared converters to make adapting to our schema as easy as possible. At the moment, we support converting local evaluation harness logs from `Inspect AI`, `HELM` and `lm-evaluation-harness` into our unified schema. Each converter produces aggregate JSON and optionally instance-level JSONL output.
+We have prepared converters to make adapting to our schema as easy as possible. At the moment, we support converting local evaluation harness logs from `Inspect AI`, `HELM` and `lm-evaluation-harness`, plus public leaderboard scrapes from `AlpacaEval` and `LEXam`, into our unified schema. Each converter produces aggregate JSON and optionally instance-level JSONL output.
 
 | Framework | Command | Instance-Level JSONL |
 |---|---|---|
 | [Inspect AI](every_eval_ever/converters/inspect/) | `every_eval_ever convert inspect --log_path <path>` | Yes, if samples in log |
 | [HELM](every_eval_ever/converters/helm/) | `every_eval_ever convert helm --log_path <path>` | Always |
 | [lm-evaluation-harness](every_eval_ever/converters/lm_eval/) | `every_eval_ever convert lm_eval --log_path <path> --include_samples` | With `--include_samples` |
+| [AlpacaEval](every_eval_ever/converters/alpaca_eval/) | `every_eval_ever convert alpaca_eval --output_dir data` | No |
+| [LEXam](every_eval_ever/converters/lexam/) | `every_eval_ever convert lexam --output_dir data` | No |
 
 For full CLI usage and required input files, see the [Eval Converters README](every_eval_ever/converters/README.md).
 
