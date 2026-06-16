@@ -14,6 +14,7 @@ The adapter consumes a combined offline payload with top-level ``models``,
 from __future__ import annotations
 
 import argparse
+import html
 import json
 import os
 import re
@@ -22,6 +23,9 @@ from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
+
+import requests
 
 from every_eval_ever.eval_types import (
     EvalLibrary,
@@ -92,6 +96,8 @@ PROVENANCE_KEYS = (
 URL_KEYS = (
     'citation_url',
     'citationUrl',
+    'self_reported_source',
+    'selfReportedSource',
     'source_url',
     'sourceUrl',
     'source_urls',
@@ -106,6 +112,17 @@ URL_KEYS = (
     'systemCardUrl',
     'reference_url',
     'referenceUrl',
+)
+SOURCE_ORGANIZATION_KEYS = (
+    'source_organization',
+    'sourceOrganization',
+    'source_organization_name',
+    'sourceOrganizationName',
+    'source_org',
+    'sourceOrg',
+    'evaluator',
+    'evaluator_name',
+    'evaluatorName',
 )
 MODEL_DETAIL_KEYS = (
     'id',
@@ -349,6 +366,7 @@ def fetch_payload(api_key: str, base_url: str) -> dict[str, Any]:
             base_url,
             headers,
         )
+        scores = enrich_scores_with_model_page_sources(scores)
 
     return {
         'models': models,
@@ -381,6 +399,107 @@ def fetch_benchmark_score_payloads(
         scores.extend(scores_from_benchmark_detail(detail, benchmark))
 
     return scores
+
+
+def fetch_text(url: str) -> str:
+    try:
+        response = requests.get(url, timeout=60)
+        response.raise_for_status()
+        return response.text
+    except requests.exceptions.RequestException as exc:
+        raise FetchError(f'Failed to fetch {url}: {exc}') from exc
+
+
+def llm_stats_model_page_url(model_id: str) -> str:
+    return f'https://llm-stats.com/models/{normalize_slug(model_id)}'
+
+
+def extract_model_page_score_sources(page_html: str) -> dict[str, dict[str, Any]]:
+    text = html.unescape(page_html).replace('\\"', '"')
+    matches = re.finditer(
+        r'"benchmark_id":"(?P<benchmark_id>[^"]+)".*?'
+        r'"self_reported":(?P<self_reported>true|false|null).*?'
+        r'"self_reported_source":(?P<self_reported_source>null|"[^"]*")',
+        text,
+        flags=re.DOTALL,
+    )
+
+    sources: dict[str, dict[str, Any]] = {}
+    for match in matches:
+        benchmark_id = match.group('benchmark_id')
+        source_token = match.group('self_reported_source')
+        source_url = None
+        if source_token != 'null':
+            try:
+                source_url = json.loads(source_token)
+            except json.JSONDecodeError:
+                source_url = source_token.strip('"')
+
+        self_reported_raw = match.group('self_reported')
+        self_reported = None
+        if self_reported_raw == 'true':
+            self_reported = True
+        elif self_reported_raw == 'false':
+            self_reported = False
+
+        source_organization = source_organization_from_url(source_url)
+        sources[benchmark_id] = stringify_details(
+            {
+                'self_reported': self_reported,
+                'self_reported_source': source_url,
+                'source_url': source_url,
+                'source_organization': source_organization,
+                'source_organization_inferred_from_url': bool(
+                    source_organization
+                ),
+                'source_domain': source_domain_from_url(source_url),
+            }
+        )
+
+        # Preserve booleans as booleans for relationship inference.
+        if self_reported is not None:
+            sources[benchmark_id]['self_reported'] = self_reported
+
+    return sources
+
+
+def enrich_scores_with_model_page_sources(
+    scores_payload: Any,
+) -> list[dict[str, Any]]:
+    scores = extract_collection(scores_payload, 'scores')
+    sources_by_model: dict[str, dict[str, dict[str, Any]]] = {}
+
+    for score in scores:
+        model_id = score_model_ref(score)
+        if not model_id or model_id in sources_by_model:
+            continue
+
+        try:
+            page_html = fetch_text(llm_stats_model_page_url(model_id))
+        except FetchError as exc:
+            print(f'Skipping LLM Stats model page {model_id!r}: {exc}')
+            sources_by_model[model_id] = {}
+            continue
+
+        sources_by_model[model_id] = extract_model_page_score_sources(
+            page_html
+        )
+
+    enriched = []
+    for score in scores:
+        score_copy = dict(score)
+        model_id = score_model_ref(score_copy)
+        benchmark_id = score_benchmark_ref(score_copy)
+        page_source = (
+            sources_by_model.get(model_id or '', {}).get(benchmark_id or '')
+        )
+        if page_source:
+            for key, value in page_source.items():
+                if key not in score_copy or score_copy[key] in (None, ''):
+                    score_copy[key] = value
+        enriched.append(score_copy)
+
+    return enriched
 
 
 def scores_from_benchmark_detail(
@@ -762,20 +881,175 @@ def make_model_details(model: dict[str, Any]) -> dict[str, str]:
     return stringify_details(details)
 
 
-def relationship_from_score(score: dict[str, Any]) -> str:
+def source_domain_from_url(url: Any) -> str | None:
+    urls = extract_urls(url)
+    if not urls:
+        return None
+    parsed = urlparse(urls[0])
+    host = parsed.netloc.lower().removeprefix('www.')
+    return host or None
+
+
+def source_organization_from_url(url: Any) -> str | None:
+    urls = extract_urls(url)
+    if not urls:
+        return None
+
+    parsed = urlparse(urls[0])
+    host = parsed.netloc.lower().removeprefix('www.')
+    path_parts = [part for part in parsed.path.split('/') if part]
+    if host in {'x.com', 'twitter.com'} and path_parts:
+        return normalize_slug(path_parts[0])
+
+    domain_overrides = {
+        'openai.com': 'openai',
+        'anthropic.com': 'anthropic',
+        'google.com': 'google',
+        'blog.google': 'google',
+        'deepmind.google': 'google',
+        'ai.google.dev': 'google',
+        'x.ai': 'xai',
+        'artificialanalysis.ai': 'artificial-analysis',
+    }
+    if host in domain_overrides:
+        return domain_overrides[host]
+
+    parts = host.split('.')
+    if len(parts) >= 2:
+        return normalize_slug(parts[-2])
+    return normalize_slug(host) if host else None
+
+
+def explicit_score_source_organization(score: dict[str, Any]) -> str | None:
+    inferred_from_url = bool_value(
+        first_present(score, ('source_organization_inferred_from_url',))
+    )
+    for key in SOURCE_ORGANIZATION_KEYS:
+        if key in {'source_organization', 'sourceOrganization'} and inferred_from_url:
+            continue
+        value = first_present(score, (key,))
+        if value not in (None, ''):
+            return normalize_slug(value)
+    return None
+
+
+def url_score_source_organization(score: dict[str, Any]) -> str | None:
+    for key in URL_KEYS:
+        source = source_organization_from_url(first_present(score, (key,)))
+        if source:
+            return source
+    return None
+
+
+def score_source_organization(score: dict[str, Any]) -> str | None:
+    return explicit_score_source_organization(
+        score
+    ) or url_score_source_organization(score)
+
+
+def model_organization_candidates(
+    score: dict[str, Any],
+    model: dict[str, Any] | None = None,
+) -> set[str]:
+    candidates = set()
+    rows = [score]
+    if model is not None:
+        rows.append(model)
+
+    for row in rows:
+        provider_slug, provider_name = provider_value(row)
+        for value in (provider_slug, provider_name):
+            if value not in (None, ''):
+                candidates.add(normalize_slug(value))
+        for key in (
+            'organization_id',
+            'organizationId',
+            'organization_name',
+            'organizationName',
+            'provider_id',
+            'providerId',
+        ):
+            value = first_present(row, (key,))
+            if value not in (None, ''):
+                candidates.add(normalize_slug(value))
+
+    if model is not None:
+        raw_developer, _ = split_model_id(model_source_id(model))
+        if raw_developer:
+            candidates.add(normalize_slug(raw_developer))
+
+    return {candidate for candidate in candidates if candidate != 'unknown'}
+
+
+def bool_value(value: Any) -> bool | None:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        text = value.strip().lower()
+        if text in {'true', '1', 'yes'}:
+            return True
+        if text in {'false', '0', 'no'}:
+            return False
+    return None
+
+
+def score_self_reported(score: dict[str, Any]) -> bool | None:
+    for key in (
+        'is_self_reported',
+        'self_reported',
+        'isSelfReported',
+        'selfReported',
+    ):
+        value = bool_value(first_present(score, (key,)))
+        if value is not None:
+            return value
+    return None
+
+
+def relationship_inference(
+    score: dict[str, Any],
+    model: dict[str, Any] | None = None,
+) -> tuple[str, str]:
     explicit_keys = ('evaluator_relationship',) + tuple(PROVENANCE_KEYS)
     for key in explicit_keys:
         explicit = first_present(score, (key,))
         if isinstance(explicit, str) and explicit in RELATIONSHIP_VALUES:
-            return explicit
+            return explicit, f'explicit_{key}'
 
+    source_organization = explicit_score_source_organization(score)
+    model_organizations = model_organization_candidates(score, model)
+    if source_organization and source_organization in model_organizations:
+        return (
+            EvaluatorRelationship.first_party.value,
+            'explicit_source_matches_model_developer',
+        )
+    if source_organization:
+        return (
+            EvaluatorRelationship.third_party.value,
+            'explicit_source_differs_from_model_developer',
+        )
+
+    url_source_organization = url_score_source_organization(score)
     if (
-        score.get('is_self_reported') is True
-        or score.get('self_reported') is True
+        url_source_organization
+        and url_source_organization in model_organizations
     ):
-        return EvaluatorRelationship.first_party.value
-    if score.get('isSelfReported') is True or score.get('selfReported') is True:
-        return EvaluatorRelationship.first_party.value
+        return (
+            EvaluatorRelationship.first_party.value,
+            'source_matches_model_developer',
+        )
+
+    self_reported = score_self_reported(score)
+    if self_reported is True:
+        return EvaluatorRelationship.first_party.value, 'self_reported_true'
+    if self_reported is False:
+        return EvaluatorRelationship.third_party.value, 'self_reported_false'
+
+    if url_source_organization:
+        return (
+            EvaluatorRelationship.third_party.value,
+            'source_differs_from_model_developer',
+        )
 
     labels = []
     for key in PROVENANCE_KEYS:
@@ -785,7 +1059,7 @@ def relationship_from_score(score: dict[str, Any]) -> str:
 
     text = ' '.join(labels).lower().replace('-', '_').replace(' ', '_')
     if not text:
-        return EvaluatorRelationship.other.value
+        return EvaluatorRelationship.other.value, 'no_provenance_signal'
 
     if any(
         marker in text
@@ -800,7 +1074,7 @@ def relationship_from_score(score: dict[str, Any]) -> str:
             'selfreported',
         )
     ):
-        return EvaluatorRelationship.first_party.value
+        return EvaluatorRelationship.first_party.value, 'provenance_text'
     if any(
         marker in text
         for marker in (
@@ -811,20 +1085,56 @@ def relationship_from_score(score: dict[str, Any]) -> str:
             'thirdparty',
         )
     ):
-        return EvaluatorRelationship.third_party.value
+        return EvaluatorRelationship.third_party.value, 'provenance_text'
     if 'collaborative' in text or 'joint' in text:
-        return EvaluatorRelationship.collaborative.value
+        return EvaluatorRelationship.collaborative.value, 'provenance_text'
 
-    return EvaluatorRelationship.other.value
+    return EvaluatorRelationship.other.value, 'unrecognized_provenance_text'
 
 
-def provenance_details(score: dict[str, Any]) -> dict[str, str]:
+def relationship_from_score(
+    score: dict[str, Any],
+    model: dict[str, Any] | None = None,
+) -> str:
+    relationship, _ = relationship_inference(score, model)
+    return relationship
+
+
+def provenance_details(
+    score: dict[str, Any],
+    model: dict[str, Any] | None = None,
+) -> dict[str, str]:
     details: dict[str, Any] = {}
     raw_fields: dict[str, Any] = {}
     for key in PROVENANCE_KEYS:
         value = first_present(score, (key,))
         if value not in (None, ''):
             raw_fields[key] = value
+    for key in (
+        'self_reported',
+        'selfReported',
+        'is_self_reported',
+        'isSelfReported',
+        'self_reported_source',
+        'selfReportedSource',
+        'source_organization',
+        'sourceOrganization',
+        'source_domain',
+        'sourceDomain',
+    ):
+        value = first_present(score, (key,))
+        if value not in (None, ''):
+            details[f'raw_{normalize_slug(key).replace("-", "_")}'] = value
+    if 'raw_source_organization' not in details:
+        source_organization = score_source_organization(score)
+        if source_organization:
+            details['raw_source_organization'] = source_organization
+    if 'raw_source_domain' not in details:
+        for key in URL_KEYS:
+            source_domain = source_domain_from_url(first_present(score, (key,)))
+            if source_domain:
+                details['raw_source_domain'] = source_domain
+                break
     if raw_fields:
         details['raw_provenance_fields_json'] = raw_fields
         details['raw_provenance_label'] = ' '.join(
@@ -837,6 +1147,10 @@ def provenance_details(score: dict[str, Any]) -> dict[str, str]:
         value = first_present(score, (key,))
         if value not in (None, ''):
             details[f'raw_{normalize_slug(key).replace("-", "_")}'] = value
+
+    relationship, reason = relationship_inference(score, model)
+    details['inferred_evaluator_relationship'] = relationship
+    details['relationship_inference_reason'] = reason
 
     return stringify_details(details)
 
@@ -1086,7 +1400,7 @@ def make_score_details(
     if score_id not in (None, ''):
         details['raw_score_id'] = score_id
 
-    details.update(provenance_details(score))
+    details.update(provenance_details(score, model))
     return ScoreDetails(
         score=score_value,
         details=stringify_details(details),
@@ -1210,7 +1524,7 @@ def make_logs(
         model = resolve_model(score, model_index)
         benchmark = resolve_benchmark(score, benchmark_index)
         model_info, developer, model_slug = normalize_model_info(model)
-        relationship = relationship_from_score(score)
+        relationship = relationship_from_score(score, model)
         result = make_evaluation_result(score, model, benchmark, base_url)
         if result is None:
             continue
