@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import argparse
 import datetime
 import json
@@ -11,12 +13,14 @@ from pathlib import Path
 from huggingface_hub import HfApi, hf_hub_download
 from huggingface_hub.utils import EntryNotFoundError
 
-REPO_ID = "evaleval/EEE_datastore"
+REPO_ID = "deeplumiere/EEE_datastore"
 REPO_TYPE = "dataset"
 DATA_DIR = Path("data")
 STATS_FILE = DATA_DIR / "adapter_stats.json"
 REPORT_FILE = DATA_DIR / "run_report.json"
 UTILS_DIR = Path("utils")
+
+# Heuristics
 HEAVY_TIME_S = 60
 HEAVY_SIZE_MB = 50
 
@@ -60,6 +64,7 @@ def is_stale(adapter: str, stats: dict) -> bool:
 def get_input_requirement(adapter_path: Path):
     content = adapter_path.read_text(encoding="utf-8")
     
+    # Check if --input-json or --input-csv or --csv is REQUIRED
     requires_json = re.search(r'add_argument\s*\(\s*["\']--input-json["\'].*?required=True', content, re.DOTALL) is not None
     requires_input_csv = re.search(r'add_argument\s*\(\s*["\']--input-csv["\'].*?required=True', content, re.DOTALL) is not None
     requires_just_csv = re.search(r'add_argument\s*\(\s*["\']--csv["\'].*?required=True', content, re.DOTALL) is not None
@@ -75,6 +80,7 @@ def get_input_requirement(adapter_path: Path):
             
     url = None
     if requires_json or requires_csv:
+        # Find URL. Try SOURCE_URL, SOURCE_CSV_URL, or any other obvious data URL
         url_match = re.search(r'(?:SOURCE(?:_CSV)?_URL|RESULTS_CSV_URL)\s*=\s*["\'](http[^"\']+)["\']', content)
         if url_match:
             url = url_match.group(1)
@@ -86,14 +92,17 @@ def main():
     parser.add_argument("--dry-run", action="store_true", help="Do not upload to Hugging Face")
     args = parser.parse_args()
 
+    # Create data dir
     DATA_DIR.mkdir(exist_ok=True)
     
+    # Download existing state
     stats = download_hf_json("adapter_stats.json", {})
     last_report = download_hf_json("run_report.json", {})
 
     today = datetime.datetime.now()
     is_sunday = today.weekday() == 6
     
+    # We will build a new report for today
     today_str = today.strftime("%Y-%m-%d")
     current_report = {
         "date": today_str,
@@ -120,6 +129,7 @@ def main():
         requires_json, requires_csv, url, arg_name = get_input_requirement(adapter_path)
         
         adapter_data_dir = DATA_DIR / adapter
+        # Clean previous run data if any
         if adapter_data_dir.exists():
             shutil.rmtree(adapter_data_dir)
             
@@ -127,6 +137,7 @@ def main():
             
         cmd = ["uv", "run", "python", "-m", f"utils.{adapter}.adapter"]
         
+        # Only pass --output-dir if the adapter script mentions it
         content = adapter_path.read_text(encoding="utf-8")
         if "--output-dir" in content:
             cmd.extend(["--output-dir", str(adapter_data_dir)])
@@ -171,8 +182,11 @@ def main():
             val_cmd = ["uv", "run", "python", "-m", "every_eval_ever", "validate", "--format", "json", str(adapter_data_dir)]
             val_res = subprocess.run(val_cmd, capture_output=True, text=True)
             
+            # Even if val_res fails (which it will if any file is invalid), it outputs JSON
             try:
+                # the validate command might print other stuff? we'll try to extract JSON
                 out_str = val_res.stdout.strip()
+                # find the first [
                 idx = out_str.find('[')
                 if idx != -1:
                     val_data = json.loads(out_str[idx:])
@@ -194,15 +208,17 @@ def main():
                     failed_files += 1
                     errs = f_report.get("errors", [])
                     errors_list.extend(errs)
-                    
+                    # Delete invalid file
                     invalid_f = Path(f_report.get("file"))
                     if invalid_f.exists():
                         invalid_f.unlink()
             
             print(f"Validation: {valid_files} valid, {failed_files} failed")
             
+            # Size measurement
             dir_size_mb = get_dir_size_mb(adapter_data_dir)
             
+            # Update stats
             stats.setdefault(adapter, {}).update({
                 "time_s": elapsed,
                 "size_mb": dir_size_mb,
@@ -214,7 +230,7 @@ def main():
                 "execution_failed": False,
                 "valid_files": valid_files,
                 "failed_files": failed_files,
-                "errors": errors_list
+                "errors": errors_list[:50] # save up to 50 errors in report
             }
             
         except Exception as e:
@@ -228,24 +244,23 @@ def main():
             if tmp_file and tmp_file.exists():
                 tmp_file.unlink()
 
+    # Save stats and report
     with open(STATS_FILE, "w", encoding="utf-8") as f:
         json.dump(stats, f, indent=2)
         
     with open(REPORT_FILE, "w", encoding="utf-8") as f:
         json.dump(current_report, f, indent=2)
 
+    # Upload to HF
     if not args.dry_run:
         print("Uploading to Hugging Face...")
         api = HfApi()
         try:
-            api.upload_folder(
-                folder_path=str(DATA_DIR),
-                path_in_repo="data",
+            api.upload_large_folder(
                 repo_id=REPO_ID,
+                folder_path=".",
                 repo_type=REPO_TYPE,
-                commit_message=f"[Submission] Auto-run adapters {today_str}",
-                commit_description="Automated cron run of every-eval-ever adapters.",
-                create_pr=True
+                allow_patterns=["data/**"]
             )
             print("Upload complete!")
         except Exception as e:
@@ -253,10 +268,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-# RUN WITH
-# $env:HF_TOKEN="your_huggingface_token_here"
-# $env:ARTIFICIAL_ANALYSIS_API_KEY="your_artificial_analysis_api_key_here"
-# $env:LLM_STATS_API_KEY="your_llm_stats_api_key_here"
-# uv run python scripts/run_adapters.py
