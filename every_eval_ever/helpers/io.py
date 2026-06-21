@@ -21,7 +21,12 @@ def sanitize_filename(name: str) -> str:
         Sanitized string safe for filesystem use
     """
     # Replace characters invalid on Windows/Unix filesystems
-    return re.sub(r'[<>:"/\\|?*]', '_', name)
+    name = re.sub(r'[<>:"/\\|?*]', '_', name)
+    # Hugging Face Hub blocks paths containing "/x00". If a name starts with x00,
+    # it will create a /x00 in the path when joined.
+    if name.startswith("x00"):
+        name = "x_00" + name[3:]
+    return name
 
 
 def generate_output_path(
