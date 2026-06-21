@@ -256,15 +256,15 @@ def main():
         print("Uploading to Hugging Face...")
         api = HfApi()
         try:
-            api.upload_large_folder(
+            api.upload_folder(
                 repo_id=REPO_ID,
                 folder_path=".",
                 repo_type=REPO_TYPE,
-                allow_patterns=["data/**"]
+                allow_patterns=["data/**"],
+                create_pr=True 
             )
             print("Upload complete!")
         except Exception as e:
             print(f"Upload failed: {e}")
-
 if __name__ == "__main__":
     main()
