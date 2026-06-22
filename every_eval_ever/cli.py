@@ -10,6 +10,8 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from every_eval_ever import io as eee_io
+
 EVALUATOR_RELATIONSHIP_CHOICES = [
     'first_party',
     'third_party',
@@ -30,6 +32,21 @@ def _common_metadata(args: argparse.Namespace) -> dict[str, Any]:
     }
 
 
+def _resolve_compression(
+    args: argparse.Namespace, kind: str
+) -> str:
+    """Resolve the compression name for ``kind`` ('aggregate' or 'samples')."""
+    if kind == 'aggregate':
+        per_kind = getattr(args, 'compress_aggregate', None)
+    elif kind == 'samples':
+        per_kind = getattr(args, 'compress_samples', None)
+    else:
+        raise ValueError(f'unknown kind {kind!r}')
+    if per_kind is not None:
+        return per_kind
+    return getattr(args, 'compress', eee_io.COMPRESSION_NONE)
+
+
 def _output_dir_for_log(base_output: Path, log: Any) -> Path:
     dataset = 'unknown'
     if log.evaluation_results and log.evaluation_results[0].source_data:
@@ -46,12 +63,23 @@ def _output_dir_for_log(base_output: Path, log: Any) -> Path:
 
 
 def _write_log(
-    log: Any, base_output: Path, eval_uuid: str | None = None
+    log: Any,
+    base_output: Path,
+    eval_uuid: str | None = None,
+    compression: str = eee_io.COMPRESSION_NONE,
 ) -> Path:
+    """Write an aggregate evaluation log to ``base_output``.
+
+    ``compression`` selects the codec for the on-disk file; the resulting
+    filename has the codec suffix appended (e.g. ``<uuid>.json.gz``).
+    Defaults to no compression for backwards compatibility.
+    """
     out_dir = _output_dir_for_log(base_output, log)
     eval_uuid = eval_uuid or str(uuid.uuid4())
-    out_file = out_dir / f'{eval_uuid}.json'
-    with out_file.open('w', encoding='utf-8') as file:
+    out_file = eee_io.add_compression_suffix(
+        out_dir / f'{eval_uuid}.json', compression
+    )
+    with eee_io.open_eee_text(out_file, 'w') as file:
         json.dump(
             log.model_dump(mode='json', exclude_none=True), file, indent=2
         )
@@ -100,9 +128,11 @@ def _cmd_convert_lm_eval(args: argparse.Namespace) -> int:
                         task_name=task_name,
                         output_dir=str(_output_dir_for_log(output_dir, log)),
                         file_uuid=eval_uuid,
+                        compression=_resolve_compression(args, 'samples'),
                     )
                     log.detailed_evaluation_results = detailed
-        print(_write_log(log, output_dir, eval_uuid=eval_uuid))
+        print(_write_log(log, output_dir, eval_uuid=eval_uuid,
+                         compression=_resolve_compression(args, 'aggregate')))
 
     print(f'Converted {len(logs)} evaluation log(s).')
     return 0
@@ -139,7 +169,8 @@ def _cmd_convert_inspect(args: argparse.Namespace) -> int:
 
     output_dir = Path(args.output_dir)
     for log, eval_uuid in zip(logs, eval_uuids):
-        print(_write_log(log, output_dir, eval_uuid=eval_uuid))
+        print(_write_log(log, output_dir, eval_uuid=eval_uuid,
+                         compression=_resolve_compression(args, 'aggregate')))
 
     print(f'Converted {len(logs)} evaluation log(s).')
     return 0
@@ -168,6 +199,7 @@ def _cmd_convert_helm(args: argparse.Namespace) -> int:
     else:
         raise FileNotFoundError(f'Path is not a file or directory: {log_path}')
 
+    metadata['samples_compression'] = _resolve_compression(args, 'samples')
     logs = adapter.transform_from_directory(
         log_path,
         output_path=str(Path(args.output_dir) / 'helm_output'),
@@ -182,7 +214,8 @@ def _cmd_convert_helm(args: argparse.Namespace) -> int:
 
     output_dir = Path(args.output_dir)
     for log, eval_uuid in zip(logs, eval_uuids):
-        print(_write_log(log, output_dir, eval_uuid=eval_uuid))
+        print(_write_log(log, output_dir, eval_uuid=eval_uuid,
+                         compression=_resolve_compression(args, 'aggregate')))
 
     print(f'Converted {len(logs)} evaluation log(s).')
     return 0
@@ -223,7 +256,10 @@ def _cmd_convert_alpaca_eval(args: argparse.Namespace) -> int:
             if args.eval_library_version != 'unknown':
                 log.eval_library.version = args.eval_library_version
 
-            out_file = _write_log(log, output_dir)
+            out_file = _write_log(
+                log, output_dir,
+                compression=_resolve_compression(args, 'aggregate'),
+            )
             print(f'  {out_file}')
             total += 1
 
@@ -352,6 +388,41 @@ def build_parser() -> argparse.ArgumentParser:
             '--eval-library-version',
             default='unknown',
             help='Evaluation library version recorded in eval_library.version.',
+        )
+
+        # ----- compression options (apply to all converters) ------------
+        source_parser.add_argument(
+            '--compress',
+            choices=eee_io.COMPRESSION_CHOICES,
+            default=eee_io.COMPRESSION_NONE,
+            help=(
+                'Default codec for both aggregate and per-instance '
+                'output files (default: none). Files are written as '
+                "<uuid>.json[.<codec>] / <uuid>_samples.jsonl[.<codec>]. "
+                'See the --compress-aggregate / --compress-samples '
+                'flags to override per-kind. .zst and .lz4 require the '
+                "optional 'zst' / 'lz4' extras."
+            ),
+        )
+        source_parser.add_argument(
+            '--compress-aggregate', '--compress_aggregate',
+            choices=eee_io.COMPRESSION_CHOICES,
+            default=None,
+            help=(
+                "Override --compress for aggregate <uuid>.json files only. "
+                'HF + GitHub render uncompressed JSON inline so the default '
+                "(--compress's value) is usually the right call here."
+            ),
+        )
+        source_parser.add_argument(
+            '--compress-samples', '--compress_samples',
+            choices=eee_io.COMPRESSION_CHOICES,
+            default=None,
+            help=(
+                "Override --compress for per-instance <uuid>_samples.jsonl "
+                "files only. JSONL compresses 5–15x; recommended setting "
+                'when shipping to a public store.'
+            ),
         )
 
         if source == 'alpaca_eval':

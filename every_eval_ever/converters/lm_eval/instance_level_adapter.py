@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
+from every_eval_ever import io as eee_io
 from every_eval_ever.converters import SCHEMA_VERSION
 from every_eval_ever.eval_types import (
     DetailedEvaluationResults,
@@ -55,12 +56,18 @@ class LMEvalInstanceLevelAdapter:
         task_name: str,
         output_dir: Optional[Union[str, Path]] = None,
         file_uuid: Optional[str] = None,
+        compression: str = eee_io.COMPRESSION_NONE,
     ) -> Optional[DetailedEvaluationResults]:
         """Transform samples and save to JSONL, returning a DetailedEvaluationResults pointer.
 
         If output_dir is None, returns None (skips instance-level output).
         If file_uuid is provided, the output file is named {file_uuid}_samples.jsonl
         so it shares the UUID of the corresponding evaluation result file.
+
+        ``compression`` controls the on-disk codec for the samples file
+        (see ``every_eval_ever.io.COMPRESSION_CHOICES``). The output
+        filename has the codec suffix appended; the recorded checksum
+        is computed over the (possibly compressed) on-disk bytes.
         """
         if output_dir is None:
             return None
@@ -74,11 +81,12 @@ class LMEvalInstanceLevelAdapter:
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
         if file_uuid:
-            out_file = output_dir / f'{file_uuid}_samples.jsonl'
+            base = output_dir / f'{file_uuid}_samples.jsonl'
         else:
-            out_file = output_dir / f'samples_{task_name}.jsonl'
+            base = output_dir / f'samples_{task_name}.jsonl'
+        out_file = eee_io.add_compression_suffix(base, compression)
 
-        with open(out_file, 'w') as f:
+        with eee_io.open_eee_text(out_file, 'w') as f:
             for log in logs:
                 f.write(
                     json.dumps(log.model_dump(mode='json'), ensure_ascii=False)
