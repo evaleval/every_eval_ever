@@ -162,8 +162,9 @@ def test_missing_model_deployment_falls_back_to_model():
     Copies a helm data item and explicitly removes a field to test robustness
     to model_deployment missing. Regression test for #112
     """
-    import shutil
     import json
+    import shutil
+
     src = Path(
         'tests/data/helm/'
         'mmlu:subject=philosophy,method=multiple_choice_joint,model=openai_gpt2'
