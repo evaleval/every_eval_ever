@@ -29,7 +29,7 @@ def _require_inspect_dependencies() -> None:
         ) from _INSPECT_IMPORT_ERROR
 
 
-from every_eval_ever.converters import SCHEMA_VERSION
+from every_eval_ever.converters import INSTANCE_LEVEL_SCHEMA_VERSION
 from every_eval_ever.converters.common.utils import sha256_string
 from every_eval_ever.instance_level_types import (
     AnswerAttributionItem,
@@ -422,7 +422,7 @@ class InspectInstanceLevelDataAdapter:
                 performance = None
 
             instance_level_log = InstanceLevelEvaluationLog(
-                schema_version=SCHEMA_VERSION,
+                schema_version=INSTANCE_LEVEL_SCHEMA_VERSION,
                 evaluation_id=self.evaluation_id,
                 model_id=model_id,
                 evaluation_name=evaluation_name,

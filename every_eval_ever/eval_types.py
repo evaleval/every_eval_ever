@@ -489,7 +489,7 @@ class EvaluationLog(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
     )
-    schema_version: str = Field(
+    schema_version: Literal['0.2.2'] = Field(
         ..., description='Version of the schema used for this evaluation data'
     )
     evaluation_id: str = Field(

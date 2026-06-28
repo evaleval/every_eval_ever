@@ -20,7 +20,7 @@ def _require_helm_dependencies() -> None:
         ) from _HELM_IMPORT_ERROR
 
 
-from every_eval_ever.converters import SCHEMA_VERSION
+from every_eval_ever.converters import INSTANCE_LEVEL_SCHEMA_VERSION
 from every_eval_ever.converters.common.utils import sha256_string
 from every_eval_ever.converters.helm.utils import extract_all_reasonings
 from every_eval_ever.instance_level_types import (
@@ -42,13 +42,14 @@ class HELMInstanceLevelDataAdapter:
         format: str,
         hash_algorithm: str,
         evaluation_dir: str,
+        file_stem: str | None = None,
     ):
         _require_helm_dependencies()
         self.evaluation_id = evaulation_id
         self.format = format
         self.hash_algorithm = hash_algorithm
         self.evaluation_dir = evaluation_dir
-        self.path = f'{evaluation_dir}/{evaulation_id}.{format}'
+        self.path = f'{evaluation_dir}/{file_stem or evaulation_id}.{format}'
 
     def _save_json(self, items: List[InstanceLevelEvaluationLog]):
         eval_dir_path = Path(self.evaluation_dir)
@@ -157,7 +158,7 @@ class HELMInstanceLevelDataAdapter:
 
             instance_level_logs.append(
                 InstanceLevelEvaluationLog(
-                    schema_version=SCHEMA_VERSION,
+                    schema_version=INSTANCE_LEVEL_SCHEMA_VERSION,
                     evaluation_id=self.evaluation_id,
                     model_id=model_id,
                     evaluation_name=evaluation_name,

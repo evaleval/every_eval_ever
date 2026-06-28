@@ -131,6 +131,13 @@ class TestAggregateValidation:
         assert report.valid is False
         assert any('evaluation_id' in e['loc'] for e in report.errors)
 
+    def test_wrong_schema_version_fails(self, tmp_path: Path):
+        data = {**VALID_AGGREGATE, 'schema_version': '0.2.1'}
+        fp = _write_json(tmp_path, 'wrong_version.json', data)
+        report = validate_aggregate(fp)
+        assert report.valid is False
+        assert any('schema_version' in e['loc'] for e in report.errors)
+
     def test_extra_field_on_evaluation_log_fails(self, tmp_path: Path):
         data = {**VALID_AGGREGATE, 'unexpected_field': 'oops'}
         fp = _write_json(tmp_path, 'extra.json', data)
@@ -222,6 +229,16 @@ class TestInstanceLevelValidation:
         report = validate_instance_file(fp)
         assert report.valid is True
         assert report.line_count == 1
+
+    def test_wrong_schema_version_fails(self, tmp_path: Path):
+        data = {
+            **VALID_SINGLE_TURN,
+            'schema_version': 'instance_level_eval_0.2.1',
+        }
+        fp = _write_jsonl(tmp_path, 'wrong_version.jsonl', [data])
+        report = validate_instance_file(fp)
+        assert report.valid is False
+        assert any('schema_version' in e['loc'] for e in report.errors)
 
     def test_valid_multi_turn_passes(self, tmp_path: Path):
         fp = _write_jsonl(tmp_path, 'multi.jsonl', [VALID_MULTI_TURN])
