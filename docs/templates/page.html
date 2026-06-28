@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{title}}</title>
+    <meta name="description" content="{{description}}">
+    <link rel="canonical" href="{{canonical_url}}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap">
+    <link rel="stylesheet" href="{{docs_css}}">
+    <script defer src="{{docs_js}}"></script>
+  </head>
+  <body data-search-index="{{search_index}}" data-base-url="{{base_url}}">
+    <a class="skip-link" href="#content">Skip to content</a>
+
+    <div class="docs-shell">
+      <aside class="sidebar">
+        <a class="brand" href="{{base_url}}/" aria-label="Every Eval Ever docs home">
+          <img class="brand-logo" src="{{logo}}" alt="" aria-hidden="true">
+          <span>
+            <strong>Every Eval Ever</strong>
+            <small>Contributor docs</small>
+          </span>
+        </a>
+        <label class="search-box">
+          <span>Search</span>
+          <input type="search" autocomplete="off" spellcheck="false" data-search-input placeholder="Search docs">
+        </label>
+        <div class="search-results" data-search-results aria-live="polite"></div>
+        <nav class="nav" aria-label="Documentation pages">
+          <h2>Docs</h2>
+{{nav}}
+        </nav>
+      </aside>
+
+      <main class="content" id="content" tabindex="-1">
+        <article class="doc-content">
+          <header class="page-header">
+            <p class="page-label">Every Eval Ever</p>
+            <p class="page-description">{{page_description}}</p>
+          </header>
+{{content}}
+        </article>
+      </main>
+    </div>
+
+    <footer class="footer">
+      <span>Every Eval Ever docs artifact for {{base_url}}/</span>
+      <nav aria-label="Project links">
+        <a href="{{repository_url}}">GitHub</a>
+        <a href="{{datastore_url}}">Datastore</a>
+      </nav>
+    </footer>
+  </body>
+</html>

@@ -1,0 +1,29 @@
+services:
+  docs:
+    build:
+      context: ..
+      dockerfile: docs/Dockerfile.docs
+    command:
+      - uv
+      - run
+      - tools/serve_docs.py
+      - --host
+      - 0.0.0.0
+      - --port
+      - "4173"
+      - --site-root
+      - /workspace/_site
+    environment:
+      UV_CACHE_DIR: /tmp/uv-cache
+      UV_LINK_MODE: copy
+      UV_PROJECT_ENVIRONMENT: /workspace/.venv
+    ports:
+      - "4173:4173"
+    volumes:
+      - ..:/workspace
+      - docs-venv:/workspace/.venv
+      - docs-uv-cache:/tmp/uv-cache
+
+volumes:
+  docs-venv:
+  docs-uv-cache:
