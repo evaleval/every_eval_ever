@@ -1,12 +1,9 @@
 import pytest
 
-pytest.importorskip(
-    'helm', reason='crfm-helm not installed; install with: uv sync --extra helm'
-)
-
 import tempfile
 from pathlib import Path
 
+from every_eval_ever.converters.helm import adapter as helm_adapter_module
 from every_eval_ever.converters.helm.adapter import HELMAdapter
 from every_eval_ever.eval_types import (
     EvaluationLog,
@@ -16,7 +13,18 @@ from every_eval_ever.eval_types import (
 )
 
 
+pytestmark = pytest.mark.skipif(
+    helm_adapter_module._HELM_IMPORT_ERROR is not None,
+    reason=(
+        'HELM converter dependencies are missing: '
+        f'{helm_adapter_module._HELM_IMPORT_ERROR!r}. '
+        'Install with: uv sync --extra helm'
+    ),
+)
+
+
 def _load_eval(adapter, filepath, metadata_args):
+    """Run the HELM aggregate adapter against one fixture directory."""
     eval_dirpath = Path(filepath)
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -37,6 +45,16 @@ def _load_eval(adapter, filepath, metadata_args):
     assert converted_eval.source_metadata.source_type.value == 'evaluation_run'
 
     return converted_eval
+
+
+def _assert_unique_evaluation_result_ids(converted_eval):
+    """Aggregate result IDs must be stable join targets for sample rows."""
+    result_ids = [
+        result.evaluation_result_id
+        for result in converted_eval.evaluation_results
+    ]
+    assert all(result_ids)
+    assert len(result_ids) == len(set(result_ids))
 
 
 def test_mmlu_eval():
@@ -73,10 +91,14 @@ def test_mmlu_eval():
     assert len(results) > 0
     assert any('mmlu' in r.evaluation_name.lower() for r in results)
     assert all(r.metric_config is not None for r in results)
+    _assert_unique_evaluation_result_ids(converted_eval)
 
     assert converted_eval.detailed_evaluation_results is not None
     assert converted_eval.detailed_evaluation_results.format is not None
-    assert converted_eval.detailed_evaluation_results.total_rows == 10
+    # Per-(sample, metric) emission: each of the 10 samples produces one
+    # row per non-empty stat, so total_rows is much larger than the
+    # legacy "one row per sample" count.
+    assert converted_eval.detailed_evaluation_results.total_rows >= 10
 
 
 def test_hellswag_eval():
@@ -114,10 +136,12 @@ def test_hellswag_eval():
     assert len(results) > 0
     assert results[0].score_details.score is not None
     assert any('hellaswag' in r.evaluation_name.lower() for r in results)
+    _assert_unique_evaluation_result_ids(converted_eval)
 
     assert converted_eval.detailed_evaluation_results is not None
     assert converted_eval.detailed_evaluation_results.format is not None
-    assert converted_eval.detailed_evaluation_results.total_rows == 10
+    # Per-(sample, core metric): >= sample count, not equal to it.
+    assert converted_eval.detailed_evaluation_results.total_rows >= 10
 
 
 def test_narrativeqa_eval():
@@ -151,10 +175,12 @@ def test_narrativeqa_eval():
     assert len(results) > 0
     assert any('narrativeqa' in r.evaluation_name.lower() for r in results)
     assert all(r.metric_config is not None for r in results)
+    _assert_unique_evaluation_result_ids(converted_eval)
 
     assert converted_eval.detailed_evaluation_results is not None
     assert converted_eval.detailed_evaluation_results.format is not None
-    assert converted_eval.detailed_evaluation_results.total_rows == 5
+    # Per-(sample, core metric): >= sample count, not equal to it.
+    assert converted_eval.detailed_evaluation_results.total_rows >= 5
 
 
 def test_missing_model_deployment_falls_back_to_model():
