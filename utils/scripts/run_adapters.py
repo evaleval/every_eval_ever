@@ -88,8 +88,8 @@ def get_input_requirement(adapter_path: Path):
     return requires_json, requires_csv, url, arg_name
 
 def main():
-    parser = argparse.ArgumentParser(description="Run all Every Eval Ever adapters robustly.")
-    parser.add_argument("--dry-run", action="store_true", help="Do not upload to Hugging Face")
+    parser = argparse.ArgumentParser(description="Run all Every Eval Ever adapters on croj.")
+    parser.add_argument("--dry-run", action="store_true", help="Does not upload to Hugging Face")
     args = parser.parse_args()
 
     # Create data dir
