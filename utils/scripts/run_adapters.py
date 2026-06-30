@@ -98,8 +98,21 @@ def main():
     # Initialize API and check for existing PR
     api = HfApi()
     print("Checking for existing PRs...")
+    try:
+        current_user = api.whoami().get("name")
+    except Exception as e:
+        print(f"Failed to get current user: {e}")
+        current_user = None
+
     prs = api.get_repo_discussions(repo_id=REPO_ID, repo_type=REPO_TYPE)
-    existing_pr = next((pr for pr in prs if getattr(pr, "is_pull_request", False) and pr.status == "open" and pr.title == "Automated Adapter Data Update"), None)
+    open_prs = [
+        pr for pr in prs 
+        if getattr(pr, "is_pull_request", False) 
+        and pr.status == "open"
+        and (pr.author == current_user if current_user else True)
+    ]
+    
+    existing_pr = max(open_prs, key=lambda x: x.num) if open_prs else None
     
     revision = f"refs/pr/{existing_pr.num}" if existing_pr else "main"
     if existing_pr:
@@ -154,6 +167,14 @@ def main():
             
         cmd = ["uv", "run", "python", "-m", f"utils.{adapter}.adapter"]
         
+        # Prepare environment for adapter with every_eval_ever in PYTHONPATH
+        env = os.environ.copy()
+        eee_path = str(Path("every_eval_ever").absolute())
+        if "PYTHONPATH" in env:
+            env["PYTHONPATH"] = f"{eee_path}{os.pathsep}{env['PYTHONPATH']}"
+        else:
+            env["PYTHONPATH"] = eee_path
+
         # Only pass --output-dir if the adapter script mentions it
         content = adapter_path.read_text(encoding="utf-8")
         if "--output-dir" in content:
@@ -180,7 +201,7 @@ def main():
                 cmd.extend([arg_name, str(tmp_file)])
                 
             start_t = time.time()
-            res = subprocess.run(cmd, capture_output=True, text=True)
+            res = subprocess.run(cmd, capture_output=True, text=True, env=env)
             elapsed = time.time() - start_t
             
             if res.returncode != 0:
@@ -197,7 +218,7 @@ def main():
             # Validation
             print("Validating outputs...")
             val_cmd = ["uv", "run", "python", "-m", "every_eval_ever", "validate", "--format", "json", str(adapter_data_dir)]
-            val_res = subprocess.run(val_cmd, capture_output=True, text=True)
+            val_res = subprocess.run(val_cmd, capture_output=True, text=True, env=env)
             
             # Even if val_res fails (which it will if any file is invalid), it outputs JSON
             try:
@@ -272,23 +293,30 @@ def main():
     if not args.dry_run:
         print("Uploading to Hugging Face...")
         try:
-            upload_kwargs = {
-                "repo_id": REPO_ID,
-                "folder_path": ".",
-                "repo_type": REPO_TYPE,
-                "allow_patterns": ["data/**"],
-                "commit_message": "Automated Adapter Data Update",
-                "commit_description": "Data update from GitHub Actions"
-            }
             if existing_pr:
                 print(f"Updating existing PR #{existing_pr.num}")
-                upload_kwargs["revision"] = f"refs/pr/{existing_pr.num}"
-                upload_kwargs["create_pr"] = False
+                pr_num = existing_pr.num
             else:
-                print("Creating new PR")
-                upload_kwargs["create_pr"] = True
+                print("Creating new PR...")
+                new_pr = api.create_pull_request(
+                    repo_id=REPO_ID,
+                    title="Automated Adapter Data Update",
+                    description="Data update from GitHub Actions",
+                    repo_type=REPO_TYPE
+                )
+                pr_num = new_pr.num
+                print(f"Created new PR #{pr_num}")
                 
-            api.upload_folder(**upload_kwargs)
+            upload_revision = f"refs/pr/{pr_num}"
+            
+            print(f"Uploading using upload_large_folder to revision {upload_revision}...")
+            api.upload_large_folder(
+                repo_id=REPO_ID,
+                folder_path=".",
+                repo_type=REPO_TYPE,
+                revision=upload_revision,
+                allow_patterns=["data/**"]
+            )
             print("Upload complete!")
         except Exception as e:
             print(f"Upload failed: {e}")
