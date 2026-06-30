@@ -13,7 +13,7 @@ from pathlib import Path
 from huggingface_hub import HfApi, hf_hub_download
 from huggingface_hub.utils import EntryNotFoundError
 
-REPO_ID = "evaleval/EEE_datastore"
+REPO_ID = "deeplumiere/EEE_datastore"
 REPO_TYPE = "dataset"
 DATA_DIR = Path("data")
 STATS_FILE = DATA_DIR / "adapter_stats.json"
@@ -21,8 +21,8 @@ REPORT_FILE = DATA_DIR / "run_report.json"
 UTILS_DIR = Path("utils")
 
 # Heuristics
-HEAVY_TIME_S = 120
-HEAVY_SIZE_MB = 512
+HEAVY_TIME_S = 60
+HEAVY_SIZE_MB = 50
 
 def get_dir_size_mb(path: Path) -> float:
     total = 0
@@ -95,25 +95,29 @@ def main():
     # Create data dir
     DATA_DIR.mkdir(exist_ok=True)
     
+    # Initialize API and check for existing PR
     api = HfApi()
-    existing_pr = None
-    try:
-        prs = api.get_repo_discussions(repo_id=REPO_ID, repo_type=REPO_TYPE)
-        for p in prs:
-            if p.is_pull_request and p.status == 'open' and p.title == "Automated Adapter Data Update":
-                existing_pr = p
-                break
-    except Exception as e:
-        print(f"Warning: Could not fetch PRs: {e}")
-
+    print("Checking for existing PRs...")
+    prs = api.get_repo_discussions(repo_id=REPO_ID, repo_type=REPO_TYPE)
+    existing_pr = next((pr for pr in prs if getattr(pr, "is_pull_request", False) and pr.status == "open" and pr.title == "Automated Adapter Data Update"), None)
+    
     revision = f"refs/pr/{existing_pr.num}" if existing_pr else "main"
+    if existing_pr:
+        print(f"Found existing PR #{existing_pr.num}. Using revision {revision} for state.")
 
     # Download existing state
+    # Try data/ prefix first, fallback to root
     stats = download_hf_json("data/adapter_stats.json", {}, revision=revision)
+    if not stats:
+        stats = download_hf_json("adapter_stats.json", {}, revision=revision)
+        
     last_report = download_hf_json("data/run_report.json", {}, revision=revision)
+    if not last_report:
+        last_report = download_hf_json("run_report.json", {}, revision=revision)
 
     today = datetime.datetime.now()
-    is_monthly_run = today.day <= 7 # Runs weekly, so this is true once a month
+    is_sunday = today.weekday() == 6
+    is_monthly_run = today.day <= 7
     
     # We will build a new report for today
     today_str = today.strftime("%Y-%m-%d")
@@ -267,4 +271,26 @@ def main():
     # Upload to HF
     if not args.dry_run:
         print("Uploading to Hugging Face...")
-        # api is already initialized earlier
+        try:
+            upload_kwargs = {
+                "repo_id": REPO_ID,
+                "folder_path": ".",
+                "repo_type": REPO_TYPE,
+                "allow_patterns": ["data/**"],
+                "commit_message": "Automated Adapter Data Update",
+                "commit_description": "Data update from GitHub Actions"
+            }
+            if existing_pr:
+                print(f"Updating existing PR #{existing_pr.num}")
+                upload_kwargs["revision"] = f"refs/pr/{existing_pr.num}"
+                upload_kwargs["create_pr"] = False
+            else:
+                print("Creating new PR")
+                upload_kwargs["create_pr"] = True
+                
+            api.upload_folder(**upload_kwargs)
+            print("Upload complete!")
+        except Exception as e:
+            print(f"Upload failed: {e}")
+if __name__ == "__main__":
+    main()
