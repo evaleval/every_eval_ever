@@ -13,7 +13,7 @@ from pathlib import Path
 from huggingface_hub import HfApi, hf_hub_download
 from huggingface_hub.utils import EntryNotFoundError
 
-REPO_ID = "deeplumiere/EEE_datastore"
+REPO_ID = "evaleval/EEE_datastore"
 REPO_TYPE = "dataset"
 DATA_DIR = Path("data")
 STATS_FILE = DATA_DIR / "adapter_stats.json"
@@ -33,9 +33,9 @@ def get_dir_size_mb(path: Path) -> float:
             total += f.stat().st_size
     return total / (1024 * 1024)
 
-def download_hf_json(filename: str, default: dict) -> dict:
+def download_hf_json(filename: str, default: dict, revision: str = "main") -> dict:
     try:
-        path = hf_hub_download(repo_id=REPO_ID, filename=filename, repo_type=REPO_TYPE)
+        path = hf_hub_download(repo_id=REPO_ID, filename=filename, repo_type=REPO_TYPE, revision=revision)
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
     except EntryNotFoundError:
@@ -95,12 +95,25 @@ def main():
     # Create data dir
     DATA_DIR.mkdir(exist_ok=True)
     
+    api = HfApi()
+    existing_pr = None
+    try:
+        prs = api.get_repo_discussions(repo_id=REPO_ID, repo_type=REPO_TYPE)
+        for p in prs:
+            if p.is_pull_request and p.status == 'open' and p.title == "Automated Adapter Data Update":
+                existing_pr = p
+                break
+    except Exception as e:
+        print(f"Warning: Could not fetch PRs: {e}")
+
+    revision = f"refs/pr/{existing_pr.num}" if existing_pr else "main"
+
     # Download existing state
-    stats = download_hf_json("adapter_stats.json", {})
-    last_report = download_hf_json("run_report.json", {})
+    stats = download_hf_json("data/adapter_stats.json", {}, revision=revision)
+    last_report = download_hf_json("data/run_report.json", {}, revision=revision)
 
     today = datetime.datetime.now()
-    is_sunday = today.weekday() == 6
+    is_monthly_run = today.day <= 7 # Runs weekly, so this is true once a month
     
     # We will build a new report for today
     today_str = today.strftime("%Y-%m-%d")
@@ -119,8 +132,8 @@ def main():
         is_heavy = time_s > HEAVY_TIME_S or size_mb > HEAVY_SIZE_MB
         stale = is_stale(adapter, stats)
         
-        if is_heavy and not is_sunday and not stale:
-            print(f"Skipping heavy adapter {adapter} (runs on Sundays or when stale)")
+        if is_heavy and not is_monthly_run and not stale:
+            print(f"Skipping heavy adapter {adapter} (runs monthly or when stale)")
             continue
             
         print(f"\n--- Running adapter: {adapter} ---")
@@ -254,17 +267,4 @@ def main():
     # Upload to HF
     if not args.dry_run:
         print("Uploading to Hugging Face...")
-        api = HfApi()
-        try:
-            api.upload_folder(
-                repo_id=REPO_ID,
-                folder_path=".",
-                repo_type=REPO_TYPE,
-                allow_patterns=["data/**"],
-                create_pr=True 
-            )
-            print("Upload complete!")
-        except Exception as e:
-            print(f"Upload failed: {e}")
-if __name__ == "__main__":
-    main()
+        # api is already initialized earlier
