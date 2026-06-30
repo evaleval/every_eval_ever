@@ -21,8 +21,8 @@ REPORT_FILE = DATA_DIR / "run_report.json"
 UTILS_DIR = Path("utils")
 
 # Heuristics
-HEAVY_TIME_S = 60
-HEAVY_SIZE_MB = 50
+HEAVY_TIME_S = 120
+HEAVY_SIZE_MB = 512
 
 def get_dir_size_mb(path: Path) -> float:
     total = 0
