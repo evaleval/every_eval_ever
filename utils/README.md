@@ -11,6 +11,7 @@ Each adapter is run with `uv run python -m utils.<name>.adapter`.
 | Adapter | Data Source | Description |
 |---------|-------------|-------------|
 | `arc_agi` | ARC Prize leaderboard JSON | Converts ARC-AGI leaderboard data and merges canonical model aliases. |
+| `benchpress` | BenchPress score matrix (HF: `microsoft/benchpress-score-matrix`) | Converts the BenchPress aggregate score matrix into `data/benchpress/`; an aggregator (`source_role=aggregator`) split by `evaluator_relationship`. |
 | `artificial_analysis` | Artificial Analysis LLM API | Converts Artificial Analysis LLM benchmark, pricing, and performance results into `data/artificial-analysis-llms/`. |
 | `vals_ai` | Vals.ai benchmark leaderboards | Scrapes Vals.ai benchmark pages and converts their embedded leaderboard results into `data/vals-ai/`. |
 | `bfcl` | BFCL leaderboard CSV | Converts BFCL leaderboard data with per-metric evaluation names and bounded continuous scores. |
