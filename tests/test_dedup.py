@@ -121,6 +121,33 @@ def test_results_order_is_invariant():
     assert compute_aggregate_identity(data) == forward
 
 
+def test_none_results_are_ignored_but_non_object_results_are_rejected():
+    data = _base()
+    baseline = compute_aggregate_identity(data)
+
+    data_with_none = _base()
+    data_with_none['evaluation_results'].append(None)
+    assert compute_aggregate_identity(data_with_none) == baseline
+
+    data_with_bad_result = _base()
+    data_with_bad_result['evaluation_results'].append('not a result')
+    with pytest.raises(ValueError, match='entries must be objects'):
+        compute_aggregate_identity(data_with_bad_result)
+
+
+def test_large_integer_identity_fields_are_not_float_coerced():
+    first = _base()
+    second = _base()
+    first_args = _first_result(first)['generation_config']['generation_args']
+    second_args = _first_result(second)['generation_config']['generation_args']
+    first_args['max_tokens'] = 2**53
+    second_args['max_tokens'] = 2**53 + 1
+
+    assert compute_aggregate_identity(first) != compute_aggregate_identity(
+        second
+    )
+
+
 def test_compute_fingerprint_rejects_non_aggregate_json():
     with pytest.raises(ValueError, match='aggregate JSON'):
         compute_fingerprint(b'{"x": 1}')
@@ -191,3 +218,8 @@ def test_missing_local_path_is_reported_as_warning():
         'Duplicate check skipped data/gsm8k/openai/model/missing.json: '
         'local path was not provided'
     ]
+
+
+def test_check_duplicates_rejects_non_json_paths():
+    with pytest.raises(ValueError, match='only accepts .json files'):
+        check_duplicates(['data/gsm8k/model/readme.txt'], {}, {'files': {}})

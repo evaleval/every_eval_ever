@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-import re
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -15,7 +15,8 @@ from huggingface_hub.errors import EntryNotFoundError, RepositoryNotFoundError
 MANIFEST_PATH = 'manifest.json'
 DEFAULT_DATASET_REPO_ID = 'evaleval/EEE_datastore'
 _QUANT_DECIMALS = 6
-_WS_RE = re.compile(r'\s+')
+_QUANT_FORMAT = f'.{_QUANT_DECIMALS}f'
+_TRIM_CHARS = '"\'.,;:!?()[]{} '
 
 
 class ManifestError(RuntimeError):
@@ -25,15 +26,18 @@ class ManifestError(RuntimeError):
 def _norm_str(value: Any) -> str | None:
     if value is None:
         return None
-    text = _WS_RE.sub(' ', str(value).strip().lower())
-    return text.strip('"\'.,;:!?()[]{} ') or None
+    text = ' '.join(str(value).lower().split())
+    return text.strip(_TRIM_CHARS) or None
 
 
 def _quantize(value: Any) -> Any:
     if isinstance(value, bool):
         return value
-    if isinstance(value, (int, float)):
-        return repr(round(float(value), _QUANT_DECIMALS))
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, float):
+        text = format(value, _QUANT_FORMAT).rstrip('0').rstrip('.')
+        return '0' if text in {'', '-0'} else text
     return value
 
 
@@ -113,9 +117,7 @@ def _generation_config_identity(
     }
 
 
-def _result_identity(result: Any) -> dict[str, Any] | None:
-    if not isinstance(result, dict):
-        return None
+def _result_identity(result: dict[str, Any]) -> dict[str, Any]:
     score_details = result.get('score_details') or {}
     return {
         'eval': _norm_str(result.get('evaluation_name')),
@@ -131,14 +133,21 @@ def compute_aggregate_identity(data: dict[str, Any]) -> str:
     model_info = data.get('model_info') or {}
     eval_library = data.get('eval_library') or {}
     raw_results = data.get('evaluation_results') or []
+    if not isinstance(raw_results, list):
+        raise ValueError('aggregate evaluation_results must be a list')
+    result_items: list[dict[str, Any]] = []
+    for item in raw_results:
+        if item is None:
+            continue
+        if not isinstance(item, dict):
+            raise ValueError(
+                'aggregate evaluation_results entries must be objects'
+            )
+        result_items.append(item)
     identity = {
         'model': _norm_str(model_info.get('id')),
         'lib': _norm_str(eval_library.get('name')),
-        'results': [
-            result
-            for result in (_result_identity(item) for item in raw_results)
-            if result is not None
-        ],
+        'results': [_result_identity(item) for item in result_items],
     }
     canonical = _canon(identity)
     canonical['results'] = sorted(
@@ -190,12 +199,8 @@ class DedupResult:
 class DedupReport:
     """Aggregated deduplication report."""
 
-    results: list[DedupResult] = field(default_factory=list)
-    warnings: list[str] = field(default_factory=list)
-
-    @property
-    def has_duplicates(self) -> bool:
-        return any(result.duplicate_of is not None for result in self.results)
+    results: Sequence[DedupResult] = field(default_factory=list)
+    warnings: Sequence[str] = field(default_factory=list)
 
 
 def load_manifest(
@@ -255,25 +260,30 @@ def build_dedup_report(
 ) -> DedupReport:
     """Compare candidate fingerprints against manifest and same-batch files."""
     validate_manifest(manifest)
-    report = DedupReport()
-    manifest_files = manifest.get('files', {})
+    results: list[DedupResult] = []
+    manifest_files: dict[str, dict[str, Any]] = manifest['files']
     fingerprint_to_path: dict[tuple[str, str], str] = {
         (collection_key(path), entry['fingerprint']): path
         for path, entry in manifest_files.items()
-        if isinstance(entry, dict) and isinstance(entry.get('fingerprint'), str)
     }
 
     for file_path in sorted(file_fingerprints):
         fingerprint = file_fingerprints[file_path]
-        result = DedupResult(file_path=file_path, fingerprint=fingerprint)
         key = (collection_key(file_path), fingerprint)
         existing_path = fingerprint_to_path.get(key)
+        duplicate_of = None
         if existing_path is not None and existing_path != file_path:
-            result.duplicate_of = existing_path
-        report.results.append(result)
+            duplicate_of = existing_path
+        results.append(
+            DedupResult(
+                file_path=file_path,
+                fingerprint=fingerprint,
+                duplicate_of=duplicate_of,
+            )
+        )
         fingerprint_to_path.setdefault(key, file_path)
 
-    return report
+    return DedupReport(results=results)
 
 
 def check_duplicates(
@@ -286,7 +296,9 @@ def check_duplicates(
     warnings: list[str] = []
     for file_path in sorted(file_paths):
         if not file_path.endswith('.json'):
-            continue
+            raise ValueError(
+                f'Duplicate check only accepts .json files: {file_path}'
+            )
         local_path = local_paths.get(file_path)
         if local_path is None:
             warnings.append(
@@ -302,5 +314,7 @@ def check_duplicates(
             )
 
     report = build_dedup_report(file_fingerprints, manifest)
-    report.warnings.extend(warnings)
-    return report
+    return DedupReport(
+        results=report.results,
+        warnings=[*report.warnings, *warnings],
+    )
