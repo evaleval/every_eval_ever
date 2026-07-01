@@ -376,3 +376,68 @@ class TestExitCode:
         fp = _write_json(tmp_path, 'fail.json', data)
         report = validate_file(fp)
         assert report.valid is False
+
+
+# ===================================================================
+# Text-to-image (modality: text_to_image) tests
+# ===================================================================
+
+
+T2I_FIXTURE_DIR = Path(__file__).parent / 'data' / 't2i'
+
+
+class TestT2I:
+    def test_geneval_fixture_passes(self):
+        agg = validate_file(T2I_FIXTURE_DIR / 'geneval_sdxl_example.json')
+        samples = validate_file(
+            T2I_FIXTURE_DIR / 'geneval_sdxl_example_samples.jsonl'
+        )
+        assert agg.valid is True, agg.errors
+        assert samples.valid is True, samples.errors
+
+    def test_t2i_record_requires_media(self, tmp_path: Path):
+        rec = {
+            'schema_version': 'instance_level_eval_0.2.2',
+            'evaluation_id': 'x', 'model_id': 'x/y', 'evaluation_name': 'x',
+            'sample_id': '1', 'interaction_type': 'single_turn',
+            'modality': 'text_to_image',
+            'input': {'raw': 'a cat', 'reference': []},
+            'output': {'raw': ['<image:0>']},
+            'answer_attribution': [],
+            'evaluation': {'score': 0.5, 'is_correct': None},
+        }
+        fp = _write_jsonl(tmp_path, 't.jsonl', [rec])
+        report = validate_file(fp)
+        assert report.valid is False
+        assert any('media' in e['msg'] for e in report.errors)
+
+    def test_t2i_null_is_correct_passes(self, tmp_path: Path):
+        rec = {
+            'schema_version': 'instance_level_eval_0.2.2',
+            'evaluation_id': 'x', 'model_id': 'x/y', 'evaluation_name': 'x',
+            'sample_id': '1', 'interaction_type': 'single_turn',
+            'modality': 'text_to_image',
+            'input': {'raw': 'a cat', 'reference': []},
+            'output': {
+                'raw': ['<image:0>'],
+                'media': [{'media_type': 'image', 'uri': 'file://./a.png'}],
+            },
+            'answer_attribution': [],
+            'evaluation': {'score': 0.87, 'is_correct': None},
+        }
+        fp = _write_jsonl(tmp_path, 't.jsonl', [rec])
+        report = validate_file(fp)
+        assert report.valid is True, report.errors
+
+    def test_modality_unknown_value_fails(self, tmp_path: Path):
+        data = json.loads(json.dumps(VALID_AGGREGATE))
+        data['evaluation_results'][0]['modality'] = 'image_edit'
+        fp = _write_json(tmp_path, 'agg.json', data)
+        report = validate_file(fp)
+        assert report.valid is False
+
+    def test_existing_records_without_modality_still_pass(self, tmp_path: Path):
+        fp_agg = _write_json(tmp_path, 'agg.json', VALID_AGGREGATE)
+        fp_inst = _write_jsonl(tmp_path, 'inst.jsonl', [VALID_SINGLE_TURN])
+        assert validate_file(fp_agg).valid is True
+        assert validate_file(fp_inst).valid is True

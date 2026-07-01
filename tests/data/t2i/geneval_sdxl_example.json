@@ -1,0 +1,58 @@
+{
+    "schema_version": "0.2.2",
+    "evaluation_id": "geneval/stability-ai/stable-diffusion-xl-base-1.0/1747312345",
+    "retrieved_timestamp": "1747312345.0",
+    "source_metadata": {
+        "source_type": "evaluation_run",
+        "source_organization_name": "EvalEval Coalition",
+        "evaluator_relationship": "third_party"
+    },
+    "eval_library": {
+        "name": "geneval",
+        "version": "unknown"
+    },
+    "model_info": {
+        "name": "Stable Diffusion XL Base 1.0",
+        "id": "stabilityai/stable-diffusion-xl-base-1.0",
+        "developer": "Stability AI",
+        "inference_engine": {
+            "name": "diffusers",
+            "version": "0.30.0"
+        }
+    },
+    "evaluation_results": [
+        {
+            "evaluation_result_id": "geneval_overall_sdxl",
+            "evaluation_name": "geneval_overall",
+            "modality": "text_to_image",
+            "source_data": {
+                "dataset_name": "GenEval",
+                "source_type": "hf_dataset",
+                "hf_repo": "djghosh/wds_geneval"
+            },
+            "metric_config": {
+                "metric_id": "geneval.overall",
+                "metric_name": "GenEval Overall",
+                "metric_kind": "vqa_score",
+                "lower_is_better": false,
+                "score_type": "continuous",
+                "min_score": 0,
+                "max_score": 1
+            },
+            "score_details": {
+                "score": 0.55
+            },
+            "generation_config": {
+                "additional_details": {
+                    "num_inference_steps": "50",
+                    "guidance_scale": "7.5",
+                    "width": "1024",
+                    "height": "1024",
+                    "num_images_per_prompt": "4",
+                    "scheduler": "EulerDiscreteScheduler",
+                    "seed": "42"
+                }
+            }
+        }
+    ]
+}

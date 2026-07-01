@@ -130,6 +130,14 @@
                         "type": "string",
                         "description": "Name of the evaluation"
                     },
+                    "modality": {
+                        "type": "string",
+                        "enum": [
+                            "text",
+                            "text_to_image"
+                        ],
+                        "description": "Modality of the task being evaluated. Absent means 'text' for backwards compatibility. Use 'text_to_image' for prompt-to-image generation tasks. Future modalities will be added to this enum."
+                    },
                     "source_data": {
                         "description": "Source of dataset for this evaluation: URL, HuggingFace dataset, or private/custom dataset.",
                         "oneOf": [

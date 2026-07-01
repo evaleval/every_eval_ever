@@ -68,6 +68,21 @@ PATCHES = [
         return self
 """,
     },
+    {
+        'file': 'every_eval_ever/instance_level_types.py',
+        'import_add': 'model_validator',
+        'class_name': 'InstanceLevelEvaluationLog',
+        'validator': """
+    @model_validator(mode="after")
+    def validate_modality_consistency(self):
+        if self.modality == Modality.text_to_image:
+            if self.output is None or not self.output.media:
+                raise ValueError(
+                    "modality 'text_to_image' requires output.media to be a non-empty list"
+                )
+        return self
+""",
+    },
 ]
 
 # ---------------------------------------------------------------------------
@@ -126,9 +141,9 @@ def patch_file(patch: dict) -> None:
     path = Path(__file__).parent / patch['file']
     content = path.read_text()
 
-    # Check if already patched
-    if 'post_codegen.py' in content:
-        print(f'  {patch["file"]}: already patched, skipping')
+    validator_def = re.search(r'def (\w+)\(self', patch['validator'])
+    if validator_def and f'def {validator_def.group(1)}(self' in content:
+        print(f'  {patch["file"]}: {patch["class_name"]}.{validator_def.group(1)} already patched, skipping')
         return
 
     content = add_import(content, patch['import_add'])

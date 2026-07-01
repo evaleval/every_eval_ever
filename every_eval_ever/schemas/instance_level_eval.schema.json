@@ -46,7 +46,12 @@
         "interaction_type": {
             "type": "string",
             "enum": ["single_turn", "multi_turn", "agentic"],
-            "description": "Type of interaction: single_turn for simple Q&A, multi_turn for conversations, agentic for tool-using agents"
+            "description": "Type of interaction: single_turn for simple Q&A, multi_turn for conversations, agentic for tool-using agents. Text-to-image evaluations use 'single_turn'; modality is the orthogonal axis."
+        },
+        "modality": {
+            "type": "string",
+            "enum": ["text", "text_to_image"],
+            "description": "Modality of this sample. Should match the modality on the linked aggregate evaluation_result. Absent means 'text' for backwards compatibility."
         },
         "input": {
             "type": "object",
@@ -82,13 +87,18 @@
             "properties": {
                 "raw": {
                     "type": "array",
-                    "description": "Complete model responses",
+                    "description": "Complete model responses. For text_to_image modality, populate with one placeholder string per generated artifact (e.g. '<image:0>') so indexes align with output.media[].",
                     "items": { "type": "string" }
                 },
                 "reasoning_trace": {
                     "type": ["array", "null"],
                     "description": "Reasoning traces of the model if applicable (e.g. chain-of-thought tokens)",
                     "items": { "type": "string" }
+                },
+                "media": {
+                    "type": ["array", "null"],
+                    "description": "Generated media artifacts (image, video, audio). Required when modality == 'text_to_image'.",
+                    "items": { "$ref": "#/$defs/media_ref" }
                 }
             }
         },
@@ -192,8 +202,8 @@
                     "description": "Instance-level score"
                 },
                 "is_correct": {
-                    "type": "boolean",
-                    "description": "Whether the final answer is correct"
+                    "type": ["boolean", "null"],
+                    "description": "Whether the final answer is correct. Required to be present, but may be null when correctness is not well-defined (e.g. continuous T2I metrics like FID or CLIPScore)."
                 },
                 "num_turns": {
                     "type": ["integer", "null"],
@@ -334,5 +344,28 @@
                 }
             }
         }
-    ]
+    ],
+    "$defs": {
+        "media_ref": {
+            "type": "object",
+            "description": "Reference to a generated media artifact. Required fields are intentionally minimal; record extras (mime_type, sha256, width/height, seed, index, ...) in additional_details.",
+            "required": ["media_type", "uri"],
+            "additionalProperties": false,
+            "properties": {
+                "media_type": {
+                    "type": "string",
+                    "enum": ["image", "video", "audio"]
+                },
+                "uri": {
+                    "type": "string",
+                    "description": "Location of the artifact: 'file://...', 'https://...', 'hf://...', 's3://...', or 'data:...;base64,...' for inline."
+                },
+                "additional_details": {
+                    "type": "object",
+                    "description": "Per-artifact extras (key-value pairs, all values must be strings). Use for sha256, mime_type, width/height, seed, index, etc.",
+                    "additionalProperties": {"type": "string"}
+                }
+            }
+        }
+    }
 }
