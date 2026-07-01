@@ -18,8 +18,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import json
-import uuid
 
 from eval_types import (
     AgenticEvalConfig,
@@ -41,48 +39,48 @@ from eval_types import (
 )
 from helpers import save_evaluation_log
 
-LEADERBOARD_URL = "https://www.tbench.ai/leaderboard/terminal-bench/2.0"
-OUTPUT_DIR = "data/terminal-bench-2.0"
+LEADERBOARD_URL = 'https://www.tbench.ai/leaderboard/terminal-bench/2.0'
+OUTPUT_DIR = 'data/terminal-bench-2.0'
 
 ORG_SLUG_MAP = {
-    "Google": "google",
-    "OpenAI": "openai",
-    "Anthropic": "anthropic",
-    "xAI": "xai",
-    "Moonshot AI": "moonshot-ai",
-    "Z-AI": "zhipu-ai",
-    "Z.ai": "zhipu-ai",
-    "DeepSeek": "deepseek",
-    "Alibaba": "alibaba",
-    "MiniMax": "minimax",
-    "Minimax": "minimax",
-    "Kimi": "moonshot-ai",
-    "Multiple": "multiple",
-    "Block": "block",
-    "Factory": "factory",
-    "Forge Code": "forge-code",
-    "KRAFTON AI": "krafton-ai",
-    "Coder": "coder",
-    "OpenBlock Labs": "openblock-labs",
-    "Bigai": "bigai",
-    "JetBrains": "jetbrains",
-    "Feeling AI": "feeling-ai",
-    "Antigma Labs": "antigma-labs",
-    "Roam": "roam",
-    "LangChain": "langchain",
-    "OpenSage": "opensage",
-    "Terminal Bench": "terminal-bench",
-    "Intelligent Internet": "intelligent-internet",
-    "Warp": "warp",
-    "Letta": "letta",
-    "Abacus.AI": "abacus-ai",
-    "OpenHands": "openhands",
-    "Anomaly Innovations": "anomaly-innovations",
-    "CAMEL-AI": "camel-ai",
-    "ADYA": "adya",
-    "Princeton": "princeton",
-    "TUM": "tum",
-    "iflow": "iflow",
+    'Google': 'google',
+    'OpenAI': 'openai',
+    'Anthropic': 'anthropic',
+    'xAI': 'xai',
+    'Moonshot AI': 'moonshot-ai',
+    'Z-AI': 'zhipu-ai',
+    'Z.ai': 'zhipu-ai',
+    'DeepSeek': 'deepseek',
+    'Alibaba': 'alibaba',
+    'MiniMax': 'minimax',
+    'Minimax': 'minimax',
+    'Kimi': 'moonshot-ai',
+    'Multiple': 'multiple',
+    'Block': 'block',
+    'Factory': 'factory',
+    'Forge Code': 'forge-code',
+    'KRAFTON AI': 'krafton-ai',
+    'Coder': 'coder',
+    'OpenBlock Labs': 'openblock-labs',
+    'Bigai': 'bigai',
+    'JetBrains': 'jetbrains',
+    'Feeling AI': 'feeling-ai',
+    'Antigma Labs': 'antigma-labs',
+    'Roam': 'roam',
+    'LangChain': 'langchain',
+    'OpenSage': 'opensage',
+    'Terminal Bench': 'terminal-bench',
+    'Intelligent Internet': 'intelligent-internet',
+    'Warp': 'warp',
+    'Letta': 'letta',
+    'Abacus.AI': 'abacus-ai',
+    'OpenHands': 'openhands',
+    'Anomaly Innovations': 'anomaly-innovations',
+    'CAMEL-AI': 'camel-ai',
+    'ADYA': 'adya',
+    'Princeton': 'princeton',
+    'TUM': 'tum',
+    'iflow': 'iflow',
 }
 
 # fmt: off
@@ -207,49 +205,53 @@ LEADERBOARD_DATA = [
 
 
 def get_org_slug(org_name: str) -> str:
-    return ORG_SLUG_MAP.get(org_name, org_name.lower().replace(" ", "-").replace(".", "-"))
+    return ORG_SLUG_MAP.get(
+        org_name, org_name.lower().replace(' ', '-').replace('.', '-')
+    )
 
 
 def get_model_slug(model_name: str) -> str:
-    return model_name.lower().replace(" ", "-")
+    return model_name.lower().replace(' ', '-')
 
 
 def make_model_id(model_org: str, model_name: str) -> str:
-    return f"{get_org_slug(model_org)}/{get_model_slug(model_name)}"
+    return f'{get_org_slug(model_org)}/{get_model_slug(model_name)}'
 
 
 def convert_entry(entry: dict, retrieved_timestamp: str) -> EvaluationLog:
     """Convert a single leaderboard entry to an EvaluationLog."""
-    model_id = make_model_id(entry["model_org"], entry["model"])
-    agent_slug = entry["agent"].lower().replace(" ", "-")
-    model_slug = get_model_slug(entry["model"])
+    model_id = make_model_id(entry['model_org'], entry['model'])
+    agent_slug = entry['agent'].lower().replace(' ', '-')
+    model_slug = get_model_slug(entry['model'])
 
-    eval_id = f"terminal-bench-2.0/{agent_slug}__{model_slug}/{retrieved_timestamp}"
+    eval_id = (
+        f'terminal-bench-2.0/{agent_slug}__{model_slug}/{retrieved_timestamp}'
+    )
 
     uncertainty = None
-    if entry["stderr"] is not None:
+    if entry['stderr'] is not None:
         uncertainty = Uncertainty(
-            standard_error=StandardError(value=entry["stderr"]),
+            standard_error=StandardError(value=entry['stderr']),
             num_samples=435,
         )
 
     eval_result = EvaluationResult(
-        evaluation_name="terminal-bench-2.0",
+        evaluation_name='terminal-bench-2.0',
         source_data=SourceDataUrl(
-            dataset_name="terminal-bench-2.0",
-            source_type="url",
+            dataset_name='terminal-bench-2.0',
+            source_type='url',
             url=[LEADERBOARD_URL],
         ),
-        evaluation_timestamp=entry["date"],
+        evaluation_timestamp=entry['date'],
         metric_config=MetricConfig(
-            evaluation_description="Task resolution accuracy across 87 terminal tasks with 5 trials each",
+            evaluation_description='Task resolution accuracy across 87 terminal tasks with 5 trials each',
             lower_is_better=False,
             score_type=ScoreType.continuous,
             min_score=0,
             max_score=100,
         ),
         score_details=ScoreDetails(
-            score=entry["accuracy"],
+            score=entry['accuracy'],
             uncertainty=uncertainty,
         ),
         generation_config=GenerationConfig(
@@ -257,8 +259,8 @@ def convert_entry(entry: dict, retrieved_timestamp: str) -> EvaluationLog:
                 agentic_eval_config=AgenticEvalConfig(
                     available_tools=[
                         AvailableTool(
-                            name="terminal",
-                            description="Full terminal/shell access",
+                            name='terminal',
+                            description='Full terminal/shell access',
                         ),
                     ],
                 ),
@@ -268,25 +270,25 @@ def convert_entry(entry: dict, retrieved_timestamp: str) -> EvaluationLog:
     )
 
     return EvaluationLog(
-        schema_version="0.2.2",
+        schema_version='0.2.2',
         evaluation_id=eval_id,
         retrieved_timestamp=retrieved_timestamp,
-        evaluation_timestamp=entry["date"],
+        evaluation_timestamp=entry['date'],
         source_metadata=SourceMetadata(
-            source_name="Terminal-Bench 2.0",
-            source_type="documentation",
-            source_organization_name="Terminal-Bench",
-            source_organization_url="https://www.tbench.ai",
+            source_name='Terminal-Bench 2.0',
+            source_type='documentation',
+            source_organization_name='Terminal-Bench',
+            source_organization_url='https://www.tbench.ai',
             evaluator_relationship=EvaluatorRelationship.third_party,
         ),
-        eval_library=EvalLibrary(name="harbor", version="unknown"),
+        eval_library=EvalLibrary(name='harbor', version='unknown'),
         model_info=ModelInfo(
-            name=entry["model"],
+            name=entry['model'],
             id=model_id,
-            developer=entry["model_org"],
+            developer=entry['model_org'],
             additional_details={
-                "agent_name": entry["agent"],
-                "agent_organization": entry["agent_org"],
+                'agent_name': entry['agent'],
+                'agent_organization': entry['agent_org'],
             },
         ),
         evaluation_results=[eval_result],
@@ -300,17 +302,21 @@ def main():
     for entry in LEADERBOARD_DATA:
         try:
             eval_log = convert_entry(entry, retrieved_timestamp)
-            org_slug = get_org_slug(entry["model_org"])
-            model_slug = get_model_slug(entry["model"])
-            filepath = save_evaluation_log(eval_log, OUTPUT_DIR, org_slug, model_slug)
-            print(f"[{entry['rank']:3d}] {filepath}")
+            org_slug = get_org_slug(entry['model_org'])
+            model_slug = get_model_slug(entry['model'])
+            filepath = save_evaluation_log(
+                eval_log, OUTPUT_DIR, org_slug, model_slug
+            )
+            print(f'[{entry["rank"]:3d}] {filepath}')
             count += 1
         except Exception as e:
-            print(f"Error processing rank {entry['rank']} "
-                  f"({entry['agent']} / {entry['model']}): {e}")
+            print(
+                f'Error processing rank {entry["rank"]} '
+                f'({entry["agent"]} / {entry["model"]}): {e}'
+            )
 
-    print(f"\nGenerated {count} files in {OUTPUT_DIR}/")
+    print(f'\nGenerated {count} files in {OUTPUT_DIR}/')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

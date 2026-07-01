@@ -344,7 +344,6 @@ def create_visualisations(con, schema_table, instance_table, csv_path) -> None:
     try:
         import matplotlib.pyplot as plt
         import seaborn as sns
-        from matplotlib.colors import LinearSegmentedColormap
     except ModuleNotFoundError:
         raise ImportError('seaborn or matplotlib not installed')
 

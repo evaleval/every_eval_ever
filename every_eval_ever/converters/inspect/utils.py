@@ -1,9 +1,6 @@
 import json
 import re
-from pathlib import Path
 from typing import Any, Dict, List, Type
-
-from pydantic import BaseModel
 
 from every_eval_ever.converters.common.utils import get_model_organization_info
 from every_eval_ever.converters.inspect.supplemental_eval_details import (
@@ -335,14 +332,14 @@ def extract_model_info_from_model_path(model_path: str) -> ModelInfo:
 
 
 SYNTHETIC_METRIC_CONFIG_FIELDS = {
-    "evaluation_description",
-    "lower_is_better",
-    "score_type",
-    "level_names",
-    "level_metadata",
-    "has_unknown_level",
-    "min_score",
-    "max_score",
+    'evaluation_description',
+    'lower_is_better',
+    'score_type',
+    'level_names',
+    'level_metadata',
+    'has_unknown_level',
+    'min_score',
+    'max_score',
 }
 
 
@@ -356,14 +353,18 @@ def parse_supplemental_eval_details(
         return raw_supplemental_eval_details
 
     if isinstance(raw_supplemental_eval_details, dict):
-        return SupplementalEvalDetails.model_validate(raw_supplemental_eval_details)
+        return SupplementalEvalDetails.model_validate(
+            raw_supplemental_eval_details
+        )
 
     raise ValueError(
         "metadata_args['supplemental_eval_details'] must be a dict or SupplementalEvalDetails instance."
     )
 
 
-def convert_to_string_dict(data: dict[str, Any] | None) -> dict[str, str] | None:
+def convert_to_string_dict(
+    data: dict[str, Any] | None,
+) -> dict[str, str] | None:
     if data is None:
         return None
     return {
@@ -395,7 +396,10 @@ def apply_model_info_supplement(
     model_info: ModelInfo,
     supplemental_eval_details: SupplementalEvalDetails | None,
 ) -> None:
-    if supplemental_eval_details is None or supplemental_eval_details.model_info is None:
+    if (
+        supplemental_eval_details is None
+        or supplemental_eval_details.model_info is None
+    ):
         return
 
     model_info.additional_details = extend_additional_details(
@@ -429,13 +433,13 @@ def apply_generation_config_supplement(
         generation_config.generation_args = GenerationArgs()
 
     if generation_config.generation_args.agentic_eval_config is None:
-        generation_config.generation_args.agentic_eval_config = AgenticEvalConfig()
-
-    generation_config.generation_args.agentic_eval_config.additional_details = (
-        extend_additional_details(
-            generation_config.generation_args.agentic_eval_config.additional_details,
-            agentic_supplement.additional_details,
+        generation_config.generation_args.agentic_eval_config = (
+            AgenticEvalConfig()
         )
+
+    generation_config.generation_args.agentic_eval_config.additional_details = extend_additional_details(
+        generation_config.generation_args.agentic_eval_config.additional_details,
+        agentic_supplement.additional_details,
     )
 
 
@@ -446,9 +450,11 @@ def apply_source_data_supplement(
     if source_data_supplement is None:
         return
 
-    evaluation_result.source_data.additional_details = extend_additional_details(
-        evaluation_result.source_data.additional_details,
-        source_data_supplement.additional_details,
+    evaluation_result.source_data.additional_details = (
+        extend_additional_details(
+            evaluation_result.source_data.additional_details,
+            source_data_supplement.additional_details,
+        )
     )
 
 
@@ -460,19 +466,19 @@ def apply_metric_config_supplement(
     if metric_supplement is None:
         return
 
-    current = evaluation_result.metric_config.model_dump(mode="python")
-    supplemental = metric_supplement.model_dump(mode="python", exclude_none=True)
+    current = evaluation_result.metric_config.model_dump(mode='python')
+    supplemental = metric_supplement.model_dump(
+        mode='python', exclude_none=True
+    )
 
-    additional_details = supplemental.pop("additional_details", None)
+    additional_details = supplemental.pop('additional_details', None)
 
     for field_name, field_value in supplemental.items():
-        if (
-            field_name in SYNTHETIC_METRIC_CONFIG_FIELDS
-        ):
+        if field_name in SYNTHETIC_METRIC_CONFIG_FIELDS:
             current[field_name] = field_value
 
-    current["additional_details"] = extend_additional_details(
-        current.get("additional_details"),
+    current['additional_details'] = extend_additional_details(
+        current.get('additional_details'),
         additional_details,
     )
 
@@ -526,10 +532,12 @@ def apply_supplemental_eval_details(
         [s for s in result_supplements if s.evaluation_name is not None]
     ):
         raise ValueError(
-            "Duplicate evaluation_name values in supplemental_eval_details.evaluation_results."
+            'Duplicate evaluation_name values in supplemental_eval_details.evaluation_results.'
         )
     unnamed_supplements = [
-        supplement for supplement in result_supplements if supplement.evaluation_name is None
+        supplement
+        for supplement in result_supplements
+        if supplement.evaluation_name is None
     ]
     unnamed_idx = 0
 
