@@ -187,7 +187,7 @@ def is_stale(adapter: str, stats: dict, current_headers: dict) -> tuple[bool, st
         
     return False, "not stale"
 
-def get_dynamic_args(adapter: str) -> dict:
+def get_dynamic_args(adapter: str, env: dict) -> dict:
     """
     Dynamically discover what arguments an adapter accepts by running its --help.
 
@@ -196,6 +196,7 @@ def get_dynamic_args(adapter: str) -> dict:
 
     Args:
         adapter (str): The name of the adapter.
+        env (dict): The environment variables to run the subprocess with (needs PYTHONPATH).
 
     Returns:
         dict: A mapping of capabilities, e.g., 'accepts_output_dir'.
@@ -206,7 +207,7 @@ def get_dynamic_args(adapter: str) -> dict:
     }
     try:
         cmd = ["uv", "run", "python", "-m", f"utils.{adapter}.adapter", "--help"]
-        res = subprocess.run(cmd, capture_output=True, text=True)
+        res = subprocess.run(cmd, capture_output=True, text=True, env=env)
         help_text = res.stdout
         if "--output-dir" in help_text:
             args_config["accepts_output_dir"] = True
@@ -321,4 +322,188 @@ def main() -> None:
         # Clean previous run data if any
         if adapter_data_dir.exists():
             shutil.rmtree(adapter_data_dir)
-          
+            
+        adapter_data_dir.mkdir(parents=True, exist_ok=True)
+            
+        cmd = ["uv", "run", "python", "-m", f"utils.{adapter}.adapter"]
+        
+        # Prepare environment for adapter with every_eval_ever in PYTHONPATH
+        env = os.environ.copy()
+        eee_path = str(Path("every_eval_ever").absolute())
+        if "PYTHONPATH" in env:
+            env["PYTHONPATH"] = f"{eee_path}{os.pathsep}{env['PYTHONPATH']}"
+        else:
+            env["PYTHONPATH"] = eee_path
+
+        # Dynamically inspect adapter capabilities
+        accepted_args = get_dynamic_args(adapter, env)
+
+        if accepted_args["accepts_output_dir"]:
+            cmd.extend(["--output-dir", str(adapter_data_dir)])
+            
+        if accepted_args["accepts_from_hf"]:
+            cmd.append("--from-hf")
+        
+        tmp_file = None
+        try:
+            if file_arg:
+                if not url:
+                    print(f"Warning: Adapter {adapter} requires {file_arg} but no URL is configured!")
+                    continue
+                    
+                tmp_file = DATA_DIR / f"{adapter}_input{Path(url).suffix or '.json'}"
+                print(f"Downloading required input from {url}")
+                download_file(url, tmp_file)
+                cmd.extend([file_arg, str(tmp_file)])
+                
+            start_t = time.time()
+            res = subprocess.run(cmd, capture_output=True, text=True, env=env)
+            elapsed = time.time() - start_t
+            
+            if res.returncode != 0:
+                print(f"Execution FAILED for {adapter}:\n{res.stderr}")
+                stats.setdefault(adapter, {})["last_failed"] = True
+                current_report["adapters"][adapter] = {
+                    "execution_failed": True,
+                    "error": res.stderr[-500:]
+                }
+                continue
+            
+            print(f"Execution succeeded in {elapsed:.2f}s")
+            
+            # Validation
+            print("Validating outputs...")
+            val_cmd = ["uv", "run", "python", "-m", "every_eval_ever", "validate", "--format", "json", str(adapter_data_dir)]
+            val_res = subprocess.run(val_cmd, capture_output=True, text=True, env=env)
+            
+            # Even if val_res fails (which it will if any file is invalid), it outputs JSON
+            try:
+                # the validate command might print other stuff? we'll try to extract JSON
+                out_str = val_res.stdout.strip()
+                # find the first [
+                idx = out_str.find('[')
+                if idx != -1:
+                    val_data = json.loads(out_str[idx:])
+                else:
+                    val_data = []
+            except json.JSONDecodeError as e:
+                print(f"Failed to parse validation JSON for {adapter}: {e}")
+                print(f"Stdout was: {val_res.stdout}")
+                val_data = []
+            
+            valid_files = 0
+            failed_files = 0
+            errors_list = []
+            
+            for f_report in val_data:
+                if f_report.get("valid"):
+                    valid_files += 1
+                else:
+                    failed_files += 1
+                    errs = f_report.get("errors", [])
+                    errors_list.extend(errs)
+                    # Delete invalid file
+                    invalid_f = Path(f_report.get("file"))
+                    if invalid_f.exists():
+                        invalid_f.unlink()
+            
+            print(f"Validation: {valid_files} valid, {failed_files} failed")
+            
+            # Size measurement
+            dir_size_mb = get_dir_size_mb(adapter_data_dir)
+            
+            # Update stats
+            update_data = {
+                "time_s": elapsed,
+                "size_mb": dir_size_mb,
+                "last_success_ts": time.time(),
+                "last_failed": False
+            }
+            if info["headers"]:
+                for k, v in info["headers"].items():
+                    if v:
+                        update_data[k] = v
+            stats.setdefault(adapter, {}).update(update_data)
+            
+            current_report["adapters"][adapter] = {
+                "execution_failed": False,
+                "valid_files": valid_files,
+                "failed_files": failed_files,
+                "errors": errors_list[:50] # save up to 50 errors in report
+            }
+            
+        except Exception as e:
+            print(f"Exception during {adapter} processing: {e}")
+            stats.setdefault(adapter, {})["last_failed"] = True
+            current_report["adapters"][adapter] = {
+                "execution_failed": True,
+                "error": str(e)
+            }
+        finally:
+            if tmp_file and tmp_file.exists():
+                tmp_file.unlink()
+
+    # Save stats and report
+    with open(STATS_FILE, "w", encoding="utf-8") as f:
+        json.dump(stats, f, indent=2)
+        
+    with open(REPORT_FILE, "w", encoding="utf-8") as f:
+        json.dump(current_report, f, indent=2)
+
+    # Upload to HF
+    if not args.dry_run:
+        print("Uploading to Hugging Face...")
+        try:
+            if existing_pr:
+                print(f"Updating existing PR #{existing_pr.num}")
+                pr_num = existing_pr.num
+            else:
+                print("Creating new PR...")
+                new_pr = api.create_pull_request(
+                    repo_id=REPO_ID,
+                    title="Automated Adapter Data Update",
+                    description="Data update from GitHub Actions",
+                    repo_type=REPO_TYPE
+                )
+                pr_num = new_pr.num
+                print(f"Created new PR #{pr_num}")
+                
+            upload_revision = f"refs/pr/{pr_num}"
+            
+            from huggingface_hub import CommitOperationAdd
+            operations = []
+            
+            # Add stats and report files
+            if STATS_FILE.exists():
+                operations.append(CommitOperationAdd(path_in_repo=STATS_FILE.as_posix(), path_or_fileobj=STATS_FILE))
+            if REPORT_FILE.exists():
+                operations.append(CommitOperationAdd(path_in_repo=REPORT_FILE.as_posix(), path_or_fileobj=REPORT_FILE))
+                
+            # Add all files from adapters that were actually run this session
+            for adapter in current_report.get("adapters", {}).keys():
+                adapter_data_dir = DATA_DIR / adapter
+                if adapter_data_dir.exists():
+                    for filepath in adapter_data_dir.rglob("*"):
+                        if filepath.is_file():
+                            operations.append(CommitOperationAdd(
+                                path_in_repo=filepath.as_posix(), 
+                                path_or_fileobj=filepath
+                            ))
+
+            if operations:
+                print(f"Pushing {len(operations)} updated file(s) using create_commit to revision {upload_revision}...")
+                api.create_commit(
+                    repo_id=REPO_ID,
+                    repo_type=REPO_TYPE,
+                    revision=upload_revision,
+                    commit_message="Automated Adapter Data Update",
+                    operations=operations
+                )
+                print("Upload complete!")
+            else:
+                print("No files to upload!")
+                
+        except Exception as e:
+            print(f"Upload failed: {e}")
+if __name__ == "__main__":
+    main()
