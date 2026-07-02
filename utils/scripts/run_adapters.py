@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import argparse
-import ast
 import datetime
 import json
 import os
@@ -9,7 +8,6 @@ import re
 import shutil
 import subprocess
 import time
-import traceback
 import urllib.request
 from pathlib import Path
 from huggingface_hub import HfApi, hf_hub_download
@@ -35,9 +33,9 @@ def get_dir_size_mb(path: Path) -> float:
             total += f.stat().st_size
     return total / (1024 * 1024)
 
-def download_hf_json(filename: str, default: dict, revision: str = "main") -> dict:
+def download_hf_json(filename: str, default: dict) -> dict:
     try:
-        path = hf_hub_download(repo_id=REPO_ID, filename=filename, repo_type=REPO_TYPE, revision=revision)
+        path = hf_hub_download(repo_id=REPO_ID, filename=filename, repo_type=REPO_TYPE)
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
     except EntryNotFoundError:
@@ -51,90 +49,25 @@ def download_file(url: str, output: Path):
     with urllib.request.urlopen(req, timeout=60) as response, open(output, 'wb') as out_file:
         shutil.copyfileobj(response, out_file)
 
-def check_headers(url: str) -> dict:
-    """Check remote URL headers to detect if data has changed."""
-    if not url:
-        return {}
-    try:
-        req = urllib.request.Request(url, method='HEAD', headers={'User-Agent': 'every-eval-ever adapter runner'})
-        with urllib.request.urlopen(req, timeout=10) as response:
-            return {
-                "url_etag": response.headers.get('ETag'),
-                "url_last_modified": response.headers.get('Last-Modified'),
-                "url_content_length": response.headers.get('Content-Length')
-            }
-    except Exception as e:
-        print(f"Warning: Failed to check HEAD for {url}: {e}")
-        return {}
-
-def is_stale(adapter: str, stats: dict, current_headers: dict) -> tuple[bool, str]:
+def is_stale(adapter: str, stats: dict) -> bool:
     adapter_stat = stats.get(adapter, {})
     last_success = adapter_stat.get("last_success_ts", 0)
     days_since_success = (time.time() - last_success) / 86400
+    if days_since_success >= 7:
+        return True
     
     if adapter_stat.get("last_failed", False):
-        return True, "last run failed"
+        return True
         
-    if current_headers:
-        etag = current_headers.get("url_etag")
-        last_modified = current_headers.get("url_last_modified")
-        content_length = current_headers.get("url_content_length")
-        
-        stored_etag = adapter_stat.get("url_etag")
-        stored_lm = adapter_stat.get("url_last_modified")
-        stored_cl = adapter_stat.get("url_content_length")
-        
-        if etag and stored_etag and etag != stored_etag:
-            return True, "ETag changed"
-        if last_modified and stored_lm and last_modified != stored_lm:
-            return True, "Last-Modified changed"
-        if content_length and stored_cl and content_length != stored_cl:
-            return True, "Content-Length changed"
-            
-        if (etag and not stored_etag) or (last_modified and not stored_lm) or (content_length and not stored_cl):
-            return True, "new header available"
-            
-    if days_since_success >= 7:
-        return True, "fallback 7 days"
-        
-    return False, "not stale"
+    return False
 
 def get_input_requirement(adapter_path: Path):
-    """Parse adapter using AST instead of regex."""
     content = adapter_path.read_text(encoding="utf-8")
-    tree = ast.parse(content)
     
-    requires_json = False
-    requires_input_csv = False
-    requires_just_csv = False
-    url = None
-    
-    for node in ast.walk(tree):
-        # Look for global URL assignments
-        if isinstance(node, ast.Assign):
-            for target in node.targets:
-                if isinstance(target, ast.Name) and target.id in ("SOURCE_URL", "SOURCE_CSV_URL", "RESULTS_CSV_URL"):
-                    if isinstance(node.value, ast.Constant) and isinstance(node.value.value, str):
-                        url = node.value.value
-                        
-        # Look for add_argument('--input-json', ..., required=True)
-        if isinstance(node, ast.Call):
-            if isinstance(node.func, ast.Attribute) and node.func.attr == "add_argument":
-                args = [arg.value for arg in node.args if isinstance(arg, ast.Constant) and isinstance(arg.value, str)]
-                
-                is_required = False
-                for kw in node.keywords:
-                    if kw.arg == "required" and isinstance(kw.value, ast.Constant) and kw.value.value is True:
-                        is_required = True
-                        
-                if is_required:
-                    if "--input-json" in args:
-                        requires_json = True
-                    if "--input-csv" in args:
-                        requires_input_csv = True
-                    if "--csv" in args:
-                        requires_just_csv = True
-                        
+    # Check if --input-json or --input-csv or --csv is REQUIRED
+    requires_json = re.search(r'add_argument\s*\(\s*["\']--input-json["\'].*?required=True', content, re.DOTALL) is not None
+    requires_input_csv = re.search(r'add_argument\s*\(\s*["\']--input-csv["\'].*?required=True', content, re.DOTALL) is not None
+    requires_just_csv = re.search(r'add_argument\s*\(\s*["\']--csv["\'].*?required=True', content, re.DOTALL) is not None
     requires_csv = requires_input_csv or requires_just_csv
     
     arg_name = None
@@ -144,6 +77,13 @@ def get_input_requirement(adapter_path: Path):
         arg_name = "--input-csv"
     elif requires_just_csv:
         arg_name = "--csv"
+            
+    url = None
+    if requires_json or requires_csv:
+        # Find URL. Try SOURCE_URL, SOURCE_CSV_URL, or any other obvious data URL
+        url_match = re.search(r'(?:SOURCE(?:_CSV)?_URL|RESULTS_CSV_URL)\s*=\s*["\'](http[^"\']+)["\']', content)
+        if url_match:
+            url = url_match.group(1)
 
     return requires_json, requires_csv, url, arg_name
 
@@ -155,48 +95,12 @@ def main():
     # Create data dir
     DATA_DIR.mkdir(exist_ok=True)
     
-    # Initialize API and check for existing PR
-    api = HfApi()
-    print("Checking for existing PRs...")
-    try:
-        current_user = api.whoami().get("name")
-    except Exception as e:
-        print(f"Failed to get current user: {e}")
-        current_user = None
-
-    try:
-        prs = api.get_repo_discussions(repo_id=REPO_ID, repo_type=REPO_TYPE)
-        open_prs = [
-            pr for pr in prs 
-            if getattr(pr, "is_pull_request", False) 
-            and pr.status == "open"
-            and (pr.author == current_user if current_user else True)
-        ]
-        existing_pr = max(open_prs, key=lambda x: x.num) if open_prs else None
-    except Exception as e:
-        print(f"Error fetching PRs from Hugging Face: {e}")
-        traceback.print_exc()
-        existing_pr = None
-    
-    revision = f"refs/pr/{existing_pr.num}" if existing_pr else "main"
-    if existing_pr:
-        print(f"Found existing PR #{existing_pr.num}. Using revision {revision} for state.")
-    else:
-        print("No open PR found. Will run against main and create a new PR later if needed.")
-
     # Download existing state
-    # Try data/ prefix first, fallback to root
-    stats = download_hf_json("data/adapter_stats.json", {}, revision=revision)
-    if not stats:
-        stats = download_hf_json("adapter_stats.json", {}, revision=revision)
-        
-    last_report = download_hf_json("data/run_report.json", {}, revision=revision)
-    if not last_report:
-        last_report = download_hf_json("run_report.json", {}, revision=revision)
+    stats = download_hf_json("adapter_stats.json", {})
+    last_report = download_hf_json("run_report.json", {})
 
     today = datetime.datetime.now()
     is_sunday = today.weekday() == 6
-    is_monthly_run = today.day <= 7
     
     # We will build a new report for today
     today_str = today.strftime("%Y-%m-%d")
@@ -207,55 +111,22 @@ def main():
 
     adapters = [d.name for d in UTILS_DIR.iterdir() if d.is_dir() and (d / "adapter.py").exists()]
     
-    # Gather adapter requirements and check staleness
-    adapter_info = []
-    print("Analyzing adapters...")
-    for adapter in adapters:
-        adapter_path = UTILS_DIR / adapter / "adapter.py"
-        try:
-            requires_json, requires_csv, url, arg_name = get_input_requirement(adapter_path)
-        except Exception as e:
-            print(f"Warning: Could not parse adapter {adapter} requirements: {e}")
-            requires_json, requires_csv, url, arg_name = False, False, None, None
-
-        current_headers = check_headers(url)
-        stale, reason = is_stale(adapter, stats, current_headers)
-        
-        adapter_info.append({
-            "name": adapter,
-            "stale": stale,
-            "reason": reason,
-            "url": url,
-            "headers": current_headers,
-            "requires_json": requires_json,
-            "requires_csv": requires_csv,
-            "arg_name": arg_name,
-            "adapter_path": adapter_path
-        })
-
-    # Sort adapters: stale first, then alphabetically
-    adapter_info.sort(key=lambda x: (not x["stale"], x["name"]))
-
-    for info in adapter_info:
-        adapter = info["name"]
+    for adapter in sorted(adapters):
         adapter_stat = stats.get(adapter, {})
         time_s = adapter_stat.get("time_s", 0)
         size_mb = adapter_stat.get("size_mb", 0)
         
         is_heavy = time_s > HEAVY_TIME_S or size_mb > HEAVY_SIZE_MB
-        stale = info["stale"]
+        stale = is_stale(adapter, stats)
         
-        if is_heavy and not is_monthly_run and not stale:
-            print(f"Skipping heavy adapter {adapter} (runs monthly or when stale)")
+        if is_heavy and not is_sunday and not stale:
+            print(f"Skipping heavy adapter {adapter} (runs on Sundays or when stale)")
             continue
             
-        print(f"\n--- Running adapter: {adapter} (Stale: {stale}, Reason: {info['reason']}) ---")
+        print(f"\n--- Running adapter: {adapter} ---")
         
-        adapter_path = info["adapter_path"]
-        requires_json = info["requires_json"]
-        requires_csv = info["requires_csv"]
-        url = info["url"]
-        arg_name = info["arg_name"]
+        adapter_path = UTILS_DIR / adapter / "adapter.py"
+        requires_json, requires_csv, url, arg_name = get_input_requirement(adapter_path)
         
         adapter_data_dir = DATA_DIR / adapter
         # Clean previous run data if any
@@ -266,14 +137,6 @@ def main():
             
         cmd = ["uv", "run", "python", "-m", f"utils.{adapter}.adapter"]
         
-        # Prepare environment for adapter with every_eval_ever in PYTHONPATH
-        env = os.environ.copy()
-        eee_path = str(Path("every_eval_ever").absolute())
-        if "PYTHONPATH" in env:
-            env["PYTHONPATH"] = f"{eee_path}{os.pathsep}{env['PYTHONPATH']}"
-        else:
-            env["PYTHONPATH"] = eee_path
-
         # Only pass --output-dir if the adapter script mentions it
         content = adapter_path.read_text(encoding="utf-8")
         if "--output-dir" in content:
@@ -300,7 +163,7 @@ def main():
                 cmd.extend([arg_name, str(tmp_file)])
                 
             start_t = time.time()
-            res = subprocess.run(cmd, capture_output=True, text=True, env=env)
+            res = subprocess.run(cmd, capture_output=True, text=True)
             elapsed = time.time() - start_t
             
             if res.returncode != 0:
@@ -317,7 +180,7 @@ def main():
             # Validation
             print("Validating outputs...")
             val_cmd = ["uv", "run", "python", "-m", "every_eval_ever", "validate", "--format", "json", str(adapter_data_dir)]
-            val_res = subprocess.run(val_cmd, capture_output=True, text=True, env=env)
+            val_res = subprocess.run(val_cmd, capture_output=True, text=True)
             
             # Even if val_res fails (which it will if any file is invalid), it outputs JSON
             try:
@@ -356,17 +219,12 @@ def main():
             dir_size_mb = get_dir_size_mb(adapter_data_dir)
             
             # Update stats
-            update_data = {
+            stats.setdefault(adapter, {}).update({
                 "time_s": elapsed,
                 "size_mb": dir_size_mb,
                 "last_success_ts": time.time(),
                 "last_failed": False
-            }
-            if info["headers"]:
-                for k, v in info["headers"].items():
-                    if v:
-                        update_data[k] = v
-            stats.setdefault(adapter, {}).update(update_data)
+            })
             
             current_report["adapters"][adapter] = {
                 "execution_failed": False,
@@ -377,7 +235,6 @@ def main():
             
         except Exception as e:
             print(f"Exception during {adapter} processing: {e}")
-            traceback.print_exc()
             stats.setdefault(adapter, {})["last_failed"] = True
             current_report["adapters"][adapter] = {
                 "execution_failed": True,
@@ -397,40 +254,17 @@ def main():
     # Upload to HF
     if not args.dry_run:
         print("Uploading to Hugging Face...")
+        api = HfApi()
         try:
-            if existing_pr:
-                print(f"Updating existing PR #{existing_pr.num}")
-                pr_num = existing_pr.num
-            else:
-                print("Creating new PR...")
-                try:
-                    new_pr = api.create_pull_request(
-                        repo_id=REPO_ID,
-                        title="Automated Adapter Data Update",
-                        description="Data update from GitHub Actions",
-                        repo_type=REPO_TYPE
-                    )
-                    pr_num = new_pr.num
-                    print(f"Successfully created new PR #{pr_num}")
-                except Exception as pr_err:
-                    print(f"CRITICAL ERROR: Failed to create new PR! {pr_err}")
-                    traceback.print_exc()
-                    raise pr_err
-                
-            upload_revision = f"refs/pr/{pr_num}"
-            
-            print(f"Uploading using upload_large_folder to revision {upload_revision}...")
-            api.upload_large_folder(
+            api.upload_folder(
                 repo_id=REPO_ID,
                 folder_path=".",
                 repo_type=REPO_TYPE,
-                revision=upload_revision,
-                allow_patterns=["data/**"]
+                allow_patterns=["data/**"],
+                create_pr=True 
             )
             print("Upload complete!")
         except Exception as e:
             print(f"Upload failed: {e}")
-            traceback.print_exc()
-
 if __name__ == "__main__":
     main()
