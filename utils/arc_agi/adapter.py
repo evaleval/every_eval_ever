@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import time
@@ -307,10 +308,61 @@ def make_log(
 
 
 def write_log(log: dict, out_root: Path, developer: str, model: str) -> Path:
-    out_dir = out_root / "arc-agi" / developer / model
+    filename = str(uuid.uuid4())
+    out_dir = out_root / filename[:2] / filename[2:4]
     out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / f"{uuid.uuid4()}.json"
-    out_path.write_text(json.dumps(log, indent=2) + "\n", encoding="utf-8")
+    out_path = out_dir / f"{filename}.json"
+    
+    content_str = json.dumps(log, indent=2) + "\n"
+    content_bytes = content_str.encode("utf-8")
+    out_path.write_bytes(content_bytes)
+
+    size_bytes = len(content_bytes)
+    sha256 = hashlib.sha256(content_bytes).hexdigest()
+    
+    try:
+        legacy_path = out_path.relative_to(out_root.parent).as_posix()
+    except ValueError:
+        legacy_path = f"data/arc-agi/{developer}/{model}/{filename}.json"
+
+    object_path = f"flat/objects/{filename[:2]}/{filename[2:4]}/{filename}.json"
+
+    aggregate_record = {
+        "benchmark": "arc-agi",
+        "eval_schema_version": SCHEMA_VERSION,
+        "legacy_path": legacy_path,
+        "object_path": object_path,
+        "object_uuid": filename,
+        "record_type": "aggregate",
+        "sha256": sha256,
+        "size_bytes": size_bytes
+    }
+
+    instance_record = {
+        "benchmark": "arc-agi",
+        "eval_schema_version": SCHEMA_VERSION,
+        "instance_object_path": None,
+        "instance_sha256": None,
+        "instance_size_bytes": None,
+        "legacy_path": legacy_path,
+        "object_path": object_path,
+        "object_uuid": filename,
+        "record_type": "aggregate",
+        "sha256": sha256,
+        "size_bytes": size_bytes
+    }
+
+    index_dir = out_root / "indexes" / "by_collection" / "arc-agi"
+    index_dir.mkdir(parents=True, exist_ok=True)
+
+    aggregate_index_path = index_dir / "aggregate.jsonl"
+    with open(aggregate_index_path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(aggregate_record) + "\n")
+
+    instance_index_path = index_dir / "instance_level.jsonl"
+    with open(instance_index_path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(instance_record) + "\n")
+
     return out_path
 
 
