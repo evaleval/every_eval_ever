@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import ast
 import datetime
 import json
 import os
@@ -8,6 +9,7 @@ import re
 import shutil
 import subprocess
 import time
+import traceback
 import urllib.request
 from pathlib import Path
 from huggingface_hub import HfApi, hf_hub_download
@@ -49,25 +51,90 @@ def download_file(url: str, output: Path):
     with urllib.request.urlopen(req, timeout=60) as response, open(output, 'wb') as out_file:
         shutil.copyfileobj(response, out_file)
 
-def is_stale(adapter: str, stats: dict) -> bool:
+def check_headers(url: str) -> dict:
+    """Check remote URL headers to detect if data has changed."""
+    if not url:
+        return {}
+    try:
+        req = urllib.request.Request(url, method='HEAD', headers={'User-Agent': 'every-eval-ever adapter runner'})
+        with urllib.request.urlopen(req, timeout=10) as response:
+            return {
+                "url_etag": response.headers.get('ETag'),
+                "url_last_modified": response.headers.get('Last-Modified'),
+                "url_content_length": response.headers.get('Content-Length')
+            }
+    except Exception as e:
+        print(f"Warning: Failed to check HEAD for {url}: {e}")
+        return {}
+
+def is_stale(adapter: str, stats: dict, current_headers: dict) -> tuple[bool, str]:
     adapter_stat = stats.get(adapter, {})
     last_success = adapter_stat.get("last_success_ts", 0)
     days_since_success = (time.time() - last_success) / 86400
-    if days_since_success >= 7:
-        return True
     
     if adapter_stat.get("last_failed", False):
-        return True
+        return True, "last run failed"
         
-    return False
+    if current_headers:
+        etag = current_headers.get("url_etag")
+        last_modified = current_headers.get("url_last_modified")
+        content_length = current_headers.get("url_content_length")
+        
+        stored_etag = adapter_stat.get("url_etag")
+        stored_lm = adapter_stat.get("url_last_modified")
+        stored_cl = adapter_stat.get("url_content_length")
+        
+        if etag and stored_etag and etag != stored_etag:
+            return True, "ETag changed"
+        if last_modified and stored_lm and last_modified != stored_lm:
+            return True, "Last-Modified changed"
+        if content_length and stored_cl and content_length != stored_cl:
+            return True, "Content-Length changed"
+            
+        if (etag and not stored_etag) or (last_modified and not stored_lm) or (content_length and not stored_cl):
+            return True, "new header available"
+            
+    if days_since_success >= 7:
+        return True, "fallback 7 days"
+        
+    return False, "not stale"
 
 def get_input_requirement(adapter_path: Path):
+    """Parse adapter using AST instead of regex."""
     content = adapter_path.read_text(encoding="utf-8")
+    tree = ast.parse(content)
     
-    # Check if --input-json or --input-csv or --csv is REQUIRED
-    requires_json = re.search(r'add_argument\s*\(\s*["\']--input-json["\'].*?required=True', content, re.DOTALL) is not None
-    requires_input_csv = re.search(r'add_argument\s*\(\s*["\']--input-csv["\'].*?required=True', content, re.DOTALL) is not None
-    requires_just_csv = re.search(r'add_argument\s*\(\s*["\']--csv["\'].*?required=True', content, re.DOTALL) is not None
+    requires_json = False
+    requires_input_csv = False
+    requires_just_csv = False
+    url = None
+    
+    for node in ast.walk(tree):
+        # Look for global URL assignments
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id in ("SOURCE_URL", "SOURCE_CSV_URL", "RESULTS_CSV_URL"):
+                    if isinstance(node.value, ast.Constant) and isinstance(node.value.value, str):
+                        url = node.value.value
+                        
+        # Look for add_argument('--input-json', ..., required=True)
+        if isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Attribute) and node.func.attr == "add_argument":
+                args = [arg.value for arg in node.args if isinstance(arg, ast.Constant) and isinstance(arg.value, str)]
+                
+                is_required = False
+                for kw in node.keywords:
+                    if kw.arg == "required" and isinstance(kw.value, ast.Constant) and kw.value.value is True:
+                        is_required = True
+                        
+                if is_required:
+                    if "--input-json" in args:
+                        requires_json = True
+                    if "--input-csv" in args:
+                        requires_input_csv = True
+                    if "--csv" in args:
+                        requires_just_csv = True
+                        
     requires_csv = requires_input_csv or requires_just_csv
     
     arg_name = None
@@ -77,19 +144,12 @@ def get_input_requirement(adapter_path: Path):
         arg_name = "--input-csv"
     elif requires_just_csv:
         arg_name = "--csv"
-            
-    url = None
-    if requires_json or requires_csv:
-        # Find URL. Try SOURCE_URL, SOURCE_CSV_URL, or any other obvious data URL
-        url_match = re.search(r'(?:SOURCE(?:_CSV)?_URL|RESULTS_CSV_URL)\s*=\s*["\'](http[^"\']+)["\']', content)
-        if url_match:
-            url = url_match.group(1)
 
     return requires_json, requires_csv, url, arg_name
 
 def main():
-    parser = argparse.ArgumentParser(description="Run all Every Eval Ever adapters on croj.")
-    parser.add_argument("--dry-run", action="store_true", help="Does not upload to Hugging Face")
+    parser = argparse.ArgumentParser(description="Run all Every Eval Ever adapters robustly.")
+    parser.add_argument("--dry-run", action="store_true", help="Do not upload to Hugging Face")
     args = parser.parse_args()
 
     # Create data dir
@@ -104,19 +164,25 @@ def main():
         print(f"Failed to get current user: {e}")
         current_user = None
 
-    prs = api.get_repo_discussions(repo_id=REPO_ID, repo_type=REPO_TYPE)
-    open_prs = [
-        pr for pr in prs 
-        if getattr(pr, "is_pull_request", False) 
-        and pr.status == "open"
-        and (pr.author == current_user if current_user else True)
-    ]
-    
-    existing_pr = max(open_prs, key=lambda x: x.num) if open_prs else None
+    try:
+        prs = api.get_repo_discussions(repo_id=REPO_ID, repo_type=REPO_TYPE)
+        open_prs = [
+            pr for pr in prs 
+            if getattr(pr, "is_pull_request", False) 
+            and pr.status == "open"
+            and (pr.author == current_user if current_user else True)
+        ]
+        existing_pr = max(open_prs, key=lambda x: x.num) if open_prs else None
+    except Exception as e:
+        print(f"Error fetching PRs from Hugging Face: {e}")
+        traceback.print_exc()
+        existing_pr = None
     
     revision = f"refs/pr/{existing_pr.num}" if existing_pr else "main"
     if existing_pr:
         print(f"Found existing PR #{existing_pr.num}. Using revision {revision} for state.")
+    else:
+        print("No open PR found. Will run against main and create a new PR later if needed.")
 
     # Download existing state
     # Try data/ prefix first, fallback to root
@@ -141,22 +207,55 @@ def main():
 
     adapters = [d.name for d in UTILS_DIR.iterdir() if d.is_dir() and (d / "adapter.py").exists()]
     
-    for adapter in sorted(adapters):
+    # Gather adapter requirements and check staleness
+    adapter_info = []
+    print("Analyzing adapters...")
+    for adapter in adapters:
+        adapter_path = UTILS_DIR / adapter / "adapter.py"
+        try:
+            requires_json, requires_csv, url, arg_name = get_input_requirement(adapter_path)
+        except Exception as e:
+            print(f"Warning: Could not parse adapter {adapter} requirements: {e}")
+            requires_json, requires_csv, url, arg_name = False, False, None, None
+
+        current_headers = check_headers(url)
+        stale, reason = is_stale(adapter, stats, current_headers)
+        
+        adapter_info.append({
+            "name": adapter,
+            "stale": stale,
+            "reason": reason,
+            "url": url,
+            "headers": current_headers,
+            "requires_json": requires_json,
+            "requires_csv": requires_csv,
+            "arg_name": arg_name,
+            "adapter_path": adapter_path
+        })
+
+    # Sort adapters: stale first, then alphabetically
+    adapter_info.sort(key=lambda x: (not x["stale"], x["name"]))
+
+    for info in adapter_info:
+        adapter = info["name"]
         adapter_stat = stats.get(adapter, {})
         time_s = adapter_stat.get("time_s", 0)
         size_mb = adapter_stat.get("size_mb", 0)
         
         is_heavy = time_s > HEAVY_TIME_S or size_mb > HEAVY_SIZE_MB
-        stale = is_stale(adapter, stats)
+        stale = info["stale"]
         
         if is_heavy and not is_monthly_run and not stale:
             print(f"Skipping heavy adapter {adapter} (runs monthly or when stale)")
             continue
             
-        print(f"\n--- Running adapter: {adapter} ---")
+        print(f"\n--- Running adapter: {adapter} (Stale: {stale}, Reason: {info['reason']}) ---")
         
-        adapter_path = UTILS_DIR / adapter / "adapter.py"
-        requires_json, requires_csv, url, arg_name = get_input_requirement(adapter_path)
+        adapter_path = info["adapter_path"]
+        requires_json = info["requires_json"]
+        requires_csv = info["requires_csv"]
+        url = info["url"]
+        arg_name = info["arg_name"]
         
         adapter_data_dir = DATA_DIR / adapter
         # Clean previous run data if any
@@ -257,12 +356,17 @@ def main():
             dir_size_mb = get_dir_size_mb(adapter_data_dir)
             
             # Update stats
-            stats.setdefault(adapter, {}).update({
+            update_data = {
                 "time_s": elapsed,
                 "size_mb": dir_size_mb,
                 "last_success_ts": time.time(),
                 "last_failed": False
-            })
+            }
+            if info["headers"]:
+                for k, v in info["headers"].items():
+                    if v:
+                        update_data[k] = v
+            stats.setdefault(adapter, {}).update(update_data)
             
             current_report["adapters"][adapter] = {
                 "execution_failed": False,
@@ -273,6 +377,7 @@ def main():
             
         except Exception as e:
             print(f"Exception during {adapter} processing: {e}")
+            traceback.print_exc()
             stats.setdefault(adapter, {})["last_failed"] = True
             current_report["adapters"][adapter] = {
                 "execution_failed": True,
@@ -298,14 +403,19 @@ def main():
                 pr_num = existing_pr.num
             else:
                 print("Creating new PR...")
-                new_pr = api.create_pull_request(
-                    repo_id=REPO_ID,
-                    title="Automated Adapter Data Update",
-                    description="Data update from GitHub Actions",
-                    repo_type=REPO_TYPE
-                )
-                pr_num = new_pr.num
-                print(f"Created new PR #{pr_num}")
+                try:
+                    new_pr = api.create_pull_request(
+                        repo_id=REPO_ID,
+                        title="Automated Adapter Data Update",
+                        description="Data update from GitHub Actions",
+                        repo_type=REPO_TYPE
+                    )
+                    pr_num = new_pr.num
+                    print(f"Successfully created new PR #{pr_num}")
+                except Exception as pr_err:
+                    print(f"CRITICAL ERROR: Failed to create new PR! {pr_err}")
+                    traceback.print_exc()
+                    raise pr_err
                 
             upload_revision = f"refs/pr/{pr_num}"
             
@@ -320,5 +430,7 @@ def main():
             print("Upload complete!")
         except Exception as e:
             print(f"Upload failed: {e}")
+            traceback.print_exc()
+
 if __name__ == "__main__":
     main()
