@@ -88,8 +88,8 @@ def get_input_requirement(adapter_path: Path):
     return requires_json, requires_csv, url, arg_name
 
 def main():
-    parser = argparse.ArgumentParser(description="Run all Every Eval Ever adapters robustly.")
-    parser.add_argument("--dry-run", action="store_true", help="Do not upload to Hugging Face")
+    parser = argparse.ArgumentParser(description="Run all Every Eval Ever adapters on croj.")
+    parser.add_argument("--dry-run", action="store_true", help="Does not upload to Hugging Face")
     args = parser.parse_args()
 
     # Create data dir
@@ -309,16 +309,16 @@ def main():
                 
             upload_revision = f"refs/pr/{pr_num}"
             
-            from huggingface_hub import CommitOperationAdd
-            operations = []
-            
-            # Add stats and report files
-            if STATS_FILE.exists():
-                operations.append(CommitOperationAdd(path_in_repo=STATS_FILE.as_posix(), path_or_fileobj=STATS_FILE))
-            if REPORT_FILE.exists():
-                operations.append(CommitOperationAdd(path_in_repo=REPORT_FILE.as_posix(), path_or_fileobj=REPORT_FILE))
-                
-            # Add all files from adapters that were actually run this session
-            for adapter in current_report.get("adapters", {}).keys():
-                adapter_data_dir = DATA_DIR / adapter
-          
+            print(f"Uploading using upload_large_folder to revision {upload_revision}...")
+            api.upload_large_folder(
+                repo_id=REPO_ID,
+                folder_path=".",
+                repo_type=REPO_TYPE,
+                revision=upload_revision,
+                allow_patterns=["data/**"]
+            )
+            print("Upload complete!")
+        except Exception as e:
+            print(f"Upload failed: {e}")
+if __name__ == "__main__":
+    main()
