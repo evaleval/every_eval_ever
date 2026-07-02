@@ -1,24 +1,7 @@
 #!/usr/bin/env python3
-"""
-Every Eval Ever - Adapter Orchestrator
-
-This script manages the automated execution of all data adapters for the 
-Every Eval Ever (EEE) project. It is designed to run periodically (e.g., via 
-GitHub Actions cron jobs) to ensure evaluation data remains up-to-date.
-
-Key Capabilities:
-- Smart Data Detection: Employs HTTP HEAD requests to monitor upstream data 
-  (CSV/JSON files) for changes using ETag, Last-Modified, or Content-Length headers.
-- Prioritized Execution: Identifies adapters with new remote data and executes them first.
-- Resource Optimization: Defers "heavy" adapters (high time or size cost) unless 
-  their data is stale or a monthly forced run is triggered.
-- Automated Validation: Automatically validates all generated EEE JSON records 
-  against the official schema.
-- Hugging Face Integration: Downloads the previous execution state and seamlessly 
-  pushes new or updated records to a Pull Request on the target HF dataset repo.
-"""
 
 import argparse
+import ast
 import datetime
 import json
 import os
@@ -41,25 +24,7 @@ UTILS_DIR = Path("utils")
 HEAVY_TIME_S = 60
 HEAVY_SIZE_MB = 50
 
-# Central configuration for adapters that require file downloads
-ADAPTER_CONFIGS = {
-    "arc_agi": {"url": "https://arcprize.org/media/data/leaderboard/evaluations.json", "file_arg": "--input-json"},
-    "artificial_analysis": {"url": "https://artificialanalysis.ai/api/v2/data/llms/models", "file_arg": "--input-json"},
-    "bfcl": {"url": "https://gorilla.cs.berkeley.edu/data_overall.csv", "file_arg": "--csv"},
-    "hfopenllm_v2": {"url": "https://open-llm-leaderboard-open-llm-leaderboard.hf.space/api/leaderboard/formatted", "file_arg": "--input-json"},
-    "sciarena": {"url": "https://sciarena.allen.ai/api/leaderboard", "file_arg": "--input-json"}
-}
-
 def get_dir_size_mb(path: Path) -> float:
-    """
-    Calculate the total size of a directory in megabytes.
-
-    Args:
-        path (Path): The directory path to measure.
-
-    Returns:
-        float: The total size in megabytes. Returns 0.0 if the path does not exist.
-    """
     total = 0
     if not path.exists():
         return 0.0
@@ -69,17 +34,6 @@ def get_dir_size_mb(path: Path) -> float:
     return total / (1024 * 1024)
 
 def download_hf_json(filename: str, default: dict, revision: str = "main") -> dict:
-    """
-    Download and parse a JSON file from the target Hugging Face dataset repository.
-
-    Args:
-        filename (str): The path to the file within the repository.
-        default (dict): The default dictionary to return if the file is missing or fails to parse.
-        revision (str): The git revision (branch, tag, or PR ref) to download from.
-
-    Returns:
-        dict: The parsed JSON content, or the default value upon failure.
-    """
     try:
         path = hf_hub_download(repo_id=REPO_ID, filename=filename, repo_type=REPO_TYPE, revision=revision)
         with open(path, "r", encoding="utf-8") as f:
@@ -90,33 +44,13 @@ def download_hf_json(filename: str, default: dict, revision: str = "main") -> di
         print(f"Warning: Could not download {filename} from HF, using default. ({e})")
         return default
 
-def download_file(url: str, output: Path) -> None:
-    """
-    Download a file from a URL to a local destination.
-
-    Args:
-        url (str): The source URL to download from.
-        output (Path): The local destination path to write the file to.
-    """
+def download_file(url: str, output: Path):
     req = urllib.request.Request(url, headers={'User-Agent': 'every-eval-ever adapter runner'})
     with urllib.request.urlopen(req, timeout=60) as response, open(output, 'wb') as out_file:
         shutil.copyfileobj(response, out_file)
 
 def check_headers(url: str) -> dict:
-    """
-    Perform an HTTP HEAD request to retrieve cache-validation headers.
-
-    This mechanism allows the orchestrator to detect if remote data has changed 
-    without downloading the entire file payload, saving bandwidth and execution time.
-
-    Args:
-        url (str): The remote URL to inspect.
-
-    Returns:
-        dict: A dictionary containing 'url_etag', 'url_last_modified', 
-              and 'url_content_length' if provided by the server. 
-              Returns an empty dictionary if the request fails or no URL is provided.
-    """
+    """Check remote URL headers to detect if data has changed."""
     if not url:
         return {}
     try:
@@ -132,25 +66,6 @@ def check_headers(url: str) -> dict:
         return {}
 
 def is_stale(adapter: str, stats: dict, current_headers: dict) -> tuple[bool, str]:
-    """
-    Determine whether an adapter's remote data is stale and requires re-execution.
-
-    An adapter is flagged as stale if any of the following conditions are met:
-    1. The last recorded run resulted in a failure.
-    2. Remote data headers (ETag, Last-Modified, Content-Length) have changed 
-       since the last successful run.
-    3. It has not been successfully executed in over 7 days (or 30 days if 
-       headers are successfully verified as unchanged).
-
-    Args:
-        adapter (str): The name of the adapter to evaluate.
-        stats (dict): The historical statistics dictionary containing previous run metadata.
-        current_headers (dict): The freshly retrieved HTTP headers for the adapter's data URL.
-
-    Returns:
-        tuple[bool, str]: A tuple containing a boolean indicating if the adapter 
-                          should run, and a string explaining the reason.
-    """
     adapter_stat = stats.get(adapter, {})
     last_success = adapter_stat.get("last_success_ts", 0)
     days_since_success = (time.time() - last_success) / 86400
@@ -177,55 +92,60 @@ def is_stale(adapter: str, stats: dict, current_headers: dict) -> tuple[bool, st
         if (etag and not stored_etag) or (last_modified and not stored_lm) or (content_length and not stored_cl):
             return True, "new header available"
             
-        if etag or last_modified or content_length:
-            if days_since_success >= 30:
-                return True, "fallback 30 days"
-            return False, "data unchanged"
-            
     if days_since_success >= 7:
         return True, "fallback 7 days"
         
     return False, "not stale"
 
-def get_dynamic_args(adapter: str, env: dict) -> dict:
-    """
-    Dynamically discover what arguments an adapter accepts by running its --help.
-
-    This avoids brittle static source code parsing and respects the adapter's
-    actual runtime interface.
-
-    Args:
-        adapter (str): The name of the adapter.
-        env (dict): The environment variables to run the subprocess with (needs PYTHONPATH).
-
-    Returns:
-        dict: A mapping of capabilities, e.g., 'accepts_output_dir'.
-    """
-    args_config = {
-        "accepts_output_dir": False,
-        "accepts_from_hf": False
-    }
-    try:
-        cmd = ["uv", "run", "python", "-m", f"utils.{adapter}.adapter", "--help"]
-        res = subprocess.run(cmd, capture_output=True, text=True, env=env)
-        help_text = res.stdout
-        if "--output-dir" in help_text:
-            args_config["accepts_output_dir"] = True
-        if "--from-hf" in help_text:
-            args_config["accepts_from_hf"] = True
-    except Exception as e:
-        print(f"Warning: Failed to parse help for {adapter}: {e}")
-        
-    return args_config
-
-def main() -> None:
-    """
-    Main orchestrator entry point.
+def get_input_requirement(adapter_path: Path):
+    """Parse adapter using AST instead of regex."""
+    content = adapter_path.read_text(encoding="utf-8")
+    tree = ast.parse(content)
     
-    Coordinates the fetching of historical state, evaluation of adapter staleness,
-    prioritized execution of stale adapters, output validation, and the automated 
-    creation or updating of a Pull Request on Hugging Face.
-    """
+    requires_json = False
+    requires_input_csv = False
+    requires_just_csv = False
+    url = None
+    
+    for node in ast.walk(tree):
+        # Look for global URL assignments
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id in ("SOURCE_URL", "SOURCE_CSV_URL", "RESULTS_CSV_URL"):
+                    if isinstance(node.value, ast.Constant) and isinstance(node.value.value, str):
+                        url = node.value.value
+                        
+        # Look for add_argument('--input-json', ..., required=True)
+        if isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Attribute) and node.func.attr == "add_argument":
+                args = [arg.value for arg in node.args if isinstance(arg, ast.Constant) and isinstance(arg.value, str)]
+                
+                is_required = False
+                for kw in node.keywords:
+                    if kw.arg == "required" and isinstance(kw.value, ast.Constant) and kw.value.value is True:
+                        is_required = True
+                        
+                if is_required:
+                    if "--input-json" in args:
+                        requires_json = True
+                    if "--input-csv" in args:
+                        requires_input_csv = True
+                    if "--csv" in args:
+                        requires_just_csv = True
+                        
+    requires_csv = requires_input_csv or requires_just_csv
+    
+    arg_name = None
+    if requires_json:
+        arg_name = "--input-json"
+    elif requires_input_csv:
+        arg_name = "--input-csv"
+    elif requires_just_csv:
+        arg_name = "--csv"
+
+    return requires_json, requires_csv, url, arg_name
+
+def main():
     parser = argparse.ArgumentParser(description="Run all Every Eval Ever adapters robustly.")
     parser.add_argument("--dry-run", action="store_true", help="Do not upload to Hugging Face")
     args = parser.parse_args()
@@ -279,27 +199,31 @@ def main() -> None:
 
     adapters = [d.name for d in UTILS_DIR.iterdir() if d.is_dir() and (d / "adapter.py").exists()]
     
+    # Gather adapter requirements and check staleness
     adapter_info = []
     print("Analyzing adapters...")
     for adapter in adapters:
-        adapter_config = ADAPTER_CONFIGS.get(adapter, {})
-        url = adapter_config.get("url")
-        file_arg = adapter_config.get("file_arg")
+        adapter_path = UTILS_DIR / adapter / "adapter.py"
+        requires_json, requires_csv, url, arg_name = get_input_requirement(adapter_path)
         
         current_headers = check_headers(url)
         stale, reason = is_stale(adapter, stats, current_headers)
+        
         adapter_info.append({
             "name": adapter,
             "stale": stale,
             "reason": reason,
             "url": url,
-            "file_arg": file_arg,
-            "headers": current_headers
+            "headers": current_headers,
+            "requires_json": requires_json,
+            "requires_csv": requires_csv,
+            "arg_name": arg_name,
+            "adapter_path": adapter_path
         })
-        
+
     # Sort adapters: stale first, then alphabetically
     adapter_info.sort(key=lambda x: (not x["stale"], x["name"]))
-    
+
     for info in adapter_info:
         adapter = info["name"]
         adapter_stat = stats.get(adapter, {})
@@ -315,8 +239,11 @@ def main() -> None:
             
         print(f"\n--- Running adapter: {adapter} (Stale: {stale}, Reason: {info['reason']}) ---")
         
+        adapter_path = info["adapter_path"]
+        requires_json = info["requires_json"]
+        requires_csv = info["requires_csv"]
         url = info["url"]
-        file_arg = info["file_arg"]
+        arg_name = info["arg_name"]
         
         adapter_data_dir = DATA_DIR / adapter
         # Clean previous run data if any
@@ -335,26 +262,30 @@ def main() -> None:
         else:
             env["PYTHONPATH"] = eee_path
 
-        # Dynamically inspect adapter capabilities
-        accepted_args = get_dynamic_args(adapter, env)
-
-        if accepted_args["accepts_output_dir"]:
+        # Only pass --output-dir if the adapter script mentions it
+        content = adapter_path.read_text(encoding="utf-8")
+        if "--output-dir" in content:
             cmd.extend(["--output-dir", str(adapter_data_dir)])
             
-        if accepted_args["accepts_from_hf"]:
+        if "--from-hf" in content:
             cmd.append("--from-hf")
         
         tmp_file = None
         try:
-            if file_arg:
-                if not url:
-                    print(f"Warning: Adapter {adapter} requires {file_arg} but no URL is configured!")
-                    continue
-                    
-                tmp_file = DATA_DIR / f"{adapter}_input{Path(url).suffix or '.json'}"
-                print(f"Downloading required input from {url}")
+            if (requires_json or requires_csv) and not url:
+                print(f"Skipping adapter {adapter} because it requires {arg_name} but no URL was found in the script.")
+                continue
+
+            if requires_json and url:
+                tmp_file = DATA_DIR / f"{adapter}_input.json"
+                print(f"Downloading required JSON input from {url}")
                 download_file(url, tmp_file)
-                cmd.extend([file_arg, str(tmp_file)])
+                cmd.extend([arg_name, str(tmp_file)])
+            elif requires_csv and url:
+                tmp_file = DATA_DIR / f"{adapter}_input.csv"
+                print(f"Downloading required CSV input from {url}")
+                download_file(url, tmp_file)
+                cmd.extend([arg_name, str(tmp_file)])
                 
             start_t = time.time()
             res = subprocess.run(cmd, capture_output=True, text=True, env=env)
@@ -505,5 +436,6 @@ def main() -> None:
                 
         except Exception as e:
             print(f"Upload failed: {e}")
+
 if __name__ == "__main__":
     main()
