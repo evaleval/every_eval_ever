@@ -19,12 +19,38 @@ Each adapter is run with `uv run python -m utils.<name>.adapter`.
 | `hfopenllm_v2` | HuggingFace Spaces API | Fetches the Open LLM Leaderboard v2 (4576+ models). |
 | `helm` | HELM leaderboard | Converts HELM leaderboard data. Supports `--leaderboard_name` for Capabilities/Lite/Classic/Instruct/MMLU. |
 | `llm_stats` | LLM Stats API | Converts LLM Stats model, benchmark, and score API data into `data/llm-stats/`. |
+| `mercor_eval` | Mercor Evaluation Exports API | Fetches authenticated Mercor benchmark leaderboards and writes aggregate EEE records. |
 | `mt_bench` | LMSYS / FastChat | Converts MT-Bench GPT-4 single-answer judgments into `data/mt-bench/`. Emits overall, turn-1, and turn-2 means per model. |
 | `openeval` | HuggingFace | Converts OpenEval response scores from `human-centered-eval/OpenEval` into `data/openeval/`; pass `--include-instances` to also write `*_samples.jsonl` sidecars. |
 | `rewardbench` | HuggingFace | Fetches RewardBench v1 (CSV) and RewardBench v2 (JSON) leaderboard data. |
 | `terminal_bench_2` | tbench.ai | Fetches Terminal-Bench 2.0 agentic coding benchmark results. |
 | `hle` | Scale SEAL leaderboard | Converts the Scale SEAL Humanity's Last Exam leaderboard into `data/hle/`. Emits per-model accuracy (with 95% CI) and calibration error. |
 | `mmlu_pro` | TIGER-Lab leaderboard CSV | Converts the MMLU-Pro leaderboard (`TIGER-Lab/mmlu_pro_leaderboard_submission`) into `data/mmlu-pro/`. Emits per-model overall + 14 per-subject accuracies. |
+
+### Mercor Evaluation Exports
+
+Set the API key in the environment and run the adapter:
+
+```bash
+export MERCOR_EVAL_API_EVALEVAL_KEY="<your-key>"
+uv run python -m utils.mercor_eval.adapter
+```
+
+For a credential-free offline smoke run:
+
+```bash
+uv run python -m utils.mercor_eval.adapter \
+  --input-json tests/data/mercor_eval/api_payload.json \
+  --output-dir /tmp/mercor-eval-offline
+```
+
+The adapter exports aggregate leaderboard metrics only. Mercor's criterion
+results do not include the task input, model output, messages, or answer
+attribution required by the EEE instance-level schema.
+Records are generated under benchmark-specific datastore directories, for
+example `data/apex-agents/<developer>/<model>/<uuid>.json`. Generated records
+are intended for the Hugging Face datastore submission, not the GitHub adapter
+PR.
 
 ## Notes
 
