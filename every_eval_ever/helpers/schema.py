@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional
 
 
 def _load_schema_version() -> str:
-    schema_path = Path(__file__).parent.parent.parent / 'eval.schema.json'
+    schema_path = Path(__file__).parent.parent / 'schemas' / 'eval.schema.json'
     with schema_path.open() as f:
         return json.load(f)['version']
 
