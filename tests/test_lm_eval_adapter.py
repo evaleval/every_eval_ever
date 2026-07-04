@@ -274,3 +274,21 @@ def test_instance_level_transform_and_save_no_output_dir():
         output_dir=None,
     )
     assert result is None
+
+
+def test_na_stderr_treated_as_absent():
+    """lm-eval reports stderr as the string 'N/A' for non-bootstrapped metrics
+    (aggregated/grouped or custom metrics, e.g. ECLeKTic). Conversion must not
+    crash, and the StandardError (which requires a float) must be omitted rather
+    than coerced to 0."""
+    adapter = LMEvalAdapter()
+    raw_data = {
+        'results': {'mytask': {'acc,none': 0.5, 'acc_stderr,none': 'N/A'}},
+        'n-samples': {'mytask': {'effective': 100}},
+    }
+    results = adapter._build_evaluation_results(raw_data, 'mytask')
+    assert len(results) == 1
+    uncertainty = results[0].score_details.uncertainty
+    assert uncertainty is not None
+    assert uncertainty.standard_error is None
+    assert uncertainty.num_samples == 100

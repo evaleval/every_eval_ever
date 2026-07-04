@@ -242,6 +242,11 @@ class LMEvalAdapter(BaseEvaluationAdapter):
 
             stderr_key = f'{metric_name}_stderr,{filter_name}'
             stderr_val = task_results.get(stderr_key)
+            # lm-eval emits the string 'N/A' for stderr when it is not bootstrapped
+            # (e.g. aggregated or custom metrics). Treat any non-numeric value as
+            # absent so the StandardError (which requires a float) is simply omitted.
+            if not isinstance(stderr_val, (int, float)):
+                stderr_val = None
 
             is_higher_better = higher_is_better.get(metric_name, True)
 

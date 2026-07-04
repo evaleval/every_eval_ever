@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Any, List, Tuple
+from typing import Any, List, Tuple, cast
 
 _HELM_IMPORT_ERROR: Exception | None = None
 try:
@@ -9,7 +9,7 @@ except (
     Exception
 ) as ex:  # pragma: no cover - exercised only when optional deps missing
     _HELM_IMPORT_ERROR = ex
-    RequestState = Any  # type: ignore[assignment]
+    RequestState = cast(Any, None)
 
 
 def _require_helm_dependencies() -> None:
@@ -22,6 +22,7 @@ def _require_helm_dependencies() -> None:
 
 from every_eval_ever.converters import SCHEMA_VERSION
 from every_eval_ever.converters.common.utils import sha256_string
+from every_eval_ever.converters.helm.metrics import is_core_metric
 from every_eval_ever.converters.helm.utils import extract_all_reasonings
 from every_eval_ever.instance_level_types import (
     AnswerAttributionItem,
@@ -33,6 +34,98 @@ from every_eval_ever.instance_level_types import (
     Performance,
     TokenUsage,
 )
+
+
+def _score_from_stat(stat) -> float | None:
+    """Return a scalar HELM stat value, or None for empty/bad stats.
+
+    HELM usually provides ``mean``; some stats only have ``sum`` and
+    ``count``. Returning None lets callers skip stat rows that do not
+    contain a usable scalar value.
+    """
+    value = getattr(stat, 'mean', None)
+    if value is None:
+        count = getattr(stat, 'count', None)
+        total = getattr(stat, 'sum', None)
+        if count:
+            try:
+                value = total / count
+            except (TypeError, ValueError, ZeroDivisionError):
+                return None
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _stat_name_part(value) -> str | None:
+    """Normalize HELM split/perturbation labels for stable IDs."""
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return value or None
+    if isinstance(value, dict):
+        return value.get('name') or str(value)
+    return getattr(value, 'name', None) or str(value)
+
+
+def _evaluation_result_id(
+    metric_name: str | None,
+    split=None,
+    perturbation=None,
+) -> str | None:
+    """Build the join key shared by aggregate and instance rows.
+
+    Split and perturbation labels are included so two HELM stats with the
+    same metric name do not collide in ``evaluation_result_id``.
+    """
+    if metric_name is None:
+        return None
+    parts = [metric_name]
+    split_part = _stat_name_part(split)
+    perturbation_part = _stat_name_part(perturbation)
+    if split_part:
+        parts.append(split_part)
+    if perturbation_part:
+        parts.append(perturbation_part)
+    return ':'.join(parts)
+
+
+# Metric names whose per-instance score is a correctness signal in [0, 1]
+# where ``score > 0`` reasonably maps to ``is_correct=True``. Keep this list
+# tight: graded core metrics such as rouge/bleu/f1 should stay out of it
+# because a positive score is not the same as a binary correctness claim.
+_BINARY_CORRECTNESS_METRIC_NAMES: frozenset[str] = frozenset({
+    'exact_match',
+    'quasi_exact_match',
+    'prefix_exact_match',
+    'quasi_prefix_exact_match',
+    'exact_match@5',
+    'quasi_exact_match@5',
+    'prefix_exact_match@5',
+    'quasi_prefix_exact_match@5',
+    'ifeval_strict_accuracy',
+    'chain_of_thought_correctness',
+    'math_equiv',
+    'math_equiv_chain_of_thought',
+})
+
+
+def _is_correct_for_metric(metric_name: str | None, score: float) -> bool:
+    """Decide ``is_correct`` honestly per metric name.
+
+    For correctness metrics in the allowlist, the HELM convention is that
+    score==1.0 means correct and 0.0 means wrong, so any positive score
+    rounds up to "correct". For graded metrics like rouge_l/bleu/f1 where
+    >0 is not a correctness signal, we deliberately do not claim correctness.
+    """
+    if metric_name is None:
+        return False
+    if metric_name in _BINARY_CORRECTNESS_METRIC_NAMES:
+        return score > 0
+    return False
 
 
 class HELMInstanceLevelDataAdapter:
@@ -51,6 +144,7 @@ class HELMInstanceLevelDataAdapter:
         self.path = f'{evaluation_dir}/{evaulation_id}.{format}'
 
     def _save_json(self, items: List[InstanceLevelEvaluationLog]):
+        """Write one validated instance-level log per JSONL line."""
         eval_dir_path = Path(self.evaluation_dir)
         eval_dir_path.mkdir(parents=True, exist_ok=True)
         path = Path(self.path)
@@ -73,6 +167,12 @@ class HELMInstanceLevelDataAdapter:
         request_states: List[RequestState],
         per_instance_stats_list: List,
     ) -> Tuple[str, int]:
+        """Convert HELM request states into per-(sample, metric) rows.
+
+        When HELM per-instance stats are present, each core metric gets
+        its own detail row. If core metrics are absent, keep the legacy
+        one-row exact-match fallback so older or partial logs still convert.
+        """
         instance_level_logs: List[InstanceLevelEvaluationLog] = []
         for state in request_states:
             inst_stats = next(
@@ -97,28 +197,41 @@ class HELMInstanceLevelDataAdapter:
             reasoning_traces = extract_all_reasonings(state)
             if isinstance(reasoning_traces, str):
                 reasoning_traces = [reasoning_traces]
+            if reasoning_traces is None:
+                reasoning_traces = []
+            reasoning_traces = [
+                trace for trace in reasoning_traces if isinstance(trace, str)
+            ]
 
-            is_correct = False
-            score = 0.0
-            if inst_stats:
-                em_stat = next(
-                    (
-                        s
-                        for s in inst_stats.stats
-                        if s.name.name == 'exact_match'
-                    ),
-                    None,
+            all_stats = list(inst_stats.stats) if inst_stats else []
+            metric_stats = [
+                stat
+                for stat in all_stats
+                if is_core_metric(
+                    getattr(getattr(stat, 'name', None), 'name', None)
                 )
-                if em_stat:
-                    score = em_stat.mean
-                    is_correct = em_stat.mean > 0
-                else:  # TODO check for more specific tasks
-                    correct_completions = sum(
-                        1 for c in completions if c.strip() in correct_refs
-                    )
-                    score = correct_completions / len(completions)
-                    is_correct = score > 0
+            ]
+            if not metric_stats:
+                # Preserve the legacy exact-match proxy instead of dropping
+                # samples that have no per-instance stats or no recognized
+                # core metric rows.
+                correct_completions = sum(
+                    1 for c in completions if c.strip() in correct_refs
+                )
+                fallback_score = (
+                    correct_completions / len(completions)
+                    if completions
+                    else 0.0
+                )
+                metric_stats = [None]
 
+            # Scope control: only core HELM metrics become metric rows.
+            # TODO: Consider preserving additional bookkeeping telemetry in
+            # token_usage, performance.additional_details, or metadata.
+
+            # Token usage is copied to every row for the same sample. This is
+            # intentionally denormalized so each core metric row is
+            # independently useful when filtered by metric.
             token_usage = None
             if inst_stats:
                 p_tokens = next(
@@ -155,56 +268,82 @@ class HELMInstanceLevelDataAdapter:
                     total_tokens=int(p_tokens + c_tokens),
                 )
 
-            instance_level_logs.append(
-                InstanceLevelEvaluationLog(
-                    schema_version=SCHEMA_VERSION,
-                    evaluation_id=self.evaluation_id,
-                    model_id=model_id,
-                    evaluation_name=evaluation_name,
-                    sample_id=str(state.instance.id),
-                    sample_hash=sha256_string(
-                        state.request.prompt + (correct_refs[0] if correct_refs else '')
-                    ),  # TODO use all references
-                    interaction_type=InteractionType.single_turn,
-                    input=Input(
-                        raw=state.request.prompt,
-                        reference=correct_refs if correct_refs else [],
-                        choices=(
-                            list(state.output_mapping.values())
-                            if state.output_mapping
-                            else [
-                                ref.output.text
-                                for ref in state.instance.references
-                            ]
+            for stat in metric_stats:
+                if stat is None:
+                    metric_name = None
+                    evaluation_result_id = None
+                    score = fallback_score
+                    # Fallback path: ``score`` here is an exact-match
+                    # proxy from completion-vs-reference matching, so
+                    # the correctness claim is honest in the same sense
+                    # as the legacy single-row behavior.
+                    is_correct = score > 0
+                else:
+                    stat_name = getattr(stat, 'name', None)
+                    metric_name = getattr(stat_name, 'name', None)
+                    evaluation_result_id = _evaluation_result_id(
+                        metric_name,
+                        getattr(stat_name, 'split', None),
+                        getattr(stat_name, 'perturbation', None),
+                    )
+                    score = _score_from_stat(stat)
+                    if score is None:
+                        continue
+                    is_correct = _is_correct_for_metric(metric_name, score)
+                instance_level_logs.append(
+                    InstanceLevelEvaluationLog(
+                        schema_version=SCHEMA_VERSION,
+                        evaluation_id=self.evaluation_id,
+                        model_id=model_id,
+                        evaluation_name=evaluation_name,
+                        evaluation_result_id=evaluation_result_id,
+                        sample_id=str(state.instance.id),
+                        sample_hash=sha256_string(
+                            state.request.prompt + (correct_refs[0] if correct_refs else '')
+                        ),  # TODO use all references
+                        interaction_type=InteractionType.single_turn,
+                        input=Input(
+                            raw=state.request.prompt,
+                            reference=correct_refs if correct_refs else [],
+                            choices=(
+                                list(state.output_mapping.values())
+                                if state.output_mapping
+                                else [
+                                    ref.output.text
+                                    for ref in state.instance.references
+                                ]
+                            ),
                         ),
-                    ),
-                    output=Output(
-                        raw=completions, reasoning_trace=reasoning_traces
-                    ),
-                    answer_attribution=[
-                        AnswerAttributionItem(
-                            turn_idx=0,
-                            source='output.raw',
-                            extracted_value=state.result.completions[
-                                0
-                            ].text.strip()
-                            if state.result and state.result.completions
-                            else '',
-                            extraction_method='exact_match',
-                            is_terminal=True,
-                        )
-                    ],
-                    evaluation=Evaluation(
-                        score=float(score), is_correct=is_correct
-                    ),
-                    token_usage=token_usage,
-                    performance=Performance(
-                        generation_time_ms=state.result.request_time * 1000
-                        if state.result.request_time
-                        else None
-                    ),
+                        output=Output(
+                            raw=completions, reasoning_trace=reasoning_traces
+                        ),
+                        answer_attribution=[
+                            AnswerAttributionItem(
+                                turn_idx=0,
+                                source='output.raw',
+                                extracted_value=state.result.completions[
+                                    0
+                                ].text.strip()
+                                if state.result and state.result.completions
+                                else '',
+                                extraction_method='exact_match',
+                                is_terminal=True,
+                            )
+                        ],
+                        evaluation=Evaluation(
+                            score=float(score), is_correct=is_correct
+                        ),
+                        token_usage=token_usage,
+                        performance=Performance(
+                            generation_time_ms=(
+                                state.result.request_time * 1000
+                                if state.result
+                                and state.result.request_time
+                                else None
+                            )
+                        ),
+                    )
                 )
-            )
 
         self._save_json(instance_level_logs)
         return self.path, len(instance_level_logs)

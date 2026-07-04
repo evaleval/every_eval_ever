@@ -31,3 +31,4 @@ uv run python -m every_eval_ever --help
 - See [Data Structure](../data-structure/)
 - See [Eval Converters](../eval-converters/)
 - See [Contributing](../contributing/)
+- See [HF Community Evals](../hf-community-evals/)
