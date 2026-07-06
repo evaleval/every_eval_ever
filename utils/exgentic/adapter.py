@@ -31,7 +31,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from eval_types import (
+from every_eval_ever.eval_types import (
     AgenticEvalConfig,
     EvalLibrary,
     EvaluationLog,
