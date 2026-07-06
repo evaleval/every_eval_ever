@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import json
 import uuid
 
-from eval_types import (
+from every_eval_ever.eval_types import (
     AgenticEvalConfig,
     AvailableTool,
     EvalLibrary,
