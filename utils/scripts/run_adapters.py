@@ -38,7 +38,7 @@ UTILS_DIR = Path("utils")
 
 # Adapters exceeding these thresholds are classified as "heavy" and only run
 # during the monthly window (first 7 days) or when their source is stale.
-HEAVY_TIME_S = 240
+HEAVY_TIME_S = 900
 HEAVY_SIZE_MB = 250
 
 
