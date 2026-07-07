@@ -79,6 +79,12 @@ def parse_args():
         default='unknown',
         help='Version of the evaluation library',
     )
+    parser.add_argument(
+        '--output-dir',
+        type=str,
+        default=None,
+        help='Output directory',
+    )
     return parser.parse_args()
 
 
@@ -176,6 +182,7 @@ def convert(
     eval_library_name: str = 'helm',
     eval_library_version: str = 'unknown',
     source_data_url: str = 'unknown',
+    output_dir: str | None = None,
 ):
     """Convert HELM leaderboard data into unified evaluation logs."""
     retrieved_timestamp = str(time.time())
@@ -360,9 +367,10 @@ def convert(
                 developer = model_info.developer
                 model = model_id
 
+        out_path = output_dir if output_dir else f'data/{leaderboard_name}'
         filepath = save_evaluation_log(
             eval_log,
-            f'data/{leaderboard_name}',
+            out_path,
             developer,
             model,
         )
@@ -416,6 +424,7 @@ def main():
         eval_library_name=args.eval_library_name,
         eval_library_version=args.eval_library_version,
         source_data_url=source_data_url,
+        output_dir=args.output_dir,
     )
 
     print('Done!')

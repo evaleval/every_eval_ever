@@ -263,6 +263,11 @@ def main():
             "pyyaml is required to run this adapter. Install it with: pip install pyyaml"
         ) from e
 
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--output-dir", type=str, default=OUTPUT_BASE)
+    args = parser.parse_args()
+
     retrieved_timestamp = str(time.time())
     count = 0
     errors = 0
@@ -300,7 +305,7 @@ def main():
                     for eval_log, lang in logs_results:
                         dev = eval_log.model_info.developer or "unknown"
                         model_name = eval_log.model_info.name.split("/")[-1]
-                        filepath = save_evaluation_log(eval_log, OUTPUT_BASE, dev, model_name)
+                        filepath = save_evaluation_log(eval_log, args.output_dir, dev, model_name)
                         score = eval_log.evaluation_results[0].score_details.score
                         print(f"  [{score:.1%}] {submission_dir.name} [{lang}] → {filepath}")
                         count += 1
@@ -308,7 +313,7 @@ def main():
                     print(f"  ERROR {submission_dir.name}: {e}")
                     errors += 1
 
-    print(f"\nGenerated {count} files, {errors} errors → {OUTPUT_BASE}/")
+    print(f"\nGenerated {count} files, {errors} errors → {args.output_dir}/")
 
 
 if __name__ == "__main__":

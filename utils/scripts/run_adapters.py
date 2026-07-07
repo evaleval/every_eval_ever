@@ -38,8 +38,8 @@ UTILS_DIR = Path("utils")
 
 # Adapters exceeding these thresholds are classified as "heavy" and only run
 # during the monthly window (first 7 days) or when their source is stale.
-HEAVY_TIME_S = 900
-HEAVY_SIZE_MB = 250
+HEAVY_TIME_S = 60
+HEAVY_SIZE_MB = 50
 
 
 # ── File & Network Utilities ─────────────────────────────────────────────────
@@ -109,7 +109,7 @@ def check_url_headers(url: str | None) -> dict[str, str | None]:
 def save_json(path: Path, data: Any) -> None:
     """Write *data* to a JSON file with readable formatting."""
     with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
+        json.dump(data, f, indent=2, sort_keys=True)
 
 
 # ── Staleness Detection ─────────────────────────────────────────────────────
@@ -294,12 +294,12 @@ def prepare_adapter_command(
     tmp_file: Path | None = None
     if requires_json and url:
         tmp_file = DATA_DIR / f"{adapter}_input.json"
-        print(f"  Downloading JSON input from {url}")
+        print(f"[{adapter}] Downloading JSON input from {url}")
         download_file(url, tmp_file)
         cmd.extend([arg_name, str(tmp_file)])
     elif requires_csv and url:
         tmp_file = DATA_DIR / f"{adapter}_input.csv"
-        print(f"  Downloading CSV input from {url}")
+        print(f"[{adapter}] Downloading CSV input from {url}")
         download_file(url, tmp_file)
         cmd.extend([arg_name, str(tmp_file)])
 
@@ -325,7 +325,7 @@ def validate_adapter_outputs(
         idx = stdout.find("[")
         val_data = json.loads(stdout[idx:]) if idx != -1 else []
     except json.JSONDecodeError as e:
-        print(f"  Failed to parse validation output: {e}")
+        print(f"[{adapter_data_dir.name}] Failed to parse validation output: {e}")
         val_data = []
 
     valid_count = 0
@@ -482,17 +482,13 @@ def process_adapter(
         stat.get("time_s", 0) > HEAVY_TIME_S
         or stat.get("size_mb", 0) > HEAVY_SIZE_MB
     )
-    is_monthly_window = today.day <= 7
 
     # ── Scheduling gate ──────────────────────────────────────────────────
-    # Non-stale adapters are skipped unless it's a heavy adapter in the
-    # monthly window (which forces a re-check regardless of staleness).
+    # Non-stale adapters are skipped.
     if not info["stale"]:
-        if not (is_heavy and is_monthly_window):
-            label = "heavy, deferred to monthly" if is_heavy else "not stale"
-            print(f"  Skipping ({label})")
-            return _skip_result(label)
-        print(f"  Monthly re-check for heavy adapter")
+        label = "heavy, deferred" if is_heavy else "not stale"
+        print(f"[{adapter}] Skipping ({label})")
+        return _skip_result(label)
 
     # ── Prepare workspace ────────────────────────────────────────────────
     adapter_data_dir = DATA_DIR / adapter
@@ -510,7 +506,7 @@ def process_adapter(
         elapsed = time.time() - start
 
         if result.returncode != 0:
-            print(f"  FAILED ({elapsed:.1f}s):\n{result.stderr[-500:]}")
+            print(f"[{adapter}] FAILED ({elapsed:.1f}s):\n{result.stderr[-500:]}")
             stats.setdefault(adapter, {})["last_failed"] = True
             return {
                 "status": "exec_failed",
@@ -522,9 +518,9 @@ def process_adapter(
             }
 
         # ── Validate ─────────────────────────────────────────────────────
-        print(f"  Ran in {elapsed:.1f}s, validating...")
+        print(f"[{adapter}] Ran in {elapsed:.1f}s, validating...")
         valid, failed, errors = validate_adapter_outputs(adapter_data_dir, env)
-        print(f"  Validation: {valid} valid, {failed} failed")
+        print(f"[{adapter}] Validation: {valid} valid, {failed} failed")
 
         if valid == 0 or failed > 0:
             stats.setdefault(adapter, {})["last_failed"] = True
@@ -546,9 +542,9 @@ def process_adapter(
         data_changed = fingerprint != stored_fingerprint
 
         if data_changed:
-            print(f"  New data detected (fingerprint changed)")
+            print(f"[{adapter}] New data detected (fingerprint changed)")
         else:
-            print(f"  Data unchanged (same fingerprint as existing)")
+            print(f"[{adapter}] Data unchanged (same fingerprint as existing)")
 
         # ── Update stats ─────────────────────────────────────────────────
         update: dict[str, Any] = {
@@ -582,11 +578,11 @@ def process_adapter(
 
     except ValueError as e:
         # Raised by prepare_adapter_command when input URL is missing.
-        print(f"  Skipping: {e}")
+        print(f"[{adapter}] Skipping: {e}")
         return _skip_result(str(e))
 
     except Exception as e:
-        print(f"  Exception: {e}")
+        print(f"[{adapter}] Exception: {e}")
         traceback.print_exc()
         stats.setdefault(adapter, {})["last_failed"] = True
         return {
@@ -626,6 +622,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Run adapters locally but do not upload to HuggingFace",
     )
+    parser.add_argument(
+        "--force-all",
+        action="store_true",
+        help="Force run all adapters regardless of staleness",
+    )
     return parser.parse_args()
 
 
@@ -653,6 +654,13 @@ def main() -> int:
     # ── Discover & analyse adapters ──────────────────────────────────────
     print("\nAnalysing adapters...")
     adapter_infos = discover_adapters(stats)
+    
+    if getattr(args, "force_all", False):
+        print("Force run requested! Marking all adapters as stale.")
+        for info in adapter_infos:
+            info["stale"] = True
+            info["reason"] = "forced by --force-all flag"
+
     print(
         f"Found {len(adapter_infos)} adapter(s): "
         f"{sum(1 for a in adapter_infos if a['stale'])} stale, "
@@ -673,23 +681,38 @@ def main() -> int:
     }
 
     # ── Process each adapter ─────────────────────────────────────────────
+    import concurrent.futures
+
+    print(f"\n{'─' * 60}")
     for info in adapter_infos:
-        adapter = info["name"]
-        print(f"\n{'─' * 60}")
-        print(f"Adapter: {adapter} | Stale: {info['stale']} ({info['reason']})")
+        print(f"Adapter: {info['name']} | Stale: {info['stale']} ({info['reason']})")
 
-        result = process_adapter(info, stats, today, env)
+    print("\nRunning adapters in parallel...")
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        futures = {
+            executor.submit(process_adapter, info, stats, today, env): info["name"]
+            for info in adapter_infos
+        }
+        
+        for future in concurrent.futures.as_completed(futures):
+            adapter = futures[future]
+            try:
+                result = future.result()
+                if result["report_entry"]:
+                    report["adapters"][adapter] = result["report_entry"]
 
-        if result["report_entry"]:
-            report["adapters"][adapter] = result["report_entry"]
-
-        if result["failed"]:
-            any_failures = True
-            summary["failed"].append(adapter)
-        elif result["status"] == "success":
-            summary["ran"].append(adapter)
-        else:
-            summary["skipped"].append(adapter)
+                if result["failed"]:
+                    any_failures = True
+                    summary["failed"].append(adapter)
+                elif result["status"] == "success":
+                    summary["ran"].append(adapter)
+                else:
+                    summary["skipped"].append(adapter)
+            except Exception as e:
+                print(f"[{adapter}] Unhandled exception in thread: {e}")
+                traceback.print_exc()
+                any_failures = True
+                summary["failed"].append(adapter)
 
     # ── Summary ──────────────────────────────────────────────────────────
     print(f"\n{'═' * 60}")

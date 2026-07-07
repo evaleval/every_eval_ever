@@ -18,6 +18,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+import argparse
 import json
 import uuid
 
@@ -294,6 +295,10 @@ def convert_entry(entry: dict, retrieved_timestamp: str) -> EvaluationLog:
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--output-dir", type=Path, default=Path(OUTPUT_DIR))
+    args = parser.parse_args()
+
     retrieved_timestamp = str(time.time())
     count = 0
 
@@ -302,14 +307,14 @@ def main():
             eval_log = convert_entry(entry, retrieved_timestamp)
             org_slug = get_org_slug(entry["model_org"])
             model_slug = get_model_slug(entry["model"])
-            filepath = save_evaluation_log(eval_log, OUTPUT_DIR, org_slug, model_slug)
+            filepath = save_evaluation_log(eval_log, args.output_dir, org_slug, model_slug)
             print(f"[{entry['rank']:3d}] {filepath}")
             count += 1
         except Exception as e:
             print(f"Error processing rank {entry['rank']} "
                   f"({entry['agent']} / {entry['model']}): {e}")
 
-    print(f"\nGenerated {count} files in {OUTPUT_DIR}/")
+    print(f"\nGenerated {count} files in {args.output_dir}/")
 
 
 if __name__ == "__main__":

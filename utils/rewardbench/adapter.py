@@ -134,10 +134,10 @@ def _make_model_info(
     )
 
 
-def _save_eval_log(eval_log: EvaluationLog, developer: str, model: str) -> Path:
+def _save_eval_log(eval_log: EvaluationLog, developer: str, model: str, output_dir: Path = OUTPUT_DIR) -> Path:
     """Save an evaluation log to the standard directory structure."""
     dir_path = (
-        OUTPUT_DIR / sanitize_filename(developer) / sanitize_filename(model)
+        output_dir / sanitize_filename(developer) / sanitize_filename(model)
     )
     dir_path.mkdir(parents=True, exist_ok=True)
 
@@ -172,7 +172,7 @@ def parse_score(value: str) -> Optional[float]:
         return None
 
 
-def fetch_rewardbench_v1(retrieved_timestamp: str) -> int:
+def fetch_rewardbench_v1(retrieved_timestamp: str, output_dir: Path = OUTPUT_DIR) -> int:
     """Fetch and process RewardBench v1 results from the CSV file."""
     print('Fetching RewardBench v1 CSV...')
 
@@ -233,14 +233,14 @@ def fetch_rewardbench_v1(retrieved_timestamp: str) -> int:
         else:
             dev, model = 'unknown', model_info.id
 
-        filepath = _save_eval_log(eval_log, dev, model)
+        filepath = _save_eval_log(eval_log, dev, model, output_dir)
         print(f'Saved: {filepath}')
         count += 1
 
     return count
 
 
-def fetch_rewardbench_v2(retrieved_timestamp: str) -> int:
+def fetch_rewardbench_v2(retrieved_timestamp: str, output_dir: Path = OUTPUT_DIR) -> int:
     """Fetch and process RewardBench v2 results from the HuggingFace dataset."""
     print('Fetching RewardBench v2 model list...')
 
@@ -348,7 +348,7 @@ def fetch_rewardbench_v2(retrieved_timestamp: str) -> int:
             else:
                 dev, model = 'unknown', model_info.id
 
-            filepath = _save_eval_log(eval_log, dev, model)
+            filepath = _save_eval_log(eval_log, dev, model, output_dir)
             print(f'    Saved: {filepath}')
             count += 1
 
@@ -357,6 +357,11 @@ def fetch_rewardbench_v2(retrieved_timestamp: str) -> int:
 
 def main():
     """Main function to fetch and process RewardBench results."""
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--output-dir', type=Path, default=OUTPUT_DIR)
+    args = parser.parse_args()
+
     retrieved_timestamp = str(time.time())
 
     print('=' * 60)
@@ -364,7 +369,7 @@ def main():
     print('=' * 60)
 
     try:
-        v1_count = fetch_rewardbench_v1(retrieved_timestamp)
+        v1_count = fetch_rewardbench_v1(retrieved_timestamp, args.output_dir)
         print(f'\nProcessed {v1_count} models from RewardBench v1')
     except Exception as e:
         print(f'Error processing RewardBench v1: {e}')
@@ -377,7 +382,7 @@ def main():
     print('=' * 60)
 
     try:
-        v2_count = fetch_rewardbench_v2(retrieved_timestamp)
+        v2_count = fetch_rewardbench_v2(retrieved_timestamp, args.output_dir)
         print(f'\nProcessed {v2_count} models from RewardBench v2')
     except Exception as e:
         print(f'Error processing RewardBench v2: {e}')
