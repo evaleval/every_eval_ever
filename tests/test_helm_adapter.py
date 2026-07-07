@@ -66,7 +66,7 @@ def test_mmlu_eval():
 
     converted_eval = _load_eval(
         adapter,
-        'tests/data/helm/mmlu:subject=philosophy,method=multiple_choice_joint,model=openai_gpt2',
+        'tests/data/helm/mmlu_subject=philosophy,method=multiple_choice_joint,model=openai_gpt2',
         metadata_args,
     )
 
@@ -110,7 +110,7 @@ def test_hellswag_eval():
 
     converted_eval = _load_eval(
         adapter,
-        'tests/data/helm/commonsense:dataset=hellaswag,method=multiple_choice_joint,model=eleutherai_pythia-1b-v0',
+        'tests/data/helm/commonsense_dataset=hellaswag,method=multiple_choice_joint,model=eleutherai_pythia-1b-v0',
         metadata_args,
     )
 
@@ -152,7 +152,7 @@ def test_narrativeqa_eval():
     }
 
     converted_eval = _load_eval(
-        adapter, 'tests/data/helm/narrative_qa:model=openai_gpt2', metadata_args
+        adapter, 'tests/data/helm/narrative_qa_model=openai_gpt2', metadata_args
     )
 
     assert converted_eval.evaluation_timestamp is not None
@@ -192,7 +192,7 @@ def test_missing_model_deployment_falls_back_to_model():
     import json
     src = Path(
         'tests/data/helm/'
-        'mmlu:subject=philosophy,method=multiple_choice_joint,model=openai_gpt2'
+        'mmlu_subject=philosophy,method=multiple_choice_joint,model=openai_gpt2'
     )
 
     with tempfile.TemporaryDirectory() as tmpdir:
