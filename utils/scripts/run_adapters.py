@@ -19,10 +19,11 @@ import sys
 import time
 import traceback
 import urllib.request
+import urllib.error
 from pathlib import Path
 from typing import Any
 
-from huggingface_hub import CommitOperationAdd, HfApi, hf_hub_download
+from huggingface_hub import HfApi, hf_hub_download
 from huggingface_hub.utils import EntryNotFoundError
 
 from every_eval_ever.check_duplicate_entries import normalized_hash
@@ -83,9 +84,13 @@ def download_file(url: str, output: Path) -> None:
     """Download a remote file to a local path."""
     headers = {"User-Agent": "every-eval-ever adapter runner"}
     req = urllib.request.Request(url, headers=headers)
-    with urllib.request.urlopen(req, timeout=60) as resp:
-        with open(output, "wb") as f:
-            shutil.copyfileobj(resp, f)
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            with open(output, "wb") as f:
+                shutil.copyfileobj(resp, f)
+    except urllib.error.HTTPError as e:
+        print(f"HTTP Error {e.code} while downloading {url}: {e.reason}")
+        raise ValueError(f"Download failed with HTTP {e.code}: {e.reason}") from e
 
 
 def check_url_headers(url: str | None) -> dict[str, str | None]:
@@ -121,6 +126,13 @@ _HEADER_CHECKS: list[tuple[str, str]] = [
 ]
 
 
+def get_assigned_day_of_week(adapter_name: str) -> int:
+    """Consistently assign an adapter to a day of the week (0-6) based on its name."""
+    # Use MD5 to get a stable integer hash
+    hash_val = int(hashlib.md5(adapter_name.encode('utf-8')).hexdigest(), 16)
+    return hash_val % 7
+
+
 def is_stale(
     adapter: str,
     stats: dict,
@@ -129,13 +141,23 @@ def is_stale(
     """Decide whether an adapter's data is stale and needs re-running.
 
     Priority order:
-    1. Previous run failed → stale (retry immediately).
-    2. Source HTTP headers changed → stale.
-    3. New headers available that weren't previously tracked → stale.
-    4. 7+ days since last *data change* → stale (fallback for sources
-       without reliable headers).
+    1. Assigned day of week has not arrived → not stale (deferred).
+    2. Previous run failed → stale (retry immediately on its assigned day).
+    3. Source HTTP headers changed → stale.
+    4. New headers available that weren't previously tracked → stale.
+    5. 7+ days since last *data change* → stale (fallback).
     """
+    assigned_dow = get_assigned_day_of_week(adapter)
+    current_dow = datetime.datetime.now().weekday()  # Monday is 0, Sunday is 6
+
     stat = stats.get(adapter, {})
+    last_check_ts = stat.get("last_check_ts", 0)
+    
+    # If it was already checked today, don't check again (prevents multiple runs on the assigned day)
+    # UNLESS it's a force run, but that bypasses this function.
+    # We will just rely on the assigned day of the week to distribute the runs.
+    if assigned_dow != current_dow:
+        return False, f"assigned to day {assigned_dow}, today is {current_dow}"
 
     if stat.get("last_failed"):
         return True, "last run failed"
@@ -340,7 +362,10 @@ def validate_adapter_outputs(
             errors.extend(report.get("errors", []))
             invalid_path = Path(report.get("file", ""))
             if invalid_path.exists():
-                invalid_path.unlink()
+                if invalid_path.is_file():
+                    invalid_path.unlink()
+                else:
+                    print(f"[{adapter_data_dir.name}] Warning: Validation reported a directory as a failed file: {invalid_path}")
 
     return valid_count, failed_count, errors
 
@@ -406,29 +431,11 @@ def create_new_pr(api: HfApi) -> int:
 # ── Upload ───────────────────────────────────────────────────────────────────
 
 
-def collect_data_files() -> list[CommitOperationAdd]:
-    """Collect all files under ``data/`` as commit operations for upload."""
-    operations: list[CommitOperationAdd] = []
-    if not DATA_DIR.exists():
-        return operations
-
-    for file_path in sorted(DATA_DIR.rglob("*")):
-        if file_path.is_file():
-            operations.append(
-                CommitOperationAdd(
-                    path_in_repo=file_path.as_posix(),
-                    path_or_fileobj=str(file_path),
-                )
-            )
-    return operations
-
-
 def upload_to_hf(
     api: HfApi,
     existing_pr: Any | None,
-    operations: list[CommitOperationAdd],
 ) -> bool:
-    """Upload files to HuggingFace via a PR.
+    """Upload data directory to HuggingFace via a PR.
 
     Reuses an existing open PR when available, otherwise creates a new one.
     Returns ``True`` on success.
@@ -446,11 +453,13 @@ def upload_to_hf(
 
         revision = f"refs/pr/{pr_num}"
         today = datetime.datetime.now().strftime("%Y-%m-%d")
-        api.create_commit(
+        
+        api.upload_folder(
             repo_id=REPO_ID,
+            folder_path=str(DATA_DIR),
+            path_in_repo="data",
             repo_type=REPO_TYPE,
             revision=revision,
-            operations=operations,
             commit_message=f"Automated data update ({today})",
         )
         print(f"  Upload complete to PR #{pr_num}")
@@ -544,13 +553,15 @@ def process_adapter(
         if data_changed:
             print(f"[{adapter}] New data detected (fingerprint changed)")
         else:
-            print(f"[{adapter}] Data unchanged (same fingerprint as existing)")
+            print(f"[{adapter}] Data unchanged (same fingerprint as existing). Discarding outputs.")
+            shutil.rmtree(adapter_data_dir)
 
         # ── Update stats ─────────────────────────────────────────────────
         update: dict[str, Any] = {
             "time_s": elapsed,
-            "size_mb": get_dir_size_mb(adapter_data_dir),
+            "size_mb": get_dir_size_mb(adapter_data_dir) if adapter_data_dir.exists() else 0,
             "last_success_ts": time.time(),
+            "last_check_ts": time.time(),
             "last_failed": False,
             "data_fingerprint": fingerprint,
         }
@@ -729,14 +740,9 @@ def main() -> int:
     # ── Upload ───────────────────────────────────────────────────────────
     has_results = bool(report["adapters"])
     if not args.dry_run and has_results:
-        print("\nCollecting files for upload...")
-        operations = collect_data_files()
-        if operations:
-            print(f"Uploading {len(operations)} file(s) to HuggingFace...")
-            if not upload_to_hf(api, existing_pr, operations):
-                any_failures = True
-        else:
-            print("No files to upload.")
+        print("\nUploading data directory to HuggingFace (only changed files will be uploaded)...")
+        if not upload_to_hf(api, existing_pr):
+            any_failures = True
     elif not has_results:
         print("\nNo adapters ran — nothing to upload.")
 
