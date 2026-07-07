@@ -11,7 +11,7 @@ results and converts them to EEE-conformant JSON files.
 
 Data source:
 - Exgentic experiments output: results.json files produced by `exgentic batch aggregate`
-- HuggingFace dataset: https://huggingface.co/datasets/Exgentic/open-agent-leaderboard-results
+- HuggingFace dataset: https://huggingface.co/datasets/Exgentic/results
 
 Usage:
     # From local experiment results
@@ -51,7 +51,7 @@ from helpers import save_evaluation_log, sanitize_filename
 
 SCHEMA_VERSION = "0.2.2"
 OUTPUT_DIR = "data/exgentic"
-HF_DATASET = "Exgentic/open-agent-leaderboard-results"
+HF_DATASET = "Exgentic/results"
 
 # Map model name prefixes to developer organizations
 MODEL_DEVELOPER_MAP = {
