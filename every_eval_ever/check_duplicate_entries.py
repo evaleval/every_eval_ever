@@ -4,6 +4,8 @@ import json
 import os
 from typing import Any, Dict, List
 
+from every_eval_ever.dedup import check_duplicates
+
 IGNORE_KEYS = {'retrieved_timestamp', 'evaluation_id'}
 
 
@@ -81,59 +83,29 @@ def main(argv: List[str] | None = None) -> int:
     print(f'Checking {len(file_paths)} JSON files for duplicates...')
     print()
 
-    groups: Dict[str, List[Dict[str, Any]]] = {}
-    for file_path in file_paths:
-        try:
-            with open(file_path, 'r') as f:
-                payload = json.load(f)
-        except json.JSONDecodeError as e:
-            message = f'JSONDecodeError: {str(e)}'
-            annotate_error(
-                file_path,
-                message,
-                title='JSONDecodeError',
-                col=e.colno,
-                line=e.lineno,
-            )
-            print(f'{file_path}')
-            print('  ' + message)
-            print()
-            raise
-
-        entry_hash = normalized_hash(payload)
-        groups.setdefault(entry_hash, []).append(
-            {
-                'path': file_path,
-                'evaluation_id': payload.get('evaluation_id'),
-                'retrieved_timestamp': payload.get('retrieved_timestamp'),
-            }
-        )
-
-    duplicate_groups = [
-        entries for entries in groups.values() if len(entries) > 1
+    local_paths = {file_path: file_path for file_path in file_paths}
+    dedup_report = check_duplicates(file_paths, local_paths, {'files': {}})
+    duplicate_results = [
+        result for result in dedup_report.results if result.duplicate_of
     ]
-    if not duplicate_groups:
+
+    if not duplicate_results:
         print('No duplicates found.')
         print()
         return 0
 
-    ignore_label = ', '.join(f'`{key}`' for key in sorted(IGNORE_KEYS))
-    print(f'Found duplicate entries (ignoring keys: {ignore_label}).')
+    print('Found duplicate entries (semantic fingerprint match).')
     print()
 
-    for index, entries in enumerate(duplicate_groups, start=1):
-        print(f'Duplicate group {index} ({len(entries)} files):')
-        for entry in entries:
-            print(f'  - {entry["path"]}')
-            print(f'    evaluation_id: {entry.get("evaluation_id")}')
-            print(
-                f'    retrieved_timestamp: {entry.get("retrieved_timestamp")}'
-            )
-            annotate_error(
-                entry['path'],
-                'Duplicate entry detected (ignoring `evaluation_id` and `retrieved_timestamp`).',
-                title='DuplicateEntry',
-            )
+    for index, result in enumerate(duplicate_results, start=1):
+        print(f'Duplicate group {index}:')
+        print(f'  - {result.file_path}')
+        print(f'    duplicate_of: {result.duplicate_of}')
+        annotate_error(
+            result.file_path,
+            f'Duplicate entry detected; semantic fingerprint matches {result.duplicate_of}.',
+            title='DuplicateEntry',
+        )
         print()
 
     return 1

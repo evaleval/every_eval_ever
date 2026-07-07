@@ -6,12 +6,19 @@ import json
 from pathlib import Path
 
 from every_eval_ever.validate import (
+    check_companion_exists,
+    check_dataset_provenance,
+    check_integer_counts,
+    check_model_deployment,
+    check_path_structure,
+    check_score_metadata,
     expand_paths,
     render_report_github,
     render_report_json,
     validate_aggregate,
     validate_file,
     validate_instance_file,
+    validate_many,
 )
 
 # ---------------------------------------------------------------------------
@@ -361,7 +368,7 @@ class TestOutputFormats:
         fp = _write_json(tmp_path, 'pass.json', VALID_AGGREGATE)
         report = validate_file(fp)
         output = render_report_github([report])
-        assert output == ''
+        assert output.startswith('::warning file=')
 
 
 class TestExitCode:
@@ -376,3 +383,130 @@ class TestExitCode:
         fp = _write_json(tmp_path, 'fail.json', data)
         report = validate_file(fp)
         assert report.valid is False
+
+
+class TestSemanticWarnings:
+    def test_path_structure_matches_validator_bot(self):
+        good = (
+            'data/gsm8k/openai/gpt-4o/550e8400-e29b-41d4-a716-446655440000.json'
+        )
+        bad = 'data/gsm8k/file.json'
+        assert check_path_structure(good) == []
+        assert 'Unexpected path depth' in check_path_structure(bad)[0]
+
+    def test_companion_warning_uses_available_files(self):
+        uuid = '550e8400-e29b-41d4-a716-446655440000'
+        repo_path = f'data/bench/dev/model/{uuid}.json'
+        data = {'detailed_evaluation_results': {'file_path': f'{uuid}.jsonl'}}
+        assert (
+            check_companion_exists(
+                repo_path, data, {f'data/bench/dev/model/{uuid}.jsonl'}
+            )
+            == []
+        )
+        warnings = check_companion_exists(repo_path, data, {repo_path})
+        assert 'Companion .jsonl' in warnings[0]
+
+    def test_score_metadata_missing_and_bounds_warn(self):
+        data = json.loads(json.dumps(VALID_AGGREGATE))
+        warnings = check_score_metadata(data)
+        assert any("missing 'min_score'" in warning for warning in warnings)
+        assert any("missing 'max_score'" in warning for warning in warnings)
+
+        data['evaluation_results'][0]['metric_config'].update(
+            {'score_type': 'continuous', 'min_score': 0, 'max_score': 1}
+        )
+        data['evaluation_results'][0]['score_details']['score'] = 1.5
+        warnings = check_score_metadata(data)
+        assert any(
+            'outside [min_score=0, max_score=1]' in warning
+            for warning in warnings
+        )
+
+    def test_integer_count_warning(self):
+        warnings = check_integer_counts(
+            {'score_details': {'uncertainty': {'num_samples': 10.0}}}
+        )
+        assert any('num_samples' in warning for warning in warnings)
+
+    def test_model_deployment_two_field_taxonomy(self):
+        base = {'model_info': {'id': 'org/model', 'additional_details': {}}}
+        assert 'deployment_type' in check_model_deployment(base)[0]
+
+        api_record = {
+            'model_info': {
+                'id': 'org/model',
+                'additional_details': {
+                    'deployment_type': 'api',
+                    'model_availability': 'closed_source',
+                },
+            }
+        }
+        assert check_model_deployment(api_record) == []
+
+        local_closed = {
+            'model_info': {
+                'id': 'org/model',
+                'additional_details': {
+                    'deployment_type': 'local',
+                    'model_availability': 'closed_source',
+                },
+            }
+        }
+        assert 'model_availability' in check_model_deployment(local_closed)[0]
+
+    def test_hf_model_availability_requires_api(self):
+        data = {
+            'model_info': {
+                'id': 'org/model',
+                'additional_details': {
+                    'deployment_type': 'local',
+                    'model_availability': 'hf',
+                },
+            }
+        }
+        warnings = check_model_deployment(data)
+        assert any('no HfApi was provided' in warning for warning in warnings)
+
+    def test_dataset_provenance_requires_hf_api_for_hf_dataset(self):
+        data = {
+            'evaluation_results': [
+                {
+                    'source_data': {
+                        'source_type': 'hf_dataset',
+                        'hf_repo': 'org/dataset',
+                    }
+                },
+                {'source_data': {'source_type': 'other'}},
+            ]
+        }
+        warnings = check_dataset_provenance(data)
+        assert any('no HfApi was provided' in warning for warning in warnings)
+        assert any("source_type 'other'" in warning for warning in warnings)
+
+    def test_validate_many_preserves_explicit_empty_available_files(
+        self, tmp_path: Path
+    ):
+        uuid = '550e8400-e29b-41d4-a716-446655440000'
+        aggregate = json.loads(json.dumps(VALID_AGGREGATE))
+        aggregate['detailed_evaluation_results'] = {
+            'format': 'jsonl',
+            'file_path': f'{uuid}.jsonl',
+        }
+        json_path = _write_json(tmp_path, f'{uuid}.json', aggregate)
+        jsonl_path = _write_jsonl(
+            tmp_path, f'{uuid}.jsonl', [VALID_SINGLE_TURN]
+        )
+        reports = validate_many(
+            [
+                (f'data/bench/dev/model/{uuid}.json', json_path),
+                (f'data/bench/dev/model/{uuid}.jsonl', jsonl_path),
+            ],
+            available_files=set(),
+        )
+
+        aggregate_report = reports[0]
+        assert any(
+            'Companion .jsonl' in warning['msg']
+            for warning in aggregate_report.warnings
+        )

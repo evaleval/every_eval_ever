@@ -215,6 +215,7 @@ def _cmd_convert_alpaca_eval(args: argparse.Namespace) -> int:
                 )
             if args.evaluator_relationship != 'third_party':
                 from every_eval_ever.eval_types import EvaluatorRelationship
+
                 log.source_metadata.evaluator_relationship = (
                     EvaluatorRelationship(args.evaluator_relationship)
                 )
@@ -279,8 +280,8 @@ def build_parser() -> argparse.ArgumentParser:
         'check-duplicates',
         help='Detect duplicate evaluation JSON entries',
         description=(
-            'Detect duplicate evaluation entries while ignoring scrape-specific '
-            'keys (evaluation_id and retrieved_timestamp).'
+            'Detect duplicate aggregate evaluation records using the shared '
+            'semantic fingerprint used by the datastore validator.'
         ),
     )
     check_duplicates_parser.add_argument(
@@ -397,11 +398,11 @@ def main(argv: list[str] | None = None) -> int:
 
         return validate_main(
             [
-                *args.paths,
                 '--max-errors',
                 str(args.max_errors),
                 '--format',
                 args.output_format,
+                *args.paths,
             ]
         )
 
