@@ -1,0 +1,74 @@
+{
+  "benchmarks": {
+    "schemaVersion": "1.0",
+    "benchmarks": [
+      {
+        "benchmarkId": "camp_test",
+        "benchmarkName": "APEX-Agents",
+        "domains": [
+          "Investment Banking",
+          "Law"
+        ],
+        "numTasks": 480
+      }
+    ],
+    "dataAsOf": "2026-06-30T20:32:54Z"
+  },
+  "leaderboards": {
+    "schemaVersion": "1.0",
+    "rows": [
+      {
+        "evaluationId": "batch_test",
+        "evaluatedAt": "2026-01-08T04:10:41Z",
+        "benchmark": {
+          "id": "camp_test",
+          "name": "APEX-Agents"
+        },
+        "model": {
+          "id": "model_test",
+          "name": "gemini-3-flash-preview",
+          "config": {
+            "provider": "gemini",
+            "model": "gemini-3-flash-preview",
+            "reasoningEffort": "high",
+            "verbosity": "medium",
+            "temperature": 1.0,
+            "agentName": "ReAct Toolbelt Agent",
+            "agentConfigId": "react_toolbelt_agent",
+            "maxSteps": 250,
+            "timeoutSec": 10800,
+            "maxTokens": 65536,
+            "summary": "gemini-3-flash-preview react_toolbelt_agent"
+          }
+        },
+        "metrics": {
+          "passAt1": {
+            "value": 0.24,
+            "ci95": {
+              "lower": 0.208,
+              "upper": 0.273
+            }
+          },
+          "passAt8": {
+            "value": 0.367,
+            "ci95": {
+              "lower": 0.327,
+              "upper": 0.413
+            }
+          },
+          "passHat8": 0.134,
+          "meanScore": 0.422,
+          "perDomainPassAt1": {
+            "Investment Banking": 0.267,
+            "Law": 0.259
+          }
+        },
+        "numTrials": 3840
+      }
+    ],
+    "total": 1,
+    "limit": 100,
+    "offset": 0,
+    "dataAsOf": "2026-06-30T20:32:54Z"
+  }
+}
