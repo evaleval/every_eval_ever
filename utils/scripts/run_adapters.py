@@ -389,7 +389,7 @@ def find_existing_pr(api: HfApi) -> Any | None:
             d
             for d in discussions
             if getattr(d, "is_pull_request", False)
-            and d.status == "open"
+            and d.status in ("open", "draft")
             and (d.author == current_user if current_user else True)
         ]
         return max(open_prs, key=lambda x: x.num) if open_prs else None
