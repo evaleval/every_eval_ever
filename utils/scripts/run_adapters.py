@@ -94,21 +94,45 @@ def download_file(url: str, output: Path) -> None:
 
 
 def check_url_headers(url: str | None) -> dict[str, str | None]:
-    """Fetch HTTP HEAD headers from a URL to detect source-data changes."""
+    """Fetch HTTP HEAD headers from a URL to detect source-data changes.
+    Falls back to GET if HEAD is not allowed, and injects known API keys.
+    """
     if not url:
         return {}
-    try:
-        headers = {"User-Agent": "every-eval-ever adapter runner"}
-        req = urllib.request.Request(url, method="HEAD", headers=headers)
+
+    headers = {"User-Agent": "every-eval-ever adapter runner"}
+
+    if "artificialanalysis.ai" in url and os.environ.get("ARTIFICIAL_ANALYSIS_API_KEY"):
+        headers["x-api-key"] = os.environ.get("ARTIFICIAL_ANALYSIS_API_KEY")
+    if "llm-stats.com" in url and os.environ.get("LLM_STATS_API_KEY"):
+        headers["Authorization"] = f'Bearer {os.environ.get("LLM_STATS_API_KEY")}'
+        headers["x-api-key"] = os.environ.get("LLM_STATS_API_KEY")
+    if ("huggingface.co" in url or "hf.space" in url) and os.environ.get("HF_TOKEN"):
+        headers["Authorization"] = f'Bearer {os.environ.get("HF_TOKEN")}'
+
+    def _fetch(method: str) -> dict[str, str | None]:
+        req = urllib.request.Request(url, method=method, headers=headers)
         with urllib.request.urlopen(req, timeout=10) as resp:
             return {
                 "url_etag": resp.headers.get("ETag"),
                 "url_last_modified": resp.headers.get("Last-Modified"),
                 "url_content_length": resp.headers.get("Content-Length"),
             }
+
+    try:
+        return _fetch("HEAD")
+    except urllib.error.HTTPError as e:
+        if e.code == 405:
+            try:
+                return _fetch("GET")
+            except Exception as e2:
+                print(f"Warning: GET fallback failed for {url}: {e2}")
+        else:
+            print(f"Warning: HEAD request failed for {url}: {e}")
     except Exception as e:
         print(f"Warning: HEAD request failed for {url}: {e}")
-        return {}
+
+    return {}
 
 
 def save_json(path: Path, data: Any) -> None:
@@ -126,11 +150,10 @@ _HEADER_CHECKS: list[tuple[str, str]] = [
 ]
 
 
-def get_assigned_day_of_week(adapter_name: str) -> int:
-    """Consistently assign an adapter to a day of the week (0-6) based on its name."""
-    # Use MD5 to get a stable integer hash
+def get_assigned_days_of_week(adapter_name: str) -> set[int]:
+    """Consistently assign an adapter to 3 days of the week (0-6) based on its name."""
     hash_val = int(hashlib.md5(adapter_name.encode('utf-8')).hexdigest(), 16)
-    return hash_val % 7
+    return {(hash_val + (i * 2)) % 7 for i in range(3)}
 
 
 def is_stale(
@@ -141,23 +164,20 @@ def is_stale(
     """Decide whether an adapter's data is stale and needs re-running.
 
     Priority order:
-    1. Assigned day of week has not arrived → not stale (deferred).
-    2. Previous run failed → stale (retry immediately on its assigned day).
+    1. Assigned days of week have not arrived → not stale (deferred).
+    2. Previous run failed → stale (retry immediately).
     3. Source HTTP headers changed → stale.
     4. New headers available that weren't previously tracked → stale.
     5. 7+ days since last *data change* → stale (fallback).
     """
-    assigned_dow = get_assigned_day_of_week(adapter)
+    assigned_dows = get_assigned_days_of_week(adapter)
     current_dow = datetime.datetime.now().weekday()  # Monday is 0, Sunday is 6
 
     stat = stats.get(adapter, {})
     last_check_ts = stat.get("last_check_ts", 0)
-    
-    # If it was already checked today, don't check again (prevents multiple runs on the assigned day)
-    # UNLESS it's a force run, but that bypasses this function.
-    # We will just rely on the assigned day of the week to distribute the runs.
-    if assigned_dow != current_dow:
-        return False, f"assigned to day {assigned_dow}, today is {current_dow}"
+
+    if current_dow not in assigned_dows:
+        return False, f"assigned to days {sorted(list(assigned_dows))}, today is {current_dow}"
 
     if stat.get("last_failed"):
         return True, "last run failed"
@@ -174,6 +194,10 @@ def is_stale(
                 has_new_header = True
         if has_new_header:
             return True, "new header available"
+    else:
+        # If we failed to get headers (e.g. 405, 401, 404, or no URL)
+        # we can't reliably know if it's stale, so default to running.
+        return True, "headers unavailable"
 
     # Fallback: time since last data change (or last success if never tracked).
     last_change = stat.get(
@@ -236,7 +260,7 @@ def discover_adapters(stats: dict) -> list[dict]:
 # ── Duplicate Detection ─────────────────────────────────────────────────────
 
 
-def compute_data_fingerprint(data_dir: Path) -> str:
+def compute_data_fingerprint(data_dir: Path, known_hashes: set[str] | None = None) -> tuple[str, list[str]]:
     """Compute a stable fingerprint for all JSON outputs in a directory.
 
     Uses ``normalized_hash`` from ``check_duplicate_entries`` which strips
@@ -244,23 +268,36 @@ def compute_data_fingerprint(data_dir: Path) -> str:
     before hashing.  This means identical evaluation data always produces
     the same fingerprint regardless of when it was scraped.
 
-    Returns an empty string when the directory contains no JSON files.
+    Additionally, deletes any duplicate JSON files found within the directory
+    (or matching `known_hashes`) to ensure the datastore only receives NEW entries.
+
+    Returns (fingerprint, new_hashes_list).
     """
+    if known_hashes is None:
+        known_hashes = set()
+    
     file_hashes: list[str] = []
+    seen_hashes: set[str] = set(known_hashes)
     for json_file in sorted(data_dir.rglob("*.json")):
         try:
             with open(json_file, "r", encoding="utf-8") as f:
                 payload = json.load(f)
-            file_hashes.append(normalized_hash(payload))
+            h = normalized_hash(payload)
+            if h in seen_hashes:
+                print(f"  Warning: Deleting repetitive entry {json_file.name}")
+                json_file.unlink()
+                continue
+            seen_hashes.add(h)
+            file_hashes.append(h)
         except (json.JSONDecodeError, OSError) as e:
             print(f"  Warning: Could not hash {json_file.name}: {e}")
             continue
 
     if not file_hashes:
-        return ""
+        return "", []
 
     combined = "\n".join(sorted(file_hashes))
-    return hashlib.sha256(combined.encode("utf-8")).hexdigest()
+    return hashlib.sha256(combined.encode("utf-8")).hexdigest(), file_hashes
 
 
 # ── Adapter Execution ────────────────────────────────────────────────────────
@@ -546,14 +583,24 @@ def process_adapter(
             }
 
         # ── Duplicate detection ──────────────────────────────────────────
-        fingerprint = compute_data_fingerprint(adapter_data_dir)
+        known_hashes = set(stat.get("entry_hashes", []))
+        fingerprint, new_hashes = compute_data_fingerprint(adapter_data_dir, known_hashes)
+        
+        # If we have no entry_hashes yet but we DO have a data_fingerprint,
+        # we are migrating. To avoid duplicating everything, we can just treat
+        # the current local output as "known" if the fingerprint matches perfectly.
         stored_fingerprint = stat.get("data_fingerprint", "")
-        data_changed = fingerprint != stored_fingerprint
+        if not known_hashes and stored_fingerprint and fingerprint == stored_fingerprint:
+            data_changed = False
+            # Backfill the entry_hashes so we know them for next time!
+            stat["entry_hashes"] = new_hashes
+        else:
+            data_changed = bool(new_hashes)
 
         if data_changed:
-            print(f"[{adapter}] New data detected (fingerprint changed)")
+            print(f"[{adapter}] New data detected ({len(new_hashes)} new entries)")
         else:
-            print(f"[{adapter}] Data unchanged (same fingerprint as existing). Discarding outputs.")
+            print(f"[{adapter}] Data unchanged (all entries already known). Discarding outputs.")
             shutil.rmtree(adapter_data_dir)
 
         # ── Update stats ─────────────────────────────────────────────────
@@ -567,6 +614,7 @@ def process_adapter(
         }
         if data_changed:
             update["last_data_change_ts"] = time.time()
+            update["entry_hashes"] = list(known_hashes.union(new_hashes))
 
         # Persist source headers for future staleness comparisons.
         for key, value in info["headers"].items():
@@ -738,13 +786,17 @@ def main() -> int:
     save_json(REPORT_FILE, report)
 
     # ── Upload ───────────────────────────────────────────────────────────
-    has_results = bool(report["adapters"])
-    if not args.dry_run and has_results:
+    has_new_data = any(
+        entry.get("data_changed", False)
+        for entry in report["adapters"].values()
+        if isinstance(entry, dict)
+    )
+    if not args.dry_run and has_new_data:
         print("\nUploading data directory to HuggingFace (only changed files will be uploaded)...")
         if not upload_to_hf(api, existing_pr):
             any_failures = True
-    elif not has_results:
-        print("\nNo adapters ran — nothing to upload.")
+    elif not has_new_data:
+        print("\nNo new data to upload. Skipping HuggingFace PR creation.")
 
     if any_failures:
         print("\nFinished with failures.")
