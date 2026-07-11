@@ -5,6 +5,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+from jsonschema import Draft7Validator
+
+from every_eval_ever import cli
+from every_eval_ever.schema import schema_json
 from every_eval_ever.validate import (
     check_companion_exists,
     check_dataset_provenance,
@@ -19,6 +24,24 @@ from every_eval_ever.validate import (
     validate_file,
     validate_instance_file,
     validate_many,
+)
+
+
+def test_validate_cli_defaults_to_json_and_rejects_removed_rich_mode():
+    parser = cli.build_parser()
+
+    args = parser.parse_args(['validate', 'data/example.json'])
+    assert args.output_format == 'json'
+
+    with pytest.raises(SystemExit):
+        parser.parse_args(
+            ['validate', '--format', 'rich', 'data/example.json']
+        )
+from every_eval_ever.validation_core import (
+    SemanticCheckError,
+    ValidationCheck,
+    ValidationContext,
+    run_registered_checks,
 )
 
 # ---------------------------------------------------------------------------
@@ -95,7 +118,7 @@ VALID_MULTI_TURN: dict = {
             'is_terminal': True,
         }
     ],
-    'evaluation': {'score': 1.0, 'is_correct': True},
+    'evaluation': {'score': 1.0, 'is_correct': True, 'num_turns': 2},
 }
 
 
@@ -115,6 +138,11 @@ def _write_jsonl(tmp_path: Path, name: str, lines: list[dict | str]) -> Path:
             text_lines.append(json.dumps(item))
     p.write_text('\n'.join(text_lines) + '\n', encoding='utf-8')
     return p
+
+
+def _schema_messages(schema_name: str, data: dict) -> list[str]:
+    validator = Draft7Validator(schema_json(schema_name))
+    return [error.message for error in validator.iter_errors(data)]
 
 
 # ===================================================================
@@ -181,16 +209,16 @@ class TestAggregateValidation:
         assert report.valid is False
         assert any('min_score' in e['msg'] for e in report.errors)
 
-    def test_source_data_discriminated_error(self, tmp_path: Path):
+    def test_hf_source_requires_repo(self, tmp_path: Path):
         data = json.loads(json.dumps(VALID_AGGREGATE))
         data['evaluation_results'][0]['source_data'] = {
             'dataset_name': 'test',
             'source_type': 'hf_dataset',
-            # valid hf_dataset, should pass
         }
         fp = _write_json(tmp_path, 'disc.json', data)
         report = validate_aggregate(fp)
-        assert report.valid is True
+        assert report.valid is False
+        assert any('hf_repo' in error['loc'] for error in report.errors)
 
     def test_source_data_wrong_source_type_fails(self, tmp_path: Path):
         data = json.loads(json.dumps(VALID_AGGREGATE))
@@ -216,6 +244,45 @@ class TestAggregateValidation:
         report = validate_aggregate(fp)
         assert report.valid is False
         assert report.errors[0]['type'] == 'json_parse_error'
+
+
+class TestJSONSchemaContracts:
+    def test_valid_aggregate_matches_json_schema(self):
+        assert _schema_messages('eval.schema.json', VALID_AGGREGATE) == []
+
+    def test_hf_source_schema_requires_repo(self):
+        data = json.loads(json.dumps(VALID_AGGREGATE))
+        del data['evaluation_results'][0]['source_data']['hf_repo']
+        messages = _schema_messages('eval.schema.json', data)
+        assert any(
+            'not valid under any of the given schemas' in msg
+            for msg in messages
+        )
+
+    def test_detailed_results_schema_requires_format_and_path(self):
+        data = json.loads(json.dumps(VALID_AGGREGATE))
+        data['detailed_evaluation_results'] = {}
+        messages = _schema_messages('eval.schema.json', data)
+        assert any("'format' is a required property" in msg for msg in messages)
+        assert any(
+            "'file_path' is a required property" in msg for msg in messages
+        )
+
+    def test_missing_score_type_does_not_trigger_levels_condition(self):
+        data = json.loads(json.dumps(VALID_AGGREGATE))
+        del data['evaluation_results'][0]['metric_config']['score_type']
+        messages = _schema_messages('eval.schema.json', data)
+        assert not any('level_names' in msg for msg in messages)
+
+    def test_multiturn_schema_requires_nonempty_messages_and_num_turns(self):
+        data = json.loads(json.dumps(VALID_MULTI_TURN))
+        data['messages'] = []
+        del data['evaluation']['num_turns']
+        messages = _schema_messages('instance_level_eval.schema.json', data)
+        assert any('should be non-empty' in msg for msg in messages)
+        assert any(
+            "'num_turns' is a required property" in msg for msg in messages
+        )
 
 
 # ===================================================================
@@ -386,6 +453,27 @@ class TestExitCode:
 
 
 class TestSemanticWarnings:
+    def test_registered_check_failure_is_not_downgraded_to_warning(
+        self, tmp_path: Path
+    ):
+        def broken_check(context, data):
+            raise RuntimeError('boom')
+
+        context = ValidationContext(
+            local_path=tmp_path / 'record.json',
+            repo_path='data/bench/dev/model/record.json',
+        )
+        check = ValidationCheck('broken', 'aggregate', broken_check)
+        with pytest.raises(
+            SemanticCheckError, match='broken check did not complete'
+        ):
+            run_registered_checks(
+                context,
+                file_type='aggregate',
+                data={},
+                checks=(check,),
+            )
+
     def test_path_structure_matches_validator_bot(self):
         good = (
             'data/gsm8k/openai/gpt-4o/550e8400-e29b-41d4-a716-446655440000.json'
@@ -405,13 +493,58 @@ class TestSemanticWarnings:
             == []
         )
         warnings = check_companion_exists(repo_path, data, {repo_path})
-        assert 'Companion .jsonl' in warnings[0]
+        assert 'referenced companion' in warnings[0]
+
+    def test_companion_validates_declared_path_not_uuid_alias(self):
+        uuid = '550e8400-e29b-41d4-a716-446655440000'
+        repo_path = f'data/bench/dev/model/{uuid}.json'
+        alias = f'data/bench/dev/model/{uuid}.jsonl'
+        data = {
+            'detailed_evaluation_results': {
+                'format': 'jsonl',
+                'file_path': 'different.jsonl',
+            }
+        }
+        warnings = check_companion_exists(repo_path, data, {alias})
+        assert len(warnings) == 1
+        assert 'different.jsonl' in warnings[0]
+
+    def test_companion_accepts_explicit_relative_or_repo_path(self):
+        repo_path = 'data/bench/dev/model/aggregate.json'
+        companion = 'data/bench/dev/model/details.jsonl'
+        relative = {
+            'detailed_evaluation_results': {
+                'format': 'jsonl',
+                'file_path': 'details.jsonl',
+            }
+        }
+        rooted = {
+            'detailed_evaluation_results': {
+                'format': 'jsonl',
+                'file_path': companion,
+            }
+        }
+        assert check_companion_exists(repo_path, relative, {companion}) == []
+        assert check_companion_exists(repo_path, rooted, {companion}) == []
+
+    def test_companion_rejects_parent_traversal(self):
+        warnings = check_companion_exists(
+            'data/bench/dev/model/aggregate.json',
+            {
+                'detailed_evaluation_results': {
+                    'format': 'jsonl',
+                    'file_path': '../details.jsonl',
+                }
+            },
+            set(),
+        )
+        assert 'parent traversal' in warnings[0]
 
     def test_score_metadata_missing_and_bounds_warn(self):
         data = json.loads(json.dumps(VALID_AGGREGATE))
         warnings = check_score_metadata(data)
-        assert any("missing 'min_score'" in warning for warning in warnings)
-        assert any("missing 'max_score'" in warning for warning in warnings)
+        assert any("non-finite 'min_score'" in warning for warning in warnings)
+        assert any("non-finite 'max_score'" in warning for warning in warnings)
 
         data['evaluation_results'][0]['metric_config'].update(
             {'score_type': 'continuous', 'min_score': 0, 'max_score': 1}
@@ -422,6 +555,31 @@ class TestSemanticWarnings:
             'outside [min_score=0, max_score=1]' in warning
             for warning in warnings
         )
+
+    def test_score_metadata_rejects_null_nonfinite_and_reversed_bounds(self):
+        data = json.loads(json.dumps(VALID_AGGREGATE))
+        metric = data['evaluation_results'][0]['metric_config']
+        metric.update({'min_score': None, 'max_score': float('nan')})
+        warnings = check_score_metadata(data)
+        assert any("non-finite 'min_score'" in warning for warning in warnings)
+        assert any("non-finite 'max_score'" in warning for warning in warnings)
+
+        metric.update({'min_score': 2, 'max_score': 1})
+        warnings = check_score_metadata(data)
+        assert any('greater than max_score' in warning for warning in warnings)
+
+    def test_nonstandard_or_ambiguous_json_is_rejected(self, tmp_path: Path):
+        nan_path = tmp_path / 'nan.json'
+        nan_path.write_text('{"score": NaN}', encoding='utf-8')
+        nan_report = validate_aggregate(nan_path)
+        assert nan_report.valid is False
+        assert 'non-finite JSON number' in nan_report.errors[0]['msg']
+
+        duplicate_path = tmp_path / 'duplicate.json'
+        duplicate_path.write_text('{"x": 1, "x": 2}', encoding='utf-8')
+        duplicate_report = validate_aggregate(duplicate_path)
+        assert duplicate_report.valid is False
+        assert 'duplicate JSON object key' in duplicate_report.errors[0]['msg']
 
     def test_integer_count_warning(self):
         warnings = check_integer_counts(
@@ -507,6 +665,6 @@ class TestSemanticWarnings:
 
         aggregate_report = reports[0]
         assert any(
-            'Companion .jsonl' in warning['msg']
+            'referenced companion' in warning['msg']
             for warning in aggregate_report.warnings
         )

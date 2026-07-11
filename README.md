@@ -216,7 +216,7 @@ File type is determined by extension: `.json` validates against `EvaluationLog`,
 #### Output formats
 
 ```sh
-# Rich terminal output (default)
+# Machine-readable JSON output (default)
 uv run python -m every_eval_ever validate data/
 
 # Machine-readable JSON
@@ -230,7 +230,7 @@ uv run python -m every_eval_ever validate --format github data/
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--format {rich,json,github}` | `rich` | Output format |
+| `--format {json,github}` | `json` | Output format |
 | `--max-errors N` | `50` | Maximum errors reported per JSONL file |
 
 Exit code is `0` if all files pass and `1` if any fail.

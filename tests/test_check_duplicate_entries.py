@@ -4,6 +4,8 @@ from pathlib import Path
 import pytest
 
 from every_eval_ever import check_duplicate_entries as check_module
+from every_eval_ever import cli
+from every_eval_ever.dedup import FINGERPRINT_VERSION, compute_file_fingerprint
 
 DATA_ROOT = Path(__file__).resolve().parents[1] / 'data'
 SAMPLE_FILES = [
@@ -95,12 +97,93 @@ def test_expand_paths_returns_json_files(tmp_path):
 
 def test_main_reports_duplicates(sample_payloads, tmp_path, capsys):
     payload = sample_payloads[0]
-    file_a = tmp_path / 'a.json'
-    file_b = tmp_path / 'b.json'
+    collection = tmp_path / 'data' / 'bench'
+    collection.mkdir(parents=True)
+    file_a = collection / 'a.json'
+    file_b = collection / 'b.json'
     write_json(file_a, payload)
 
     write_json(file_b, simulate_rescrape(payload))
 
-    assert check_module.main([str(file_a), str(file_b)]) == 1
+    assert check_module.main(['--local-only', str(file_a), str(file_b)]) == 1
     captured = capsys.readouterr().out
     assert 'Found duplicate entries' in captured
+
+
+def test_main_compares_normalized_path_with_local_manifest(
+    sample_payloads, tmp_path, capsys
+):
+    data_dir = tmp_path / 'data' / 'bench' / 'dev' / 'model'
+    data_dir.mkdir(parents=True)
+    candidate = data_dir / 'candidate.json'
+    write_json(candidate, sample_payloads[0])
+
+    existing_path = 'data/bench/dev/model/existing.json'
+    manifest = tmp_path / 'manifest.json'
+    manifest.write_text(
+        json.dumps(
+            {
+                'fingerprint_version': FINGERPRINT_VERSION,
+                'files': {
+                    existing_path: {
+                        'fingerprint': compute_file_fingerprint(candidate)
+                    }
+                },
+            }
+        ),
+        encoding='utf-8',
+    )
+
+    result = check_module.main(['--manifest', str(manifest), str(candidate)])
+    assert result == 1
+    output = capsys.readouterr().out
+    assert existing_path in output
+
+
+def test_main_uses_remote_manifest_by_default(
+    sample_payloads, tmp_path, monkeypatch
+):
+    collection = tmp_path / 'data' / 'bench'
+    collection.mkdir(parents=True)
+    candidate = collection / 'candidate.json'
+    write_json(candidate, sample_payloads[0])
+    calls = []
+
+    def fake_load_manifest(**kwargs):
+        calls.append(kwargs)
+        return {'fingerprint_version': FINGERPRINT_VERSION, 'files': {}}
+
+    monkeypatch.setattr(check_module, 'load_manifest', fake_load_manifest)
+    assert check_module.main([str(candidate)]) == 0
+    assert calls == [
+        {'dataset_repo_id': 'evaleval/EEE_datastore', 'revision': 'main'}
+    ]
+
+
+def test_top_level_cli_forwards_manifest_options(monkeypatch, tmp_path):
+    manifest = tmp_path / 'manifest.json'
+    candidate = tmp_path / 'data' / 'bench' / 'candidate.json'
+    forwarded = []
+
+    monkeypatch.setattr(check_module, 'main', lambda argv: forwarded.extend(argv) or 0)
+
+    assert (
+        cli.main(
+            [
+                'check-duplicates',
+                '--manifest',
+                str(manifest),
+                str(candidate),
+            ]
+        )
+        == 0
+    )
+    assert forwarded == [
+        '--dataset-repo-id',
+        'evaleval/EEE_datastore',
+        '--revision',
+        'main',
+        '--manifest',
+        str(manifest),
+        str(candidate),
+    ]

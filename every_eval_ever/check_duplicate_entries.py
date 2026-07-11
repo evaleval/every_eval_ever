@@ -2,9 +2,19 @@ import argparse
 import hashlib
 import json
 import os
+import sys
+from pathlib import Path
 from typing import Any, Dict, List
 
-from every_eval_ever.dedup import check_duplicates
+from every_eval_ever.dedup import (
+    DEFAULT_DATASET_REPO_ID,
+    check_duplicates,
+    empty_manifest,
+    load_manifest,
+    validate_manifest,
+)
+from every_eval_ever.json_utils import strict_json_loads
+from every_eval_ever.validation_core import repo_path_from_path
 
 IGNORE_KEYS = {'retrieved_timestamp', 'evaluation_id'}
 
@@ -76,6 +86,27 @@ def main(argv: List[str] | None = None) -> int:
     parser.add_argument(
         'paths', nargs='+', type=str, help='File or folder paths to JSON data'
     )
+    manifest_group = parser.add_mutually_exclusive_group()
+    manifest_group.add_argument(
+        '--manifest',
+        type=Path,
+        help='Use a local datastore manifest instead of downloading one.',
+    )
+    manifest_group.add_argument(
+        '--local-only',
+        action='store_true',
+        help='Only compare candidates with other files in this invocation.',
+    )
+    parser.add_argument(
+        '--dataset-repo-id',
+        default=DEFAULT_DATASET_REPO_ID,
+        help='Hugging Face dataset repository containing the manifest.',
+    )
+    parser.add_argument(
+        '--revision',
+        default='main',
+        help='Dataset revision from which to load the manifest.',
+    )
     args = parser.parse_args(argv)
 
     file_paths = expand_paths(args.paths)
@@ -83,8 +114,33 @@ def main(argv: List[str] | None = None) -> int:
     print(f'Checking {len(file_paths)} JSON files for duplicates...')
     print()
 
-    local_paths = {file_path: file_path for file_path in file_paths}
-    dedup_report = check_duplicates(file_paths, local_paths, {'files': {}})
+    try:
+        if args.local_only:
+            manifest = empty_manifest()
+        elif args.manifest is not None:
+            manifest = strict_json_loads(
+                args.manifest.read_text(encoding='utf-8')
+            )
+            validate_manifest(manifest, manifest_path=str(args.manifest))
+        else:
+            manifest = load_manifest(
+                dataset_repo_id=args.dataset_repo_id,
+                revision=args.revision,
+            )
+
+        repo_and_local_paths = [
+            (repo_path_from_path(Path(file_path)), file_path)
+            for file_path in file_paths
+        ]
+        repo_paths = [repo_path for repo_path, _ in repo_and_local_paths]
+        local_paths = dict(repo_and_local_paths)
+        dedup_report = check_duplicates(repo_paths, local_paths, manifest)
+    except Exception as exc:
+        print(
+            f'Duplicate check failed: {type(exc).__name__}: {exc}',
+            file=sys.stderr,
+        )
+        return 2
     duplicate_results = [
         result for result in dedup_report.results if result.duplicate_of
     ]

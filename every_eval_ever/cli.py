@@ -270,10 +270,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     validate_parser.add_argument(
         '--format',
-        choices=['rich', 'json', 'github'],
-        default='rich',
+        choices=['json', 'github'],
+        default='json',
         dest='output_format',
-        help='Output format.',
+        help='Output format (default: json).',
     )
 
     check_duplicates_parser = subparsers.add_parser(
@@ -288,6 +288,29 @@ def build_parser() -> argparse.ArgumentParser:
         'paths',
         nargs='+',
         help='One or more JSON files or directories containing JSON files.',
+    )
+    duplicate_manifest_group = (
+        check_duplicates_parser.add_mutually_exclusive_group()
+    )
+    duplicate_manifest_group.add_argument(
+        '--manifest',
+        type=Path,
+        help='Use a local datastore manifest instead of downloading one.',
+    )
+    duplicate_manifest_group.add_argument(
+        '--local-only',
+        action='store_true',
+        help='Only compare candidates within this invocation.',
+    )
+    check_duplicates_parser.add_argument(
+        '--dataset-repo-id',
+        default='evaleval/EEE_datastore',
+        help='Hugging Face dataset repository containing manifest.json.',
+    )
+    check_duplicates_parser.add_argument(
+        '--revision',
+        default='main',
+        help='Dataset revision from which to load manifest.json.',
     )
 
     convert_parser = subparsers.add_parser(
@@ -411,7 +434,18 @@ def main(argv: list[str] | None = None) -> int:
             main as check_duplicates_main,
         )
 
-        return check_duplicates_main(args.paths)
+        duplicate_args = [
+            '--dataset-repo-id',
+            args.dataset_repo_id,
+            '--revision',
+            args.revision,
+        ]
+        if args.local_only:
+            duplicate_args.append('--local-only')
+        elif args.manifest is not None:
+            duplicate_args.extend(['--manifest', str(args.manifest)])
+        duplicate_args.extend(args.paths)
+        return check_duplicates_main(duplicate_args)
 
     if args.command == 'convert':
         if args.source == 'lm_eval':

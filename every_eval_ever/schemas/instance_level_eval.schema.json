@@ -324,11 +324,12 @@
                     },
                     "messages": {
                         "type": "array",
+                        "minItems": 1,
                         "not": {
                             "type": "null"
                         }
                     },
-                    "metrics": {
+                    "evaluation": {
                         "required": ["num_turns"]
                     }
                 }

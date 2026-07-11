@@ -39,9 +39,17 @@ PATCHES = [
                 raise ValueError(
                     f"{self.interaction_type.value} interaction_type requires messages"
                 )
+            if not self.messages:
+                raise ValueError(
+                    f"{self.interaction_type.value} interaction_type requires at least one message"
+                )
             if self.output is not None:
                 raise ValueError(
                     f"{self.interaction_type.value} interaction_type must not have output"
+                )
+            if self.evaluation.num_turns is None:
+                raise ValueError(
+                    f"{self.interaction_type.value} interaction_type requires evaluation.num_turns"
                 )
         return self
 """,
@@ -88,8 +96,10 @@ def add_import(content: str, symbol: str) -> str:
         return content
 
     def replacer(m):
-        existing = m.group(1)
-        return f'from pydantic import {existing}, {symbol}'
+        imports = [item.strip() for item in m.group(1).split(',')]
+        imports.append(symbol)
+        ordered = ', '.join(sorted(set(imports), key=str.casefold))
+        return f'from pydantic import {ordered}'
 
     return re.sub(r'from pydantic import (.+)', replacer, content, count=1)
 

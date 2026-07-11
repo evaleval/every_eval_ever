@@ -6,9 +6,13 @@ import json
 import pytest
 
 from every_eval_ever.dedup import (
+    FINGERPRINT_VERSION,
+    ManifestError,
     check_duplicates,
     compute_aggregate_identity,
     compute_fingerprint,
+    empty_manifest,
+    validate_manifest,
 )
 
 
@@ -121,13 +125,11 @@ def test_results_order_is_invariant():
     assert compute_aggregate_identity(data) == forward
 
 
-def test_none_results_are_ignored_but_non_object_results_are_rejected():
+def test_non_object_results_are_rejected():
     data = _base()
-    baseline = compute_aggregate_identity(data)
-
-    data_with_none = _base()
-    data_with_none['evaluation_results'].append(None)
-    assert compute_aggregate_identity(data_with_none) == baseline
+    data['evaluation_results'].append(None)
+    with pytest.raises(ValueError, match='entries must be objects'):
+        compute_aggregate_identity(data)
 
     data_with_bad_result = _base()
     data_with_bad_result['evaluation_results'].append('not a result')
@@ -153,10 +155,20 @@ def test_compute_fingerprint_rejects_non_aggregate_json():
         compute_fingerprint(b'{"x": 1}')
 
 
+def test_manifest_requires_matching_fingerprint_version():
+    with pytest.raises(
+        ManifestError, match="missing required field 'fingerprint_version'"
+    ):
+        validate_manifest({'files': {}})
+    with pytest.raises(ManifestError, match='fingerprint_version must be'):
+        validate_manifest({'fingerprint_version': 'old', 'files': {}})
+
+
 def test_manifest_and_intra_batch_dedup_are_collection_scoped(tmp_path):
     existing = _base()
     candidate = _base()
     manifest = {
+        'fingerprint_version': FINGERPRINT_VERSION,
         'files': {
             'data/gsm8k/openai/model/existing.json': {
                 'fingerprint': compute_fingerprint(
@@ -168,7 +180,7 @@ def test_manifest_and_intra_batch_dedup_are_collection_scoped(tmp_path):
                     json.dumps(existing).encode()
                 )
             },
-        }
+        },
     }
     local = _write(
         tmp_path,
@@ -186,9 +198,34 @@ def test_manifest_and_intra_batch_dedup_are_collection_scoped(tmp_path):
         == 'data/gsm8k/openai/model/existing.json'
     )
     assert (
+        by_path['data/gsm8k/openai/model/candidate.json'].matched_manifest_path
+        == 'data/gsm8k/openai/model/existing.json'
+    )
+    assert (
         by_path['data/gsm8k/openai/model/second.json'].duplicate_of
         == 'data/gsm8k/openai/model/existing.json'
     )
+
+
+def test_same_manifest_path_is_identified_without_self_duplicate(tmp_path):
+    candidate = _base()
+    path = 'data/gsm8k/openai/model/existing.json'
+    local = _write(tmp_path, {path: candidate})
+    manifest = {
+        'fingerprint_version': FINGERPRINT_VERSION,
+        'files': {
+            path: {
+                'fingerprint': compute_fingerprint(
+                    json.dumps(candidate).encode()
+                )
+            }
+        },
+    }
+
+    result = check_duplicates([path], local, manifest).results[0]
+
+    assert result.duplicate_of is None
+    assert result.matched_manifest_path == path
 
 
 def test_distinct_scores_are_not_duplicates(tmp_path):
@@ -203,23 +240,62 @@ def test_distinct_scores_are_not_duplicates(tmp_path):
         },
     )
 
-    report = check_duplicates(list(local), local, {'files': {}})
+    report = check_duplicates(list(local), local, empty_manifest())
 
     assert all(result.duplicate_of is None for result in report.results)
 
 
-def test_missing_local_path_is_reported_as_warning():
-    report = check_duplicates(
-        ['data/gsm8k/openai/model/missing.json'], {}, {'files': {}}
+def test_missing_local_path_is_an_error():
+    with pytest.raises(ValueError, match='requires a local path'):
+        check_duplicates(
+            ['data/gsm8k/openai/model/missing.json'], {}, empty_manifest()
+        )
+
+
+def test_url_source_identity_includes_url():
+    first = _base()
+    second = _base()
+    _first_result(first)['source_data'] = {
+        'source_type': 'url',
+        'dataset_name': 'benchmark',
+        'url': ['https://example.com/releases/v1.json'],
+    }
+    _first_result(second)['source_data'] = {
+        'source_type': 'url',
+        'dataset_name': 'benchmark',
+        'url': ['https://example.com/releases/v2.json'],
+    }
+    assert compute_aggregate_identity(first) != compute_aggregate_identity(
+        second
     )
 
-    assert report.results == []
-    assert report.warnings == [
-        'Duplicate check skipped data/gsm8k/openai/model/missing.json: '
-        'local path was not provided'
-    ]
+
+def test_hf_source_identity_includes_split_revision_and_config():
+    baseline = _base()
+    changed = _base()
+    source = _first_result(baseline)['source_data']
+    source.update(
+        {'hf_split': 'test', 'hf_config': 'default', 'hf_revision': 'v1'}
+    )
+    changed_source = _first_result(changed)['source_data']
+    changed_source.update(
+        {'hf_split': 'validation', 'hf_config': 'default', 'hf_revision': 'v1'}
+    )
+    assert compute_aggregate_identity(baseline) != compute_aggregate_identity(
+        changed
+    )
+
+
+def test_underidentified_other_source_is_rejected():
+    data = _base()
+    _first_result(data)['source_data'] = {
+        'source_type': 'other',
+        'dataset_name': 'private benchmark',
+    }
+    with pytest.raises(ValueError, match="source_type 'other' requires"):
+        compute_aggregate_identity(data)
 
 
 def test_check_duplicates_rejects_non_json_paths():
     with pytest.raises(ValueError, match='only accepts .json files'):
-        check_duplicates(['data/gsm8k/model/readme.txt'], {}, {'files': {}})
+        check_duplicates(['data/gsm8k/model/readme.txt'], {}, empty_manifest())

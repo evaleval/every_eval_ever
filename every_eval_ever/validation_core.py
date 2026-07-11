@@ -10,10 +10,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
 from collections.abc import Callable, Container
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Literal
 
 from huggingface_hub.errors import RepositoryNotFoundError
@@ -21,6 +22,7 @@ from pydantic import ValidationError
 
 from every_eval_ever.eval_types import EvaluationLog
 from every_eval_ever.instance_level_types import InstanceLevelEvaluationLog
+from every_eval_ever.json_utils import StrictJSONError, strict_json_loads
 from every_eval_ever.schema import schema_json, schema_text
 
 DEFAULT_MAX_ERRORS = 50
@@ -76,6 +78,10 @@ class ValidationCheck:
     name: str
     scope: CheckScope
     run: Callable[[ValidationContext, dict[str, Any] | None], list[str]]
+
+
+class SemanticCheckError(RuntimeError):
+    """Raised when a registered semantic check cannot complete."""
 
 
 def get_schema_version() -> str:
@@ -159,6 +165,18 @@ def format_error(error: dict[str, Any]) -> str:
     return f'{loc}: {msg}' if loc else str(msg)
 
 
+def _json_error_details(
+    exc: json.JSONDecodeError | StrictJSONError,
+    *,
+    line_num: int | None = None,
+) -> tuple[str, str]:
+    if isinstance(exc, json.JSONDecodeError):
+        source_line = line_num if line_num is not None else exc.lineno
+        return f'line {source_line}, col {exc.colno}', exc.msg
+    location = f'line {line_num}' if line_num is not None else '(json)'
+    return location, str(exc)
+
+
 def check_path_structure(repo_path: str) -> list[str]:
     """Warn unless path matches data/{benchmark}/{developer}/{model}/{uuid}.json[l]."""
     parts = [p for p in repo_path.split('/') if p]
@@ -187,27 +205,51 @@ def check_companion_exists(
     aggregate_data: dict[str, Any],
     available_files: Container[str],
 ) -> list[str]:
-    """Warn when aggregate detailed results point to a missing JSONL companion."""
+    """Warn when an aggregate's declared detailed-results path is unusable."""
     detail = aggregate_data.get('detailed_evaluation_results')
-    if not isinstance(detail, dict) or not detail.get('file_path'):
+    if not isinstance(detail, dict):
         return []
 
-    folder = Path(repo_path).parent
-    uuid = Path(repo_path).stem
-    expected = {
-        str(folder / f'{uuid}.jsonl'),
-        str(folder / f'{uuid}_samples.jsonl'),
-    }
-    if not any(path in available_files for path in expected):
+    warnings: list[str] = []
+    reference = detail.get('file_path')
+    if not isinstance(reference, str) or not reference.strip():
         return [
-            f"Companion .jsonl for '{Path(repo_path).name}' not found "
-            'in the dataset or this PR'
+            'detailed_evaluation_results.file_path: missing or blank companion path'
         ]
-    return []
+
+    reference_path = PurePosixPath(reference.strip().replace('\\', '/'))
+    if reference_path.is_absolute() or '..' in reference_path.parts:
+        return [
+            'detailed_evaluation_results.file_path: expected a relative '
+            f'repository path without parent traversal, got {reference!r}'
+        ]
+
+    declared_format = detail.get('format')
+    if declared_format == 'jsonl' and reference_path.suffix != '.jsonl':
+        warnings.append(
+            'detailed_evaluation_results.file_path: format is jsonl but '
+            f'path is {reference!r}'
+        )
+
+    if reference_path.parts and reference_path.parts[0] == 'data':
+        resolved = reference_path
+    else:
+        resolved = PurePosixPath(repo_path).parent / reference_path
+    resolved_text = resolved.as_posix()
+    available = {
+        PurePosixPath(path.replace('\\', '/')).as_posix()
+        for path in available_files
+    }
+    if resolved_text not in available:
+        warnings.append(
+            'detailed_evaluation_results.file_path: referenced companion '
+            f'{resolved_text!r} was not found in the dataset or this batch'
+        )
+    return warnings
 
 
 def check_score_metadata(data: dict[str, Any]) -> list[str]:
-    """Warn on missing score type/bounds and score values outside bounds."""
+    """Warn on absent/invalid score metadata and inconsistent bounds."""
     warnings: list[str] = []
     results = data.get('evaluation_results')
     if not isinstance(results, list):
@@ -219,10 +261,19 @@ def check_score_metadata(data: dict[str, Any]) -> list[str]:
         metric = result.get('metric_config')
         if not isinstance(metric, dict):
             continue
-        for key in ('score_type', 'min_score', 'max_score'):
-            if key not in metric:
+        score_type = metric.get('score_type')
+        if not isinstance(score_type, str) or not score_type.strip():
+            warnings.append(
+                f'evaluation_results[{index}].metric_config: missing or invalid '
+                "'score_type'"
+            )
+
+        for key in ('min_score', 'max_score'):
+            value = metric.get(key)
+            if not _is_finite_number(value):
                 warnings.append(
-                    f"evaluation_results[{index}].metric_config: missing '{key}'"
+                    f'evaluation_results[{index}].metric_config: missing or '
+                    f"non-finite '{key}'"
                 )
 
         score_details = result.get('score_details')
@@ -231,13 +282,21 @@ def check_score_metadata(data: dict[str, Any]) -> list[str]:
         score = score_details.get('score')
         lo = metric.get('min_score')
         hi = metric.get('max_score')
+        if not _is_finite_number(score):
+            warnings.append(
+                f'evaluation_results[{index}].score_details.score: expected a '
+                f'finite number, got {score!r}'
+            )
+            continue
+        if _is_finite_number(lo) and _is_finite_number(hi) and lo > hi:
+            warnings.append(
+                f'evaluation_results[{index}].metric_config: min_score {lo} '
+                f'is greater than max_score {hi}'
+            )
+            continue
         if (
-            isinstance(score, (int, float))
-            and not isinstance(score, bool)
-            and isinstance(lo, (int, float))
-            and not isinstance(lo, bool)
-            and isinstance(hi, (int, float))
-            and not isinstance(hi, bool)
+            _is_finite_number(lo)
+            and _is_finite_number(hi)
             and (score < lo or score > hi)
         ):
             warnings.append(
@@ -245,6 +304,14 @@ def check_score_metadata(data: dict[str, Any]) -> list[str]:
                 f'[min_score={lo}, max_score={hi}]'
             )
     return warnings
+
+
+def _is_finite_number(value: Any) -> bool:
+    return (
+        isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and math.isfinite(value)
+    )
 
 
 def check_integer_counts(data: dict[str, Any]) -> list[str]:
@@ -438,25 +505,33 @@ def _aggregate_check_companion(
 def _aggregate_check_score_metadata(
     context: ValidationContext, data: dict[str, Any] | None
 ) -> list[str]:
-    return check_score_metadata(data or {})
+    if data is None:
+        return []
+    return check_score_metadata(data)
 
 
 def _aggregate_check_integer_counts(
     context: ValidationContext, data: dict[str, Any] | None
 ) -> list[str]:
-    return check_integer_counts(data or {})
+    if data is None:
+        return []
+    return check_integer_counts(data)
 
 
 def _aggregate_check_model_deployment(
     context: ValidationContext, data: dict[str, Any] | None
 ) -> list[str]:
-    return check_model_deployment(data or {}, context.hf_api)
+    if data is None:
+        return []
+    return check_model_deployment(data, context.hf_api)
 
 
 def _aggregate_check_dataset_provenance(
     context: ValidationContext, data: dict[str, Any] | None
 ) -> list[str]:
-    return check_dataset_provenance(data or {}, context.hf_api)
+    if data is None:
+        return []
+    return check_dataset_provenance(data, context.hf_api)
 
 
 REGISTERED_CHECKS: tuple[ValidationCheck, ...] = (
@@ -492,10 +567,10 @@ def run_registered_checks(
         try:
             messages = check.run(context, data)
         except Exception as exc:
-            messages = [
+            raise SemanticCheckError(
                 f'{check.name} check did not complete: '
                 f'{type(exc).__name__}: {exc or "<no detail>"}'
-            ]
+            ) from exc
         warnings.extend(warning_to_dict(message) for message in messages)
     return warnings
 
@@ -526,13 +601,14 @@ def validate_aggregate(
         return report
 
     try:
-        loaded = json.loads(raw)
-    except json.JSONDecodeError as exc:
+        loaded = strict_json_loads(raw)
+    except (json.JSONDecodeError, StrictJSONError) as exc:
+        location, message = _json_error_details(exc)
         report.valid = False
         report.errors.append(
             {
-                'loc': f'line {exc.lineno}, col {exc.colno}',
-                'msg': exc.msg,
+                'loc': location,
+                'msg': message,
                 'type': 'json_parse_error',
             }
         )
@@ -552,21 +628,32 @@ def validate_aggregate(
             available_files=available_files,
             hf_api=hf_api,
         )
-        report.warnings = run_registered_checks(
-            context, file_type='aggregate', data=data
-        )
+        try:
+            report.warnings = run_registered_checks(
+                context, file_type='aggregate', data=data
+            )
+        except SemanticCheckError as exc:
+            report.valid = False
+            report.errors.append(
+                {
+                    'loc': '(semantic checks)',
+                    'msg': str(exc),
+                    'type': 'semantic_check_error',
+                }
+            )
 
     return report
 
 
 def _validate_instance_line(line: str, line_num: int) -> list[dict[str, Any]]:
     try:
-        data = json.loads(line)
-    except json.JSONDecodeError as exc:
+        data = strict_json_loads(line)
+    except (json.JSONDecodeError, StrictJSONError) as exc:
+        location, message = _json_error_details(exc, line_num=line_num)
         return [
             {
-                'loc': f'line {line_num}, col {exc.colno}',
-                'msg': exc.msg,
+                'loc': location,
+                'msg': message,
                 'type': 'json_parse_error',
             }
         ]
@@ -652,9 +739,19 @@ def validate_instance_file(
             repo_path=repo_path,
             available_files=available_files,
         )
-        report.warnings = run_registered_checks(
-            context, file_type='instance', data=None
-        )
+        try:
+            report.warnings = run_registered_checks(
+                context, file_type='instance', data=None
+            )
+        except SemanticCheckError as exc:
+            report.valid = False
+            report.errors.append(
+                {
+                    'loc': '(semantic checks)',
+                    'msg': str(exc),
+                    'type': 'semantic_check_error',
+                }
+            )
 
     return report
 

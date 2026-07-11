@@ -13,6 +13,7 @@ from collections import OrderedDict
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from huggingface_hub import HfApi
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
@@ -54,8 +55,6 @@ __all__ = [
     'main',
     'render_report_github',
     'render_report_json',
-    'render_report_rich',
-    'render_summary_rich',
     'repo_path_from_path',
     'validate_aggregate',
     'validate_file',
@@ -271,18 +270,6 @@ def render_report_github(reports: list[ValidationReport]) -> str:
     return '\n'.join(lines)
 
 
-def _build_hf_api():
-    """Create HfApi for mandatory HF checks when HF metadata is present."""
-    try:
-        from huggingface_hub import HfApi
-    except Exception:
-        return None
-    try:
-        return HfApi()
-    except Exception:
-        return None
-
-
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog='eee-validate',
@@ -301,10 +288,10 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         '--format',
-        choices=['rich', 'json', 'github'],
-        default='rich',
+        choices=['json', 'github'],
+        default='json',
         dest='output_format',
-        help='Output format (default: rich)',
+        help='Output format (default: json)',
     )
     args = parser.parse_args(argv)
 
@@ -319,17 +306,10 @@ def main(argv: list[str] | None = None) -> int:
         pairs,
         max_errors=args.max_errors,
         available_files=available_files,
-        hf_api=_build_hf_api(),
+        hf_api=HfApi(),
     )
 
-    if args.output_format == 'rich':
-        console = Console()
-        console.print()
-        for report in reports:
-            render_report_rich(report, console)
-        render_summary_rich(reports, console)
-        console.print()
-    elif args.output_format == 'json':
+    if args.output_format == 'json':
         print(render_report_json(reports))
     elif args.output_format == 'github':
         output = render_report_github(reports)

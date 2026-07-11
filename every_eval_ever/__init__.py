@@ -5,7 +5,13 @@ from __future__ import annotations
 import importlib
 from typing import Any
 
-__all__ = ['dedup', 'eval_types', 'instance_level_types', 'validation_core']
+__all__ = [
+    'dedup',
+    'eval_types',
+    'instance_level_types',
+    'source_index',
+    'validation_core',
+]
 
 
 def __getattr__(name: str) -> Any:
@@ -13,6 +19,7 @@ def __getattr__(name: str) -> Any:
         'dedup',
         'eval_types',
         'instance_level_types',
+        'source_index',
         'validation_core',
     }:
         module = importlib.import_module(f'.{name}', __name__)

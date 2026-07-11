@@ -279,6 +279,9 @@
                             }
                         },
                         "if": {
+                            "required": [
+                                "score_type"
+                            ],
                             "properties": {
                                 "score_type": {
                                     "const": "levels"
@@ -293,6 +296,9 @@
                         },
                         "else": {
                             "if": {
+                                "required": [
+                                    "score_type"
+                                ],
                                 "properties": {
                                     "score_type": {
                                         "const": "continuous"
@@ -543,13 +549,16 @@
         "detailed_evaluation_results": {
             "type": "object",
             "description": "Reference to the evaluation results for all individual samples in the evaluation",
+            "required": [
+                "format",
+                "file_path"
+            ],
             "properties": {
                 "format": {
                     "type": "string",
                     "description": "Format of the detailed evaluation results",
                     "enum": [
-                        "jsonl",
-                        "json"
+                        "jsonl"
                     ]
                 },
                 "file_path": {
@@ -694,7 +703,8 @@
             "description": "Details about HuggingFace dataset used for evaluation",
             "required": [
                 "dataset_name",
-                "source_type"
+                "source_type",
+                "hf_repo"
             ],
             "properties": {
                 "dataset_name": {
@@ -711,6 +721,14 @@
                 "hf_split": {
                     "type": "string",
                     "description": "One of train, val or test."
+                },
+                "hf_config": {
+                    "type": "string",
+                    "description": "HuggingFace dataset configuration/subset name"
+                },
+                "hf_revision": {
+                    "type": "string",
+                    "description": "HuggingFace dataset revision, tag, or commit"
                 },
                 "samples_number": {
                     "type": "integer",
@@ -746,6 +764,14 @@
                 },
                 "source_type": {
                     "const": "other"
+                },
+                "source_id": {
+                    "type": "string",
+                    "description": "Stable identifier for the private or custom source artifact"
+                },
+                "source_version": {
+                    "type": "string",
+                    "description": "Version or revision of the private or custom source artifact"
                 },
                 "additional_details": {
                     "type": "object",
