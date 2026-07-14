@@ -9,6 +9,7 @@ import uuid
 from collections import defaultdict
 from pathlib import Path
 
+from every_eval_ever.adapters.arc_agi.provenance import arc_agi_provenance
 from every_eval_ever.helpers import SCHEMA_VERSION
 
 SOURCE_URL = "https://arcprize.org/media/data/leaderboard/evaluations.json"
@@ -267,6 +268,7 @@ def make_log(
 ) -> tuple[dict, str, str]:
     primary_raw_model_id = choose_primary_raw_model_id(rows_for_canonical, developer_name)
     all_aliases = sorted({row["modelId"] for row in rows_for_canonical})
+    provenance = arc_agi_provenance(f"{developer_name}/{model_name}")
 
     log = {
         "schema_version": SCHEMA_VERSION,
@@ -296,6 +298,13 @@ def make_log(
             "additional_details": {
                 "raw_model_id": primary_raw_model_id,
                 "raw_model_aliases_json": json.dumps(all_aliases),
+                "deployment_type": provenance.deployment_type,
+                "model_availability": provenance.model_availability,
+            },
+            "inference_platform": provenance.inference_platform,
+            "inference_engine": {
+                "name": provenance.inference_engine_name,
+                "version": provenance.inference_engine_version,
             },
         },
         "evaluation_results": make_results(

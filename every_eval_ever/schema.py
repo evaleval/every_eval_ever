@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from importlib import resources
 from pathlib import Path
@@ -15,6 +16,22 @@ def schema_text(name: str = 'eval.schema.json') -> str:
 
 def schema_json(name: str = 'eval.schema.json') -> dict[str, Any]:
     return json.loads(schema_text(name))
+
+
+def get_schema_version() -> str:
+    """Return the version declared by the bundled aggregate schema."""
+    version = schema_json('eval.schema.json').get('version')
+    if not isinstance(version, str) or not version.strip():
+        raise ValueError("eval.schema.json missing or empty 'version' field")
+    return version.strip()
+
+
+def get_schema_fingerprint() -> str:
+    """Return one fingerprint for the aggregate and instance schemas."""
+    hasher = hashlib.sha256()
+    hasher.update(schema_text('eval.schema.json').encode())
+    hasher.update(schema_text('instance_level_eval.schema.json').encode())
+    return hasher.hexdigest()
 
 
 class _SchemaPathContext:

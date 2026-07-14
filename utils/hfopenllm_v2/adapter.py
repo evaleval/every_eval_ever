@@ -16,6 +16,7 @@ from every_eval_ever.eval_types import (
     EvaluationLog,
     EvaluationResult,
     EvaluatorRelationship,
+    InferenceEngine,
     MetricConfig,
     ScoreDetails,
     ScoreType,
@@ -28,9 +29,17 @@ from every_eval_ever.helpers import (
     make_source_metadata,
     save_evaluation_log,
 )
+from every_eval_ever.hfopenllm_v2 import (
+    DEPLOYMENT_TYPE,
+    EVAL_LIBRARY_REPOSITORY,
+    EVAL_LIBRARY_VERSION,
+    INFERENCE_ENGINE_NAME,
+    INFERENCE_ENGINE_VERSION,
+    INFERENCE_PLATFORM,
+    MODEL_AVAILABILITY,
+    SOURCE_URL,
+)
 
-# Source URL
-SOURCE_URL = 'https://open-llm-leaderboard-open-llm-leaderboard.hf.space/api/leaderboard/formatted'
 OUTPUT_DIR = 'data/hfopenllm_v2'
 
 # Evaluation name mapping from API keys to display names
@@ -52,6 +61,15 @@ EVALUATION_DESCRIPTIONS = {
     'GPQA': 'Accuracy on GPQA',
     'MUSR': 'Accuracy on MUSR',
     'MMLU-PRO': 'Accuracy on MMLU-PRO',
+}
+
+METRIC_MAPPING = {
+    'ifeval': ('accuracy', 'Accuracy'),
+    'bbh': ('accuracy', 'Accuracy'),
+    'math': ('exact_match', 'Exact Match'),
+    'gpqa': ('accuracy', 'Accuracy'),
+    'musr': ('accuracy', 'Accuracy'),
+    'mmlu_pro': ('accuracy', 'Accuracy'),
 }
 
 # Source data mapping: eval_key -> SourceDataHf
@@ -97,6 +115,12 @@ def convert_model(
     if '/' not in model_id:
         raise ValueError(f"Expected 'org/model' format, got: {model_id}")
     developer, model_name = model_id.split('/', 1)
+    model_revision = model_data['model'].get('sha')
+    if not isinstance(model_revision, str) or not model_revision.strip():
+        model_revision = 'unknown'
+    precision = model_data['model'].get('precision')
+    if not isinstance(precision, str) or not precision.strip():
+        raise ValueError(f'Missing model precision for {model_id}')
 
     # Build evaluation results
     eval_results: List[EvaluationResult] = []
@@ -112,6 +136,12 @@ def convert_model(
             raise ValueError(
                 f"Unknown eval_key '{eval_key}' — add it to SOURCE_DATA_MAPPING"
             )
+        metric = METRIC_MAPPING.get(eval_key)
+        if metric is None:
+            raise ValueError(
+                f"Unknown eval_key '{eval_key}' — add it to METRIC_MAPPING"
+            )
+        metric_id, metric_name = metric
 
         eval_results.append(
             EvaluationResult(
@@ -119,6 +149,10 @@ def convert_model(
                 source_data=source_data,
                 metric_config=MetricConfig(
                     evaluation_description=description,
+                    metric_id=metric_id,
+                    metric_name=metric_name,
+                    metric_kind='accuracy',
+                    metric_unit='proportion',
                     lower_is_better=False,
                     score_type=ScoreType.continuous,
                     min_score=0.0,
@@ -131,9 +165,12 @@ def convert_model(
         )
 
     # Build additional details
-    additional_details = {}
-    if 'precision' in model_data['model']:
-        additional_details['precision'] = str(model_data['model']['precision'])
+    additional_details = {
+        'deployment_type': DEPLOYMENT_TYPE,
+        'model_availability': MODEL_AVAILABILITY,
+        'model_revision': model_revision,
+        'precision': precision,
+    }
     if 'architecture' in model_data['model']:
         additional_details['architecture'] = str(
             model_data['model']['architecture']
@@ -147,8 +184,12 @@ def convert_model(
     model_info = make_model_info(
         model_name=model_name,
         developer=developer,
-        inference_platform='unknown',
-        additional_details=additional_details if additional_details else None,
+        inference_platform=INFERENCE_PLATFORM,
+        additional_details=additional_details,
+    )
+    model_info.inference_engine = InferenceEngine(
+        name=INFERENCE_ENGINE_NAME,
+        version=INFERENCE_ENGINE_VERSION,
     )
 
     # Build evaluation ID
@@ -167,10 +208,8 @@ def convert_model(
         ),
         eval_library=EvalLibrary(
             name='lm-evaluation-harness',
-            version='0.4.0',
-            additional_details={
-                'fork': 'https://github.com/huggingface/lm-evaluation-harness/tree/adding_all_changess'
-            },
+            version=EVAL_LIBRARY_VERSION,
+            additional_details={'fork': EVAL_LIBRARY_REPOSITORY},
         ),
         model_info=model_info,
         evaluation_results=eval_results,

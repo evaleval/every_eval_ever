@@ -35,6 +35,7 @@ import time
 from pathlib import Path
 from typing import Iterable
 
+from every_eval_ever.adapters.mmlu_pro.provenance import mmlu_pro_provenance
 from every_eval_ever.eval_types import (
     EvalLibrary,
     EvaluationLog,
@@ -122,6 +123,11 @@ def parse_args() -> argparse.Namespace:
         '--input-csv',
         type=Path,
         help='Read a saved CSV instead of fetching from the HF dataset.',
+    )
+    parser.add_argument(
+        '--save-raw-csv',
+        type=Path,
+        help='Save the CSV input used for offline replay.',
     )
     parser.add_argument(
         '--output-dir',
@@ -321,6 +327,13 @@ def make_log(
         model_additional['leaderboard_data_source'] = data_source
     if raw_data_source and raw_data_source != data_source:
         model_additional['raw_leaderboard_data_source'] = raw_data_source
+    provenance = mmlu_pro_provenance(model_id)
+    model_additional.update(
+        {
+            'deployment_type': provenance.deployment_type,
+            'model_availability': provenance.model_availability,
+        }
+    )
 
     sanitized_model_id = model_id.replace('/', '_')
     data_source_slug = slugify(data_source) if data_source else 'unknown'
@@ -349,6 +362,11 @@ def make_log(
             id=model_id,
             developer=developer,
             additional_details=model_additional,
+            inference_platform=provenance.inference_platform,
+            inference_engine={
+                'name': provenance.inference_engine_name,
+                'version': provenance.inference_engine_version,
+            },
         ),
         evaluation_results=results,
     )
@@ -407,6 +425,9 @@ def run(args: argparse.Namespace) -> int:
         text = load_csv_text(args.input_csv)
     else:
         text = fetch_csv(args.source_url)
+    if args.save_raw_csv is not None:
+        args.save_raw_csv.parent.mkdir(parents=True, exist_ok=True)
+        args.save_raw_csv.write_text(text, encoding='utf-8')
     rows = parse_rows(text)
     bundles = make_logs(rows)
     paths = export(bundles, args.output_dir)

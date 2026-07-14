@@ -1,0 +1,1 @@
+"""Exgentic adapter provenance."""

@@ -23,6 +23,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from every_eval_ever.adapters.llm_stats.provenance import llm_stats_provenance
 from every_eval_ever.eval_types import (
     EvalLibrary,
     EvaluationLog,
@@ -367,16 +368,14 @@ def fetch_benchmark_score_payloads(
     for benchmark in benchmarks:
         benchmark_id = benchmark_source_id(benchmark)
         if benchmark_id == 'unknown':
-            continue
-
-        try:
-            detail = fetch_json(
-                api_url(base_url, f'/leaderboard/benchmarks/{benchmark_id}'),
-                headers=headers,
+            raise ValueError(
+                'LLM Stats benchmark payload is missing a stable benchmark id'
             )
-        except FetchError as exc:
-            print(f'Skipping benchmark {benchmark_id!r}: {exc}')
-            continue
+
+        detail = fetch_json(
+            api_url(base_url, f'/leaderboard/benchmarks/{benchmark_id}'),
+            headers=headers,
+        )
 
         scores.extend(scores_from_benchmark_detail(detail, benchmark))
 
@@ -715,6 +714,17 @@ def normalize_model_info(model: dict[str, Any]) -> tuple[ModelInfo, str, str]:
     model_slug = normalize_slug(model_hint, name)
 
     additional_details = make_model_details(model)
+    explicit_open_source = first_present(
+        model, ('is_open_source', 'isOpenSource')
+    )
+    model_id = f'{developer}/{model_slug}'
+    provenance = llm_stats_provenance(model_id, explicit_open_source)
+    additional_details.update(
+        {
+            'deployment_type': provenance.deployment_type,
+            'model_availability': provenance.model_availability,
+        }
+    )
     additional_details.update(
         stringify_details(
             {
@@ -729,9 +739,14 @@ def normalize_model_info(model: dict[str, Any]) -> tuple[ModelInfo, str, str]:
     return (
         ModelInfo(
             name=name,
-            id=f'{developer}/{model_slug}',
+            id=model_id,
             developer=developer,
             additional_details=additional_details,
+            inference_platform=provenance.inference_platform,
+            inference_engine={
+                'name': provenance.inference_engine_name,
+                'version': provenance.inference_engine_version,
+            },
         ),
         developer,
         model_slug,

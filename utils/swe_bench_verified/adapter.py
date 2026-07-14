@@ -23,6 +23,9 @@ import tempfile
 import time
 from pathlib import Path
 
+from every_eval_ever.adapters.swe_bench_verified.provenance import (
+    swe_bench_verified_provenance,
+)
 from every_eval_ever.eval_types import (
     AgenticEvalConfig,
     AvailableTool,
@@ -135,6 +138,15 @@ def convert_submission(
         'attempts': str((tags.get('system') or {}).get('attempts', '')),
         'submission_dir': dir_name,
     }
+    provenance = swe_bench_verified_provenance(
+        developer, additional_details['open_source_model']
+    )
+    additional_details.update(
+        {
+            'deployment_type': provenance.deployment_type,
+            'model_availability': provenance.model_availability,
+        }
+    )
     site = info.get('site')
     if site:
         additional_details['site'] = str(site)
@@ -168,6 +180,8 @@ def convert_submission(
         ),
         evaluation_timestamp=evaluation_timestamp,
         metric_config=MetricConfig(
+            metric_id='swe_bench_verified.resolution_rate',
+            metric_name='Resolution Rate',
             evaluation_description=(
                 'Fraction of 500 verified GitHub issues resolved (0.0–1.0)'
             ),
@@ -186,6 +200,16 @@ def convert_submission(
                     available_tools=[AvailableTool(name='bash')],
                 ),
             ),
+            additional_details={
+                'submission_dir': dir_name,
+                'submission_name': additional_details['submission_name']
+                or 'unknown',
+                'agent_organization': additional_details[
+                    'agent_organization'
+                ]
+                or 'unknown',
+                'attempts': additional_details['attempts'] or 'unknown',
+            },
         ),
     )
 
@@ -205,8 +229,13 @@ def convert_submission(
         model_info=ModelInfo(
             name=primary_model,
             id=model_id,
-            developer=developer if developer != 'unknown' else None,
+            developer=provenance.developer,
             additional_details=additional_details,
+            inference_platform=provenance.inference_platform,
+            inference_engine={
+                'name': provenance.inference_engine_name,
+                'version': provenance.inference_engine_version,
+            },
         ),
         evaluation_results=[eval_result],
     )
@@ -260,6 +289,11 @@ def main():
                 errors += 1
 
     print(f'\nGenerated {count} files, {errors} errors → {OUTPUT_DIR}/')
+    if errors:
+        raise RuntimeError(
+            f'SWE-bench Verified refresh failed for {errors} submission(s); '
+            'partial output must not be published'
+        )
 
 
 if __name__ == '__main__':

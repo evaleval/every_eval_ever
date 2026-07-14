@@ -43,6 +43,7 @@ def _require_inspect_dependencies() -> None:
         ) from _INSPECT_IMPORT_ERROR
 
 
+from every_eval_ever.adapters.inspect.provenance import inspect_provenance
 from every_eval_ever.converters import SCHEMA_VERSION
 from every_eval_ever.converters.common.adapter import (
     AdapterMetadata,
@@ -77,6 +78,7 @@ from every_eval_ever.eval_types import (
     GenerationArgs,
     GenerationConfig,
     HashAlgorithm,
+    InferenceEngine,
     JudgeConfig,
     LlmScoring,
     MetricConfig,
@@ -581,6 +583,30 @@ class InspectAIAdapter(BaseEvaluationAdapter):
                 model_path = detailed_model_name
 
         model_info: ModelInfo = extract_model_info_from_model_path(model_path)
+        engine_name = (
+            model_info.inference_engine.name
+            if model_info.inference_engine is not None
+            else None
+        )
+        provenance = inspect_provenance(
+            model_info.id,
+            model_info.inference_platform,
+            engine_name,
+        )
+        model_info.id = provenance.model_id
+        model_info.inference_platform = provenance.inference_platform
+        model_info.inference_engine = InferenceEngine(
+            name=provenance.inference_engine_name,
+            version=provenance.inference_engine_version,
+        )
+        model_details = dict(model_info.additional_details or {})
+        model_details.update(
+            {
+                'deployment_type': provenance.deployment_type,
+                'model_availability': provenance.model_availability,
+            }
+        )
+        model_info.additional_details = model_details
 
         generation_config = self._extract_generation_config(
             eval_spec, raw_eval_log.plan

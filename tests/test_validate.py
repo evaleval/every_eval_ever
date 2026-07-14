@@ -9,7 +9,16 @@ import pytest
 from jsonschema import Draft7Validator
 
 from every_eval_ever import cli
-from every_eval_ever.schema import schema_json
+from every_eval_ever.converters import (
+    SCHEMA_VERSION as CONVERTER_SCHEMA_VERSION,
+)
+from every_eval_ever.helpers import SCHEMA_VERSION as ADAPTER_SCHEMA_VERSION
+from every_eval_ever.schema import (
+    get_schema_fingerprint,
+    get_schema_version,
+    schema_json,
+    schema_text,
+)
 from every_eval_ever.validate import (
     check_companion_exists,
     check_dataset_provenance,
@@ -18,8 +27,8 @@ from every_eval_ever.validate import (
     check_path_structure,
     check_score_metadata,
     expand_paths,
-    render_report_github,
     render_report_json,
+    resolve_companion_repo_path,
     validate_aggregate,
     validate_file,
     validate_instance_file,
@@ -27,16 +36,44 @@ from every_eval_ever.validate import (
 )
 
 
-def test_validate_cli_defaults_to_json_and_rejects_removed_rich_mode():
+def test_validate_cli_defaults_to_json_and_rejects_removed_output_modes():
     parser = cli.build_parser()
 
     args = parser.parse_args(['validate', 'data/example.json'])
     assert args.output_format == 'json'
 
-    with pytest.raises(SystemExit):
-        parser.parse_args(
-            ['validate', '--format', 'rich', 'data/example.json']
-        )
+    for removed_format in ('rich', 'github'):
+        with pytest.raises(SystemExit):
+            parser.parse_args(
+                [
+                    'validate',
+                    '--format',
+                    removed_format,
+                    'data/example.json',
+                ]
+            )
+
+
+def test_schema_metadata_has_one_runtime_source():
+    version = get_schema_version()
+
+    assert version == schema_json()['version']
+    assert version == ADAPTER_SCHEMA_VERSION
+    assert version == CONVERTER_SCHEMA_VERSION
+    assert len(get_schema_fingerprint()) == 64
+
+
+def test_documented_and_packaged_schemas_match():
+    repo_root = Path(__file__).parents[1]
+
+    assert (repo_root / 'eval.schema.json').read_text() == schema_text(
+        'eval.schema.json'
+    )
+    assert (
+        repo_root / 'instance_level_eval.schema.json'
+    ).read_text() == schema_text('instance_level_eval.schema.json')
+
+
 from every_eval_ever.validation_core import (
     SemanticCheckError,
     ValidationCheck,
@@ -153,7 +190,7 @@ def _schema_messages(schema_name: str, data: dict) -> list[str]:
 class TestAggregateValidation:
     def test_valid_json_passes(self, tmp_path: Path):
         fp = _write_json(tmp_path, 'valid.json', VALID_AGGREGATE)
-        report = validate_aggregate(fp)
+        report = validate_aggregate(fp, run_semantic_checks=False)
         assert report.valid is True
         assert report.errors == []
         assert report.file_type == 'aggregate'
@@ -250,15 +287,6 @@ class TestJSONSchemaContracts:
     def test_valid_aggregate_matches_json_schema(self):
         assert _schema_messages('eval.schema.json', VALID_AGGREGATE) == []
 
-    def test_hf_source_schema_requires_repo(self):
-        data = json.loads(json.dumps(VALID_AGGREGATE))
-        del data['evaluation_results'][0]['source_data']['hf_repo']
-        messages = _schema_messages('eval.schema.json', data)
-        assert any(
-            'not valid under any of the given schemas' in msg
-            for msg in messages
-        )
-
     def test_detailed_results_schema_requires_format_and_path(self):
         data = json.loads(json.dumps(VALID_AGGREGATE))
         data['detailed_evaluation_results'] = {}
@@ -293,13 +321,13 @@ class TestJSONSchemaContracts:
 class TestInstanceLevelValidation:
     def test_valid_single_turn_passes(self, tmp_path: Path):
         fp = _write_jsonl(tmp_path, 'valid.jsonl', [VALID_SINGLE_TURN])
-        report = validate_instance_file(fp)
+        report = validate_instance_file(fp, run_semantic_checks=False)
         assert report.valid is True
         assert report.line_count == 1
 
     def test_valid_multi_turn_passes(self, tmp_path: Path):
         fp = _write_jsonl(tmp_path, 'multi.jsonl', [VALID_MULTI_TURN])
-        report = validate_instance_file(fp)
+        report = validate_instance_file(fp, run_semantic_checks=False)
         assert report.valid is True
 
     def test_single_turn_with_messages_fails(self, tmp_path: Path):
@@ -343,12 +371,13 @@ class TestInstanceLevelValidation:
         assert report.errors[0]['type'] == 'json_parse_error'
         assert 'line 2' in report.errors[0]['loc']
 
-    def test_empty_jsonl_passes(self, tmp_path: Path):
+    def test_empty_jsonl_fails(self, tmp_path: Path):
         fp = tmp_path / 'empty.jsonl'
         fp.write_text('', encoding='utf-8')
-        report = validate_instance_file(fp)
-        assert report.valid is True
+        report = validate_instance_file(fp, run_semantic_checks=False)
+        assert report.valid is False
         assert report.line_count == 0
+        assert report.errors[0]['type'] == 'empty_instance_file'
 
     def test_blank_lines_skipped(self, tmp_path: Path):
         lines = [
@@ -359,7 +388,7 @@ class TestInstanceLevelValidation:
         ]
         fp = tmp_path / 'blanks.jsonl'
         fp.write_text('\n'.join(lines) + '\n', encoding='utf-8')
-        report = validate_instance_file(fp)
+        report = validate_instance_file(fp, run_semantic_checks=False)
         assert report.valid is True
         assert report.line_count == 2
 
@@ -406,7 +435,9 @@ class TestMaxErrors:
         del bad_line['evaluation_id']
         lines = [bad_line] * 100
         fp = _write_jsonl(tmp_path, 'many.jsonl', lines)
-        report = validate_instance_file(fp, max_errors=5)
+        report = validate_instance_file(
+            fp, max_errors=5, run_semantic_checks=False
+        )
         assert report.valid is False
         # Should have at most 5 real errors + 1 truncation message
         assert len(report.errors) <= 6
@@ -416,32 +447,17 @@ class TestMaxErrors:
 class TestOutputFormats:
     def test_json_output_is_valid_json(self, tmp_path: Path):
         fp = _write_json(tmp_path, 'test.json', VALID_AGGREGATE)
-        report = validate_file(fp)
+        report = validate_file(fp, run_semantic_checks=False)
         output = render_report_json([report])
         parsed = json.loads(output)
         assert isinstance(parsed, list)
         assert len(parsed) == 1
         assert parsed[0]['valid'] is True
 
-    def test_github_output_format(self, tmp_path: Path):
-        data = {**VALID_AGGREGATE}
-        del data['evaluation_id']
-        fp = _write_json(tmp_path, 'fail.json', data)
-        report = validate_file(fp)
-        output = render_report_github([report])
-        assert output.startswith('::error file=')
-
-    def test_github_output_empty_on_pass(self, tmp_path: Path):
-        fp = _write_json(tmp_path, 'pass.json', VALID_AGGREGATE)
-        report = validate_file(fp)
-        output = render_report_github([report])
-        assert output.startswith('::warning file=')
-
-
 class TestExitCode:
     def test_exit_code_0_on_pass(self, tmp_path: Path):
         fp = _write_json(tmp_path, 'pass.json', VALID_AGGREGATE)
-        report = validate_file(fp)
+        report = validate_file(fp, run_semantic_checks=False)
         assert report.valid is True
 
     def test_exit_code_1_on_failure(self, tmp_path: Path):
@@ -463,7 +479,7 @@ class TestSemanticWarnings:
             local_path=tmp_path / 'record.json',
             repo_path='data/bench/dev/model/record.json',
         )
-        check = ValidationCheck('broken', 'aggregate', broken_check)
+        check = ValidationCheck('broken', 'aggregate', 'error', broken_check)
         with pytest.raises(
             SemanticCheckError, match='broken check did not complete'
         ):
@@ -526,6 +542,8 @@ class TestSemanticWarnings:
         }
         assert check_companion_exists(repo_path, relative, {companion}) == []
         assert check_companion_exists(repo_path, rooted, {companion}) == []
+        assert resolve_companion_repo_path(repo_path, relative) == companion
+        assert resolve_companion_repo_path(repo_path, rooted) == companion
 
     def test_companion_rejects_parent_traversal(self):
         warnings = check_companion_exists(
@@ -587,11 +605,35 @@ class TestSemanticWarnings:
         )
         assert any('num_samples' in warning for warning in warnings)
 
-    def test_model_deployment_two_field_taxonomy(self):
+    def test_model_deployment_axes_are_required_and_independent(self):
         base = {'model_info': {'id': 'org/model', 'additional_details': {}}}
-        assert 'deployment_type' in check_model_deployment(base)[0]
+        findings = check_model_deployment(base)
+        assert len(findings) == 2
+        assert any('deployment_type' in finding for finding in findings)
+        assert any('model_availability' in finding for finding in findings)
 
-        api_record = {
+        self_deployed_closed = {
+            'model_info': {
+                'id': 'org/model',
+                'additional_details': {
+                    'deployment_type': 'self_deployed',
+                    'model_availability': 'closed_weights',
+                },
+            }
+        }
+        externally_managed_open = {
+            'model_info': {
+                'id': 'org/model',
+                'additional_details': {
+                    'deployment_type': 'externally_managed',
+                    'model_availability': 'open_weights',
+                },
+            }
+        }
+        assert check_model_deployment(self_deployed_closed) == []
+        assert check_model_deployment(externally_managed_open) == []
+
+        legacy_values = {
             'model_info': {
                 'id': 'org/model',
                 'additional_details': {
@@ -600,31 +642,10 @@ class TestSemanticWarnings:
                 },
             }
         }
-        assert check_model_deployment(api_record) == []
-
-        local_closed = {
-            'model_info': {
-                'id': 'org/model',
-                'additional_details': {
-                    'deployment_type': 'local',
-                    'model_availability': 'closed_source',
-                },
-            }
-        }
-        assert 'model_availability' in check_model_deployment(local_closed)[0]
-
-    def test_hf_model_availability_requires_api(self):
-        data = {
-            'model_info': {
-                'id': 'org/model',
-                'additional_details': {
-                    'deployment_type': 'local',
-                    'model_availability': 'hf',
-                },
-            }
-        }
-        warnings = check_model_deployment(data)
-        assert any('no HfApi was provided' in warning for warning in warnings)
+        findings = check_model_deployment(legacy_values)
+        assert len(findings) == 2
+        assert any("got 'api'" in finding for finding in findings)
+        assert any("got 'closed_source'" in finding for finding in findings)
 
     def test_dataset_provenance_requires_hf_api_for_hf_dataset(self):
         data = {
@@ -664,7 +685,8 @@ class TestSemanticWarnings:
         )
 
         aggregate_report = reports[0]
+        assert aggregate_report.valid is False
         assert any(
-            'referenced companion' in warning['msg']
-            for warning in aggregate_report.warnings
+            'referenced companion' in error['msg']
+            for error in aggregate_report.errors
         )

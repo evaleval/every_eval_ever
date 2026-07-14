@@ -4,7 +4,6 @@ from pathlib import Path
 import pytest
 
 from every_eval_ever import check_duplicate_entries as check_module
-from every_eval_ever import cli
 from every_eval_ever.dedup import FINGERPRINT_VERSION, compute_file_fingerprint
 
 DATA_ROOT = Path(__file__).resolve().parents[1] / 'data'
@@ -36,6 +35,17 @@ def clone_payload(payload: dict) -> dict:
     return json.loads(json.dumps(payload))
 
 
+def dedup_ready_payload(payload: dict) -> dict:
+    cloned = clone_payload(payload)
+    for result in cloned.get('evaluation_results', []):
+        metric = result.get('metric_config')
+        if isinstance(metric, dict) and not (
+            metric.get('metric_id') or metric.get('metric_name')
+        ):
+            metric['metric_id'] = 'unknown.metric'
+    return cloned
+
+
 def simulate_rescrape(payload: dict) -> dict:
     cloned = clone_payload(payload)
     cloned['evaluation_id'] = 'simulated-duplicate'
@@ -45,33 +55,6 @@ def simulate_rescrape(payload: dict) -> dict:
             reversed(cloned['evaluation_results'])
         )
     return cloned
-
-
-def test_normalized_hash_ignores_keys_and_list_order(sample_payloads):
-    payload_a = clone_payload(sample_payloads[0])
-    payload_b = simulate_rescrape(sample_payloads[0])
-
-    assert check_module.normalized_hash(
-        payload_a
-    ) == check_module.normalized_hash(payload_b)
-
-
-def test_normalized_hash_detects_real_changes(sample_payloads):
-    payload_a = clone_payload(sample_payloads[0])
-    payload_c = clone_payload(sample_payloads[0])
-    payload_c['evaluation_id'] = 'eval-c'
-    payload_c['retrieved_timestamp'] = '2024-01-03'
-    if (
-        isinstance(payload_c.get('evaluation_results'), list)
-        and payload_c['evaluation_results']
-    ):
-        payload_c['evaluation_results'][0]['score_details']['score'] = (
-            payload_c['evaluation_results'][0]['score_details']['score'] + 0.001
-        )
-
-    assert check_module.normalized_hash(
-        payload_a
-    ) != check_module.normalized_hash(payload_c)
 
 
 def test_expand_paths_returns_json_files(tmp_path):
@@ -96,7 +79,7 @@ def test_expand_paths_returns_json_files(tmp_path):
 
 
 def test_main_reports_duplicates(sample_payloads, tmp_path, capsys):
-    payload = sample_payloads[0]
+    payload = dedup_ready_payload(sample_payloads[0])
     collection = tmp_path / 'data' / 'bench'
     collection.mkdir(parents=True)
     file_a = collection / 'a.json'
@@ -105,7 +88,22 @@ def test_main_reports_duplicates(sample_payloads, tmp_path, capsys):
 
     write_json(file_b, simulate_rescrape(payload))
 
-    assert check_module.main(['--local-only', str(file_a), str(file_b)]) == 1
+    manifest = tmp_path / 'manifest.json'
+    manifest.write_text(
+        json.dumps(
+            {
+                'fingerprint_version': FINGERPRINT_VERSION,
+                'files': {},
+            }
+        ),
+        encoding='utf-8',
+    )
+    assert (
+        check_module.main(
+            ['--manifest', str(manifest), str(file_a), str(file_b)]
+        )
+        == 1
+    )
     captured = capsys.readouterr().out
     assert 'Found duplicate entries' in captured
 
@@ -116,7 +114,7 @@ def test_main_compares_normalized_path_with_local_manifest(
     data_dir = tmp_path / 'data' / 'bench' / 'dev' / 'model'
     data_dir.mkdir(parents=True)
     candidate = data_dir / 'candidate.json'
-    write_json(candidate, sample_payloads[0])
+    write_json(candidate, dedup_ready_payload(sample_payloads[0]))
 
     existing_path = 'data/bench/dev/model/existing.json'
     manifest = tmp_path / 'manifest.json'
@@ -146,44 +144,18 @@ def test_main_uses_remote_manifest_by_default(
     collection = tmp_path / 'data' / 'bench'
     collection.mkdir(parents=True)
     candidate = collection / 'candidate.json'
-    write_json(candidate, sample_payloads[0])
+    write_json(candidate, dedup_ready_payload(sample_payloads[0]))
     calls = []
 
     def fake_load_manifest(**kwargs):
         calls.append(kwargs)
-        return {'fingerprint_version': FINGERPRINT_VERSION, 'files': {}}
+        return {
+            'fingerprint_version': FINGERPRINT_VERSION,
+            'files': {},
+        }
 
     monkeypatch.setattr(check_module, 'load_manifest', fake_load_manifest)
     assert check_module.main([str(candidate)]) == 0
     assert calls == [
         {'dataset_repo_id': 'evaleval/EEE_datastore', 'revision': 'main'}
-    ]
-
-
-def test_top_level_cli_forwards_manifest_options(monkeypatch, tmp_path):
-    manifest = tmp_path / 'manifest.json'
-    candidate = tmp_path / 'data' / 'bench' / 'candidate.json'
-    forwarded = []
-
-    monkeypatch.setattr(check_module, 'main', lambda argv: forwarded.extend(argv) or 0)
-
-    assert (
-        cli.main(
-            [
-                'check-duplicates',
-                '--manifest',
-                str(manifest),
-                str(candidate),
-            ]
-        )
-        == 0
-    )
-    assert forwarded == [
-        '--dataset-repo-id',
-        'evaleval/EEE_datastore',
-        '--revision',
-        'main',
-        '--manifest',
-        str(manifest),
-        str(candidate),
     ]

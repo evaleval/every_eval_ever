@@ -16,6 +16,10 @@ import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from every_eval_ever.adapters.rewardbench.provenance import (
+    is_known_placeholder_model,
+    rewardbench_provenance,
+)
 from every_eval_ever.eval_types import (
     EvalLibrary,
     EvaluationLog,
@@ -29,6 +33,7 @@ from every_eval_ever.eval_types import (
     SourceMetadata,
 )
 from every_eval_ever.helpers import (
+    SCHEMA_VERSION,
     fetch_csv,
     fetch_json,
     get_developer,
@@ -36,8 +41,7 @@ from every_eval_ever.helpers import (
     sanitize_filename,
 )
 
-# Schema version
-SCHEMA_VERSION = '0.2.1'
+REWARDBENCH_VERSION = '0.1.3'
 
 # Data source URLs
 REWARDBENCH_V1_CSV = 'https://huggingface.co/spaces/allenai/reward-bench/resolve/main/leaderboard/final-rbv1-data.csv'
@@ -105,6 +109,8 @@ def _make_eval_result(
     source_data: SourceDataHf,
 ) -> EvaluationResult:
     """Create an EvaluationResult for a continuous 0-1 metric."""
+    min_score = -0.01 if name == 'Ties' else 0.0
+    max_score = 1.01 if name == 'Ties' else 1.0
     return EvaluationResult(
         evaluation_name=name,
         source_data=source_data,
@@ -112,8 +118,8 @@ def _make_eval_result(
             evaluation_description=description,
             lower_is_better=False,
             score_type=ScoreType.continuous,
-            min_score=0.0,
-            max_score=1.0,
+            min_score=min_score,
+            max_score=max_score,
         ),
         score_details=ScoreDetails(score=round(score, 4)),
     )
@@ -124,13 +130,27 @@ def _make_model_info(
     developer: str,
     additional_details: Optional[Dict[str, Any]] = None,
 ) -> ModelInfo:
-    """Create ModelInfo without setting inference_platform."""
+    """Create ModelInfo with source-backed execution provenance."""
     model_id = get_model_id(model_name, developer)
+    details = dict(additional_details or {})
+    model_type = details.get('model_type')
+    provenance = rewardbench_provenance(model_id, model_type)
+    details.update(
+        {
+            'deployment_type': provenance.deployment_type,
+            'model_availability': provenance.model_availability,
+        }
+    )
     return ModelInfo(
         name=model_name,
         id=model_id,
         developer=developer,
-        additional_details=additional_details,
+        inference_platform=provenance.inference_platform,
+        inference_engine={
+            'name': provenance.inference_engine_name,
+            'version': provenance.inference_engine_version,
+        },
+        additional_details=details,
     )
 
 
@@ -185,6 +205,9 @@ def fetch_rewardbench_v1(retrieved_timestamp: str) -> int:
         model_name = extract_model_name_from_html(model_html)
         if not model_name or model_name == 'random':
             continue
+        if is_known_placeholder_model(model_name):
+            print(f'Skipping known placeholder model row: {model_name!r}')
+            continue
 
         model_type = row.get('Model Type', '')
         developer = get_developer(model_name)
@@ -222,7 +245,9 @@ def fetch_rewardbench_v1(retrieved_timestamp: str) -> int:
             evaluation_id=evaluation_id,
             retrieved_timestamp=retrieved_timestamp,
             source_metadata=V1_SOURCE_METADATA,
-            eval_library=EvalLibrary(name='unknown', version='unknown'),
+            eval_library=EvalLibrary(
+                name='rewardbench', version=REWARDBENCH_VERSION
+            ),
             model_info=model_info,
             evaluation_results=eval_results,
         )
@@ -257,11 +282,7 @@ def fetch_rewardbench_v2(retrieved_timestamp: str) -> int:
 
         # Get models for this org
         org_tree_url = f'https://huggingface.co/api/datasets/allenai/reward-bench-2-results/tree/main/{org_path}'
-        try:
-            model_files = fetch_json(org_tree_url)
-        except Exception as e:
-            print(f'    Error fetching org tree: {e}')
-            continue
+        model_files = fetch_json(org_tree_url)
 
         for model_file in model_files:
             if model_file['type'] != 'file' or not model_file['path'].endswith(
@@ -272,13 +293,14 @@ def fetch_rewardbench_v2(retrieved_timestamp: str) -> int:
             model_path = model_file['path']
             model_url = f'{REWARDBENCH_V2_FILE_BASE}/{"/".join(model_path.split("/")[1:])}'
 
-            try:
-                model_data = fetch_json(model_url)
-            except Exception as e:
-                print(f'    Error fetching {model_path}: {e}')
-                continue
+            model_data = fetch_json(model_url)
 
             model_name = model_data.get('model', 'unknown')
+            if is_known_placeholder_model(model_name):
+                print(
+                    f'    Skipping known placeholder model row: {model_name!r}'
+                )
+                continue
             model_type = model_data.get('model_type', '')
             developer = get_developer(model_name)
 
@@ -302,8 +324,10 @@ def fetch_rewardbench_v2(retrieved_timestamp: str) -> int:
                                 source_data=V2_SOURCE_DATA,
                             )
                         )
-                    except (ValueError, TypeError):
-                        pass
+                    except (ValueError, TypeError) as exc:
+                        raise ValueError(
+                            f'{model_path}: metric {metric_name!r} is not numeric'
+                        ) from exc
 
             if not eval_results:
                 continue
@@ -337,7 +361,9 @@ def fetch_rewardbench_v2(retrieved_timestamp: str) -> int:
                 evaluation_id=evaluation_id,
                 retrieved_timestamp=retrieved_timestamp,
                 source_metadata=V2_SOURCE_METADATA,
-                eval_library=EvalLibrary(name='unknown', version='unknown'),
+                eval_library=EvalLibrary(
+                    name='rewardbench', version=REWARDBENCH_VERSION
+                ),
                 model_info=model_info,
                 evaluation_results=eval_results,
             )
@@ -363,27 +389,15 @@ def main():
     print('Fetching RewardBench v1 results...')
     print('=' * 60)
 
-    try:
-        v1_count = fetch_rewardbench_v1(retrieved_timestamp)
-        print(f'\nProcessed {v1_count} models from RewardBench v1')
-    except Exception as e:
-        print(f'Error processing RewardBench v1: {e}')
-        import traceback
-
-        traceback.print_exc()
+    v1_count = fetch_rewardbench_v1(retrieved_timestamp)
+    print(f'\nProcessed {v1_count} models from RewardBench v1')
 
     print('\n' + '=' * 60)
     print('Fetching RewardBench v2 results...')
     print('=' * 60)
 
-    try:
-        v2_count = fetch_rewardbench_v2(retrieved_timestamp)
-        print(f'\nProcessed {v2_count} models from RewardBench v2')
-    except Exception as e:
-        print(f'Error processing RewardBench v2: {e}')
-        import traceback
-
-        traceback.print_exc()
+    v2_count = fetch_rewardbench_v2(retrieved_timestamp)
+    print(f'\nProcessed {v2_count} models from RewardBench v2')
 
     print('\n' + '=' * 60)
     print('Done!')

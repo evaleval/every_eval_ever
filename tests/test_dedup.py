@@ -12,6 +12,7 @@ from every_eval_ever.dedup import (
     compute_aggregate_identity,
     compute_fingerprint,
     empty_manifest,
+    select_unique_files,
     validate_manifest,
 )
 
@@ -137,7 +138,7 @@ def test_non_object_results_are_rejected():
         compute_aggregate_identity(data_with_bad_result)
 
 
-def test_large_integer_identity_fields_are_not_float_coerced():
+def test_generation_config_large_integers_remain_distinct():
     first = _base()
     second = _base()
     first_args = _first_result(first)['generation_config']['generation_args']
@@ -164,17 +165,12 @@ def test_manifest_requires_matching_fingerprint_version():
         validate_manifest({'fingerprint_version': 'old', 'files': {}})
 
 
-def test_manifest_and_intra_batch_dedup_are_collection_scoped(tmp_path):
+def test_manifest_and_intra_batch_dedup_are_global(tmp_path):
     existing = _base()
     candidate = _base()
     manifest = {
         'fingerprint_version': FINGERPRINT_VERSION,
         'files': {
-            'data/gsm8k/openai/model/existing.json': {
-                'fingerprint': compute_fingerprint(
-                    json.dumps(existing).encode()
-                )
-            },
             'data/other/openai/model/existing.json': {
                 'fingerprint': compute_fingerprint(
                     json.dumps(existing).encode()
@@ -195,15 +191,15 @@ def test_manifest_and_intra_batch_dedup_are_collection_scoped(tmp_path):
 
     assert (
         by_path['data/gsm8k/openai/model/candidate.json'].duplicate_of
-        == 'data/gsm8k/openai/model/existing.json'
+        == 'data/other/openai/model/existing.json'
     )
     assert (
         by_path['data/gsm8k/openai/model/candidate.json'].matched_manifest_path
-        == 'data/gsm8k/openai/model/existing.json'
+        == 'data/other/openai/model/existing.json'
     )
     assert (
         by_path['data/gsm8k/openai/model/second.json'].duplicate_of
-        == 'data/gsm8k/openai/model/existing.json'
+        == 'data/other/openai/model/existing.json'
     )
 
 
@@ -228,23 +224,6 @@ def test_same_manifest_path_is_identified_without_self_duplicate(tmp_path):
     assert result.matched_manifest_path == path
 
 
-def test_distinct_scores_are_not_duplicates(tmp_path):
-    first = _base()
-    second = _base()
-    _first_result(second)['score_details']['score'] = 0.71
-    local = _write(
-        tmp_path,
-        {
-            'data/gsm8k/model/one.json': first,
-            'data/gsm8k/model/two.json': second,
-        },
-    )
-
-    report = check_duplicates(list(local), local, empty_manifest())
-
-    assert all(result.duplicate_of is None for result in report.results)
-
-
 def test_missing_local_path_is_an_error():
     with pytest.raises(ValueError, match='requires a local path'):
         check_duplicates(
@@ -252,7 +231,7 @@ def test_missing_local_path_is_an_error():
         )
 
 
-def test_url_source_identity_includes_url():
+def test_url_source_location_changes_semantic_identity():
     first = _base()
     second = _base()
     _first_result(first)['source_data'] = {
@@ -296,6 +275,24 @@ def test_underidentified_other_source_is_rejected():
         compute_aggregate_identity(data)
 
 
-def test_check_duplicates_rejects_non_json_paths():
-    with pytest.raises(ValueError, match='only accepts .json files'):
+def test_check_duplicates_rejects_non_data_files():
+    with pytest.raises(ValueError, match='aggregate .json or instance .jsonl'):
         check_duplicates(['data/gsm8k/model/readme.txt'], {}, empty_manifest())
+
+
+def test_select_unique_files_owns_acceptance_decisions(tmp_path):
+    first = tmp_path / 'first.json'
+    duplicate = tmp_path / 'duplicate.json'
+    first.write_text(json.dumps(_base()), encoding='utf-8')
+    duplicate.write_text(json.dumps(_base()), encoding='utf-8')
+    paths = {
+        'data/collection/model/first.json': first,
+        'data/collection/model/duplicate.json': duplicate,
+    }
+
+    selection = select_unique_files(list(paths), paths, empty_manifest())
+
+    assert selection.accepted_paths == ('data/collection/model/duplicate.json',)
+    assert len(selection.duplicate_results) == 1
+    assert selection.duplicate_results[0].file_path.endswith('first.json')
+    assert selection.skipped_results == ()

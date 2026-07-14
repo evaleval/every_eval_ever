@@ -24,14 +24,11 @@ Usage:
 import argparse
 import json
 import re
-import sys
 import time
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from eval_types import (
+from every_eval_ever.adapters.exgentic.provenance import exgentic_provenance
+from every_eval_ever.eval_types import (
     AgenticEvalConfig,
     EvalLibrary,
     EvaluationLog,
@@ -47,10 +44,13 @@ from eval_types import (
     SourceMetadata,
     Uncertainty,
 )
-from helpers import sanitize_filename, save_evaluation_log
+from every_eval_ever.helpers import (
+    SCHEMA_VERSION,
+    sanitize_filename,
+    save_evaluation_log,
+)
 
-SCHEMA_VERSION = '0.2.2'
-OUTPUT_DIR = 'data/exgentic'
+OUTPUT_DIR = 'data'
 HF_DATASET = 'Exgentic/open-agent-leaderboard-results'
 
 # Map model name prefixes to developer organizations
@@ -97,6 +97,7 @@ def convert_result(result: dict, retrieved_timestamp: str) -> EvaluationLog:
         model_name_raw
     )
     model_id = f'{developer_slug}/{model_slug}'
+    provenance = exgentic_provenance(model_id)
 
     benchmark = (
         result.get('benchmark_name') or result.get('benchmark') or 'unknown'
@@ -194,9 +195,16 @@ def convert_result(result: dict, retrieved_timestamp: str) -> EvaluationLog:
             name=model_slug,
             id=model_id,
             developer=developer_display,
+            inference_platform=provenance.inference_platform,
+            inference_engine={
+                'name': provenance.inference_engine_name,
+                'version': provenance.inference_engine_version,
+            },
             additional_details={
                 'agent_name': agent_name,
                 'agent_framework': agent_framework,
+                'deployment_type': provenance.deployment_type,
+                'model_availability': provenance.model_availability,
             },
         ),
         evaluation_results=[eval_result],
@@ -209,20 +217,17 @@ def load_results_from_dir(results_dir: str) -> list[dict]:
     base = Path(results_dir)
 
     for config_path in sorted(base.rglob('config.json')):
-        try:
-            config = json.loads(config_path.read_text())
-            run_id = config.get('run_id')
-            if not run_id:
-                continue
-            results_path = config_path.parent / run_id / 'results.json'
-            if not results_path.is_file():
-                continue
-            payload = json.loads(results_path.read_text())
-            if 'benchmark_score' not in payload:
-                continue
-            results.append(payload)
-        except (json.JSONDecodeError, OSError) as e:
-            print(f'Warning: skipping {config_path}: {e}')
+        config = json.loads(config_path.read_text())
+        run_id = config.get('run_id')
+        if not isinstance(run_id, str) or not run_id:
+            raise ValueError(f'{config_path}: missing non-blank run_id')
+        results_path = config_path.parent / run_id / 'results.json'
+        if not results_path.is_file():
+            raise FileNotFoundError(f'{results_path}: results file not found')
+        payload = json.loads(results_path.read_text())
+        if 'benchmark_score' not in payload:
+            raise ValueError(f'{results_path}: missing benchmark_score')
+        results.append(payload)
     return results
 
 
@@ -230,11 +235,10 @@ def load_results_from_hf() -> list[dict]:
     """Load results from the HuggingFace dataset (default subset with raw exgentic data)."""
     try:
         from datasets import load_dataset
-    except ImportError:
-        print(
-            "Error: 'datasets' package required. Install with: pip install datasets"
-        )
-        sys.exit(1)
+    except ImportError as exc:
+        raise ImportError(
+            "'datasets' is required; install the repository's dataset extra"
+        ) from exc
 
     ds = load_dataset(HF_DATASET, split='train')
     return list(ds)
@@ -256,7 +260,7 @@ def main():
     parser.add_argument(
         '--output-dir',
         default=OUTPUT_DIR,
-        help=f'Output directory for EEE JSON files (default: {OUTPUT_DIR})',
+        help=f'Output root containing collection folders (default: {OUTPUT_DIR})',
     )
     args = parser.parse_args()
 
@@ -269,34 +273,33 @@ def main():
         results = load_results_from_hf()
 
     if not results:
-        print('No results found.')
-        sys.exit(1)
+        raise ValueError('No Exgentic results found')
 
     print(f'Loaded {len(results)} result(s)')
 
     retrieved_timestamp = str(time.time())
-    count = 0
+    converted = [
+        convert_result(result, retrieved_timestamp) for result in results
+    ]
+    for eval_log in converted:
+        model_info = eval_log.model_info
+        developer_slug = sanitize_filename(model_info.developer or 'unknown')
+        model_name = sanitize_filename(model_info.name)
+        collection = eval_log.evaluation_results[0].source_data.dataset_name.replace(
+            '/', '_'
+        )
+        filepath = save_evaluation_log(
+            eval_log,
+            Path(args.output_dir) / collection,
+            developer_slug,
+            model_name,
+        )
+        print(f'  {filepath}')
 
-    for result in results:
-        try:
-            eval_log = convert_result(result, retrieved_timestamp)
-            model_info = eval_log.model_info
-            developer_slug = sanitize_filename(
-                model_info.developer or 'unknown'
-            )
-            model_name = sanitize_filename(model_info.name)
-            filepath = save_evaluation_log(
-                eval_log, args.output_dir, developer_slug, model_name
-            )
-            print(f'  {filepath}')
-            count += 1
-        except Exception as e:
-            benchmark = result.get('benchmark', '?')
-            agent = result.get('agent', '?')
-            model = result.get('model_name', '?')
-            print(f'Error processing {benchmark}/{agent}/{model}: {e}')
-
-    print(f'\nGenerated {count} file(s) in {args.output_dir}/')
+    print(
+        f'\nGenerated {len(converted)} file(s) under {args.output_dir}/'
+        ' collection folders'
+    )
 
 
 if __name__ == '__main__':

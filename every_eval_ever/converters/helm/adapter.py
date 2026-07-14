@@ -3,7 +3,7 @@ import json
 import os
 import uuid
 from pathlib import Path
-from typing import Any, Dict, List, Union, cast
+from typing import Any, Dict, List, cast
 
 _HELM_IMPORT_ERROR: Exception | None = None
 try:
@@ -49,12 +49,12 @@ from every_eval_ever.converters.common.adapter import (
     SupportedLibrary,
 )
 from every_eval_ever.converters.common.utils import sha256_file
-from every_eval_ever.converters.helm.metrics import is_core_metric
 from every_eval_ever.converters.helm.instance_level_adapter import (
     HELMInstanceLevelDataAdapter,
     _evaluation_result_id,
     _score_from_stat,
 )
+from every_eval_ever.converters.helm.metrics import is_core_metric
 from every_eval_ever.converters.helm.utils import extract_reasoning
 from every_eval_ever.eval_types import (
     DetailedEvaluationResults,
@@ -80,7 +80,7 @@ def _require_helm_dependencies() -> None:
     if _HELM_IMPORT_ERROR is not None:
         raise ImportError(
             'HELM converter dependencies are missing. '
-            "Install with: uv sync --extra helm "
+            'Install with: uv sync --extra helm '
             "(or pip install 'every_eval_ever[helm]')."
         ) from _HELM_IMPORT_ERROR
 
@@ -237,11 +237,7 @@ class HELMAdapter(BaseEvaluationAdapter):
         if self._directory_contains_required_files(dir_path):
             data = self._load_evaluation_run_logfiles(dir_path)
             per_log_metadata_args = dict(metadata_args)
-            if (
-                isinstance(file_uuids, list)
-                and file_uuids
-                and file_uuids[0]
-            ):
+            if isinstance(file_uuids, list) and file_uuids and file_uuids[0]:
                 per_log_metadata_args['file_uuid'] = file_uuids[0]
             else:
                 per_log_metadata_args['file_uuid'] = metadata_args.get(
@@ -266,9 +262,7 @@ class HELMAdapter(BaseEvaluationAdapter):
                             converted_idx
                         ]
                     else:
-                        per_log_metadata_args['file_uuid'] = str(
-                            uuid.uuid4()
-                        )
+                        per_log_metadata_args['file_uuid'] = str(uuid.uuid4())
                     agg = self._transform_single(data, per_log_metadata_args)
                     aggregate_logs.append(agg)
                     converted_idx += 1
@@ -286,21 +280,29 @@ class HELMAdapter(BaseEvaluationAdapter):
             request: The specific request object from scenario_state.json (optional).
         """
         req = request_state.request
-        temperature = req.temperature if req.temperature is not None else getattr(
-            adapter_spec, 'temperature', None
+        temperature = (
+            req.temperature
+            if req.temperature is not None
+            else getattr(adapter_spec, 'temperature', None)
         )
-        max_tokens = req.max_tokens if req.max_tokens is not None else getattr(
-            adapter_spec, 'max_tokens', None
+        max_tokens = (
+            req.max_tokens
+            if req.max_tokens is not None
+            else getattr(adapter_spec, 'max_tokens', None)
         )
         # multiple_choice_separate_* methods score by log-prob and set max_tokens=0;
         # GenerationArgs requires max_tokens >= 1, so treat 0 as None (not applicable)
         if max_tokens == 0:
             max_tokens = None
-        top_p = req.top_p if req.top_p is not None else getattr(
-            adapter_spec, 'top_p', None
+        top_p = (
+            req.top_p
+            if req.top_p is not None
+            else getattr(adapter_spec, 'top_p', None)
         )
-        top_k = req.top_k_per_token if req.top_k_per_token is not None else getattr(
-            adapter_spec, 'top_k_per_token', None
+        top_k = (
+            req.top_k_per_token
+            if req.top_k_per_token is not None
+            else getattr(adapter_spec, 'top_k_per_token', None)
         )
 
         is_reasoning = extract_reasoning(request_state) is not None

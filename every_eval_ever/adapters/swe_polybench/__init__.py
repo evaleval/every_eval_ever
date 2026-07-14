@@ -1,0 +1,1 @@
+"""SWE-PolyBench adapter metadata."""

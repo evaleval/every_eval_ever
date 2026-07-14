@@ -213,24 +213,17 @@ uv run python -m every_eval_ever validate file1.json file2_samples.jsonl data/
 
 File type is determined by extension: `.json` validates against `EvaluationLog`, `.jsonl` validates each line against `InstanceLevelEvaluationLog`.
 
-#### Output formats
+#### Output
 
 ```sh
-# Machine-readable JSON output (default)
+# Validation reports are emitted as machine-readable JSON
 uv run python -m every_eval_ever validate data/
-
-# Machine-readable JSON
-uv run python -m every_eval_ever validate --format json data/
-
-# GitHub Actions annotations
-uv run python -m every_eval_ever validate --format github data/
 ```
 
 #### Options
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--format {json,github}` | `json` | Output format |
 | `--max-errors N` | `50` | Maximum errors reported per JSONL file |
 
 Exit code is `0` if all files pass and `1` if any fail.

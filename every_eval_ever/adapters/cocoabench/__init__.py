@@ -1,0 +1,1 @@
+"""CocoaBench adapter provenance."""

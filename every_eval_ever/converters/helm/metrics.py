@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Optional
 
-
 # HELM emits both benchmark metrics and bookkeeping telemetry in stats.json /
 # per_instance_stats.json. In this PR, only benchmark-quality metrics become
 # EEE aggregate/detail metric rows. Bookkeeping can be mapped to token_usage,

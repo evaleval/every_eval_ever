@@ -24,6 +24,7 @@ from urllib.parse import urlencode
 
 import requests
 
+from every_eval_ever.adapters.mercor.provenance import mercor_provenance
 from every_eval_ever.eval_types import (
     AgenticEvalConfig,
     ConfidenceInterval,
@@ -96,6 +97,11 @@ def parse_args() -> argparse.Namespace:
         '--input-json',
         type=Path,
         help='Use an offline benchmarks/leaderboards payload.',
+    )
+    parser.add_argument(
+        '--save-raw-json',
+        type=Path,
+        help='Save the combined API payload used for offline replay.',
     )
     parser.add_argument(
         '--output-dir',
@@ -582,6 +588,7 @@ def make_bundles(
             model_name,
             provider,
         )
+        provenance = mercor_provenance(model_id, str(provider))
         mercor_model_id = str(model.get('id') or 'unknown')
         evaluation_id = str(row.get('evaluationId') or 'unknown')
         benchmark_slug = normalize_slug(benchmark['benchmarkName'])
@@ -621,12 +628,18 @@ def make_bundles(
                 name=model_name,
                 id=model_id,
                 developer=developer,
-                inference_platform=str(provider),
+                inference_platform=provenance.inference_platform,
+                inference_engine={
+                    'name': provenance.inference_engine_name,
+                    'version': provenance.inference_engine_version,
+                },
                 additional_details=stringify_details(
                     {
                         'mercor_model_id': mercor_model_id,
                         'provider': provider,
                         'run_config': config,
+                        'deployment_type': provenance.deployment_type,
+                        'model_availability': provenance.model_availability,
                     }
                 ),
             ),
@@ -674,6 +687,12 @@ def main() -> None:
             resolve_api_key(args.api_key),
             base_url=args.base_url,
             page_size=args.page_size,
+        )
+    if args.save_raw_json is not None:
+        args.save_raw_json.parent.mkdir(parents=True, exist_ok=True)
+        args.save_raw_json.write_text(
+            json.dumps(payload, indent=2, sort_keys=True) + '\n',
+            encoding='utf-8',
         )
 
     bundles = make_bundles(payload, base_url=args.base_url)

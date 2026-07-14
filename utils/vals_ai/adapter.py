@@ -10,8 +10,6 @@ from html import unescape
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
-from urllib.error import URLError
-from urllib.request import Request, urlopen
 
 from every_eval_ever.eval_types import (
     EvalLibrary,
@@ -20,6 +18,7 @@ from every_eval_ever.eval_types import (
     EvaluatorRelationship,
     GenerationArgs,
     GenerationConfig,
+    InferenceEngine,
     MetricConfig,
     ModelInfo,
     ScoreDetails,
@@ -38,12 +37,20 @@ from every_eval_ever.helpers import (
     sanitize_filename,
     save_evaluation_log,
 )
+from every_eval_ever.vals_ai import (
+    BENCHMARKS_URL,
+    INFERENCE_ENGINE_NAME,
+    INFERENCE_ENGINE_VERSION,
+    SOURCE_NAME,
+    SOURCE_ORGANIZATION_URL,
+    deployment_type_for_provider,
+    fetch_model_registry,
+    fetch_text,
+    model_availability,
+    provider_to_platform,
+)
 
-SOURCE_NAME = 'Vals.ai'
-SOURCE_ORGANIZATION_URL = 'https://www.vals.ai'
-BENCHMARKS_URL = f'{SOURCE_ORGANIZATION_URL}/benchmarks'
 OUTPUT_DIR = 'data/vals-ai'
-USER_AGENT = 'every-eval-ever vals-ai adapter'
 ASTRO_UNDEFINED = object()
 NAMESPACE_DEVELOPER_ALIASES = {
     'grok': 'xai',
@@ -99,15 +106,6 @@ class AstroIslandParser(HTMLParser):
         props = attr_map.get('props')
         if props:
             self.props.append(props)
-
-
-def fetch_text(url: str) -> str:
-    request = Request(url, headers={'User-Agent': USER_AGENT})
-    try:
-        with urlopen(request, timeout=30) as response:
-            return response.read().decode('utf-8')
-    except URLError as exc:
-        raise RuntimeError(f'Failed to fetch {url}: {exc}') from exc
 
 
 def extract_benchmark_slugs(index_html: str) -> list[str]:
@@ -216,6 +214,7 @@ def extract_collection(
     return {
         'source_url': f'{base_url.rstrip("/")}/benchmarks',
         'benchmarks': benchmarks,
+        'model_registry': fetch_model_registry(base_url, fetcher=fetch_text),
     }
 
 
@@ -347,9 +346,12 @@ def make_logs(
         if score_scale.metric_unit != 'percent':
             continue
         first = rows[0]
-        provider = _optional_str(first.metrics.get('provider'))
-        developer = model_id.split('/', 1)[0]
         vals_model_id = first.model_id
+        registry = payload.get('model_registry')
+        if not isinstance(registry, dict):
+            registry = {}
+        provider = _provider_for_rows(rows, vals_model_id)
+        developer = model_id.split('/', 1)[0]
         model_name = _model_name_from_id(model_id)
 
         result_rows = sorted(rows, key=lambda row: row.task_key)
@@ -391,10 +393,21 @@ def make_logs(
                 name=model_name,
                 id=model_id,
                 developer=developer,
+                inference_platform=provider_to_platform(provider),
+                inference_engine=InferenceEngine(
+                    name=INFERENCE_ENGINE_NAME,
+                    version=INFERENCE_ENGINE_VERSION,
+                ),
                 additional_details=_clean_details(
                     {
                         'vals_model_id': vals_model_id,
                         'vals_provider': provider,
+                        'deployment_type': deployment_type_for_provider(
+                            provider
+                        ),
+                        'model_availability': model_availability(
+                            registry, vals_model_id
+                        ),
                     }
                 ),
             ),
@@ -536,7 +549,16 @@ def make_source_data(row: ValsMetric) -> SourceDataPrivate | SourceDataUrl:
         return SourceDataPrivate(
             dataset_name=dataset_name,
             source_type='other',
-            additional_details=details,
+            additional_details=_clean_details(
+                {
+                    **(details or {}),
+                    'source_id': (
+                        f'vals_ai:{row.benchmark_slug}:{row.task_key}'
+                    ),
+                    'source_version': row.benchmark_updated,
+                    'source_url': row.source_url,
+                }
+            ),
         )
 
     return SourceDataUrl(
@@ -578,6 +600,25 @@ def _developer_from_vals_id(vals_model_id: str, provider: str | None) -> str:
     if provider:
         return _slug(provider)
     return get_developer(vals_model_id)
+
+
+def _provider_for_rows(
+    rows: list[ValsMetric],
+    vals_model_id: str,
+) -> str:
+    providers = {
+        provider
+        for row in rows
+        if (provider := _optional_str(row.metrics.get('provider')))
+    }
+    if len(providers) > 1:
+        raise ValueError(
+            f'Vals.ai rows disagree on provider for {vals_model_id!r}: '
+            f'{sorted(providers)!r}'
+        )
+    if providers:
+        return next(iter(providers))
+    return 'unknown'
 
 
 def _canonical_model_id(vals_model_id: str, developer: str) -> str:

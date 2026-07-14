@@ -42,6 +42,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from every_eval_ever.adapters.hle.provenance import hle_provenance
 from every_eval_ever.eval_types import (
     ConfidenceInterval,
     EvalLibrary,
@@ -283,10 +284,20 @@ def normalize_developer(company: str) -> str:
 
 
 def make_judge_model_info() -> ModelInfo:
+    provenance = hle_provenance(JUDGE_MODEL_ID)
     return ModelInfo(
         name='o3-mini-2025-01-31',
         id=JUDGE_MODEL_ID,
         developer='openai',
+        inference_platform=provenance.inference_platform,
+        inference_engine={
+            'name': provenance.inference_engine_name,
+            'version': provenance.inference_engine_version,
+        },
+        additional_details={
+            'deployment_type': provenance.deployment_type,
+            'model_availability': provenance.model_availability,
+        },
     )
 
 
@@ -412,6 +423,7 @@ def make_log(
     developer = normalize_developer(row.company)
     model_slug = slugify_model(row.model_display)
     model_id = get_model_id(model_slug, developer)
+    provenance = hle_provenance(model_id)
 
     judge_model_info = make_judge_model_info()
     results: list[EvaluationResult] = [
@@ -458,7 +470,16 @@ def make_log(
             name=row.model_display,
             id=model_id,
             developer=developer,
-            additional_details=additional_details,
+            inference_platform=provenance.inference_platform,
+            inference_engine={
+                'name': provenance.inference_engine_name,
+                'version': provenance.inference_engine_version,
+            },
+            additional_details={
+                **additional_details,
+                'deployment_type': provenance.deployment_type,
+                'model_availability': provenance.model_availability,
+            },
         ),
         evaluation_results=results,
     )
@@ -507,14 +528,7 @@ def run(args: argparse.Namespace) -> int:
         if args.save_raw_json is not None:
             args.save_raw_json.parent.mkdir(parents=True, exist_ok=True)
             args.save_raw_json.write_text(
-                json.dumps(
-                    {
-                        'source_url': args.source_url,
-                        'fetched_at': str(time.time()),
-                        'rows': rows,
-                    },
-                    indent=2,
-                ),
+                json.dumps(rows, indent=2, sort_keys=True) + '\n',
                 encoding='utf-8',
             )
 

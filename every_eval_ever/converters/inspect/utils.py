@@ -2,7 +2,6 @@ import json
 import re
 from typing import Any, Dict, List, Type
 
-from every_eval_ever.converters.common.utils import get_model_organization_info
 from every_eval_ever.converters.inspect.supplemental_eval_details import (
     SupplementalAgenticEvalConfig,
     SupplementalEvalDetails,
@@ -116,17 +115,10 @@ class AzureAiParser:
         inference_platform = parts[0]
         base_model_name = parts[-1]
 
-        inferred_org_name = get_model_organization_info(base_model_name)
-        developer = (
-            inferred_org_name
-            if inferred_org_name and inferred_org_name != 'not_found'
-            else inference_platform
-        )
-
         return ModelInfo(
             name=model_name,
-            id=f'{developer}/{base_model_name}',  # Corrected 'id' logic
-            developer=developer,
+            id=f'{inference_platform}/{base_model_name}',
+            developer=inference_platform,
             inference_platform=inference_platform,
         )
 
@@ -208,13 +200,23 @@ class HostedOpenHandler(ModelPathHandler):
         elif path_lower.startswith('fireworks'):
             # e.g. fireworks/accounts/fireworks/models/deepseek-r1-0528
             model_name = self.parts[-1]
-            # Assuming get_model_organization_info returns an object with a 'organization' key
-            inferred_org_name = get_model_organization_info(model_name)
-            developer = (
-                inferred_org_name
-                if inferred_org_name != 'not_found'
-                else 'unknown'
+            family_developers = {
+                'deepseek-': 'deepseek-ai',
+                'llama-': 'meta-llama',
+                'qwen': 'qwen',
+            }
+            developer = next(
+                (
+                    family_developer
+                    for prefix, family_developer in family_developers.items()
+                    if model_name.casefold().startswith(prefix)
+                ),
+                '',
             )
+            if not developer:
+                raise ValueError(
+                    f'unreviewed Fireworks model identity: {model_name!r}'
+                )
             model_id = f'{developer}/{model_name}'
 
         if developer == 'unknown':
@@ -280,6 +282,7 @@ MODEL_HANDLER_MAP: Dict[str, Type[ModelPathHandler]] = {
     # Cloud API Providers
     'bedrock': CloudApiHandler,
     'azure-ai': CloudApiHandler,
+    'azureai': CloudApiHandler,
     # Hosted Open Providers
     'groq': HostedOpenHandler,
     'together': HostedOpenHandler,
@@ -294,6 +297,7 @@ MODEL_HANDLER_MAP: Dict[str, Type[ModelPathHandler]] = {
     'vllm': InferenceEngineHandler,
     'ollama': InferenceEngineHandler,
     'llamacpp': InferenceEngineHandler,
+    'llama-cpp-python': InferenceEngineHandler,
     'sglang': InferenceEngineHandler,
 }
 
@@ -313,22 +317,10 @@ def extract_model_info_from_model_path(model_path: str) -> ModelInfo:
     handler_class = MODEL_HANDLER_MAP.get(provider_candidate, None)
 
     if handler_class:
-        try:
-            handler = handler_class(model_path)
-            return handler.handle()
-        except Exception as e:
-            print(
-                f'Handler failed for {model_path}: {e}. Fallback into unknown model developer.'
-            )
-            pass
+        handler = handler_class(model_path)
+        return handler.handle()
 
-    # Fallback
-    return ModelInfo(
-        name=model_path,
-        id=model_path,
-        developer='unknown',
-        inference_platform='unknown',
-    )
+    raise ValueError(f'unsupported Inspect model provider or engine: {model_path!r}')
 
 
 SYNTHETIC_METRIC_CONFIG_FIELDS = {

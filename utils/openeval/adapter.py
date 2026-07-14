@@ -66,6 +66,7 @@ from every_eval_ever.instance_level_types import (
     InteractionType,
     Output,
 )
+from every_eval_ever.openeval import openeval_provenance
 
 HF_REPO_ID = 'human-centered-eval/OpenEval'
 HF_REVISION = 'main'
@@ -565,12 +566,24 @@ def normalize_model_info(
     model_id = get_model_id(name, developer)
     model_slug = normalize_slug(model_id.split('/', 1)[-1], name)
     details = stringify_details({'raw_model_name': name, 'model_size': size})
+    provenance = openeval_provenance(model_id)
+    details.update(
+        {
+            'deployment_type': provenance.deployment_type,
+            'model_availability': provenance.model_availability,
+        }
+    )
     return (
         ModelInfo(
             name=name,
             id=model_id,
             developer=developer,
             additional_details=details,
+            inference_platform=provenance.inference_platform,
+            inference_engine={
+                'name': provenance.inference_engine_name,
+                'version': provenance.inference_engine_version,
+            },
         ),
         normalize_slug(developer),
         model_slug,

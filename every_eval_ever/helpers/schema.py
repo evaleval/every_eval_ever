@@ -1,18 +1,11 @@
 """Schema construction helpers for building evaluation logs."""
 
-import json
 import time
-from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from every_eval_ever.schema import get_schema_version
 
-def _load_schema_version() -> str:
-    schema_path = Path(__file__).parent.parent.parent / 'eval.schema.json'
-    with schema_path.open() as f:
-        return json.load(f)['version']
-
-
-SCHEMA_VERSION = _load_schema_version()
+SCHEMA_VERSION = get_schema_version()
 
 from every_eval_ever.eval_types import (
     EvaluationLog,

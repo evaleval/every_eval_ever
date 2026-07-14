@@ -10,6 +10,7 @@ import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
+from every_eval_ever.adapters.bfcl.provenance import bfcl_provenance
 from every_eval_ever.helpers import SCHEMA_VERSION
 
 SOURCE_CSV_URL = "https://gorilla.cs.berkeley.edu/data_overall.csv"
@@ -524,11 +525,17 @@ def make_log(
     org = row["Organization"]
     developer = developer_slug(org)
     model = model_slug(raw_model)
+    model_id = f"{developer}/{model}"
+    source_license = row.get("License", "")
+    model_link = row.get("Model Link", "")
+    provenance = bfcl_provenance(model_id, source_license, model_link)
 
     additional_details = {
         "raw_model_name": raw_model,
         "organization": org,
-        "license": row.get("License", ""),
+        "license": source_license,
+        "deployment_type": provenance.deployment_type,
+        "model_availability": provenance.model_availability,
     }
     mode = parse_mode(raw_model)
     if mode is not None:
@@ -558,8 +565,13 @@ def make_log(
         },
         "model_info": {
             "name": raw_model,
-            "id": f"{developer}/{model}",
+            "id": model_id,
             "developer": developer,
+            "inference_platform": provenance.inference_platform,
+            "inference_engine": {
+                "name": provenance.inference_engine_name,
+                "version": provenance.inference_engine_version,
+            },
             "additional_details": additional_details,
         },
         "evaluation_results": make_results(row, observed_max_scores),
@@ -618,15 +630,16 @@ def main() -> None:
         )
         return
 
-    exported = 0
-    for row in rows:
-        out_path = export_one(
-            row, args.output_dir, observed_max_scores, retrieved_timestamp
+    bundles = [
+        make_log(row, observed_max_scores, retrieved_timestamp) for row in rows
+    ]
+    for log, developer, model in bundles:
+        out_path = write_log(
+            log, args.output_dir, developer, model
         )
         print(out_path)
-        exported += 1
 
-    print(f"Exported {exported} model(s).")
+    print(f"Exported {len(bundles)} model(s).")
 
 
 if __name__ == "__main__":

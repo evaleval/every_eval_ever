@@ -24,6 +24,9 @@ import tempfile
 import time
 from pathlib import Path
 
+from every_eval_ever.adapters.multi_swe_bench.provenance import (
+    multi_swe_bench_provenance,
+)
 from every_eval_ever.eval_types import (
     AgenticEvalConfig,
     AvailableTool,
@@ -84,6 +87,9 @@ def convert_submission(
     agent, primary_model = parse_model_from_dir(dir_name)
     developer = get_developer(primary_model)
     model_id = get_model_id(primary_model, developer)
+    provenance = multi_swe_bench_provenance(model_id)
+    developer = provenance.developer
+    model_id = provenance.model_id
 
     sanitized_id = re.sub(r'[^a-zA-Z0-9_.-]', '_', model_id.replace('/', '_'))
     submission_slug = re.sub(r'[^a-zA-Z0-9_.-]', '_', dir_name)
@@ -99,6 +105,8 @@ def convert_submission(
         'verified': str(metadata.get('verified', '')),
         'submission_dir': dir_name,
         'agent': agent,
+        'deployment_type': provenance.deployment_type,
+        'model_availability': provenance.model_availability,
     }
 
     score_details: dict[str, str] = {
@@ -142,6 +150,12 @@ def convert_submission(
                     available_tools=[AvailableTool(name='bash')],
                 ),
             ),
+            additional_details={
+                'agent': agent,
+                'submission_dir': dir_name,
+                'agent_site': str(metadata.get('site', '')) or 'unknown',
+                'agent_oss': str(metadata.get('oss', '')),
+            },
         ),
     )
 
@@ -161,8 +175,13 @@ def convert_submission(
         model_info=ModelInfo(
             name=primary_model,
             id=model_id,
-            developer=developer if developer != 'unknown' else None,
+            developer=developer,
             additional_details=additional_details,
+            inference_platform=provenance.inference_platform,
+            inference_engine={
+                'name': provenance.inference_engine_name,
+                'version': provenance.inference_engine_version,
+            },
         ),
         evaluation_results=[eval_result],
     )
@@ -210,6 +229,11 @@ def main():
                     errors += 1
 
     print(f'\nGenerated {count} files, {errors} errors → {OUTPUT_BASE}/')
+    if errors:
+        raise RuntimeError(
+            f'Multi-SWE-bench refresh failed for {errors} submission(s); '
+            'partial output must not be published'
+        )
 
 
 if __name__ == '__main__':

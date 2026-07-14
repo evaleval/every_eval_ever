@@ -33,6 +33,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable
 
+from every_eval_ever.adapters.mt_bench.provenance import (
+    MT_BENCH_DEVELOPER_OVERRIDES,
+    mt_bench_provenance,
+)
 from every_eval_ever.eval_types import (
     EvalLibrary,
     EvaluationLog,
@@ -81,42 +85,7 @@ JUDGE_PROMPT_DESCRIPTION = (
 # the developer mappings in helpers/developer.py. Provide explicit overrides
 # for every model in the canonical pre-generated file so each model lands
 # under a meaningful developer slug rather than under "unknown".
-DEVELOPER_OVERRIDES: dict[str, str] = {
-    'alpaca-13b': 'stanford',
-    'baize-v2-13b': 'project-baize',
-    'chatglm-6b': 'thudm',
-    'claude-instant-v1': 'anthropic',
-    'claude-v1': 'anthropic',
-    'dolly-v2-12b': 'databricks',
-    'falcon-40b-instruct': 'tiiuae',
-    'fastchat-t5-3b': 'lmsys',
-    'gpt-3.5-turbo': 'openai',
-    'gpt-4': 'openai',
-    'gpt4all-13b-snoozy': 'nomic-ai',
-    'guanaco-33b': 'timdettmers',
-    'guanaco-65b': 'timdettmers',
-    'h2ogpt-oasst-open-llama-13b': 'h2oai',
-    'koala-13b': 'young-geng',
-    'llama-13b': 'meta',
-    'Llama-2-7b-chat': 'meta',
-    'Llama-2-13b-chat': 'meta',
-    'Llama-2-70b-chat': 'meta',
-    'mpt-7b-chat': 'mosaicml',
-    'mpt-30b-chat': 'mosaicml',
-    'mpt-30b-instruct': 'mosaicml',
-    'nous-hermes-13b': 'nousresearch',
-    'oasst-sft-4-pythia-12b': 'openassistant',
-    'oasst-sft-7-llama-30b': 'openassistant',
-    'palm-2-chat-bison-001': 'google',
-    'rwkv-4-raven-14b': 'rwkv',
-    'stablelm-tuned-alpha-7b': 'stabilityai',
-    'tulu-30b': 'allenai',
-    'vicuna-7b-v1.3': 'lmsys',
-    'vicuna-13b-v1.3': 'lmsys',
-    'vicuna-33b-v1.3': 'lmsys',
-    'wizardlm-13b': 'wizardlm',
-    'wizardlm-30b': 'wizardlm',
-}
+DEVELOPER_OVERRIDES = MT_BENCH_DEVELOPER_OVERRIDES
 
 
 @dataclass
@@ -179,6 +148,11 @@ def parse_args() -> argparse.Namespace:
             'Read pre-downloaded gpt-4_single.jsonl instead of fetching from '
             'the LMSYS Hugging Face Space.'
         ),
+    )
+    parser.add_argument(
+        '--save-raw-jsonl',
+        type=Path,
+        help='Save the JSONL input used for offline replay.',
     )
     parser.add_argument(
         '--output-dir',
@@ -247,10 +221,21 @@ def normalize_developer_and_slug(model: str) -> tuple[str, str]:
 
 
 def make_judge_model_info() -> ModelInfo:
+    model_id = get_model_id(JUDGE_MODEL_NAME)
+    provenance = mt_bench_provenance(model_id)
     return ModelInfo(
         name=JUDGE_MODEL_NAME,
-        id=get_model_id(JUDGE_MODEL_NAME),
+        id=model_id,
         developer='openai',
+        inference_platform=provenance.inference_platform,
+        inference_engine={
+            'name': provenance.inference_engine_name,
+            'version': provenance.inference_engine_version,
+        },
+        additional_details={
+            'deployment_type': provenance.deployment_type,
+            'model_availability': provenance.model_availability,
+        },
     )
 
 
@@ -357,6 +342,7 @@ def make_log(
 
     developer, model_slug = normalize_developer_and_slug(scores.model)
     model_id = get_model_id(scores.model, developer)
+    provenance = mt_bench_provenance(model_id)
     judge_model_info = make_judge_model_info()
     judge_prompt_templates = sorted(scores.judge_prompt_templates)
 
@@ -445,7 +431,16 @@ def make_log(
             name=scores.model,
             id=model_id,
             developer=developer,
-            additional_details={'raw_model_name': scores.model},
+            inference_platform=provenance.inference_platform,
+            inference_engine={
+                'name': provenance.inference_engine_name,
+                'version': provenance.inference_engine_version,
+            },
+            additional_details={
+                'raw_model_name': scores.model,
+                'deployment_type': provenance.deployment_type,
+                'model_availability': provenance.model_availability,
+            },
         ),
         evaluation_results=results,
     )
@@ -482,6 +477,15 @@ def run(args: argparse.Namespace) -> int:
         rows: Iterable[dict] = list(load_judgments_file(args.input_jsonl))
     else:
         rows = list(fetch_judgments(args.source_url))
+    if args.save_raw_jsonl is not None:
+        args.save_raw_jsonl.parent.mkdir(parents=True, exist_ok=True)
+        args.save_raw_jsonl.write_text(
+            ''.join(
+                json.dumps(row, sort_keys=True, ensure_ascii=False) + '\n'
+                for row in rows
+            ),
+            encoding='utf-8',
+        )
 
     bundles = make_logs(rows)
     paths = export(bundles, args.output_dir)

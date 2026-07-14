@@ -100,7 +100,6 @@ def test_pubmedqa_eval():
     assert converted_eval.model_info.id == 'openai/gpt-4o-mini-2024-07-18'
     assert converted_eval.model_info.developer == 'openai'
     assert converted_eval.model_info.inference_platform == 'openai'
-    assert converted_eval.model_info.inference_engine is None
 
     results = converted_eval.evaluation_results
     assert (
@@ -242,7 +241,6 @@ def test_arc_sonnet_eval():
     assert converted_eval.model_info.id == 'anthropic/claude-sonnet-4-20250514'
     assert converted_eval.model_info.developer == 'anthropic'
     assert converted_eval.model_info.inference_platform == 'anthropic'
-    assert converted_eval.model_info.inference_engine is None
 
     results = converted_eval.evaluation_results
     assert (
@@ -283,7 +281,6 @@ def test_arc_qwen_eval():
     assert converted_eval.model_info.name == 'ollama/qwen2.5:0.5b'
     assert converted_eval.model_info.id == 'ollama/qwen2.5-0.5b'
     assert converted_eval.model_info.developer == 'ollama'
-    assert converted_eval.model_info.inference_platform is None
     assert converted_eval.model_info.inference_engine.name == 'ollama'
 
     results = converted_eval.evaluation_results
@@ -334,7 +331,6 @@ def test_gaia_eval():
     assert converted_eval.model_info.id == 'openai/gpt-4.1-mini-2025-04-14'
     assert converted_eval.model_info.developer == 'openai'
     assert converted_eval.model_info.inference_platform == 'openai'
-    assert converted_eval.model_info.inference_engine is None
 
     results = converted_eval.evaluation_results
     assert len(results) > 0
@@ -367,7 +363,9 @@ def test_humaneval_eval():
 def test_extract_evaluation_results_one_scorer_with_two_metrics():
     adapter = InspectAIAdapter()
     source_data = SourceDataHf(
-        dataset_name='synthetic_ds', source_type='hf_dataset'
+        dataset_name='synthetic_ds',
+        source_type='hf_dataset',
+        hf_repo='test/synthetic',
     )
     generation_config = GenerationConfig()
     scores = [
@@ -400,7 +398,9 @@ def test_extract_evaluation_results_one_scorer_with_two_metrics():
 def test_extract_evaluation_results_two_scorers_two_metrics_each():
     adapter = InspectAIAdapter()
     source_data = SourceDataHf(
-        dataset_name='synthetic_ds', source_type='hf_dataset'
+        dataset_name='synthetic_ds',
+        source_type='hf_dataset',
+        hf_repo='test/synthetic',
     )
     generation_config = GenerationConfig()
     scores = [
@@ -532,10 +532,9 @@ def test_supplemental_eval_details_fill_only_top_level_fields():
     )
     result = converted_eval.evaluation_results[0]
 
-    assert converted_eval.model_info.additional_details == {
-        'num_parameters': '42',
-        'is_test_model': 'true',
-    }
+    model_details = converted_eval.model_info.additional_details
+    assert model_details['num_parameters'] == '42'
+    assert model_details['is_test_model'] == 'true'
     assert result.source_data.additional_details['shuffled'] == 'False'
     assert result.source_data.additional_details['subset'] == '{"name": "full"}'
 

@@ -6,7 +6,7 @@ import hashlib
 import json
 import math
 import re
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -16,14 +16,13 @@ from huggingface_hub import hf_hub_download
 from huggingface_hub.errors import EntryNotFoundError, RepositoryNotFoundError
 
 from every_eval_ever.json_utils import StrictJSONError, strict_json_loads
-from every_eval_ever.source_index import SourceIndex
 
 MANIFEST_PATH = 'manifest.json'
 DEFAULT_DATASET_REPO_ID = 'evaleval/EEE_datastore'
-FINGERPRINT_VERSION = 'eee-semantic-v2'
-_QUANT_DECIMALS = 6
-_QUANT_FORMAT = f'.{_QUANT_DECIMALS}f'
-_TRIM_CHARS = '"\'.,;:!?()[]{} '
+FINGERPRINT_VERSION = 'eee-semantic-v3'
+INSTANCE_DEDUP_UNSUPPORTED = (
+    'instance-level JSONL deduplication is not supported yet'
+)
 _SHA256_RE = re.compile(r'^[0-9a-f]{64}$')
 
 
@@ -64,8 +63,8 @@ def _require_number(value: Any, context: str) -> int | float:
 def _norm_str(value: Any) -> str | None:
     if value is None:
         return None
-    text = ' '.join(str(value).lower().split())
-    return text.strip(_TRIM_CHARS) or None
+    text = ' '.join(str(value).casefold().split())
+    return text or None
 
 
 def _quantize(value: Any) -> Any:
@@ -76,12 +75,16 @@ def _quantize(value: Any) -> Any:
     if isinstance(value, float):
         if not math.isfinite(value):
             raise ValueError('dedup identity cannot contain non-finite numbers')
-        text = format(value, _QUANT_FORMAT).rstrip('0').rstrip('.')
-        return '0' if text in {'', '-0'} else text
+        if value == 0:
+            return '0'
+        if value.is_integer():
+            return str(int(value))
+        return repr(value)
     return value
 
 
 def _canon(obj: Any) -> Any:
+    """Canonicalize JSON containers without recursive Python calls."""
     if obj is None:
         return None
     if isinstance(obj, bool):
@@ -89,12 +92,48 @@ def _canon(obj: Any) -> Any:
     if isinstance(obj, (int, float)):
         return _quantize(obj)
     if isinstance(obj, str):
-        return _norm_str(obj)
-    if isinstance(obj, dict):
-        return {key: _canon(value) for key, value in obj.items()}
-    if isinstance(obj, list):
-        return [_canon(value) for value in obj]
-    return obj
+        return obj
+    if not isinstance(obj, (dict, list)):
+        return obj
+
+    root: dict[str, Any] | list[Any] = {} if isinstance(obj, dict) else []
+    stack: list[
+        tuple[dict[str, Any] | list[Any], dict[str, Any] | list[Any]]
+    ] = [(obj, root)]
+    while stack:
+        source, target = stack.pop()
+        items = (
+            source.items() if isinstance(source, dict) else enumerate(source)
+        )
+        for key, value in items:
+            if isinstance(value, dict):
+                child: dict[str, Any] | list[Any] = {}
+                if isinstance(target, list):
+                    target.append(child)
+                else:
+                    target[key] = child
+                stack.append((value, child))
+            elif isinstance(value, list):
+                child = []
+                if isinstance(target, list):
+                    target.append(child)
+                else:
+                    target[key] = child
+                stack.append((value, child))
+            elif isinstance(value, (int, float)) and not isinstance(
+                value, bool
+            ):
+                canonical_value = _quantize(value)
+                if isinstance(target, list):
+                    target.append(canonical_value)
+                else:
+                    target[key] = canonical_value
+            else:
+                if isinstance(target, list):
+                    target.append(value)
+                else:
+                    target[key] = value
+    return root
 
 
 def _norm_url(value: Any) -> str:
@@ -225,6 +264,15 @@ def _metric_identity(metric_config: Any) -> dict[str, Any]:
         metric_id = _require_string(
             metric_id, 'evaluation result.metric_config metric identifier'
         )
+    metric_name = _optional_field(metric_config, 'metric_name')
+    if metric_name is not None:
+        metric_name = _require_string(
+            metric_name, 'evaluation result.metric_config.metric_name'
+        )
+    if metric_id is None and metric_name is None:
+        raise ValueError(
+            'evaluation result.metric_config requires metric_id or metric_name'
+        )
     raw_parameters = _optional_field(metric_config, 'metric_parameters')
     parameters = (
         None
@@ -234,7 +282,7 @@ def _metric_identity(metric_config: Any) -> dict[str, Any]:
         )
     )
     return {
-        'id': _norm_str(metric_id),
+        'id': _norm_str(metric_id if metric_id is not None else metric_name),
         'kind': _norm_str(_optional_field(metric_config, 'metric_kind')),
         'params': _canon(parameters),
         'score_type': _norm_str(_optional_field(metric_config, 'score_type')),
@@ -250,56 +298,61 @@ def _metric_identity(metric_config: Any) -> dict[str, Any]:
 def _generation_config_identity(
     generation_config: Any,
 ) -> dict[str, Any] | None:
+    """Return the complete normalized generation configuration."""
     if generation_config is None:
         return None
     generation_config = _require_mapping(
         generation_config, 'evaluation result.generation_config'
     )
-    args = _optional_field(generation_config, 'generation_args')
-    if args is None:
-        return {'present': True, 'args': None}
-    args = _require_mapping(
-        args, 'evaluation result.generation_config.generation_args'
+    return _canon(generation_config)
+
+
+def _model_identity(model_info: dict[str, Any]) -> dict[str, str | None]:
+    """Return model identity including weights and execution environment."""
+    raw_details = _optional_field(model_info, 'additional_details')
+    details = (
+        {}
+        if raw_details is None
+        else _require_mapping(
+            raw_details, 'aggregate.model_info.additional_details'
+        )
     )
-    raw_plan = _optional_field(args, 'eval_plan')
-    plan = (
-        None
-        if raw_plan is None
-        else _require_mapping(raw_plan, 'generation_args.eval_plan')
-    )
-    raw_limits = _optional_field(args, 'eval_limits')
-    limits = (
-        None
-        if raw_limits is None
-        else _require_mapping(raw_limits, 'generation_args.eval_limits')
+
+    def optional_detail(key: str) -> str | None:
+        value = _optional_field(details, key)
+        if value is None:
+            return None
+        return _norm_str(
+            _require_string(
+                value, f'aggregate.model_info.additional_details.{key}'
+            )
+        )
+
+    raw_engine = _optional_field(model_info, 'inference_engine')
+    engine = (
+        {}
+        if raw_engine is None
+        else _require_mapping(
+            raw_engine, 'aggregate.model_info.inference_engine'
+        )
     )
     return {
-        'temp': _quantize(_optional_field(args, 'temperature')),
-        'top_p': _quantize(_optional_field(args, 'top_p')),
-        'top_k': _optional_field(args, 'top_k'),
-        'max_tokens': _optional_field(args, 'max_tokens'),
-        'reasoning': _optional_field(args, 'reasoning'),
-        'plan': (
-            _norm_str(_optional_field(plan, 'name'))
-            if plan is not None
-            else None
+        'id': _norm_str(
+            _require_string(
+                _require_field(model_info, 'id', 'aggregate.model_info'),
+                'aggregate.model_info.id',
+            )
         ),
-        'time_limit': (
-            _optional_field(limits, 'time_limit')
-            if limits is not None
-            else None
+        'revision': optional_detail('model_revision'),
+        'precision': optional_detail('precision'),
+        'deployment_type': optional_detail('deployment_type'),
+        'inference_platform': _norm_str(
+            _optional_field(model_info, 'inference_platform')
         ),
-        'msg_limit': (
-            _optional_field(limits, 'message_limit')
-            if limits is not None
-            else None
+        'inference_engine_name': _norm_str(_optional_field(engine, 'name')),
+        'inference_engine_version': _norm_str(
+            _optional_field(engine, 'version')
         ),
-        'token_limit': (
-            _optional_field(limits, 'token_limit')
-            if limits is not None
-            else None
-        ),
-        'max_attempts': _optional_field(args, 'max_attempts'),
     }
 
 
@@ -329,7 +382,7 @@ def _result_identity(result: dict[str, Any]) -> dict[str, Any]:
                 'evaluation result.score_details.score',
             )
         ),
-        'gen': _generation_config_identity(
+        'generation_config': _generation_config_identity(
             _optional_field(result, 'generation_config')
         ),
     }
@@ -347,6 +400,10 @@ def compute_aggregate_identity(data: dict[str, Any]) -> str:
     raw_results = _require_field(data, 'evaluation_results', 'aggregate')
     if not isinstance(raw_results, list):
         raise ValueError('aggregate evaluation_results must be a list')
+    if not raw_results:
+        raise ValueError(
+            'aggregate evaluation_results must contain at least one result'
+        )
     result_items: list[dict[str, Any]] = []
     for item in raw_results:
         if not isinstance(item, dict):
@@ -355,18 +412,25 @@ def compute_aggregate_identity(data: dict[str, Any]) -> str:
             )
         result_items.append(item)
     identity = {
-        'model': _norm_str(
-            _require_string(
-                _require_field(model_info, 'id', 'aggregate.model_info'),
-                'aggregate.model_info.id',
-            )
-        ),
-        'lib': _norm_str(
-            _require_string(
-                _require_field(eval_library, 'name', 'aggregate.eval_library'),
-                'aggregate.eval_library.name',
-            )
-        ),
+        'model': _model_identity(model_info),
+        'evaluation_library': {
+            'name': _norm_str(
+                _require_string(
+                    _require_field(
+                        eval_library, 'name', 'aggregate.eval_library'
+                    ),
+                    'aggregate.eval_library.name',
+                )
+            ),
+            'version': _norm_str(
+                _require_string(
+                    _require_field(
+                        eval_library, 'version', 'aggregate.eval_library'
+                    ),
+                    'aggregate.eval_library.version',
+                )
+            ),
+        },
         'results': [_result_identity(item) for item in result_items],
     }
     canonical = _canon(identity)
@@ -414,12 +478,13 @@ def collection_key(file_path: str) -> str:
 
 @dataclass(frozen=True)
 class DedupResult:
-    """Deduplication result for one aggregate file."""
+    """Deduplication result or explicit unsupported-file disposition."""
 
     file_path: str
-    fingerprint: str
+    fingerprint: str | None
     duplicate_of: str | None = None
     matched_manifest_path: str | None = None
+    skipped_reason: str | None = None
 
 
 @dataclass(frozen=True)
@@ -428,6 +493,152 @@ class DedupReport:
 
     results: Sequence[DedupResult] = field(default_factory=tuple)
     warnings: Sequence[str] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True)
+class DedupSelection:
+    """Package-owned acceptance decision for a candidate file batch."""
+
+    accepted_paths: tuple[str, ...]
+    duplicate_results: tuple[DedupResult, ...]
+    skipped_results: tuple[DedupResult, ...]
+
+
+def _candidate_kind(file_path: str) -> str:
+    """Classify a datastore candidate while enforcing the current data/ scope."""
+    collection_key(file_path)
+    if file_path.endswith('.jsonl'):
+        return 'instance'
+    if file_path.endswith('.json'):
+        return 'aggregate'
+    raise ValueError(
+        'Duplicate check only accepts aggregate .json or instance .jsonl '
+        f'paths under data/: {file_path!r}'
+    )
+
+
+class DedupSession:
+    """One manifest-backed duplicate comparison flow for all callers.
+
+    A session can consume multiple batches while retaining intra-request
+    fingerprints. Aggregate JSON files are fingerprinted and compared globally.
+    Instance JSONL files receive an explicit skipped result until an instance
+    identity contract exists.
+    """
+
+    def __init__(self, manifest: Mapping[str, Any]) -> None:
+        self._manifest = dict(manifest)
+        validate_manifest(self._manifest)
+        self._manifest_fingerprint_to_paths: dict[str, list[str]] = {}
+        for path, entry in sorted(self._manifest['files'].items()):
+            self._manifest_fingerprint_to_paths.setdefault(
+                entry['fingerprint'], []
+            ).append(path)
+        self._candidate_fingerprint_to_path: dict[str, str] = {}
+        self._results: list[DedupResult] = []
+        self._seen_paths: set[str] = set()
+
+    @property
+    def report(self) -> DedupReport:
+        return DedupReport(results=tuple(self._results))
+
+    @property
+    def fingerprints(self) -> dict[str, str]:
+        return {
+            result.file_path: result.fingerprint
+            for result in self._results
+            if result.fingerprint is not None
+        }
+
+    def _reserve_path(self, file_path: str) -> None:
+        if file_path in self._seen_paths:
+            raise ValueError(
+                f'Duplicate check received candidate path more than once: {file_path!r}'
+            )
+        self._seen_paths.add(file_path)
+
+    def _add_fingerprint(self, file_path: str, fingerprint: str) -> DedupResult:
+        if _candidate_kind(file_path) != 'aggregate':
+            raise ValueError(
+                f'Only aggregate JSON can have a semantic fingerprint: {file_path!r}'
+            )
+        if not isinstance(fingerprint, str) or not _SHA256_RE.fullmatch(
+            fingerprint
+        ):
+            raise ValueError(
+                f'candidate {file_path!r} has invalid SHA-256 fingerprint'
+            )
+
+        manifest_matches = self._manifest_fingerprint_to_paths.get(
+            fingerprint, []
+        )
+        matched_manifest_path = next(
+            (path for path in manifest_matches if path != file_path),
+            file_path if file_path in manifest_matches else None,
+        )
+        batch_match = self._candidate_fingerprint_to_path.get(fingerprint)
+        duplicate_of = None
+        if (
+            matched_manifest_path is not None
+            and matched_manifest_path != file_path
+        ):
+            duplicate_of = matched_manifest_path
+        elif matched_manifest_path is None and batch_match is not None:
+            duplicate_of = batch_match
+
+        result = DedupResult(
+            file_path=file_path,
+            fingerprint=fingerprint,
+            duplicate_of=duplicate_of,
+            matched_manifest_path=matched_manifest_path,
+        )
+        self._results.append(result)
+        self._candidate_fingerprint_to_path.setdefault(fingerprint, file_path)
+        return result
+
+    def add_fingerprints(
+        self, file_fingerprints: Mapping[str, str]
+    ) -> DedupReport:
+        """Add already-computed aggregate fingerprints to this session."""
+        added: list[DedupResult] = []
+        for file_path, fingerprint in sorted(file_fingerprints.items()):
+            self._reserve_path(file_path)
+            added.append(self._add_fingerprint(file_path, fingerprint))
+        return DedupReport(results=tuple(added))
+
+    def check_files(
+        self,
+        file_paths: Sequence[str],
+        local_paths: Mapping[str, str | Path],
+    ) -> DedupReport:
+        """Classify, fingerprint, and compare one candidate batch."""
+        added: list[DedupResult] = []
+        for file_path in sorted(file_paths):
+            self._reserve_path(file_path)
+            if _candidate_kind(file_path) == 'instance':
+                result = DedupResult(
+                    file_path=file_path,
+                    fingerprint=None,
+                    skipped_reason=INSTANCE_DEDUP_UNSUPPORTED,
+                )
+                self._results.append(result)
+                added.append(result)
+                continue
+
+            local_path = local_paths.get(file_path)
+            if local_path is None:
+                raise ValueError(
+                    f'Duplicate check requires a local path for {file_path}'
+                )
+            try:
+                fingerprint = compute_file_fingerprint(local_path)
+            except Exception as exc:
+                raise ValueError(
+                    f'Duplicate check failed for {file_path}: '
+                    f'{type(exc).__name__}: {exc}'
+                ) from exc
+            added.append(self._add_fingerprint(file_path, fingerprint))
+        return DedupReport(results=tuple(added))
 
 
 def load_manifest(
@@ -516,59 +727,16 @@ def validate_manifest(
             raise ManifestError(
                 f'{manifest_path} entry {path!r} has invalid SHA-256 fingerprint'
             )
-    if 'sources' in manifest:
-        try:
-            SourceIndex.from_manifest(manifest)
-        except ValueError as exc:
-            raise ManifestError(
-                f'{manifest_path} has invalid pre-download source index: {exc}'
-            ) from exc
 
 
 def build_dedup_report(
     file_fingerprints: dict[str, str],
     manifest: dict[str, Any],
 ) -> DedupReport:
-    """Compare candidate fingerprints against manifest and same-batch files."""
-    validate_manifest(manifest)
-    results: list[DedupResult] = []
-    manifest_files: dict[str, dict[str, Any]] = manifest['files']
-    manifest_fingerprint_to_path: dict[tuple[str, str], str] = {
-        (collection_key(path), entry['fingerprint']): path
-        for path, entry in manifest_files.items()
-    }
-    batch_fingerprint_to_path: dict[tuple[str, str], str] = {}
-
-    for file_path in sorted(file_fingerprints):
-        fingerprint = file_fingerprints[file_path]
-        if not isinstance(fingerprint, str) or not _SHA256_RE.fullmatch(
-            fingerprint
-        ):
-            raise ValueError(
-                f'candidate {file_path!r} has invalid SHA-256 fingerprint'
-            )
-        key = (collection_key(file_path), fingerprint)
-        matched_manifest_path = manifest_fingerprint_to_path.get(key)
-        batch_match = batch_fingerprint_to_path.get(key)
-        duplicate_of = None
-        if (
-            matched_manifest_path is not None
-            and matched_manifest_path != file_path
-        ):
-            duplicate_of = matched_manifest_path
-        elif matched_manifest_path is None and batch_match is not None:
-            duplicate_of = batch_match
-        results.append(
-            DedupResult(
-                file_path=file_path,
-                fingerprint=fingerprint,
-                duplicate_of=duplicate_of,
-                matched_manifest_path=matched_manifest_path,
-            )
-        )
-        batch_fingerprint_to_path.setdefault(key, file_path)
-
-    return DedupReport(results=tuple(results))
+    """Compare aggregate fingerprints through the shared session flow."""
+    session = DedupSession(manifest)
+    session.add_fingerprints(file_fingerprints)
+    return session.report
 
 
 def check_duplicates(
@@ -576,34 +744,48 @@ def check_duplicates(
     local_paths: dict[str, str | Path],
     manifest: dict[str, Any],
 ) -> DedupReport:
-    """Compute fingerprints for aggregate JSON files and compare to manifest."""
-    file_fingerprints: dict[str, str] = {}
-    for file_path in sorted(file_paths):
-        if not file_path.endswith('.json'):
-            raise ValueError(
-                f'Duplicate check only accepts .json files: {file_path}'
-            )
-        local_path = local_paths.get(file_path)
-        if local_path is None:
-            raise ValueError(
-                f'Duplicate check requires a local path for {file_path}'
-            )
-        try:
-            file_fingerprints[file_path] = compute_file_fingerprint(local_path)
-        except Exception as exc:
-            raise ValueError(
-                f'Duplicate check failed for {file_path}: '
-                f'{type(exc).__name__}: {exc}'
-            ) from exc
+    """Run the shared manifest-backed flow for aggregate and instance files."""
+    session = DedupSession(manifest)
+    session.check_files(file_paths, local_paths)
+    return session.report
 
-    report = build_dedup_report(file_fingerprints, manifest)
-    return report
+
+def select_unique_files(
+    file_paths: Sequence[str],
+    local_paths: Mapping[str, str | Path],
+    manifest: dict[str, Any],
+) -> DedupSelection:
+    """Return the files accepted by the canonical manifest-backed flow.
+
+    Aggregate candidates already represented by the manifest, or duplicated
+    elsewhere in the same batch, are rejected. Explicitly unsupported file
+    kinds such as instance JSONL are reported separately and are not silently
+    treated as deduplicated.
+    """
+    report = check_duplicates(list(file_paths), dict(local_paths), manifest)
+    accepted: list[str] = []
+    duplicates: list[DedupResult] = []
+    skipped: list[DedupResult] = []
+    for result in report.results:
+        if result.skipped_reason is not None:
+            skipped.append(result)
+        elif (
+            result.duplicate_of is not None
+            or result.matched_manifest_path is not None
+        ):
+            duplicates.append(result)
+        else:
+            accepted.append(result.file_path)
+    return DedupSelection(
+        accepted_paths=tuple(accepted),
+        duplicate_results=tuple(duplicates),
+        skipped_results=tuple(skipped),
+    )
 
 
 def empty_manifest() -> dict[str, Any]:
-    """Return an explicit empty manifest for same-batch-only comparison."""
+    """Return a new manifest seed for semantic duplicate detection."""
     return {
         'fingerprint_version': FINGERPRINT_VERSION,
         'files': {},
-        'sources': {},
     }

@@ -32,9 +32,10 @@ from dataclasses import dataclass, field
 from html import unescape
 from pathlib import Path
 from typing import Optional
-from urllib.error import URLError
 from urllib.request import Request, urlopen
 
+from every_eval_ever.adapters.hal.metrics import hal_metric_identity
+from every_eval_ever.adapters.hal.provenance import hal_provenance
 from every_eval_ever.helpers import SCHEMA_VERSION
 
 HAL_BASE_URL = 'https://hal.cs.princeton.edu'
@@ -486,7 +487,9 @@ def _parse_accuracy_cell(
     accuracy = _parse_percent(raw)
     ci_m = re.search(r'%\s*\(([+-][\d.]+/[+-][\d.]+)\)', raw)
     ci = ci_m.group(1) if ci_m else None
-    return accuracy or 0.0, ci, notes
+    if accuracy is None:
+        raise ValueError(f'Could not parse HAL accuracy value {raw!r}')
+    return accuracy, ci, notes
 
 
 def parse_table(html: str, benchmark: BenchmarkDef) -> list[LeaderboardRow]:
@@ -506,16 +509,22 @@ def parse_table(html: str, benchmark: BenchmarkDef) -> list[LeaderboardRow]:
         raw_cells = re.findall(r'<td[^>]*>(.*?)</td>', raw_row, re.DOTALL)
         cells = [_clean_cell(c) for c in raw_cells]
 
-        # Skip empty or very short rows
+        # A changed source table must fail instead of silently losing rows.
         if len(cells) < 6:
-            continue
+            raise ValueError(
+                f'{benchmark.slug}: leaderboard row has only {len(cells)} cells'
+            )
 
         try:
             rank = int(re.sub(r'\D', '', cells[0])) if cells[0].strip() else 0
-        except (ValueError, IndexError):
-            continue
+        except (ValueError, IndexError) as exc:
+            raise ValueError(
+                f'{benchmark.slug}: invalid leaderboard rank {cells[0]!r}'
+            ) from exc
         if rank == 0:
-            continue
+            raise ValueError(
+                f'{benchmark.slug}: leaderboard rank must be positive'
+            )
 
         agent_name, is_pareto, _, submitter = _parse_agent_cell(cells[1])
         model_raw = cells[2]
@@ -546,8 +555,10 @@ def parse_table(html: str, benchmark: BenchmarkDef) -> list[LeaderboardRow]:
         if runs_idx < len(cells):
             try:
                 runs = int(cells[runs_idx].strip())
-            except ValueError:
-                runs = 1
+            except ValueError as exc:
+                raise ValueError(
+                    f'{benchmark.slug}: invalid run count {cells[runs_idx]!r}'
+                ) from exc
 
         results.append(
             LeaderboardRow(
@@ -596,11 +607,24 @@ def build_evaluation_result(
     row: LeaderboardRow,
     details: Optional[dict] = None,
 ) -> dict:
-    score_details: dict = {'score': round(score, 6)}
-    if details:
-        score_details['details'] = {
-            k: str(v) for k, v in details.items() if v is not None
-        }
+    score_metadata = {
+        **(details or {}),
+        'hal_rank': row.rank,
+        'verified': row.verified,
+        'is_pareto': row.is_pareto,
+        'total_cost_usd': row.cost_usd,
+        'cost_confidence_interval': row.cost_ci,
+        'accuracy_confidence_interval': row.accuracy_ci,
+        'notes': row.notes,
+    }
+    score_details: dict = {
+        'score': round(score, 6),
+        'details': {
+            key: str(value)
+            for key, value in score_metadata.items()
+            if value is not None
+        },
+    }
 
     available_tools = [
         {
@@ -610,11 +634,28 @@ def build_evaluation_result(
         for t in benchmark.tools
     ]
 
+    metric_id, metric_name = hal_metric_identity(
+        benchmark.slug, evaluation_name
+    )
+    generation_details = {
+        'agent_scaffold': row.agent_name,
+        'hal_model_name': row.model_raw,
+        'runs': str(row.runs),
+    }
+    effort = _effort_level(row.model_raw)
+    if effort is not None:
+        generation_details['inference_effort'] = effort
+
     return {
         'evaluation_name': evaluation_name,
         'source_data': build_source_data(benchmark),
         'metric_config': {
             'evaluation_description': description,
+            'metric_id': metric_id,
+            'metric_name': metric_name,
+            'metric_kind': 'accuracy',
+            'metric_unit': 'proportion',
+            'metric_parameters': {},
             'lower_is_better': False,
             'score_type': 'continuous',
             'min_score': 0.0,
@@ -628,27 +669,7 @@ def build_evaluation_result(
                 },
             },
             'additional_details': {
-                'agent_scaffold': row.agent_name,
-                'hal_rank': str(row.rank),
-                'runs': str(row.runs),
-                'verified': str(row.verified),
-                'is_pareto': str(row.is_pareto),
-                **(
-                    {'total_cost_usd': str(row.cost_usd)}
-                    if row.cost_usd is not None
-                    else {}
-                ),
-                **(
-                    {'cost_confidence_interval': row.cost_ci}
-                    if row.cost_ci
-                    else {}
-                ),
-                **(
-                    {'accuracy_confidence_interval': row.accuracy_ci}
-                    if row.accuracy_ci
-                    else {}
-                ),
-                **({'notes': row.notes} if row.notes else {}),
+                **generation_details,
             },
         },
     }
@@ -665,6 +686,7 @@ def build_eee_record(
     Returns: (record_dict, developer_slug, model_slug)
     """
     model_id = get_model_id(row.model_raw)
+    provenance = hal_provenance(model_id)
     developer = model_id.split('/')[0] if '/' in model_id else 'unknown'
     model_slug_clean = (
         model_id.split('/', 1)[-1] if '/' in model_id else model_id
@@ -745,7 +767,16 @@ def build_eee_record(
             'name': row.model_raw,
             'id': model_id,
             'developer': developer if developer != 'unknown' else None,
-            'additional_details': model_additional,
+            'inference_platform': provenance.inference_platform,
+            'inference_engine': {
+                'name': provenance.inference_engine_name,
+                'version': provenance.inference_engine_version,
+            },
+            'additional_details': {
+                **model_additional,
+                'deployment_type': provenance.deployment_type,
+                'model_availability': provenance.model_availability,
+            },
         },
         'evaluation_results': eval_results,
     }
@@ -786,45 +817,30 @@ def process_benchmark(
     print(f'\n{"=" * 60}')
     print(f'Fetching {benchmark.name} from {url} …')
 
-    try:
-        html = _fetch_page(url)
-    except URLError as e:
-        print(f'  ERROR fetching page: {e}')
-        return 0, 1
-
-    try:
-        rows = parse_table(html, benchmark)
-    except ValueError as e:
-        print(f'  ERROR parsing table: {e}')
-        return 0, 1
+    html = _fetch_page(url)
+    rows = parse_table(html, benchmark)
 
     print(f'  Found {len(rows)} leaderboard entries')
 
     benchmark_out_root = out_root / benchmark.output_name
-    saved = 0
-    errors = 0
-
+    prepared: list[tuple[dict, str, str, LeaderboardRow]] = []
     for row in rows:
-        try:
-            record, developer, model_slug = build_eee_record(
-                benchmark, row, retrieved_timestamp
-            )
-            path = save_record(
-                record, benchmark_out_root, developer, model_slug
-            )
-            score_pct = f'{row.accuracy * 100:.2f}%'
-            cost_str = (
-                f'${row.cost_usd:.2f}' if row.cost_usd is not None else 'N/A'
-            )
-            print(
-                f'  [{row.rank:2d}] {row.model_raw:<45s}  {score_pct}  {cost_str}  → {path.relative_to(out_root)}'
-            )
-            saved += 1
-        except Exception as e:
-            print(f'  ERROR processing row {row.rank} ({row.model_raw!r}): {e}')
-            errors += 1
+        record, developer, model_slug = build_eee_record(
+            benchmark, row, retrieved_timestamp
+        )
+        prepared.append((record, developer, model_slug, row))
 
-    return saved, errors
+    for record, developer, model_slug, row in prepared:
+        path = save_record(record, benchmark_out_root, developer, model_slug)
+        score_pct = f'{row.accuracy * 100:.2f}%'
+        cost_str = (
+            f'${row.cost_usd:.2f}' if row.cost_usd is not None else 'N/A'
+        )
+        print(
+            f'  [{row.rank:2d}] {row.model_raw:<45s}  {score_pct}  {cost_str}  → {path.relative_to(out_root)}'
+        )
+
+    return len(prepared), 0
 
 
 def main() -> None:

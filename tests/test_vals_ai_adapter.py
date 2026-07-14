@@ -14,6 +14,20 @@ FIXTURE_PATH = (
 def sample_payload() -> dict:
     return {
         'source_url': 'https://www.vals.ai/benchmarks',
+        'model_registry': {
+            'openai/gpt-5.4': {
+                'company': 'OpenAI',
+                'open_weights': False,
+            },
+            'anthropic/claude-sonnet-4-6': {
+                'company': 'Anthropic',
+                'open_weights': False,
+            },
+            'anthropic/claude-opus-4-7': {
+                'company': 'Anthropic',
+                'open_weights': False,
+            },
+        },
         'benchmarks': [
             {
                 'source_url': 'https://www.vals.ai/benchmarks/finance_agent',
@@ -324,6 +338,18 @@ def test_extract_collection_fetches_index_and_benchmark_pages(monkeypatch):
             return '<a href="/benchmarks/aime">AIME</a>'
         if url == 'https://example.test/benchmarks/aime':
             return page_html
+        if url == 'https://example.test/models':
+            return (
+                '<astro-island component-url="/_astro/ModelTable.abc.js">'
+                '</astro-island>'
+            )
+        if url == 'https://example.test/_astro/ModelTable.abc.js':
+            return 'import{x}from"./constants.def.js";'
+        if url == 'https://example.test/_astro/constants.def.js':
+            return (
+                'k={"openai/gpt-5":{company:"OpenAI",label:"GPT-5",'
+                'release_date:"2025-01-01",open_source:!1}}'
+            )
         raise AssertionError(f'unexpected fetch: {url}')
 
     monkeypatch.setattr(adapter, 'fetch_text', fake_fetch)
@@ -333,6 +359,9 @@ def test_extract_collection_fetches_index_and_benchmark_pages(monkeypatch):
     assert calls == [
         'https://example.test/benchmarks',
         'https://example.test/benchmarks/aime',
+        'https://example.test/models',
+        'https://example.test/_astro/ModelTable.abc.js',
+        'https://example.test/_astro/constants.def.js',
     ]
     assert payload['benchmarks'][0]['metadata']['benchmark'] == 'AIME'
 

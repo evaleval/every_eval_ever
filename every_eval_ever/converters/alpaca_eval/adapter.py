@@ -7,6 +7,9 @@ from typing import Any, Dict, List, Optional
 
 import requests
 
+from every_eval_ever.adapters.alpaca_eval.provenance import (
+    alpaca_eval_provenance,
+)
 from every_eval_ever.converters import SCHEMA_VERSION
 from every_eval_ever.converters.common.utils import get_current_unix_timestamp
 from every_eval_ever.eval_types import (
@@ -165,6 +168,7 @@ def _build_evaluation_results(
                 evaluation_name='Win Rate',
                 metric_config=MetricConfig(
                     metric_id='alpaca_eval.win_rate',
+                    metric_name='Win Rate',
                     evaluation_description=(
                         f'Fraction of outputs preferred over the '
                         f'{cfg["baseline"]} baseline by the '
@@ -190,6 +194,7 @@ def _build_evaluation_results(
                 evaluation_name='Length-Controlled Win Rate',
                 metric_config=MetricConfig(
                     metric_id='alpaca_eval.lc_win_rate',
+                    metric_name='Length-Controlled Win Rate',
                     evaluation_description=(
                         'Win rate debiased for output length, raising '
                         'Chatbot Arena rank correlation from 0.93 to 0.98.'
@@ -214,6 +219,7 @@ def _build_evaluation_results(
                 evaluation_name='Discrete Win Rate',
                 metric_config=MetricConfig(
                     metric_id='alpaca_eval.discrete_win_rate',
+                    metric_name='Discrete Win Rate',
                     evaluation_description=(
                         'Binary win rate — no partial credit for ties.'
                     ),
@@ -234,6 +240,7 @@ def _build_evaluation_results(
                 evaluation_name='Average Response Length',
                 metric_config=MetricConfig(
                     metric_id='alpaca_eval.avg_length',
+                    metric_name='Average Response Length',
                     evaluation_description=(
                         'Mean number of tokens in model responses.'
                     ),
@@ -292,6 +299,7 @@ class AlpacaEvalAdapter:
             model_id = (
                 f'{developer}/{model_name}' if developer else model_name
             )
+            provenance = alpaca_eval_provenance(model_id, developer)
 
             evaluation_id = (
                 f'{benchmark_key}/{model_id}/{retrieved_ts}'
@@ -328,7 +336,16 @@ class AlpacaEvalAdapter:
                 model_info=ModelInfo(
                     name=model_name,
                     id=model_id,
-                    developer=developer,
+                    developer=provenance.developer,
+                    additional_details={
+                        'deployment_type': provenance.deployment_type,
+                        'model_availability': provenance.model_availability,
+                    },
+                    inference_platform=provenance.inference_platform,
+                    inference_engine={
+                        'name': provenance.inference_engine_name,
+                        'version': provenance.inference_engine_version,
+                    },
                 ),
                 evaluation_results=eval_results,
             )

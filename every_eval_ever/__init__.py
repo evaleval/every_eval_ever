@@ -9,7 +9,6 @@ __all__ = [
     'dedup',
     'eval_types',
     'instance_level_types',
-    'source_index',
     'validation_core',
 ]
 
@@ -19,7 +18,6 @@ def __getattr__(name: str) -> Any:
         'dedup',
         'eval_types',
         'instance_level_types',
-        'source_index',
         'validation_core',
     }:
         module = importlib.import_module(f'.{name}', __name__)

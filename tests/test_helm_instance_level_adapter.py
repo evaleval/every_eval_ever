@@ -7,14 +7,14 @@ import pytest
 
 from every_eval_ever.converters.helm import adapter as helm_adapter_module
 from every_eval_ever.converters.helm.adapter import HELMAdapter
-from every_eval_ever.converters.helm.metrics import is_core_metric
 from every_eval_ever.converters.helm.instance_level_adapter import (
-    HELMInstanceLevelDataAdapter,
     _BINARY_CORRECTNESS_METRIC_NAMES,
+    HELMInstanceLevelDataAdapter,
     _evaluation_result_id,
     _is_correct_for_metric,
     _score_from_stat,
 )
+from every_eval_ever.converters.helm.metrics import is_core_metric
 from every_eval_ever.eval_types import EvaluatorRelationship
 from every_eval_ever.instance_level_types import (
     InstanceLevelEvaluationLog,
@@ -65,8 +65,7 @@ def _by_sample_and_metric(
 ) -> dict[tuple[str, str | None], InstanceLevelEvaluationLog]:
     """Index detail rows by the two fields that should be unique together."""
     return {
-        (log.sample_id, log.evaluation_result_id): log
-        for log in instance_logs
+        (log.sample_id, log.evaluation_result_id): log for log in instance_logs
     }
 
 
@@ -295,7 +294,9 @@ def test_per_sample_core_metric_rows_are_emitted():
         assert 'quasi_exact_match:test' in metric_ids
         assert 'num_prompt_tokens:test' not in metric_ids
         assert 'inference_runtime:test' not in metric_ids
-        assert all(log.evaluation_result_id is not None for log in rows_for_id147)
+        assert all(
+            log.evaluation_result_id is not None for log in rows_for_id147
+        )
         assert len(metric_ids) == len(set(metric_ids))
 
 
@@ -361,9 +362,7 @@ def test_graded_core_metrics_are_not_binary_correctness():
             in {'rouge_l', 'f1_score', 'bleu_1', 'bleu_4'}
         ]
         assert graded, 'expected graded score rows in narrative_qa fixture'
-        assert all(
-            log.evaluation.is_correct is False for log in graded
-        ), (
+        assert all(log.evaluation.is_correct is False for log in graded), (
             'graded metrics (rouge_l/f1_score/bleu_*) must not be '
             'treated as binary correctness'
         )
@@ -421,7 +420,9 @@ def test_score_from_stat_helper_edge_cases():
     assert _score_from_stat(SimpleNamespace(mean=0.25, sum=10, count=2)) == 0.25
     assert _score_from_stat(SimpleNamespace(mean=None, sum=3, count=2)) == 1.5
     assert _score_from_stat(SimpleNamespace(mean=None, sum=0, count=0)) is None
-    assert _score_from_stat(SimpleNamespace(mean=None, sum=None, count=1)) is None
+    assert (
+        _score_from_stat(SimpleNamespace(mean=None, sum=None, count=1)) is None
+    )
     assert _score_from_stat(SimpleNamespace(mean='bad', sum=1, count=1)) is None
 
 
@@ -458,12 +459,14 @@ def test_total_rows_matches_core_per_instance_stats():
         # Count expected core metric rows from the fixture itself so
         # duplication or accidental filtering changes are caught precisely.
         expected_rows = _expected_core_instance_stat_rows(fixture)
-        assert converted_eval.detailed_evaluation_results.total_rows == expected_rows
+        assert (
+            converted_eval.detailed_evaluation_results.total_rows
+            == expected_rows
+        )
         assert len(instance_logs) == expected_rows
-        assert len({
-            (log.sample_id, log.evaluation_result_id)
-            for log in instance_logs
-        }) == len(instance_logs)
+        assert len(
+            {(log.sample_id, log.evaluation_result_id) for log in instance_logs}
+        ) == len(instance_logs)
 
 
 def test_instance_evaluation_result_ids_join_to_aggregate_results():
@@ -594,6 +597,8 @@ def test_reasoning_traces_none_does_not_break_conversion(monkeypatch):
         assert instance_logs
         for log in instance_logs:
             trace = log.output.reasoning_trace
-            assert trace is None or trace == [] or all(
-                isinstance(t, str) for t in trace
+            assert (
+                trace is None
+                or trace == []
+                or all(isinstance(t, str) for t in trace)
             )

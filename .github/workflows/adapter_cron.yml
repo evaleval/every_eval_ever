@@ -1,0 +1,67 @@
+name: Run Adapters Cron
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+    inputs:
+      force_all:
+        description: Run every allowlisted cron adapter
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: adapter-cron
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  run-adapters:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    environment: adapter_cron
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: pyproject.toml
+
+      - name: Install locked dependencies
+        run: uv sync --locked --all-extras
+
+      - name: Audit adapter contracts
+        run: uv run utils/scripts/run_adapters.py --audit
+
+      - name: Run validated collection refreshes
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          EEE_INGESTION_HF_TOKEN: ${{ secrets.EEE_INGESTION_HF_TOKEN }}
+          EEE_INGESTION_REPO_ID: evaleval/eee-cron-ingestion
+          ARTIFICIAL_ANALYSIS_API_KEY: ${{ secrets.ARTIFICIAL_ANALYSIS_API_KEY }}
+          LLM_STATS_API_KEY: ${{ secrets.LLM_STATS_API_KEY }}
+          MERCOR_EVAL_API_EVALEVAL_KEY: ${{ secrets.MERCOR_EVAL_API_EVALEVAL_KEY }}
+        run: >-
+          uv run utils/scripts/run_adapters.py
+          ${{ inputs.force_all && '--force-all' || '' }}
+          ${{ vars.EEE_CRON_PUBLISH_ENABLED != 'true' && '--archive-only' || '' }}
+          --report "${RUNNER_TEMP}/adapter-cron-report.json"
+
+      - name: Upload cron report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: adapter-cron-report
+          path: ${{ runner.temp }}/adapter-cron-report.json
+          if-no-files-found: warn

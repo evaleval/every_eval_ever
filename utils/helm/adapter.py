@@ -14,17 +14,23 @@ Usage:
 
 import json
 import math
+import sys
 import time
 from argparse import ArgumentParser
 from collections import defaultdict
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List
 
+from every_eval_ever.adapters.helm.provenance import (
+    helm_metric_identity,
+    helm_provenance,
+)
 from every_eval_ever.eval_types import (
     EvalLibrary,
     EvaluationLog,
     EvaluationResult,
     EvaluatorRelationship,
     GenerationConfig,
+    InferenceEngine,
     MetricConfig,
     ModelInfo,
     ScoreDetails,
@@ -32,6 +38,7 @@ from every_eval_ever.eval_types import (
     SourceDataUrl,
 )
 from every_eval_ever.helpers import (
+    SCHEMA_VERSION,
     fetch_json,
     get_developer,
     make_model_info,
@@ -114,7 +121,7 @@ def extract_generation_config(run_specs: List[str]) -> Dict[str, Any]:
 
 def extract_model_info_from_row(
     row: List[Dict[str, Any]], model_name: str
-) -> Tuple[ModelInfo, str]:
+) -> ModelInfo:
     """Extract model metadata from leaderboard row."""
     run_spec_names = next(
         (cell['run_spec_names'] for cell in row if 'run_spec_names' in cell),
@@ -151,6 +158,20 @@ def extract_model_info_from_row(
         inference_platform='unknown',
     )
     model_info.id = model_id
+    provenance = helm_provenance(model_id)
+    model_info.inference_platform = provenance.inference_platform
+    model_info.inference_engine = InferenceEngine(
+        name=provenance.inference_engine_name,
+        version=provenance.inference_engine_version,
+    )
+    details = dict(model_info.additional_details or {})
+    details.update(
+        {
+            'deployment_type': provenance.deployment_type,
+            'model_availability': provenance.model_availability,
+        }
+    )
+    model_info.additional_details = details
 
     return model_info
 
@@ -184,6 +205,7 @@ def convert(
     model_infos: Dict[str, ModelInfo] = {}
     model_ids: Dict[str, str] = {}
     model_results: Dict[str, Dict[str, EvaluationResult]] = defaultdict(dict)
+    skipped_results: Dict[str, List[Dict[str, str]]] = defaultdict(list)
 
     for tab in leaderboard_data:
         tab_name = tab.get('title')
@@ -201,6 +223,16 @@ def convert(
                 model_ids[model_name] = model_info.id
 
             for col_idx, (header, cell) in enumerate(zip(headers[1:], row[1:])):
+                if cell.get('value') is None:
+                    skipped_results[model_name].append(
+                        {
+                            'evaluation': str(header.get('value', 'unknown')),
+                            'tab': str(tab_name),
+                            'description': str(cell.get('description', '')),
+                            'reason': 'source_value_missing',
+                        }
+                    )
+                    continue
                 # The "HELM level K category" tables in HELM AIR-Bench need special handling.
                 # The column headers look like "AIRBench 2024 - Security Risks".
                 # For for this example, the dataset name should be "AIRBench 2024 - Security Risks"
@@ -247,9 +279,15 @@ def convert(
                     evaluation_description = header.get('description', '')
 
                 if is_new_metric:
+                    metric_id, resolved_metric_name = helm_metric_identity(
+                        leaderboard_name,
+                        evaluation_name,
+                        metric_name,
+                    )
                     metric_config = MetricConfig(
                         evaluation_description=evaluation_description,
-                        metric_name=metric_name,
+                        metric_id=metric_id,
+                        metric_name=resolved_metric_name,
                         lower_is_better=header.get('lower_is_better', False),
                         min_score=(
                             0.0
@@ -290,11 +328,7 @@ def convert(
                         source_data=source_data,
                         metric_config=metric_config,
                         score_details=ScoreDetails(
-                            score=(
-                                round(cell.get('value'), 3)
-                                if cell.get('value') is not None
-                                else -1
-                            ),
+                            score=round(cell['value'], 3),
                             details={
                                 'description': str(cell.get('description', '')),
                                 'tab': str(tab_name),
@@ -334,15 +368,30 @@ def convert(
             f'{retrieved_timestamp}'
         )
 
+        source_metadata = make_source_metadata(
+            source_name=leaderboard_name,
+            organization_name='crfm',
+            evaluator_relationship=EvaluatorRelationship.third_party,
+        )
+        model_skipped = skipped_results.get(model_name, [])
+        if model_skipped:
+            details = dict(source_metadata.additional_details or {})
+            details['skipped_evaluation_results'] = json.dumps(
+                model_skipped, ensure_ascii=False, sort_keys=True
+            )
+            source_metadata.additional_details = details
+            print(
+                f'WARNING: {leaderboard_name} {model_name}: preserved '
+                f'{len(model_skipped)} missing source cells outside '
+                'evaluation_results',
+                file=sys.stderr,
+            )
+
         eval_log = EvaluationLog(
-            schema_version='0.2.2',
+            schema_version=SCHEMA_VERSION,
             evaluation_id=evaluation_id,
             retrieved_timestamp=retrieved_timestamp,
-            source_metadata=make_source_metadata(
-                source_name=leaderboard_name,
-                organization_name='crfm',
-                evaluator_relationship=EvaluatorRelationship.third_party,
-            ),
+            source_metadata=source_metadata,
             eval_library=EvalLibrary(
                 name=eval_library_name,
                 version=eval_library_version,
@@ -369,6 +418,14 @@ def convert(
             model,
         )
         print(f'Saved: {filepath}')
+
+    skipped_count = sum(len(items) for items in skipped_results.values())
+    if skipped_count:
+        print(
+            f'WARNING: {leaderboard_name}: preserved {skipped_count} missing '
+            'source cells outside evaluation_results',
+            file=sys.stderr,
+        )
 
 
 def get_leaderboard_versions(leaderboard_id: str) -> List[str]:

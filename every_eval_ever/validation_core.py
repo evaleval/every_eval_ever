@@ -8,7 +8,6 @@ optional ``HfApi`` for required Hugging Face existence checks.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import math
 import re
@@ -23,7 +22,10 @@ from pydantic import ValidationError
 from every_eval_ever.eval_types import EvaluationLog
 from every_eval_ever.instance_level_types import InstanceLevelEvaluationLog
 from every_eval_ever.json_utils import StrictJSONError, strict_json_loads
-from every_eval_ever.schema import schema_json, schema_text
+from every_eval_ever.schema import (
+    get_schema_fingerprint as get_schema_fingerprint,
+)
+from every_eval_ever.schema import get_schema_version as get_schema_version
 
 DEFAULT_MAX_ERRORS = 50
 
@@ -37,12 +39,10 @@ _COUNT_FIELDS = frozenset(
     {'num_samples', 'num_bootstrap_samples', 'samples_number'}
 )
 
-_DEPLOYMENT_TYPES = ('api', 'local', 'unknown')
-_AVAILABILITY_BY_DEPLOYMENT: dict[str, tuple[str, ...]] = {
-    'api': ('closed_source', 'open_weights_deployment', 'other'),
-    'local': ('hf', 'unavailable', 'other'),
-}
+_DEPLOYMENT_TYPES = ('self_deployed', 'externally_managed', 'unknown')
+_MODEL_AVAILABILITY_TYPES = ('open_weights', 'closed_weights', 'unknown')
 
+# Compatibility surface: the validator Space clears this cache between jobs.
 _existence_cache: dict[tuple[str, str], tuple[bool | None, str | None]] = {}
 
 
@@ -69,6 +69,7 @@ class ValidationContext:
 
 
 CheckScope = Literal['aggregate', 'instance', 'file']
+CheckSeverity = Literal['error', 'warning']
 
 
 @dataclass(frozen=True)
@@ -77,6 +78,7 @@ class ValidationCheck:
 
     name: str
     scope: CheckScope
+    severity: CheckSeverity
     run: Callable[[ValidationContext, dict[str, Any] | None], list[str]]
 
 
@@ -84,21 +86,12 @@ class SemanticCheckError(RuntimeError):
     """Raised when a registered semantic check cannot complete."""
 
 
-def get_schema_version() -> str:
-    """Read the bundled aggregate schema version."""
-    data = schema_json('eval.schema.json')
-    version = data.get('version')
-    if not isinstance(version, str) or not version.strip():
-        raise ValueError("eval.schema.json missing or empty 'version' field")
-    return version.strip()
+@dataclass
+class SemanticCheckReport:
+    """Blocking and advisory findings produced by registered checks."""
 
-
-def get_schema_fingerprint() -> str:
-    """SHA-256 of the bundled aggregate and instance schema files."""
-    hasher = hashlib.sha256()
-    hasher.update(schema_text('eval.schema.json').encode())
-    hasher.update(schema_text('instance_level_eval.schema.json').encode())
-    return hasher.hexdigest()
+    errors: list[dict[str, Any]] = field(default_factory=list)
+    warnings: list[dict[str, Any]] = field(default_factory=list)
 
 
 def repo_path_from_path(path: Path) -> str:
@@ -152,6 +145,14 @@ def warning_to_dict(message: str) -> dict[str, str]:
     return {'loc': '', 'msg': message, 'type': 'semantic_warning'}
 
 
+def semantic_error_to_dict(message: str) -> dict[str, str]:
+    """Convert a grouped semantic-rule message into a blocking error."""
+    if ': ' in message:
+        loc, msg = message.split(': ', 1)
+        return {'loc': loc, 'msg': msg, 'type': 'semantic_rule_error'}
+    return {'loc': '', 'msg': message, 'type': 'semantic_rule_error'}
+
+
 def format_warning(warning: dict[str, Any]) -> str:
     """Format a warning dict as the signature used for grouping."""
     loc = warning.get('loc')
@@ -200,6 +201,34 @@ def check_path_structure(repo_path: str) -> list[str]:
     return []
 
 
+def resolve_companion_repo_path(
+    repo_path: str, aggregate_data: dict[str, Any]
+) -> str | None:
+    """Resolve an aggregate's optional companion to a safe repository path."""
+    detail = aggregate_data.get('detailed_evaluation_results')
+    if detail is None:
+        return None
+    if not isinstance(detail, dict):
+        raise ValueError('detailed_evaluation_results must be an object')
+
+    reference = detail.get('file_path')
+    if not isinstance(reference, str) or not reference.strip():
+        raise ValueError(
+            'detailed_evaluation_results.file_path: missing or blank companion path'
+        )
+
+    reference_path = PurePosixPath(reference.strip().replace('\\', '/'))
+    if reference_path.is_absolute() or '..' in reference_path.parts:
+        raise ValueError(
+            'detailed_evaluation_results.file_path: expected a relative '
+            f'repository path without parent traversal, got {reference!r}'
+        )
+
+    if reference_path.parts and reference_path.parts[0] == 'data':
+        return reference_path.as_posix()
+    return (PurePosixPath(repo_path).parent / reference_path).as_posix()
+
+
 def check_companion_exists(
     repo_path: str,
     aggregate_data: dict[str, Any],
@@ -207,23 +236,19 @@ def check_companion_exists(
 ) -> list[str]:
     """Warn when an aggregate's declared detailed-results path is unusable."""
     detail = aggregate_data.get('detailed_evaluation_results')
-    if not isinstance(detail, dict):
+    if detail is None:
+        return []
+
+    try:
+        resolved_text = resolve_companion_repo_path(repo_path, aggregate_data)
+    except ValueError as exc:
+        return [str(exc)]
+    if resolved_text is None:
         return []
 
     warnings: list[str] = []
-    reference = detail.get('file_path')
-    if not isinstance(reference, str) or not reference.strip():
-        return [
-            'detailed_evaluation_results.file_path: missing or blank companion path'
-        ]
-
+    reference = detail['file_path']
     reference_path = PurePosixPath(reference.strip().replace('\\', '/'))
-    if reference_path.is_absolute() or '..' in reference_path.parts:
-        return [
-            'detailed_evaluation_results.file_path: expected a relative '
-            f'repository path without parent traversal, got {reference!r}'
-        ]
-
     declared_format = detail.get('format')
     if declared_format == 'jsonl' and reference_path.suffix != '.jsonl':
         warnings.append(
@@ -231,11 +256,6 @@ def check_companion_exists(
             f'path is {reference!r}'
         )
 
-    if reference_path.parts and reference_path.parts[0] == 'data':
-        resolved = reference_path
-    else:
-        resolved = PurePosixPath(repo_path).parent / reference_path
-    resolved_text = resolved.as_posix()
     available = {
         PurePosixPath(path.replace('\\', '/')).as_posix()
         for path in available_files
@@ -306,6 +326,109 @@ def check_score_metadata(data: dict[str, Any]) -> list[str]:
     return warnings
 
 
+def check_nonempty_evaluation_results(data: dict[str, Any]) -> list[str]:
+    """Reject aggregate documents that contain no evaluation result records."""
+    results = data.get('evaluation_results')
+    if isinstance(results, list) and not results:
+        return ['evaluation_results: expected at least one evaluation result']
+    return []
+
+
+def check_explicit_unknown_metadata(data: dict[str, Any]) -> list[str]:
+    """Require stable descriptive metadata or the literal ``unknown``.
+
+    This policy intentionally lives above the generated schema. Descriptive
+    provenance may use ``unknown``; identity-critical values are handled by a
+    separate rule and may not use a missing-value fallback.
+    """
+    findings: list[str] = []
+
+    def require_text(parent: Any, key: str, path: str) -> None:
+        value = parent.get(key) if isinstance(parent, dict) else None
+        if isinstance(value, str) and value.strip():
+            return
+        findings.append(
+            f"{path}: missing or blank; use 'unknown' when unavailable"
+        )
+
+    source_metadata = data.get('source_metadata')
+    require_text(source_metadata, 'source_name', 'source_metadata.source_name')
+    require_text(
+        source_metadata,
+        'source_organization_name',
+        'source_metadata.source_organization_name',
+    )
+
+    eval_library = data.get('eval_library')
+    require_text(eval_library, 'name', 'eval_library.name')
+    require_text(eval_library, 'version', 'eval_library.version')
+
+    model_info = data.get('model_info')
+    require_text(model_info, 'name', 'model_info.name')
+    require_text(model_info, 'developer', 'model_info.developer')
+    require_text(
+        model_info, 'inference_platform', 'model_info.inference_platform'
+    )
+    inference_engine = (
+        model_info.get('inference_engine')
+        if isinstance(model_info, dict)
+        else None
+    )
+    require_text(inference_engine, 'name', 'model_info.inference_engine.name')
+    require_text(
+        inference_engine, 'version', 'model_info.inference_engine.version'
+    )
+    return findings
+
+
+def check_identity_fields(data: dict[str, Any]) -> list[str]:
+    """Reject missing identity components instead of collapsing to unknown."""
+    findings: list[str] = []
+    model_info = data.get('model_info')
+    model_id = model_info.get('id') if isinstance(model_info, dict) else None
+    if not isinstance(model_id, str) or not model_id.strip():
+        findings.append('model_info.id: missing or blank identity field')
+
+    results = data.get('evaluation_results')
+    if not isinstance(results, list):
+        return findings
+    for index, result in enumerate(results):
+        if not isinstance(result, dict):
+            continue
+        evaluation_name = result.get('evaluation_name')
+        if not isinstance(evaluation_name, str) or not evaluation_name.strip():
+            findings.append(
+                f'evaluation_results[{index}].evaluation_name: missing or blank identity field'
+            )
+        source_data = result.get('source_data')
+        dataset_name = (
+            source_data.get('dataset_name')
+            if isinstance(source_data, dict)
+            else None
+        )
+        if not isinstance(dataset_name, str) or not dataset_name.strip():
+            findings.append(
+                f'evaluation_results[{index}].source_data.dataset_name: '
+                'missing or blank identity field'
+            )
+        metric = result.get('metric_config')
+        metric_id = (
+            metric.get('metric_id') if isinstance(metric, dict) else None
+        )
+        metric_name = (
+            metric.get('metric_name') if isinstance(metric, dict) else None
+        )
+        if not any(
+            isinstance(value, str) and value.strip()
+            for value in (metric_id, metric_name)
+        ):
+            findings.append(
+                f'evaluation_results[{index}].metric_config: requires a '
+                'non-blank metric_id or metric_name'
+            )
+    return findings
+
+
 def _is_finite_number(value: Any) -> bool:
     return (
         isinstance(value, (int, float))
@@ -336,18 +459,15 @@ def check_integer_counts(data: dict[str, Any]) -> list[str]:
     return warnings
 
 
-def _hf_exists(
-    api: Any, kind: str, repo_id: str
+def _hf_dataset_exists(
+    api: Any, repo_id: str
 ) -> tuple[bool | None, str | None]:
     """Return (exists, error); exists is None when verification failed."""
-    key = (kind, repo_id)
+    key = ('dataset', repo_id)
     if key in _existence_cache:
         return _existence_cache[key]
     try:
-        if kind == 'model':
-            api.model_info(repo_id)
-        else:
-            api.dataset_info(repo_id)
+        api.dataset_info(repo_id)
     except RepositoryNotFoundError:
         result = (False, None)
     except Exception as exc:
@@ -360,12 +480,13 @@ def _hf_exists(
 
 
 def check_model_deployment(data: dict[str, Any], api: Any = None) -> list[str]:
-    """Warn on missing/invalid model deployment metadata.
+    """Require independent deployment-control and weight-availability axes.
 
-    ``model_info.additional_details.deployment_type`` is required and must be
-    ``api``, ``local``, or ``unknown``.  For ``api`` and ``local``,
-    ``model_availability`` is also required.  When availability is ``hf``,
-    Hugging Face model existence verification is required.
+    ``deployment_type`` describes who controlled the inference deployment;
+    ``model_availability`` describes whether model weights are available.
+    Neither value constrains the other. ``api`` is retained in the signature
+    for compatibility with callers that supply validation context, but this
+    rule deliberately performs no provider-specific existence check.
     """
     warnings: list[str] = []
     model_info = data.get('model_info')
@@ -380,56 +501,25 @@ def check_model_deployment(data: dict[str, Any], api: Any = None) -> list[str]:
     if deployment_type is None:
         warnings.append(
             "model_info.additional_details: missing 'deployment_type' "
-            '(expected api|local|unknown)'
+            f'(expected {"|".join(_DEPLOYMENT_TYPES)})'
         )
-        return warnings
-    if deployment_type not in _DEPLOYMENT_TYPES:
+    elif deployment_type not in _DEPLOYMENT_TYPES:
         warnings.append(
             'model_info.additional_details.deployment_type: expected one of '
             f'{list(_DEPLOYMENT_TYPES)}, got {deployment_type!r}'
         )
-        return warnings
 
     availability = details.get('model_availability')
-    allowed = _AVAILABILITY_BY_DEPLOYMENT.get(deployment_type)
-    if allowed is not None:
-        if availability is None:
-            warnings.append(
-                "model_info.additional_details: missing 'model_availability' "
-                f'for deployment_type={deployment_type!r} '
-                f'(expected one of {list(allowed)})'
-            )
-        elif availability not in allowed:
-            warnings.append(
-                'model_info.additional_details.model_availability: expected '
-                f'one of {list(allowed)} for deployment_type={deployment_type!r}, '
-                f'got {availability!r}'
-            )
-
-    if availability == 'hf':
-        model_id = model_info.get('id')
-        if not isinstance(model_id, str) or not model_id:
-            warnings.append(
-                "model_info.id: missing model id for model_availability='hf'"
-            )
-        elif api is None:
-            warnings.append(
-                f'model_info.id {model_id!r}: HuggingFace model existence '
-                "check required because model_availability is 'hf', but no "
-                'HfApi was provided'
-            )
-        else:
-            exists, error = _hf_exists(api, 'model', model_id)
-            if exists is False:
-                warnings.append(
-                    f'model_info.id {model_id!r}: not found on HuggingFace '
-                    "(model_availability is 'hf')"
-                )
-            elif exists is None:
-                warnings.append(
-                    f'model_info.id {model_id!r}: HuggingFace model '
-                    f'existence check did not complete: {error}'
-                )
+    if availability is None:
+        warnings.append(
+            "model_info.additional_details: missing 'model_availability' "
+            f'(expected {"|".join(_MODEL_AVAILABILITY_TYPES)})'
+        )
+    elif availability not in _MODEL_AVAILABILITY_TYPES:
+        warnings.append(
+            'model_info.additional_details.model_availability: expected one '
+            f'of {list(_MODEL_AVAILABILITY_TYPES)}, got {availability!r}'
+        )
     return warnings
 
 
@@ -464,7 +554,7 @@ def check_dataset_provenance(
                     'HfApi was provided'
                 )
             else:
-                exists, error = _hf_exists(api, 'dataset', repo)
+                exists, error = _hf_dataset_exists(api, repo)
                 if exists is False:
                     warnings.append(
                         f'evaluation_results[{index}].source_data: HF dataset '
@@ -476,12 +566,30 @@ def check_dataset_provenance(
                         f'existence check for {repo!r} did not complete: {error}'
                     )
         elif source_type == 'other':
-            other_count += 1
+            details = source_data.get('additional_details')
+            stable_identity = any(
+                isinstance(source_data.get(key), str)
+                and source_data[key].strip()
+                for key in ('source_id', 'source_version')
+            ) or (
+                isinstance(details, dict)
+                and any(
+                    isinstance(details.get(key), str) and details[key].strip()
+                    for key in (
+                        'source_id',
+                        'source_version',
+                        'source_url',
+                        'url',
+                    )
+                )
+            )
+            if not stable_identity:
+                other_count += 1
 
     if other_count:
         warnings.append(
             f"{other_count} evaluation_results use dataset source_type 'other' "
-            '(no URL/HF repo provenance)'
+            '(no stable source ID, version, or URL provenance)'
         )
     return warnings
 
@@ -510,6 +618,30 @@ def _aggregate_check_score_metadata(
     return check_score_metadata(data)
 
 
+def _aggregate_check_nonempty_results(
+    context: ValidationContext, data: dict[str, Any] | None
+) -> list[str]:
+    if data is None:
+        return []
+    return check_nonempty_evaluation_results(data)
+
+
+def _aggregate_check_explicit_unknown_metadata(
+    context: ValidationContext, data: dict[str, Any] | None
+) -> list[str]:
+    if data is None:
+        return []
+    return check_explicit_unknown_metadata(data)
+
+
+def _aggregate_check_identity_fields(
+    context: ValidationContext, data: dict[str, Any] | None
+) -> list[str]:
+    if data is None:
+        return []
+    return check_identity_fields(data)
+
+
 def _aggregate_check_integer_counts(
     context: ValidationContext, data: dict[str, Any] | None
 ) -> list[str]:
@@ -534,20 +666,74 @@ def _aggregate_check_dataset_provenance(
     return check_dataset_provenance(data, context.hf_api)
 
 
+def _aggregate_check_required_dataset_provenance(
+    context: ValidationContext, data: dict[str, Any] | None
+) -> list[str]:
+    """Return provenance failures that make an HF-backed record unverifiable."""
+    return [
+        message
+        for message in _aggregate_check_dataset_provenance(context, data)
+        if "dataset source_type 'other'" not in message
+    ]
+
+
+def _aggregate_check_advisory_dataset_provenance(
+    context: ValidationContext, data: dict[str, Any] | None
+) -> list[str]:
+    """Return allowed-but-weak private/custom provenance findings."""
+    return [
+        message
+        for message in _aggregate_check_dataset_provenance(context, data)
+        if "dataset source_type 'other'" in message
+    ]
+
+
 REGISTERED_CHECKS: tuple[ValidationCheck, ...] = (
-    ValidationCheck('path structure', 'file', _file_check_path),
-    ValidationCheck('companion file', 'aggregate', _aggregate_check_companion),
+    ValidationCheck('path structure', 'file', 'error', _file_check_path),
     ValidationCheck(
-        'score metadata', 'aggregate', _aggregate_check_score_metadata
+        'companion file', 'aggregate', 'error', _aggregate_check_companion
     ),
     ValidationCheck(
-        'integer counts', 'aggregate', _aggregate_check_integer_counts
+        'nonempty evaluation results',
+        'aggregate',
+        'error',
+        _aggregate_check_nonempty_results,
     ),
     ValidationCheck(
-        'model deployment', 'aggregate', _aggregate_check_model_deployment
+        'explicit unknown metadata',
+        'aggregate',
+        'error',
+        _aggregate_check_explicit_unknown_metadata,
     ),
     ValidationCheck(
-        'dataset provenance', 'aggregate', _aggregate_check_dataset_provenance
+        'identity fields',
+        'aggregate',
+        'error',
+        _aggregate_check_identity_fields,
+    ),
+    ValidationCheck(
+        'score metadata', 'aggregate', 'error', _aggregate_check_score_metadata
+    ),
+    ValidationCheck(
+        'integer counts', 'aggregate', 'error', _aggregate_check_integer_counts
+    ),
+    ValidationCheck(
+        'model deployment',
+        'aggregate',
+        'error',
+        _aggregate_check_model_deployment,
+    ),
+    ValidationCheck(
+        'required dataset provenance',
+        'aggregate',
+        'error',
+        _aggregate_check_required_dataset_provenance,
+    ),
+    ValidationCheck(
+        'advisory dataset provenance',
+        'aggregate',
+        'warning',
+        _aggregate_check_advisory_dataset_provenance,
     ),
 )
 
@@ -558,9 +744,9 @@ def run_registered_checks(
     file_type: Literal['aggregate', 'instance'],
     data: dict[str, Any] | None,
     checks: tuple[ValidationCheck, ...] = REGISTERED_CHECKS,
-) -> list[dict[str, Any]]:
-    """Run registered semantic checks and return structured warnings."""
-    warnings: list[dict[str, Any]] = []
+) -> SemanticCheckReport:
+    """Run registered checks and preserve their explicit severity."""
+    report = SemanticCheckReport()
     for check in checks:
         if check.scope not in {'file', file_type}:
             continue
@@ -571,8 +757,19 @@ def run_registered_checks(
                 f'{check.name} check did not complete: '
                 f'{type(exc).__name__}: {exc or "<no detail>"}'
             ) from exc
-        warnings.extend(warning_to_dict(message) for message in messages)
-    return warnings
+        if check.severity == 'error':
+            report.errors.extend(
+                semantic_error_to_dict(message) for message in messages
+            )
+        elif check.severity == 'warning':
+            report.warnings.extend(
+                warning_to_dict(message) for message in messages
+            )
+        else:
+            raise SemanticCheckError(
+                f'{check.name} check has unsupported severity {check.severity!r}'
+            )
+    return report
 
 
 def validate_aggregate(
@@ -629,9 +826,13 @@ def validate_aggregate(
             hf_api=hf_api,
         )
         try:
-            report.warnings = run_registered_checks(
+            semantic_report = run_registered_checks(
                 context, file_type='aggregate', data=data
             )
+            report.errors.extend(semantic_report.errors)
+            report.warnings.extend(semantic_report.warnings)
+            if semantic_report.errors:
+                report.valid = False
         except SemanticCheckError as exc:
             report.valid = False
             report.errors.append(
@@ -733,6 +934,16 @@ def validate_instance_file(
                 )
                 break
 
+    if report.line_count == 0:
+        report.valid = False
+        report.errors.append(
+            {
+                'loc': '(file)',
+                'msg': 'Instance-level JSONL must contain at least one record',
+                'type': 'empty_instance_file',
+            }
+        )
+
     if run_semantic_checks:
         context = ValidationContext(
             local_path=file_path,
@@ -740,9 +951,13 @@ def validate_instance_file(
             available_files=available_files,
         )
         try:
-            report.warnings = run_registered_checks(
+            semantic_report = run_registered_checks(
                 context, file_type='instance', data=None
             )
+            report.errors.extend(semantic_report.errors)
+            report.warnings.extend(semantic_report.warnings)
+            if semantic_report.errors:
+                report.valid = False
         except SemanticCheckError as exc:
             report.valid = False
             report.errors.append(

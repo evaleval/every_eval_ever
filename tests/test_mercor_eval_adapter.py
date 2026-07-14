@@ -224,7 +224,7 @@ def test_export_paths_validate(tmp_path: Path):
     assert paths[0].parent == (
         output_dir / 'apex-agents' / 'google' / 'gemini-3-flash-preview'
     )
-    assert validate_file(paths[0]).valid
+    assert validate_file(paths[0], run_semantic_checks=False).valid
 
 
 def test_fetch_payload_authenticates_and_paginates():

@@ -27,6 +27,9 @@ import time
 from collections import Counter
 from pathlib import Path
 
+from every_eval_ever.adapters.swe_polybench.provenance import (
+    swe_polybench_provenance,
+)
 from every_eval_ever.eval_types import (
     AgenticEvalConfig,
     AvailableTool,
@@ -86,6 +89,7 @@ def convert_submission(
     agent, primary_model = parse_model_from_dir(dir_name)
     developer = get_developer(primary_model)
     model_id = get_model_id(primary_model, developer)
+    provenance = swe_polybench_provenance(model_id)
 
     sanitized_id = re.sub(r'[^a-zA-Z0-9_.-]', '_', model_id.replace('/', '_'))
     submission_slug = re.sub(r'[^a-zA-Z0-9_.-]', '_', dir_name)
@@ -103,6 +107,8 @@ def convert_submission(
         'pass_rate': str(metadata.get('pass_rate', '')),
         'submission_dir': dir_name,
         'agent': agent,
+        'deployment_type': provenance.deployment_type,
+        'model_availability': provenance.model_availability,
     }
 
     score_details: dict[str, str] = {
@@ -161,7 +167,12 @@ def convert_submission(
         model_info=ModelInfo(
             name=primary_model,
             id=model_id,
-            developer=developer if developer != 'unknown' else None,
+            developer=provenance.developer,
+            inference_platform=provenance.inference_platform,
+            inference_engine={
+                'name': provenance.inference_engine_name,
+                'version': provenance.inference_engine_version,
+            },
             additional_details=additional_details,
         ),
         evaluation_results=[eval_result],
@@ -274,8 +285,7 @@ def main():
         ) from e
 
     retrieved_timestamp = str(time.time())
-    count = 0
-    errors = 0
+    pending: list[tuple[EvaluationLog, str, str]] = []
 
     # Load HF datasets first
     hf_maps: dict[str, tuple[dict[str, str], Counter]] = {}
@@ -312,33 +322,29 @@ def main():
             print(f'\n[{ds}] Found {len(submissions)} submissions')
 
             for submission_dir in submissions:
-                try:
-                    logs_results = process_submission(
-                        submission_dir,
-                        ds,
-                        id_to_lang,
-                        lang_counts,
-                        retrieved_timestamp,
-                        yaml,
-                    )
-                    for eval_log, lang in logs_results:
-                        dev = eval_log.model_info.developer or 'unknown'
-                        model_name = eval_log.model_info.name.split('/')[-1]
-                        filepath = save_evaluation_log(
-                            eval_log, OUTPUT_BASE, dev, model_name
-                        )
-                        score = eval_log.evaluation_results[
-                            0
-                        ].score_details.score
-                        print(
-                            f'  [{score:.1%}] {submission_dir.name} [{lang}] → {filepath}'
-                        )
-                        count += 1
-                except Exception as e:
-                    print(f'  ERROR {submission_dir.name}: {e}')
-                    errors += 1
+                logs_results = process_submission(
+                    submission_dir,
+                    ds,
+                    id_to_lang,
+                    lang_counts,
+                    retrieved_timestamp,
+                    yaml,
+                )
+                pending.extend(
+                    (eval_log, lang, submission_dir.name)
+                    for eval_log, lang in logs_results
+                )
 
-    print(f'\nGenerated {count} files, {errors} errors → {OUTPUT_BASE}/')
+    # All source rows are parsed and provenance-classified before the first
+    # write, preventing a late unknown submission from leaving a partial run.
+    for eval_log, lang, submission_name in pending:
+        dev = eval_log.model_info.developer or 'unknown'
+        model_name = eval_log.model_info.name.split('/')[-1]
+        filepath = save_evaluation_log(eval_log, OUTPUT_BASE, dev, model_name)
+        score = eval_log.evaluation_results[0].score_details.score
+        print(f'  [{score:.1%}] {submission_name} [{lang}] → {filepath}')
+
+    print(f'\nGenerated {len(pending)} files → {OUTPUT_BASE}/')
 
 
 if __name__ == '__main__':

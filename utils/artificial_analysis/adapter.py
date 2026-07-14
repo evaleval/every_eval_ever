@@ -9,6 +9,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from every_eval_ever.adapters.artificial_analysis import (
+    INFERENCE_ENGINE_NAME,
+    INFERENCE_ENGINE_VERSION,
+    INFERENCE_PLATFORM,
+    model_provenance,
+)
 from every_eval_ever.eval_types import (
     EvalLibrary,
     EvaluationLog,
@@ -467,6 +473,9 @@ def make_model_info(model: dict[str, Any]) -> tuple[ModelInfo, str, str]:
         creator.get("slug"), creator.get("name", "unknown")
     )
     model_path_name = make_model_path_name(model)
+    deployment_type, model_availability = model_provenance(
+        creator.get("slug"), model.get("slug")
+    )
 
     additional_details = {
         "raw_model_id": stringify(model["id"]),
@@ -475,6 +484,8 @@ def make_model_info(model: dict[str, Any]) -> tuple[ModelInfo, str, str]:
         "raw_creator_id": stringify(creator.get("id")),
         "raw_creator_name": stringify(creator.get("name")),
         "raw_creator_slug": stringify(creator.get("slug")),
+        "deployment_type": deployment_type,
+        "model_availability": model_availability,
     }
     if model.get("release_date") is not None:
         additional_details["release_date"] = stringify(model["release_date"])
@@ -484,7 +495,11 @@ def make_model_info(model: dict[str, Any]) -> tuple[ModelInfo, str, str]:
             name=str(model["name"]),
             id=f"{developer}/{model_path_name}",
             developer=developer,
-            inference_platform="unknown",
+            inference_platform=INFERENCE_PLATFORM,
+            inference_engine={
+                "name": INFERENCE_ENGINE_NAME,
+                "version": INFERENCE_ENGINE_VERSION,
+            },
             additional_details=additional_details,
         ),
         developer,

@@ -127,8 +127,6 @@ def test_make_logs_validate_against_schema():
             ]
             == 'https://api.llm-stats.com/leaderboard/benchmarks/{benchmark_id}'
         )
-
-
 def test_scores_are_grouped_by_evaluator_relationship():
     logs = logs_by_relationship()
 

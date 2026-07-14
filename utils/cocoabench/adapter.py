@@ -26,6 +26,9 @@ import json
 import time
 from pathlib import Path
 
+from every_eval_ever.adapters.cocoabench.provenance import (
+    cocoabench_provenance,
+)
 from every_eval_ever.eval_types import (
     AgenticEvalConfig,
     EvalLibrary,
@@ -163,11 +166,11 @@ DEFAULT_ROW_MAP: dict[str, dict[str, str]] = {
         "agent_name": "Cocoa Agent",
         "agent_framework": "cocoa-agent",
         "agent_organization": "CocoaBench",
-        "model_display_name": "Qwen3.5-397B-A13B",
-        "model_id": "qwen/qwen3.5-397b-a13b",
+        "model_display_name": "Qwen3.5-397B-A17B",
+        "model_id": "qwen/qwen3.5-397b-a17b",
         "developer": "Qwen",
         "developer_slug": "qwen",
-        "model_slug": "qwen3.5-397b-a13b",
+        "model_slug": "qwen3.5-397b-a17b",
         "inference_platform": "qwen",
     },
     "OpenAI Deep Research": {
@@ -319,7 +322,7 @@ def make_source_data(
     benchmark_reference_urls: list[str],
 ) -> SourceDataPrivate | SourceDataUrl:
     additional_details = {
-        "samples_number": str(answered),
+        "evaluated_dataset_size": str(answered),
         "benchmark_version": benchmark_version,
     }
     if benchmark_reference_urls:
@@ -343,6 +346,8 @@ def make_source_data(
     return SourceDataPrivate(
         dataset_name=dataset_name,
         source_type="other",
+        source_id=f"cocoabench/aggregate/{benchmark_version}",
+        source_version=benchmark_version,
         additional_details=additional_details,
     )
 
@@ -503,6 +508,8 @@ def make_log(
         raise ValueError(
             f"row-map model_id must look like developer/model, got {model_id!r}"
         )
+    provenance = cocoabench_provenance(model_id)
+    model_id = provenance.canonical_model_id
 
     accuracy_result = make_accuracy_result(
         row,
@@ -595,6 +602,8 @@ def make_log(
         "agent_label": row["Agent"],
         "agent_name": row_meta["agent_name"],
         "agent_framework": row_meta["agent_framework"],
+        "deployment_type": provenance.deployment_type,
+        "model_availability": provenance.model_availability,
     }
     if row_meta.get("agent_organization"):
         model_details["agent_organization"] = row_meta["agent_organization"]
@@ -622,7 +631,11 @@ def make_log(
             name=row_meta["model_display_name"],
             id=model_id,
             developer=row_meta["developer"],
-            inference_platform=row_meta.get("inference_platform"),
+            inference_platform=provenance.inference_platform,
+            inference_engine={
+                "name": provenance.inference_engine_name,
+                "version": provenance.inference_engine_version,
+            },
             additional_details=model_details,
         ),
         evaluation_results=results,
@@ -677,8 +690,7 @@ def main() -> None:
 
     bounds = compute_metric_bounds(rows)
     retrieved_timestamp = str(time.time())
-    count = 0
-
+    converted: list[tuple[EvaluationLog, str, str]] = []
     for row in rows:
         row_meta = row_map[row["Agent"]]
         validate_row_meta(row["Agent"], row_meta)
@@ -694,11 +706,17 @@ def main() -> None:
             retrieved_timestamp=retrieved_timestamp,
             evaluation_timestamp=args.evaluation_timestamp,
         )
-        filepath = save_evaluation_log(log, args.output_dir, developer_slug, model_slug)
-        print(filepath)
-        count += 1
+        converted.append((log, developer_slug, model_slug))
 
-    print(f"\nGenerated {count} CocoaBench records in {args.output_dir}/")
+    for log, developer_slug, model_slug in converted:
+        filepath = save_evaluation_log(
+            log, args.output_dir, developer_slug, model_slug
+        )
+        print(filepath)
+
+    print(
+        f"\nGenerated {len(converted)} CocoaBench records in {args.output_dir}/"
+    )
 
 
 if __name__ == "__main__":
