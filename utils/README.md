@@ -6,6 +6,46 @@ One-off adapter scripts that fetch leaderboard data from external sources and co
 
 Each adapter is run with `uv run python -m utils.<name>.adapter`.
 
+## Submitting a new adapter
+
+Adapter output can be schema-valid and still misrepresent the data — review
+repeatedly catches records that pass `validate` but are wrong. Before opening the
+PR, mirror CI and self-check the record shape:
+
+```bash
+uv run ruff check                                   # E/F/I, line-length 80, py312
+uv run --locked pytest tests                        # add an offline test for your adapter
+uv run python -m every_eval_ever validate <output-dir>
+```
+
+Add an **offline** unit test that runs your adapter against a small saved payload
+(no network) and asserts the record shape. `llm_stats` is the reference adapter to
+copy from.
+
+`validate` checks the schema; it can't catch the following, so eyeball them (these
+are the mistakes that actually reach review):
+
+- **`input.raw` must not contain the model's answer.** Build the prompt from the
+  user/system turns only — the assistant turn is the *output*. A schema-valid record
+  can silently leak the gold answer into the prompt.
+- **`output.raw` is the full generation**, not the post-hoc extracted answer.
+- **`metric_config`** — `metric_name` is the metric (accuracy, F1), not the
+  benchmark (that's `evaluation_name`); `metric_id` is `<eval>.<metric>`. There is
+  no `metric_type` (it silently fails `additionalProperties: false`).
+- **`eval_library.name`** is the harness that ran the eval (`inspect_ai`,
+  `lm-evaluation-harness`), or `"unknown"` for scraped data — never the platform or
+  leaderboard.
+- **`source_type`** is `evaluation_run` only if you ran it; `documentation` for
+  scraped/reported scores.
+- **`score_type: continuous` requires `min_score` + `max_score`** (there is no
+  unbounded option; `float('inf')` serializes to `null` on write). Omitting
+  `score_type` is not neutral — it triggers the `levels` branch and then requires
+  `level_names`.
+- **Every `additional_details` value must be a string** — `json.dumps` numbers,
+  bools, and objects first.
+- **`model_info.id`** carries no effort/mode/quantization suffix — canonicalize via
+  the eval-card-registry and put run tiers in `generation_config`.
+
 ## Adapters
 
 | Adapter | Data Source | Description |
