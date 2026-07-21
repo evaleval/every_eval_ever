@@ -1,6 +1,7 @@
 """Adapter for converting lm-evaluation-harness output to every_eval_ever format."""
 
 import json
+import warnings
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
@@ -251,8 +252,18 @@ class LMEvalAdapter(BaseEvaluationAdapter):
             is_higher_better = higher_is_better.get(metric_name, True)
 
             bounds = KNOWN_METRIC_BOUNDS.get(metric_name)
-            min_score = bounds[0] if bounds else None
-            max_score = bounds[1] if bounds else None
+            if bounds is None:
+                # Unknown bounds: a continuous metric_config requires numeric
+                # min/max, so this would be invalid. Skip rather than emit a bad
+                # record. To include the metric, add it to KNOWN_METRIC_BOUNDS
+                # (use float('inf') for an unbounded side).
+                warnings.warn(
+                    f'lm_eval: skipping metric {metric_name!r} on task '
+                    f'{task_name!r} -- no known bounds in KNOWN_METRIC_BOUNDS',
+                    stacklevel=2,
+                )
+                continue
+            min_score, max_score = bounds
 
             description = metric_name
             if filter_name != 'none':

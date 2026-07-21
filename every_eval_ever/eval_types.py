@@ -14,6 +14,7 @@ from pydantic import (
     Field,
     confloat,
     conint,
+    field_serializer,
     model_validator,
 )
 
@@ -439,10 +440,12 @@ class MetricConfig(BaseModel):
         description='Indicates whether there is an Unknown Level - if True, then a score of -1 will be treated as Unknown',
     )
     min_score: float | None = Field(
-        None, description='Minimum possible score for continuous metric'
+        None,
+        description='Minimum possible score for a continuous metric. Use -inf if unbounded below (serialized as the string "-Infinity"). null means "not provided", NOT unbounded.',
     )
     max_score: float | None = Field(
-        None, description='Maximum possible score for continuous metric'
+        None,
+        description='Maximum possible score for a continuous metric. Use inf if unbounded above, e.g. PSNR or perplexity (serialized as the string "Infinity"). null means "not provided", NOT unbounded.',
     )
     llm_scoring: LlmScoring | None = Field(
         None, description='Configuration when LLM is used as scorer/judge'
@@ -468,7 +471,27 @@ class MetricConfig(BaseModel):
                 raise ValueError("score_type 'continuous' requires min_score")
             if self.max_score is None:
                 raise ValueError("score_type 'continuous' requires max_score")
+        # A NaN bound is never meaningful (and NaN != NaN breaks comparisons).
+        # inf/-inf are allowed (unbounded); null is handled above per score_type.
+        for _name in ('min_score', 'max_score'):
+            _v = getattr(self, _name)
+            if _v is not None and _v != _v:
+                raise ValueError(f'{_name} must not be NaN')
         return self
+
+    @field_serializer('min_score', 'max_score', when_used='json')
+    def _serialize_bound(self, value):
+        # An unbounded bound is +/-inf; emit it as the JSON string
+        # "Infinity"/"-Infinity" (valid JSON that reads back to a float) rather
+        # than pydantic's default null or the non-standard bare Infinity token.
+        # when_used='json' covers BOTH model_dump_json() and
+        # model_dump(mode='json'); mode='python' keeps the native float. null
+        # stays null (reserved for "not provided", never unbounded).
+        if value == float('inf'):
+            return 'Infinity'
+        if value == float('-inf'):
+            return '-Infinity'
+        return value
 
 
 class EvaluationResult(BaseModel):

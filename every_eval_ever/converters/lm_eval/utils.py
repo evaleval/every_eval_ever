@@ -55,8 +55,11 @@ MODEL_TYPE_TO_INFERENCE_ENGINE = {
     'gguf': 'llama.cpp',
 }
 
-# Known metric bounds: metric_name -> (min_score, max_score)
-# max_score of None means unbounded
+# Known metric bounds: metric_name -> (min_score, max_score).
+# Use float('inf')/-inf for an unbounded side (it serializes as the JSON string
+# "Infinity"/"-Infinity"). A metric absent from this table has unknown bounds and
+# is skipped by the adapter rather than emitted with null bounds, which a
+# continuous metric_config forbids.
 KNOWN_METRIC_BOUNDS = {
     'acc': (0.0, 1.0),
     'acc_norm': (0.0, 1.0),
@@ -71,6 +74,6 @@ KNOWN_METRIC_BOUNDS = {
     'rouge2': (0.0, 1.0),
     'rougeL': (0.0, 1.0),
     'rougeLsum': (0.0, 1.0),
-    'ter': (0.0, None),
+    'ter': (0.0, float('inf')),
     'brier_score': (0.0, 1.0),
 }

@@ -292,3 +292,33 @@ def test_na_stderr_treated_as_absent():
     assert uncertainty is not None
     assert uncertainty.standard_error is None
     assert uncertainty.num_samples == 100
+
+
+# ── Unbounded / unknown metric bounds ──────────────────────────────────
+
+
+def test_ter_is_unbounded_infinity_and_unknown_metric_skipped():
+    import json
+    import warnings
+
+    adapter = LMEvalAdapter()
+    raw = {
+        'results': {
+            't': {'ter,none': 42.0, 'mystery_metric,none': 3.0}
+        },
+        'configs': {'t': {}},
+        'higher_is_better': {'t': {'ter': False, 'mystery_metric': True}},
+        'n-samples': {'t': {}},
+    }
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter('always')
+        results = adapter._build_evaluation_results(raw, 't')
+
+    descs = [r.metric_config.evaluation_description for r in results]
+    # 'ter' is unbounded above -> inf, serialized as the "Infinity" string
+    ter = next(r for r in results if r.metric_config.evaluation_description == 'ter')
+    assert ter.metric_config.max_score == float('inf')
+    assert json.loads(ter.metric_config.model_dump_json())['max_score'] == 'Infinity'
+    # a metric with no known bounds is skipped (not emitted with null bounds)
+    assert 'mystery_metric' not in descs
+    assert any('mystery_metric' in str(c.message) for c in caught)

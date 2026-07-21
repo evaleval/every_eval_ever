@@ -56,10 +56,10 @@ PATCHES = [
     },
     {
         'file': 'every_eval_ever/eval_types.py',
-        'import_add': 'model_validator',
+        'import_add': ['model_validator', 'field_serializer'],
         'class_name': 'MetricConfig',
         'validator': """
-    # --- validators (added by post_codegen.py) ---
+    # --- validators / serializers (added by post_codegen.py) ---
 
     @model_validator(mode="after")
     def validate_score_type_requirements(self):
@@ -73,7 +73,27 @@ PATCHES = [
                 raise ValueError("score_type 'continuous' requires min_score")
             if self.max_score is None:
                 raise ValueError("score_type 'continuous' requires max_score")
+        # A NaN bound is never meaningful (and NaN != NaN breaks comparisons).
+        # inf/-inf are allowed (unbounded); null is handled above per score_type.
+        for _name in ('min_score', 'max_score'):
+            _v = getattr(self, _name)
+            if _v is not None and _v != _v:
+                raise ValueError(f'{_name} must not be NaN')
         return self
+
+    @field_serializer('min_score', 'max_score', when_used='json')
+    def _serialize_bound(self, value):
+        # An unbounded bound is +/-inf; emit it as the JSON string
+        # "Infinity"/"-Infinity" (valid JSON that reads back to a float) rather
+        # than pydantic's default null or the non-standard bare Infinity token.
+        # when_used='json' covers BOTH model_dump_json() and
+        # model_dump(mode='json'); mode='python' keeps the native float. null
+        # stays null (reserved for "not provided", never unbounded).
+        if value == float('inf'):
+            return 'Infinity'
+        if value == float('-inf'):
+            return '-Infinity'
+        return value
 """,
     },
 ]
@@ -141,7 +161,9 @@ def patch_file(patch: dict) -> None:
         print(f'  {patch["file"]}: already patched, skipping')
         return
 
-    content = add_import(content, patch['import_add'])
+    imports = patch['import_add']
+    for symbol in [imports] if isinstance(imports, str) else imports:
+        content = add_import(content, symbol)
     content = append_to_last_class_field(
         content, patch['class_name'], patch['validator']
     )
