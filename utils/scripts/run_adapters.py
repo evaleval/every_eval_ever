@@ -31,6 +31,7 @@ from every_eval_ever.cron_archive import (
 )
 from every_eval_ever.dedup import (
     compute_file_fingerprint,
+    empty_manifest,
     load_manifest,
     select_unique_files,
     validate_manifest,
@@ -44,6 +45,7 @@ DATASET_REPO_ID = "evaleval/EEE_datastore"
 DATASET_REPO_TYPE = "dataset"
 PR_TITLE_PREFIX = "[adapter-cron]"
 DEFAULT_TIMEOUT_S = 60 * 60
+DEDUP_MODES = ("deferred", "enforced")
 REPORT_PATH = Path(
     os.environ.get("RUNNER_TEMP", tempfile.gettempdir())
 ) / "adapter-cron-report.json"
@@ -322,6 +324,15 @@ def parse_args() -> argparse.Namespace:
         help="Use a local datastore manifest instead of downloading main",
     )
     parser.add_argument(
+        "--dedup-mode",
+        choices=DEDUP_MODES,
+        default=os.environ.get("EEE_CRON_DEDUP_MODE", "deferred"),
+        help=(
+            "deferred deduplicates only against this run and pending cron PRs; "
+            "enforced also requires the accepted datastore manifest"
+        ),
+    )
+    parser.add_argument(
         "--ingestion-repo",
         default=os.environ.get("EEE_INGESTION_REPO_ID"),
         help=(
@@ -329,7 +340,12 @@ def parse_args() -> argparse.Namespace:
             "Required unless EEE_INGESTION_REPO_ID is set."
         ),
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.dedup_mode not in DEDUP_MODES:
+        parser.error(
+            f"EEE_CRON_DEDUP_MODE/--dedup-mode must be one of {', '.join(DEDUP_MODES)}"
+        )
+    return args
 
 
 def save_report(path: Path, report: dict[str, Any]) -> None:
@@ -698,6 +714,34 @@ def augment_manifest_with_pending_prs(
     return augmented
 
 
+def load_dedup_base(
+    api: HfApi,
+    *,
+    mode: str,
+    manifest_path: Path | None,
+) -> tuple[dict[str, Any], str]:
+    """Return the explicit base for the canonical dedup pathway."""
+    if mode == "deferred":
+        if manifest_path is not None:
+            raise ValueError("--manifest cannot be combined with deferred dedup")
+        return empty_manifest(), "pending_prs_and_current_run"
+    if mode != "enforced":
+        raise ValueError(f"unknown cron dedup mode: {mode!r}")
+
+    if manifest_path is None:
+        manifest = load_manifest(
+            api=api,
+            dataset_repo_id=DATASET_REPO_ID,
+            revision="main",
+        )
+    else:
+        manifest = strict_json_loads(manifest_path.read_bytes())
+        if not isinstance(manifest, dict):
+            raise ValueError("local manifest must contain a JSON object")
+        validate_manifest(manifest, manifest_path=str(manifest_path))
+    return manifest, "datastore_pending_prs_and_current_run"
+
+
 def staged_aggregates(
     workspaces: dict[str, Path],
 ) -> tuple[list[str], dict[str, Path], dict[str, Path]]:
@@ -760,17 +804,31 @@ def ensure_collection_pr(
     api: HfApi,
     collection: str,
     existing: Any | None,
+    *,
+    dedup_mode: str,
 ) -> Any:
     if existing is not None:
         return existing
+    if dedup_mode == "deferred":
+        dedup_description = (
+            "Semantic deduplication was limited to this run and open adapter "
+            "cron PRs. Datastore-wide deduplication is explicitly deferred; "
+            "do not merge until the complete datastore manifest is available."
+        )
+    elif dedup_mode == "enforced":
+        dedup_description = (
+            "Manifest-backed semantic deduplication was enforced against the "
+            "accepted datastore, this run, and open adapter cron PRs."
+        )
+    else:
+        raise ValueError(f"unknown cron dedup mode: {dedup_mode!r}")
     return api.create_pull_request(
         repo_id=DATASET_REPO_ID,
         repo_type=DATASET_REPO_TYPE,
         title=f"{PR_TITLE_PREFIX} {collection}",
         description=(
             "Automated adapter refresh. This PR is collection-scoped and was "
-            "created only after strict validation and manifest-backed semantic "
-            "deduplication."
+            f"created only after strict validation. {dedup_description}"
         ),
     )
 
@@ -779,11 +837,18 @@ def upload_collections(
     api: HfApi,
     selected: dict[str, dict[str, Path]],
     prs: dict[str, Any],
+    *,
+    dedup_mode: str,
 ) -> dict[str, str]:
     urls: dict[str, str] = {}
     today = dt.datetime.now(dt.UTC).date().isoformat()
     for collection, files in sorted(selected.items()):
-        discussion = ensure_collection_pr(api, collection, prs.get(collection))
+        discussion = ensure_collection_pr(
+            api,
+            collection,
+            prs.get(collection),
+            dedup_mode=dedup_mode,
+        )
         revision = f"refs/pr/{discussion.num}"
         operations = [
             CommitOperationAdd(
@@ -855,6 +920,7 @@ def main() -> int:
     )
     report["run_id"] = run_id
     report["ingestion_repo"] = args.ingestion_repo
+    report["dedup_mode"] = "not_run" if args.archive_only else args.dedup_mode
     ingestion_api: HfApi | None = None
     raw_archived = False
     final_event_written = False
@@ -899,6 +965,7 @@ def main() -> int:
             run_metadata={
                 "selected_adapters": [contract.name for contract in contracts],
                 "adapter_results": ledger_adapter_results(report["adapters"]),
+                "dedup_mode": report["dedup_mode"],
             },
         )
         raw_archived = True
@@ -921,6 +988,7 @@ def main() -> int:
                 phase="failed",
                 payload={
                     "status": report["status"],
+                    "dedup_mode": report["dedup_mode"],
                     "adapter_results": ledger_adapter_results(
                         report["adapters"]
                     ),
@@ -939,6 +1007,7 @@ def main() -> int:
                 phase="completed",
                 payload={
                     "status": report["status"],
+                    "dedup_mode": report["dedup_mode"],
                     "adapter_results": ledger_adapter_results(
                         report["adapters"]
                     ),
@@ -962,17 +1031,12 @@ def main() -> int:
             )
         api = HfApi(token=token)
         prs = open_collection_prs(api)
-        if args.manifest is None:
-            manifest = load_manifest(
-                api=api,
-                dataset_repo_id=DATASET_REPO_ID,
-                revision="main",
-            )
-        else:
-            manifest = strict_json_loads(args.manifest.read_bytes())
-            if not isinstance(manifest, dict):
-                raise ValueError("local manifest must contain a JSON object")
-            validate_manifest(manifest, manifest_path=str(args.manifest))
+        manifest, dedup_scope = load_dedup_base(
+            api,
+            mode=args.dedup_mode,
+            manifest_path=args.manifest,
+        )
+        report["dedup_scope"] = dedup_scope
         manifest = augment_manifest_with_pending_prs(api, manifest, prs)
         selected, duplicates = select_new_files(manifest, workspaces)
         report["duplicates"] = duplicates
@@ -984,7 +1048,12 @@ def main() -> int:
         if args.dry_run:
             report["status"] = "dry_run"
         elif selected:
-            report["prs"] = upload_collections(api, selected, prs)
+            report["prs"] = upload_collections(
+                api,
+                selected,
+                prs,
+                dedup_mode=args.dedup_mode,
+            )
             report["status"] = "uploaded"
         else:
             report["status"] = "no_changes"
@@ -995,6 +1064,8 @@ def main() -> int:
             phase="completed",
             payload={
                 "status": report["status"],
+                "dedup_mode": report["dedup_mode"],
+                "dedup_scope": report["dedup_scope"],
                 "adapter_results": ledger_adapter_results(report["adapters"]),
                 "duplicates": report["duplicates"],
                 "selected_files": report["selected_files"],
@@ -1026,6 +1097,8 @@ def main() -> int:
                     payload={
                         "status": report["status"],
                         "error": report["error"],
+                        "dedup_mode": report["dedup_mode"],
+                        "dedup_scope": report.get("dedup_scope"),
                         "duplicates": report.get("duplicates", []),
                         "selected_files": report.get("selected_files", {}),
                         "prs": report.get("prs", {}),

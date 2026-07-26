@@ -52,10 +52,10 @@ jobs:
           ARTIFICIAL_ANALYSIS_API_KEY: ${{ secrets.ARTIFICIAL_ANALYSIS_API_KEY }}
           LLM_STATS_API_KEY: ${{ secrets.LLM_STATS_API_KEY }}
           MERCOR_EVAL_API_EVALEVAL_KEY: ${{ secrets.MERCOR_EVAL_API_EVALEVAL_KEY }}
+          EEE_CRON_DEDUP_MODE: ${{ vars.EEE_CRON_DEDUP_MODE || 'deferred' }}
         run: >-
           uv run utils/scripts/run_adapters.py
           ${{ inputs.force_all && '--force-all' || '' }}
-          ${{ vars.EEE_CRON_PUBLISH_ENABLED != 'true' && '--archive-only' || '' }}
           --report "${RUNNER_TEMP}/adapter-cron-report.json"
 
       - name: Upload cron report

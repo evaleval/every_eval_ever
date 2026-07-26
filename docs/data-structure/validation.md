@@ -84,12 +84,12 @@ The manifest contains only the accepted semantic fingerprints:
 }
 ```
 
-Cron adapters download and validate their current output before using this same
-manifest-backed duplicate check. There is no separate source-revision shortcut:
-heterogeneous upstream metadata is not trusted to prove that record contents
-are unchanged. Exact semantic duplicates are omitted from upload. If the same
-logical evaluation later has a different score, its fingerprint changes and
-both immutable records are retained.
+Cron adapters download and validate their current output before using the
+canonical semantic duplicate check. There is no separate source-revision
+shortcut: heterogeneous upstream metadata is not trusted to prove that record
+contents are unchanged. Exact semantic duplicates are omitted from upload. If
+the same logical evaluation later has a different score, its fingerprint
+changes and both immutable records are retained.
 
 Each scheduled adapter also writes one deterministic, replayable input snapshot
 to the private ingestion dataset before any datastore upload. Raw blobs are
@@ -109,12 +109,22 @@ adapter results, selected datastore paths, duplicate matches, and PR URLs.
 `EEE_INGESTION_HF_TOKEN` supplies its token. Both are required; the cron fails
 before running adapters when either is absent.
 
-Scheduled runs default to `--archive-only` unless the GitHub environment
-variable `EEE_CRON_PUBLISH_ENABLED` is exactly `true`. Archive-only runs fetch,
-validate, and store raw inputs, then stop without loading the datastore
-manifest, making deduplication decisions, or opening datastore PRs. Enabling
-publication is therefore explicit and should happen only after an accepted
-fingerprint-v3 manifest is present on datastore `main`.
+Scheduled runs publish collection-scoped PRs with
+`EEE_CRON_DEDUP_MODE=deferred` while the datastore migration is under review.
+Deferred mode uses the canonical dedup pathway against the current run and
+files already present in open adapter-cron PRs, but it does not read or claim
+coverage of datastore `main`. Every deferred PR says this explicitly and must
+not be merged until the complete accepted fingerprint-v3 manifest exists.
+
+Set `EEE_CRON_DEDUP_MODE=enforced` after that manifest is published. Enforced
+mode adds the accepted datastore manifest to the same canonical comparison.
+Unknown mode values fail rather than silently selecting a scope. The
+`--archive-only` CLI option remains available for explicit fetch/validate/raw
+archive runs that should not inspect the datastore or open PRs.
+
+PR ownership is per collection. Most scheduled adapters therefore maintain one
+open PR, while a multi-collection adapter maintains one PR for each collection.
+Later runs update the matching open `[adapter-cron] <collection>` PR.
 
 The GitHub cron runs only adapters in its explicit allowlist. Larger adapters
 can still be selected manually, but are not included in scheduled or
