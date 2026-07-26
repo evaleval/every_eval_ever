@@ -22,6 +22,7 @@ from every_eval_ever.schema import (
 from every_eval_ever.validate import (
     check_companion_exists,
     check_dataset_provenance,
+    check_evaluator_provenance_consistency,
     check_integer_counts,
     check_model_deployment,
     check_path_structure,
@@ -454,6 +455,7 @@ class TestOutputFormats:
         assert len(parsed) == 1
         assert parsed[0]['valid'] is True
 
+
 class TestExitCode:
     def test_exit_code_0_on_pass(self, tmp_path: Path):
         fp = _write_json(tmp_path, 'pass.json', VALID_AGGREGATE)
@@ -662,6 +664,55 @@ class TestSemanticWarnings:
         warnings = check_dataset_provenance(data)
         assert any('no HfApi was provided' in warning for warning in warnings)
         assert any("source_type 'other'" in warning for warning in warnings)
+
+    def test_evaluator_provenance_must_match_aggregate_group(self):
+        data = {
+            'source_metadata': {'evaluator_relationship': 'third_party'},
+            'evaluation_results': [
+                {
+                    'score_details': {
+                        'details': {
+                            'inferred_evaluator_relationship': 'first_party',
+                            'relationship_inference_reason': (
+                                'source_matches_model_developer'
+                            ),
+                        }
+                    }
+                }
+            ],
+        }
+
+        findings = check_evaluator_provenance_consistency(data)
+
+        assert len(findings) == 1
+        assert 'does not match' in findings[0]
+
+    def test_evaluator_provenance_contract_is_conditional_and_complete(self):
+        matching = {
+            'source_metadata': {'evaluator_relationship': 'first_party'},
+            'evaluation_results': [
+                {
+                    'score_details': {
+                        'details': {
+                            'inferred_evaluator_relationship': 'first_party',
+                            'relationship_inference_reason': (
+                                'source_matches_model_developer'
+                            ),
+                        }
+                    }
+                },
+                {'score_details': {'score': 0.5}},
+            ],
+        }
+        assert check_evaluator_provenance_consistency(matching) == []
+
+        incomplete = json.loads(json.dumps(matching))
+        del incomplete['evaluation_results'][0]['score_details']['details'][
+            'relationship_inference_reason'
+        ]
+        findings = check_evaluator_provenance_consistency(incomplete)
+        assert len(findings) == 1
+        assert 'relationship_inference_reason' in findings[0]
 
     def test_validate_many_preserves_explicit_empty_available_files(
         self, tmp_path: Path

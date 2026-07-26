@@ -151,6 +151,10 @@ rules are blocking errors:
   `deployment_type` is `self_deployed`, `externally_managed`, or `unknown`,
   while the independent `model_availability` axis is `open_weights`,
   `closed_weights`, or `unknown`. No combination is implicitly forbidden.
+- When score details contain an `inferred_evaluator_relationship`, they must
+  also contain a non-blank `relationship_inference_reason`, and the inferred
+  value must match `source_metadata.evaluator_relationship`. This conditional
+  check does not reproduce adapter-specific inference.
 - Required Hugging Face dataset checks when `source_data.source_type` is
   `hf_dataset`.
 

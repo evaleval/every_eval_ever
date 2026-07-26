@@ -56,3 +56,19 @@ Then validate the replayed output:
 ```bash
 uv run python -m every_eval_ever validate /tmp/eee-llm-stats-replay/data/llm-stats
 ```
+
+## Evaluator Provenance
+
+LLM Stats is recorded as the aggregator. `evaluator_relationship` describes
+the relationship between the original score source and the model developer:
+
+- explicit `self_reported=true` means `first_party`;
+- explicit `self_reported=false` means `third_party`;
+- otherwise, a source organization matching the model developer means
+  `first_party`, and a differing organization means `third_party`;
+- records without usable evidence remain `other`.
+
+When the benchmark fallback API omits this evidence, model pages are fetched
+with bounded concurrency and a bounded per-request timeout. The raw source
+fields, inferred relationship, and inference reason are preserved in score
+details so shared validation can verify that they match the aggregate group.

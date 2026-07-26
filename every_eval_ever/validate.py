@@ -18,6 +18,7 @@ from every_eval_ever.validation_core import (
     ValidationReport,
     check_companion_exists,
     check_dataset_provenance,
+    check_evaluator_provenance_consistency,
     check_integer_counts,
     check_model_deployment,
     check_path_structure,
@@ -39,6 +40,7 @@ __all__ = [
     'ValidationReport',
     'check_companion_exists',
     'check_dataset_provenance',
+    'check_evaluator_provenance_consistency',
     'check_integer_counts',
     'check_model_deployment',
     'check_path_structure',
@@ -57,6 +59,7 @@ __all__ = [
     'validate_instance_file',
     'validate_many',
 ]
+
 
 def expand_paths(paths: list[str]) -> list[Path]:
     """Expand directories to .json and .jsonl files recursively."""

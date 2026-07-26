@@ -20,6 +20,7 @@ import os
 import re
 import time
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -53,6 +54,8 @@ DEFAULT_BASE_URL = 'https://api.llm-stats.com'
 ATTRIBUTION_URL = 'https://llm-stats.com/'
 DEVELOPER_PAGE_URL = 'https://llm-stats.com/developer'
 DEFAULT_OUTPUT_DIR = 'data/llm-stats'
+MODEL_PAGE_FETCH_WORKERS = 8
+MODEL_PAGE_FETCH_TIMEOUT_SECONDS = 20
 
 RELATIONSHIP_VALUES = {item.value for item in EvaluatorRelationship}
 
@@ -402,7 +405,7 @@ def fetch_benchmark_score_payloads(
 
 def fetch_text(url: str) -> str:
     try:
-        response = requests.get(url, timeout=60)
+        response = requests.get(url, timeout=MODEL_PAGE_FETCH_TIMEOUT_SECONDS)
         response.raise_for_status()
         return response.text
     except requests.exceptions.RequestException as exc:
@@ -413,14 +416,16 @@ def llm_stats_model_page_url(model_id: str) -> str:
     return f'https://llm-stats.com/models/{normalize_slug(model_id)}'
 
 
-def extract_model_page_score_sources(page_html: str) -> dict[str, dict[str, Any]]:
+def extract_model_page_score_sources(
+    page_html: str,
+) -> dict[str, dict[str, Any]]:
     text = html.unescape(page_html).replace('\\"', '"')
     matches = re.finditer(
-        r'"benchmark_id":"(?P<benchmark_id>[^"]+)".*?'
-        r'"self_reported":(?P<self_reported>true|false|null).*?'
-        r'"self_reported_source":(?P<self_reported_source>null|"[^"]*")',
+        r'\{[^{}]*"benchmark_id":"(?P<benchmark_id>[^"]+)"[^{}]*'
+        r'"self_reported":(?P<self_reported>true|false|null)[^{}]*'
+        r'"self_reported_source":(?P<self_reported_source>null|"[^"]*")'
+        r'[^{}]*\}',
         text,
-        flags=re.DOTALL,
     )
 
     sources: dict[str, dict[str, Any]] = {}
@@ -467,30 +472,35 @@ def enrich_scores_with_model_page_sources(
 ) -> list[dict[str, Any]]:
     scores = extract_collection(scores_payload, 'scores')
     sources_by_model: dict[str, dict[str, dict[str, Any]]] = {}
+    model_ids = sorted(
+        {model_id for score in scores if (model_id := score_model_ref(score))}
+    )
 
-    for score in scores:
-        model_id = score_model_ref(score)
-        if not model_id or model_id in sources_by_model:
-            continue
-
+    def fetch_sources(model_id: str) -> dict[str, dict[str, Any]]:
         try:
             page_html = fetch_text(llm_stats_model_page_url(model_id))
         except FetchError as exc:
             print(f'Skipping LLM Stats model page {model_id!r}: {exc}')
-            sources_by_model[model_id] = {}
-            continue
+            return {}
+        return extract_model_page_score_sources(page_html)
 
-        sources_by_model[model_id] = extract_model_page_score_sources(
-            page_html
-        )
+    with ThreadPoolExecutor(
+        max_workers=min(MODEL_PAGE_FETCH_WORKERS, len(model_ids) or 1)
+    ) as executor:
+        futures = {
+            executor.submit(fetch_sources, model_id): model_id
+            for model_id in model_ids
+        }
+        for future in as_completed(futures):
+            sources_by_model[futures[future]] = future.result()
 
     enriched = []
     for score in scores:
         score_copy = dict(score)
         model_id = score_model_ref(score_copy)
         benchmark_id = score_benchmark_ref(score_copy)
-        page_source = (
-            sources_by_model.get(model_id or '', {}).get(benchmark_id or '')
+        page_source = sources_by_model.get(model_id or '', {}).get(
+            benchmark_id or ''
         )
         if page_source:
             for key, value in page_source.items():
@@ -940,7 +950,10 @@ def explicit_score_source_organization(score: dict[str, Any]) -> str | None:
         first_present(score, ('source_organization_inferred_from_url',))
     )
     for key in SOURCE_ORGANIZATION_KEYS:
-        if key in {'source_organization', 'sourceOrganization'} and inferred_from_url:
+        if (
+            key in {'source_organization', 'sourceOrganization'}
+            and inferred_from_url
+        ):
             continue
         value = first_present(score, (key,))
         if value not in (None, ''):
@@ -1031,6 +1044,12 @@ def relationship_inference(
         if isinstance(explicit, str) and explicit in RELATIONSHIP_VALUES:
             return explicit, f'explicit_{key}'
 
+    self_reported = score_self_reported(score)
+    if self_reported is True:
+        return EvaluatorRelationship.first_party.value, 'self_reported_true'
+    if self_reported is False:
+        return EvaluatorRelationship.third_party.value, 'self_reported_false'
+
     source_organization = explicit_score_source_organization(score)
     model_organizations = model_organization_candidates(score, model)
     if source_organization and source_organization in model_organizations:
@@ -1053,12 +1072,6 @@ def relationship_inference(
             EvaluatorRelationship.first_party.value,
             'source_matches_model_developer',
         )
-
-    self_reported = score_self_reported(score)
-    if self_reported is True:
-        return EvaluatorRelationship.first_party.value, 'self_reported_true'
-    if self_reported is False:
-        return EvaluatorRelationship.third_party.value, 'self_reported_false'
 
     if url_source_organization:
         return (

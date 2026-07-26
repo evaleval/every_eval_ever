@@ -41,6 +41,12 @@ _COUNT_FIELDS = frozenset(
 
 _DEPLOYMENT_TYPES = ('self_deployed', 'externally_managed', 'unknown')
 _MODEL_AVAILABILITY_TYPES = ('open_weights', 'closed_weights', 'unknown')
+_EVALUATOR_RELATIONSHIP_TYPES = (
+    'first_party',
+    'third_party',
+    'collaborative',
+    'other',
+)
 
 # Compatibility surface: the validator Space clears this cache between jobs.
 _existence_cache: dict[tuple[str, str], tuple[bool | None, str | None]] = {}
@@ -523,6 +529,74 @@ def check_model_deployment(data: dict[str, Any], api: Any = None) -> list[str]:
     return warnings
 
 
+def check_evaluator_provenance_consistency(
+    data: dict[str, Any],
+) -> list[str]:
+    """Verify optional score-level provenance against the aggregate grouping.
+
+    Adapters may preserve their inferred evaluator relationship and inference
+    reason in ``score_details.details``. When they do, those two fields form an
+    auditable contract: the inferred relationship must be valid and must match
+    the file-level relationship used to group the evaluation results.
+
+    Records without these optional fields remain valid. The validator does not
+    repeat adapter-specific URL or organization inference.
+    """
+    findings: list[str] = []
+    source_metadata = data.get('source_metadata')
+    aggregate_relationship = (
+        source_metadata.get('evaluator_relationship')
+        if isinstance(source_metadata, dict)
+        else None
+    )
+    results = data.get('evaluation_results')
+    if not isinstance(results, list):
+        return findings
+
+    for index, result in enumerate(results):
+        if not isinstance(result, dict):
+            continue
+        score_details = result.get('score_details')
+        details = (
+            score_details.get('details')
+            if isinstance(score_details, dict)
+            else None
+        )
+        if not isinstance(details, dict):
+            continue
+
+        inferred = details.get('inferred_evaluator_relationship')
+        reason = details.get('relationship_inference_reason')
+        prefix = f'evaluation_results[{index}].score_details.details'
+        if inferred is None and reason is None:
+            continue
+        if inferred is None:
+            findings.append(
+                f'{prefix}.inferred_evaluator_relationship: required when '
+                'relationship_inference_reason is present'
+            )
+            continue
+        if inferred not in _EVALUATOR_RELATIONSHIP_TYPES:
+            findings.append(
+                f'{prefix}.inferred_evaluator_relationship: expected one of '
+                f'{list(_EVALUATOR_RELATIONSHIP_TYPES)}, got {inferred!r}'
+            )
+            continue
+        if not isinstance(reason, str) or not reason.strip():
+            findings.append(
+                f'{prefix}.relationship_inference_reason: required when '
+                'inferred_evaluator_relationship is present'
+            )
+        if inferred != aggregate_relationship:
+            findings.append(
+                f'{prefix}.inferred_evaluator_relationship: {inferred!r} '
+                'does not match '
+                f'source_metadata.evaluator_relationship '
+                f'{aggregate_relationship!r}'
+            )
+    return findings
+
+
 def check_dataset_provenance(
     data: dict[str, Any], api: Any = None
 ) -> list[str]:
@@ -658,6 +732,14 @@ def _aggregate_check_model_deployment(
     return check_model_deployment(data, context.hf_api)
 
 
+def _aggregate_check_evaluator_provenance_consistency(
+    context: ValidationContext, data: dict[str, Any] | None
+) -> list[str]:
+    if data is None:
+        return []
+    return check_evaluator_provenance_consistency(data)
+
+
 def _aggregate_check_dataset_provenance(
     context: ValidationContext, data: dict[str, Any] | None
 ) -> list[str]:
@@ -722,6 +804,12 @@ REGISTERED_CHECKS: tuple[ValidationCheck, ...] = (
         'aggregate',
         'error',
         _aggregate_check_model_deployment,
+    ),
+    ValidationCheck(
+        'evaluator provenance consistency',
+        'aggregate',
+        'error',
+        _aggregate_check_evaluator_provenance_consistency,
     ),
     ValidationCheck(
         'required dataset provenance',

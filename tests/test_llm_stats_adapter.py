@@ -126,6 +126,8 @@ def test_make_logs_validate_against_schema():
             ]
             == 'https://api.llm-stats.com/leaderboard/benchmarks/{benchmark_id}'
         )
+
+
 def test_scores_are_grouped_by_evaluator_relationship():
     logs = logs_by_relationship()
 
@@ -282,6 +284,30 @@ def test_enrich_scores_with_model_page_sources(monkeypatch):
     assert enriched[0]['source_organization'] == 'xai'
 
 
+def test_model_page_enrichment_fetches_each_model_once(monkeypatch):
+    fetched = []
+    page_html = (
+        r'{\"benchmark_id\":\"gpqa\",\"self_reported\":true,'
+        r'\"self_reported_source\":\"https://openai.com/gpqa\"}'
+    )
+    monkeypatch.setattr(
+        adapter,
+        'fetch_text',
+        lambda url: fetched.append(url) or page_html,
+    )
+
+    enriched = adapter.enrich_scores_with_model_page_sources(
+        [
+            {'model_id': 'gpt-5', 'benchmark_id': 'gpqa', 'score': 0.9},
+            {'model_id': 'gpt-5', 'benchmark_id': 'math', 'score': 0.8},
+        ]
+    )
+
+    assert fetched == ['https://llm-stats.com/models/gpt-5']
+    assert enriched[0]['self_reported'] is True
+    assert 'self_reported' not in enriched[1]
+
+
 def test_relationship_uses_score_source_against_model_developer():
     openai_model = {
         'id': 'o3-2025-04-16',
@@ -301,6 +327,17 @@ def test_relationship_uses_score_source_against_model_developer():
         adapter.relationship_from_score(
             {
                 'source_url': 'https://x.com/xai/status/1943158495588815072',
+                'score': 0.065,
+            },
+            openai_model,
+        )
+        == 'third_party'
+    )
+    assert (
+        adapter.relationship_from_score(
+            {
+                'self_reported': False,
+                'source_url': 'https://openai.com/index/o3/',
                 'score': 0.065,
             },
             openai_model,
