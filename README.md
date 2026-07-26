@@ -2,7 +2,7 @@
 
 > [EvalEval Coalition](https://evalevalai.com) — "We are a researcher community developing scientifically grounded research outputs and robust deployment infrastructure for broader impact evaluations."
 
-📖 **[Documentation](https://evalevalai.com/every_eval_ever/)** · 📄 **[Paper (arXiv:2606.14516)](https://arxiv.org/abs/2606.14516)**
+📄 **[Paper (arXiv:2606.14516)](https://arxiv.org/abs/2606.14516)**
 
 **Every Eval Ever** is a shared schema and crowdsourced eval database. It defines a standardized metadata format for storing AI evaluation results — from leaderboard scrapes and research papers to local evaluation runs — so that results from different frameworks can be compared, reproduced, and reused. The three components that make it work:
 
