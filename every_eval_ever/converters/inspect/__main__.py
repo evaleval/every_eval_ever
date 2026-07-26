@@ -187,8 +187,10 @@ if __name__ == '__main__':
         'eval_library_version': args.eval_library_version,
     }
     if args.supplemental_eval_details_path:
-        with open(args.supplemental_eval_details_path, 'r', encoding='utf-8') as f:
-            base_metadata_args["supplemental_eval_details"] = (
+        with open(
+            args.supplemental_eval_details_path, 'r', encoding='utf-8'
+        ) as f:
+            base_metadata_args['supplemental_eval_details'] = (
                 SupplementalEvalDetails.model_validate(json.load(f))
             )
 

@@ -74,16 +74,13 @@ MODEL_AVAILABILITY_SOURCES = {
     'ai21_jamba': 'https://huggingface.co/ai21labs/models',
     'inclusionai': 'https://huggingface.co/inclusionAI/models',
     'lg_exaone': 'https://huggingface.co/LGAI-EXAONE/models',
-    'longcat': (
-        'https://huggingface.co/meituan-longcat/LongCat-Flash-Lite'
-    ),
+    'longcat': ('https://huggingface.co/meituan-longcat/LongCat-Flash-Lite'),
     'motif': (
         'https://huggingface.co/Motif-Technologies/Motif-2-12.7B-Instruct'
     ),
     'nanbeige': 'https://huggingface.co/Nanbeige/Nanbeige4.1-3B',
     'naver': (
-        'https://huggingface.co/naver-hyperclovax/'
-        'HyperCLOVAX-SEED-Think-32B'
+        'https://huggingface.co/naver-hyperclovax/HyperCLOVAX-SEED-Think-32B'
     ),
     'openchat': 'https://huggingface.co/openchat/openchat_3.5',
     'perplexity_r1': (
@@ -97,9 +94,7 @@ MODEL_AVAILABILITY_SOURCES = {
     'upstage_solar': 'https://huggingface.co/upstage/models',
     'xiaomi_mimo': 'https://huggingface.co/XiaomiMiMo/models',
     'api_inception': 'https://docs.inceptionlabs.ai/get-started/models',
-    'api_cohere_command_legacy': (
-        'https://docs.cohere.com/docs/deprecations'
-    ),
+    'api_cohere_command_legacy': ('https://docs.cohere.com/docs/deprecations'),
     'api_korea_telecom_midm': (
         'https://artificialanalysis.ai/models/mi-dm-k-2-5-pro-dec28'
     ),
@@ -303,9 +298,7 @@ VERIFIED_OPEN_WEIGHT_MODELS: dict[str, frozenset[str]] = {
             'pixtral-large-2411',
         }
     ),
-    'mbzuai': frozenset(
-        {'k2-think-v2', 'k2-v2', 'k2-v2-low', 'k2-v2-medium'}
-    ),
+    'mbzuai': frozenset({'k2-think-v2', 'k2-v2', 'k2-v2-low', 'k2-v2-medium'}),
     'motif-technologies': frozenset({'motif-2-12-7b'}),
     'nanbeige': frozenset({'nanbeige4-1-3b'}),
     'naver': frozenset({'hyperclova-x-seed-think-32b'}),
@@ -333,9 +326,7 @@ VERIFIED_OPEN_WEIGHT_MODELS: dict[str, frozenset[str]] = {
     'openchat': frozenset({'openchat-35'}),
     'perplexity': frozenset({'r1-1776'}),
     'reka-ai': frozenset({'reka-flash-3'}),
-    'sarvam': frozenset(
-        {'sarvam-105b', 'sarvam-30b', 'sarvam-m-reasoning'}
-    ),
+    'sarvam': frozenset({'sarvam-105b', 'sarvam-30b', 'sarvam-m-reasoning'}),
     'snowflake': frozenset({'arctic-instruct'}),
     'servicenow': frozenset(
         {'apriel-v1-5-15b-thinker', 'apriel-v1-6-15b-thinker'}
@@ -345,9 +336,7 @@ VERIFIED_OPEN_WEIGHT_MODELS: dict[str, frozenset[str]] = {
         {'apertus-70b-instruct', 'apertus-8b-instruct'}
     ),
     'tii-uae': frozenset({'falcon-h1r-7b'}),
-    'trillionlabs': frozenset(
-        {'tri-21b-think-preview', 'tri-21b-think-v0-5'}
-    ),
+    'trillionlabs': frozenset({'tri-21b-think-preview', 'tri-21b-think-v0-5'}),
     'upstage': frozenset({'solar-mini', 'solar-open-100b-reasoning'}),
     'xiaomi': frozenset(
         {'mimo-v2-0206', 'mimo-v2-flash', 'mimo-v2-flash-reasoning'}
@@ -419,9 +408,7 @@ API_ONLY_CLOSED_WEIGHT_MODELS: dict[str, frozenset[str]] = {
         }
     ),
     'xai': frozenset({'grok-beta', 'grok-code-fast-1'}),
-    'xiaomi': frozenset(
-        {'mimo-v2-omni', 'mimo-v2-omni-0327', 'mimo-v2-pro'}
-    ),
+    'xiaomi': frozenset({'mimo-v2-omni', 'mimo-v2-omni-0327', 'mimo-v2-pro'}),
     'zai': frozenset({'glm-5-turbo', 'glm-5v-turbo'}),
 }
 

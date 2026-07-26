@@ -97,20 +97,22 @@ def _evaluation_result_id(
 # where ``score > 0`` reasonably maps to ``is_correct=True``. Keep this list
 # tight: graded core metrics such as rouge/bleu/f1 should stay out of it
 # because a positive score is not the same as a binary correctness claim.
-_BINARY_CORRECTNESS_METRIC_NAMES: frozenset[str] = frozenset({
-    'exact_match',
-    'quasi_exact_match',
-    'prefix_exact_match',
-    'quasi_prefix_exact_match',
-    'exact_match@5',
-    'quasi_exact_match@5',
-    'prefix_exact_match@5',
-    'quasi_prefix_exact_match@5',
-    'ifeval_strict_accuracy',
-    'chain_of_thought_correctness',
-    'math_equiv',
-    'math_equiv_chain_of_thought',
-})
+_BINARY_CORRECTNESS_METRIC_NAMES: frozenset[str] = frozenset(
+    {
+        'exact_match',
+        'quasi_exact_match',
+        'prefix_exact_match',
+        'quasi_prefix_exact_match',
+        'exact_match@5',
+        'quasi_exact_match@5',
+        'prefix_exact_match@5',
+        'quasi_prefix_exact_match@5',
+        'ifeval_strict_accuracy',
+        'chain_of_thought_correctness',
+        'math_equiv',
+        'math_equiv_chain_of_thought',
+    }
+)
 
 
 def _is_correct_for_metric(metric_name: str | None, score: float) -> bool:
@@ -299,7 +301,8 @@ class HELMInstanceLevelDataAdapter:
                         evaluation_result_id=evaluation_result_id,
                         sample_id=str(state.instance.id),
                         sample_hash=sha256_string(
-                            state.request.prompt + (correct_refs[0] if correct_refs else '')
+                            state.request.prompt
+                            + (correct_refs[0] if correct_refs else '')
                         ),  # TODO use all references
                         interaction_type=InteractionType.single_turn,
                         input=Input(
@@ -337,8 +340,7 @@ class HELMInstanceLevelDataAdapter:
                         performance=Performance(
                             generation_time_ms=(
                                 state.result.request_time * 1000
-                                if state.result
-                                and state.result.request_time
+                                if state.result and state.result.request_time
                                 else None
                             )
                         ),

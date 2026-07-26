@@ -202,7 +202,9 @@ def parse_benchmarks(raw: str | None) -> list[str]:
     if raw is None:
         return list(DEFAULT_BENCHMARKS)
     benchmarks = [
-        BENCHMARK_ALIASES.get(normalize_benchmark(item), normalize_benchmark(item))
+        BENCHMARK_ALIASES.get(
+            normalize_benchmark(item), normalize_benchmark(item)
+        )
         for item in raw.split(',')
     ]
     benchmarks = [item for item in benchmarks if item]
@@ -325,13 +327,17 @@ def _datastore_blob_url(
     )
 
 
-def _date_from_result(log: EvaluationLog, result: EvaluationResult) -> str | None:
+def _date_from_result(
+    log: EvaluationLog, result: EvaluationResult
+) -> str | None:
     value = result.evaluation_timestamp or log.evaluation_timestamp
     if value is None:
         return None
     try:
         if value.replace('.', '', 1).isdigit():
-            return datetime.fromtimestamp(float(value), tz=UTC).date().isoformat()
+            return (
+                datetime.fromtimestamp(float(value), tz=UTC).date().isoformat()
+            )
     except ValueError:
         pass
     if len(value) >= 10:
@@ -471,7 +477,9 @@ def _community_eval_entry(
 def _gpqa_variant_notes(result: EvaluationResult) -> str | None:
     source_data = result.source_data
     hf_repo = (source_data.hf_repo or '').strip().lower()
-    dataset_name = normalize_benchmark(source_data.dataset_name).replace(' ', '_')
+    dataset_name = normalize_benchmark(source_data.dataset_name).replace(
+        ' ', '_'
+    )
     result_id = (result.evaluation_result_id or '').strip().lower()
     metric_name = (result.metric_config.metric_name or '').strip().lower()
 
@@ -491,7 +499,9 @@ def _gpqa_variant_notes(result: EvaluationResult) -> str | None:
     return None
 
 
-def _community_eval_notes(benchmark: str, result: EvaluationResult) -> str | None:
+def _community_eval_notes(
+    benchmark: str, result: EvaluationResult
+) -> str | None:
     if benchmark == 'gpqa':
         return _gpqa_variant_notes(result)
     return None
@@ -589,7 +599,10 @@ def _api_only_skip_reason(log: EvaluationLog) -> str | None:
         return None
     values = (platform, developer, model_id, model_name)
     for prefix in API_ONLY_PROVIDER_PREFIXES:
-        if any(value == prefix or value.startswith(f'{prefix}/') for value in values):
+        if any(
+            value == prefix or value.startswith(f'{prefix}/')
+            for value in values
+        ):
             return f'api_only_or_closed_provider:{prefix}'
     if 'gemini' in model_id or 'gemini' in model_name:
         return 'api_only_or_closed_provider:gemini'
@@ -615,7 +628,9 @@ def _index_subset(row: dict[str, Any], *, line_ref: str) -> str | None:
     return value.strip()
 
 
-def _reject_unsupported_row_sources(row: dict[str, Any], *, line_ref: str) -> None:
+def _reject_unsupported_row_sources(
+    row: dict[str, Any], *, line_ref: str
+) -> None:
     unsupported = [
         field for field in ('url', 'local_path') if row.get(field) is not None
     ]
@@ -634,7 +649,9 @@ def _validate_instance_level_reference(
 ) -> None:
     available = row.get('instance_level_available')
     if not isinstance(available, bool):
-        raise HFEvalsError(f'{line_ref}: instance_level_available must be boolean')
+        raise HFEvalsError(
+            f'{line_ref}: instance_level_available must be boolean'
+        )
     if not available:
         unexpected = [
             field
@@ -655,14 +672,18 @@ def _validate_instance_level_reference(
     _safe_index_path(row, 'instance_level_path', line_ref=line_ref)
     size = row.get('instance_level_size_bytes')
     if not isinstance(size, int):
-        raise HFEvalsError(f'{line_ref}: instance_level_size_bytes must be an integer')
+        raise HFEvalsError(
+            f'{line_ref}: instance_level_size_bytes must be an integer'
+        )
     instance_sha = row.get('instance_sha')
     if not isinstance(instance_sha, str) or not instance_sha:
         raise HFEvalsError(f'{line_ref}: missing instance_sha')
     if len(instance_sha) != 64 or any(
         char not in '0123456789abcdef' for char in instance_sha.lower()
     ):
-        raise HFEvalsError(f'{line_ref}: instance_sha must be a sha256 hex digest')
+        raise HFEvalsError(
+            f'{line_ref}: instance_sha must be a sha256 hex digest'
+        )
 
 
 def _index_trace_fields(row: dict[str, Any]) -> dict[str, Any]:
@@ -725,9 +746,13 @@ def _safe_collection_name(value: str) -> str:
     if not name:
         raise HFEvalsError('Collection name must not be empty.')
     if name != value:
-        raise HFEvalsError('Collection name must not include surrounding whitespace.')
+        raise HFEvalsError(
+            'Collection name must not include surrounding whitespace.'
+        )
     if name.endswith('.jsonl'):
-        raise HFEvalsError('Pass the collection name without the .jsonl suffix.')
+        raise HFEvalsError(
+            'Pass the collection name without the .jsonl suffix.'
+        )
     if '/' in name or '\\' in name:
         raise HFEvalsError(
             'Collection name must be a single by_collection file stem.'
@@ -773,7 +798,9 @@ def _normalized_collection_stem(value: str) -> str:
     )
 
 
-def _nearby_collection_stems(collection_name: str, stems: list[str]) -> list[str]:
+def _nearby_collection_stems(
+    collection_name: str, stems: list[str]
+) -> list[str]:
     normalized_requested = _normalized_collection_stem(collection_name)
     suggestions = []
     for stem in stems:
@@ -864,10 +891,13 @@ def _numeric_score(value: Any, *, context: str) -> float:
 
 
 def _scores_equal(left: Any, right: Any) -> bool:
-    return abs(
-        _numeric_score(left, context='left score')
-        - _numeric_score(right, context='right score')
-    ) <= 1e-9
+    return (
+        abs(
+            _numeric_score(left, context='left score')
+            - _numeric_score(right, context='right score')
+        )
+        <= 1e-9
+    )
 
 
 def _read_online_indexed_record(
@@ -932,7 +962,9 @@ def _parse_indexed_record_bytes(
         raw = json.loads(data.decode('utf-8'))
         log = EvaluationLog.model_validate(raw)
     except Exception as exc:  # noqa: BLE001
-        raise HFEvalsError(f'{line_ref}: invalid EEE aggregate JSON: {exc}') from exc
+        raise HFEvalsError(
+            f'{line_ref}: invalid EEE aggregate JSON: {exc}'
+        ) from exc
     return log
 
 
@@ -1079,7 +1111,9 @@ def build_index_manifest(
             continue
 
         try:
-            object_path = _safe_index_path(row, 'object_path', line_ref=line_ref)
+            object_path = _safe_index_path(
+                row, 'object_path', line_ref=line_ref
+            )
             record_ref = object_path
             source_url = _datastore_blob_url(
                 object_path,
@@ -1274,14 +1308,18 @@ def build_collection_manifest(
         advance=1,
         description=f'Downloading collection index {collection_name}.jsonl',
     )
-    collection_index_path, collection_index_jsonl = _download_collection_index_jsonl(
-        api=api,
-        datastore_repo=datastore_repo,
-        datastore_revision=datastore_revision,
-        collection_name=collection_name,
-        download_file=download_file,
+    collection_index_path, collection_index_jsonl = (
+        _download_collection_index_jsonl(
+            api=api,
+            datastore_repo=datastore_repo,
+            datastore_revision=datastore_revision,
+            collection_name=collection_name,
+            download_file=download_file,
+        )
     )
-    progress.update(setup_task, advance=1, description='Reading collection rows')
+    progress.update(
+        setup_task, advance=1, description='Reading collection rows'
+    )
     rows = _load_index_rows(collection_index_jsonl)
     progress.update(
         setup_task,
@@ -1333,7 +1371,9 @@ def build_collection_manifest(
             continue
 
         try:
-            object_path = _safe_index_path(row, 'object_path', line_ref=line_ref)
+            object_path = _safe_index_path(
+                row, 'object_path', line_ref=line_ref
+            )
             progress.update(
                 row_task,
                 description=f'{row_label}: downloading {object_path}',
@@ -1379,7 +1419,9 @@ def build_collection_manifest(
             progress.update(row_task, advance=1)
             continue
         model_repo = raw_model_repo.strip()
-        progress.update(row_task, description=f'{row_label}: checking {model_repo}')
+        progress.update(
+            row_task, description=f'{row_label}: checking {model_repo}'
+        )
 
         status = 'ready'
         hf_check_error: str | None = None
@@ -1483,7 +1525,9 @@ def build_collection_manifest(
             entries.append(entry)
         progress.update(row_task, advance=1)
 
-    progress.update(row_task, description=f'Processed {len(rows)} aggregate rows')
+    progress.update(
+        row_task, description=f'Processed {len(rows)} aggregate rows'
+    )
 
     manifest = {
         'version': MANIFEST_VERSION,
@@ -1519,7 +1563,9 @@ def build_collection_manifest(
     return manifest
 
 
-def _path_family_for_entry(entry: dict[str, Any]) -> tuple[str, tuple[str, ...]]:
+def _path_family_for_entry(
+    entry: dict[str, Any],
+) -> tuple[str, tuple[str, ...]]:
     benchmark = entry.get('benchmark')
     if not isinstance(benchmark, str):
         raise HFEvalsError('Manifest entry benchmark must be a string.')
@@ -1880,7 +1926,9 @@ def audit_manifest_for_hf_eval_duplicates(
                     'existing_path': path,
                     'existing_value': match['existing_value'],
                     'candidate_value': entry['yaml_entry']['value'],
-                    'candidate_source_url': entry['yaml_entry']['source']['url'],
+                    'candidate_source_url': entry['yaml_entry']['source'][
+                        'url'
+                    ],
                     'comment': match['comment'],
                 }
             )
@@ -1975,7 +2023,9 @@ def audit_manifest_for_hf_eval_duplicates(
                         'paths': [path],
                         'existing_value': match['existing_value'],
                         'candidate_value': entry['yaml_entry']['value'],
-                        'candidate_source_url': entry['yaml_entry']['source']['url'],
+                        'candidate_source_url': entry['yaml_entry']['source'][
+                            'url'
+                        ],
                         'comment': match['comment'],
                     }
                 )
@@ -2176,7 +2226,9 @@ def review_collection_for_hf_evals(
         )
         if cached_review is not None:
             cache_task = progress.add_task('Using cached review', total=1)
-            progress.update(cache_task, advance=1, description='Used cached review')
+            progress.update(
+                cache_task, advance=1, description='Used cached review'
+            )
             return cached_review
 
         manifest = _load_cached_collection_manifest(
@@ -2318,7 +2370,9 @@ def _load_cached_collection_review(
             f'Cached review is not readable: {review_output_path}'
         ) from exc
     if not isinstance(review, dict):
-        raise HFEvalsError(f'Cached review must be an object: {review_output_path}')
+        raise HFEvalsError(
+            f'Cached review must be an object: {review_output_path}'
+        )
     manifest = review.get('manifest')
     if not isinstance(manifest, dict):
         raise HFEvalsError(
@@ -2379,7 +2433,9 @@ def _write_yaml_from_manifest(
     return {'written': written, 'count': len(written)}
 
 
-def write_yaml_from_manifest(manifest_path: Path, output_dir: Path) -> dict[str, Any]:
+def write_yaml_from_manifest(
+    manifest_path: Path, output_dir: Path
+) -> dict[str, Any]:
     return _write_yaml_from_manifest(load_manifest(manifest_path), output_dir)
 
 
@@ -2431,7 +2487,9 @@ def create_prs_from_manifest(
             operations.append(
                 CommitOperationAdd(
                     path_in_repo=target_path,
-                    path_or_fileobj=dump_yaml_entries(new_entries).encode('utf-8'),
+                    path_or_fileobj=dump_yaml_entries(new_entries).encode(
+                        'utf-8'
+                    ),
                 )
             )
 
@@ -2522,13 +2580,23 @@ def _render_summary(console: Console, review: dict) -> None:
     audit = review['duplicate_audit']
     missing_models = review['missing_hf_models']
 
-    table = Table(title='Community Evals Converter', show_header=True, header_style='bold')
+    table = Table(
+        title='Community Evals Converter', show_header=True, header_style='bold'
+    )
     table.add_column('Item')
     table.add_column('Count', justify='right')
     table.add_row('records converted', str(len(manifest['entries'])))
     table.add_row(
         'ready records',
-        str(len([entry for entry in manifest['entries'] if _entry_is_ready(entry)])),
+        str(
+            len(
+                [
+                    entry
+                    for entry in manifest['entries']
+                    if _entry_is_ready(entry)
+                ]
+            )
+        ),
     )
     table.add_row(
         'already present',
@@ -2732,7 +2800,9 @@ def _render_not_ready(console: Console, review: dict) -> None:
             'written for inspection.'
         )
     else:
-        message = 'No clean ready entries are available. PRs were not submitted.'
+        message = (
+            'No clean ready entries are available. PRs were not submitted.'
+        )
     console.print(
         _panel(
             message,
@@ -2792,7 +2862,9 @@ def _submit_prs(
             stream=True,
         )
     except HFEvalsError as exc:
-        console.print(_panel(str(exc), title='PR Creation Failed', border_style='red'))
+        console.print(
+            _panel(str(exc), title='PR Creation Failed', border_style='red')
+        )
         return 1
     console.print(json.dumps(result, indent=2, sort_keys=True))
     return 0
@@ -2829,14 +2901,18 @@ def _ready_entries_by_repo(review: dict) -> dict[str, list[str]]:
         by_repo.setdefault(repo, set()).add(str(entry['target_path']))
     return {
         repo: sorted(paths)
-        for repo, paths in sorted(by_repo.items(), key=lambda item: item[0].lower())
+        for repo, paths in sorted(
+            by_repo.items(), key=lambda item: item[0].lower()
+        )
     }
 
 
 def _approve_pr_submission(console: Console, review: dict) -> bool:
     by_repo = _ready_entries_by_repo(review)
     if not by_repo:
-        console.print(_panel('No ready entries to submit.', border_style='yellow'))
+        console.print(
+            _panel('No ready entries to submit.', border_style='yellow')
+        )
         return False
 
     table = Table(
@@ -2901,12 +2977,16 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         collection_name = _safe_collection_name(args.collection_name)
-        manifest_output, yaml_dir, review_output = _default_paths(collection_name)
+        manifest_output, yaml_dir, review_output = _default_paths(
+            collection_name
+        )
         with Progress(
             SpinnerColumn(),
             TextColumn(
                 '[bold blue]{task.description}',
-                table_column=Column(width=48, no_wrap=True, overflow='ellipsis'),
+                table_column=Column(
+                    width=48, no_wrap=True, overflow='ellipsis'
+                ),
             ),
             BarColumn(bar_width=28),
             TextColumn(
@@ -2927,7 +3007,9 @@ def main(argv: list[str] | None = None) -> int:
                 force=args.force,
             )
     except HFEvalsError as exc:
-        console.print(_panel(str(exc), title='Review Failed', border_style='red'))
+        console.print(
+            _panel(str(exc), title='Review Failed', border_style='red')
+        )
         return 1
 
     _render_summary(console, review)

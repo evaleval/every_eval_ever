@@ -123,15 +123,11 @@ def alpaca_eval_provenance(
             'ultralm-',
         )
         availability = (
-            OPEN_WEIGHTS
-            if leaf.startswith(unscoped_open_prefixes)
-            else UNKNOWN
+            OPEN_WEIGHTS if leaf.startswith(unscoped_open_prefixes) else UNKNOWN
         )
 
     together_routed = (
-        'together' in leaf
-        or leaf.endswith('-turbo')
-        or '-turbo-' in leaf
+        'together' in leaf or leaf.endswith('-turbo') or '-turbo-' in leaf
     )
     if together_routed:
         return AlpacaEvalProvenance(

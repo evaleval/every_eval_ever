@@ -120,9 +120,7 @@ def sci_arena_provenance(model_id: str) -> SciArenaProvenance:
     if normalized in EXACT_CLOSED_MODEL_IDS:
         platform = normalized.partition('/')[0]
     if platform is not None:
-        return SciArenaProvenance(
-            EXTERNALLY_MANAGED, CLOSED_WEIGHTS, platform
-        )
+        return SciArenaProvenance(EXTERNALLY_MANAGED, CLOSED_WEIGHTS, platform)
     raise ValueError(f'unreviewed SciArena model id: {model_id!r}')
 
 

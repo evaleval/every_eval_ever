@@ -15,7 +15,9 @@ from types import SimpleNamespace
 from every_eval_ever.converters.helm.adapter import HELMAdapter
 
 
-def _make_request_state(temperature=None, max_tokens=None, top_p=None, top_k=None):
+def _make_request_state(
+    temperature=None, max_tokens=None, top_p=None, top_k=None
+):
     """Build a minimal mock RequestState with the given request-level values."""
     request = SimpleNamespace(
         temperature=temperature,
@@ -29,7 +31,9 @@ def _make_request_state(temperature=None, max_tokens=None, top_p=None, top_k=Non
     )
 
 
-def _make_adapter_spec(temperature=None, max_tokens=None, top_p=None, top_k=None):
+def _make_adapter_spec(
+    temperature=None, max_tokens=None, top_p=None, top_k=None
+):
     """Build a minimal mock AdapterSpec with the given fallback values."""
     return SimpleNamespace(
         temperature=temperature,

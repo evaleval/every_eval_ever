@@ -28,9 +28,7 @@ KNOWN_PLACEHOLDER_MODEL_IDS = frozenset({'my_model/'})
 _NON_GENERATIVE_MODEL_TYPES = frozenset(
     {'custom classifier', 'dpo', 'seq. classifier'}
 )
-_COHERE_PRIVATE_JUDGES = frozenset(
-    {'cohere march 2024', 'cohere may 2024'}
-)
+_COHERE_PRIVATE_JUDGES = frozenset({'cohere march 2024', 'cohere may 2024'})
 
 
 @dataclass(frozen=True)
@@ -106,9 +104,7 @@ def rewardbench_provenance(
         )
 
     availability = (
-        UNKNOWN
-        if _is_unpublished_or_ambiguous(normalized)
-        else OPEN_WEIGHTS
+        UNKNOWN if _is_unpublished_or_ambiguous(normalized) else OPEN_WEIGHTS
     )
 
     # RewardBench documents local Transformers inference for classifier and

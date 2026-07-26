@@ -8,22 +8,28 @@ from every_eval_ever.eval_types import ScoreType
 
 
 class _StrictSupplementalModel(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra='forbid')
+
 
 class SupplementalModelInfo(_StrictSupplementalModel):
     additional_details: dict[str, Any] | None = None
 
+
 class SupplementalSourceData(_StrictSupplementalModel):
     additional_details: dict[str, Any] | None = None
+
 
 class SupplementalAgenticEvalConfig(_StrictSupplementalModel):
     additional_details: dict[str, Any] | None = None
 
+
 class SupplementalGenerationConfig(_StrictSupplementalModel):
     additional_details: dict[str, Any] | None = None
 
+
 class SupplementalScoreDetails(_StrictSupplementalModel):
     details: dict[str, Any] | None = None
+
 
 class SupplementalMetricConfig(_StrictSupplementalModel):
     evaluation_description: str | None = None
@@ -36,10 +42,12 @@ class SupplementalMetricConfig(_StrictSupplementalModel):
     max_score: float | None = None
     additional_details: dict[str, Any] | None = None
 
+
 class SupplementalForEvaluationResults(_StrictSupplementalModel):
     evaluation_name: str | None = None
     metric_config: SupplementalMetricConfig | None = None
     score_details: SupplementalScoreDetails | None = None
+
 
 class SupplementalEvalDetails(_StrictSupplementalModel):
     model_info: SupplementalModelInfo | None = None

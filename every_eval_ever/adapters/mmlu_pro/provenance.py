@@ -86,9 +86,7 @@ def _provider_and_availability(model_id: str) -> tuple[str, str]:
             return UNKNOWN, OPEN_WEIGHTS
         if leaf.startswith(('gpt-', 'o1-', 'o3-', 'o4-')):
             return 'openai', CLOSED_WEIGHTS
-    if developer == 'alibaba' and (
-        'max' in leaf or 'turbo' in leaf
-    ):
+    if developer == 'alibaba' and ('max' in leaf or 'turbo' in leaf):
         return 'alibaba', CLOSED_WEIGHTS
     if developer == '01-ai' and leaf in {'yi-large', 'yi-lightning'}:
         return '01-ai', CLOSED_WEIGHTS
@@ -149,9 +147,7 @@ def mmlu_pro_provenance(
     normalized = model_id.strip().casefold()
     platform = (inference_platform or '').strip().casefold() or UNKNOWN
     if normalized.count('/') != 1 or normalized.endswith('/'):
-        return MMLUProProvenance(
-            UNKNOWN, UNKNOWN, platform, UNKNOWN, UNKNOWN
-        )
+        return MMLUProProvenance(UNKNOWN, UNKNOWN, platform, UNKNOWN, UNKNOWN)
 
     provider, availability = _provider_and_availability(normalized)
     if platform != UNKNOWN:

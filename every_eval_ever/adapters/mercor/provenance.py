@@ -58,7 +58,9 @@ def mercor_provenance(
             developer == 'openai'
             and (
                 leaf.startswith('gpt ')
-                or (leaf.startswith('o') and len(leaf) > 1 and leaf[1].isdigit())
+                or (
+                    leaf.startswith('o') and len(leaf) > 1 and leaf[1].isdigit()
+                )
             )
         )
         or (developer == 'xai' and leaf.startswith('grok '))

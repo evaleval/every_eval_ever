@@ -9,9 +9,7 @@ UNKNOWN = 'unknown'
 OPEN_WEIGHTS = 'open_weights'
 CLOSED_WEIGHTS = 'closed_weights'
 
-MULTI_SWE_BENCH_METHOD_URL = (
-    'https://github.com/multi-swe-bench/experiments'
-)
+MULTI_SWE_BENCH_METHOD_URL = 'https://github.com/multi-swe-bench/experiments'
 
 
 @dataclass(frozen=True)

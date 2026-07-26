@@ -156,6 +156,7 @@ def test_make_logs_validate_against_schema():
             == 'false'
         )
 
+
 def test_scores_are_aggregated_by_model_benchmark_and_metric():
     gemma = logs_by_model()['gemma-2b-it']
 

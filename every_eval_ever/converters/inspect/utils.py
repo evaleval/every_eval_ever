@@ -320,7 +320,9 @@ def extract_model_info_from_model_path(model_path: str) -> ModelInfo:
         handler = handler_class(model_path)
         return handler.handle()
 
-    raise ValueError(f'unsupported Inspect model provider or engine: {model_path!r}')
+    raise ValueError(
+        f'unsupported Inspect model provider or engine: {model_path!r}'
+    )
 
 
 SYNTHETIC_METRIC_CONFIG_FIELDS = {

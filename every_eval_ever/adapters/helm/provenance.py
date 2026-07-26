@@ -44,9 +44,7 @@ _MISTRAL_CLOSED = frozenset(
         'mistral-small-2402',
     }
 )
-_WRITER_OPEN = frozenset(
-    {'instructpalmyra-30b', 'palmyra-fin', 'palmyra-med'}
-)
+_WRITER_OPEN = frozenset({'instructpalmyra-30b', 'palmyra-fin', 'palmyra-med'})
 _WRITER_CLOSED = frozenset(
     {
         'palmyra-x-004',
@@ -169,9 +167,7 @@ def helm_provenance(model_id: str) -> HelmProvenance:
         if developer in {'meta', 'qwen'} and (
             leaf.endswith('-turbo') or leaf.endswith('-tput')
         ):
-            return _provenance(
-                EXTERNALLY_MANAGED, OPEN_WEIGHTS, 'together_ai'
-            )
+            return _provenance(EXTERNALLY_MANAGED, OPEN_WEIGHTS, 'together_ai')
         return _provenance(UNKNOWN, OPEN_WEIGHTS)
 
     raise ValueError(f'unreviewed HELM model id: {model_id!r}')
@@ -194,7 +190,9 @@ def helm_metric_identity(
     def slug(value: str) -> str:
         normalized = re.sub(r'[^a-z0-9]+', '_', value.casefold()).strip('_')
         if not normalized:
-            raise ValueError(f'HELM metric component has no identity: {value!r}')
+            raise ValueError(
+                f'HELM metric component has no identity: {value!r}'
+            )
         return normalized
 
     metric_id = '.'.join(

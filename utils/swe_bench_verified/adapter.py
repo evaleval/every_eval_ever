@@ -204,9 +204,7 @@ def convert_submission(
                 'submission_dir': dir_name,
                 'submission_name': additional_details['submission_name']
                 or 'unknown',
-                'agent_organization': additional_details[
-                    'agent_organization'
-                ]
+                'agent_organization': additional_details['agent_organization']
                 or 'unknown',
                 'attempts': additional_details['attempts'] or 'unknown',
             },

@@ -296,14 +296,10 @@ class AlpacaEvalAdapter:
                 continue
 
             developer = _infer_developer(model_name)
-            model_id = (
-                f'{developer}/{model_name}' if developer else model_name
-            )
+            model_id = f'{developer}/{model_name}' if developer else model_name
             provenance = alpaca_eval_provenance(model_id, developer)
 
-            evaluation_id = (
-                f'{benchmark_key}/{model_id}/{retrieved_ts}'
-            )
+            evaluation_id = f'{benchmark_key}/{model_id}/{retrieved_ts}'
 
             eval_results = _build_evaluation_results(row, cfg)
             if not eval_results:
@@ -319,9 +315,7 @@ class AlpacaEvalAdapter:
                     additional_details={
                         'annotator': cfg['annotator'],
                         'baseline_model': cfg['baseline'],
-                        'github': (
-                            'https://github.com/tatsu-lab/alpaca_eval'
-                        ),
+                        'github': ('https://github.com/tatsu-lab/alpaca_eval'),
                     },
                 ),
                 source_metadata=SourceMetadata(

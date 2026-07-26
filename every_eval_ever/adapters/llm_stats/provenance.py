@@ -121,9 +121,7 @@ def llm_stats_provenance(
     normalized = model_id.strip().casefold()
     developer, separator, leaf = normalized.partition('/')
     if not separator or not developer or not leaf:
-        return LLMStatsProvenance(
-            UNKNOWN, UNKNOWN, UNKNOWN, UNKNOWN, UNKNOWN
-        )
+        return LLMStatsProvenance(UNKNOWN, UNKNOWN, UNKNOWN, UNKNOWN, UNKNOWN)
 
     explicit = _explicit_open_source(is_open_source)
     if explicit is not None:

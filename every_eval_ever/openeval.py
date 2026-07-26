@@ -35,13 +35,9 @@ def openeval_provenance(model_id: str) -> OpenEvalProvenance:
     normalized = model_id.strip().casefold()
     developer, separator, leaf = normalized.partition('/')
     if not separator or not developer or not leaf:
-        return OpenEvalProvenance(
-            UNKNOWN, UNKNOWN, UNKNOWN, UNKNOWN, UNKNOWN
-        )
+        return OpenEvalProvenance(UNKNOWN, UNKNOWN, UNKNOWN, UNKNOWN, UNKNOWN)
 
-    if _matches_family(
-        developer, leaf, 'openai', ('gpt-', 'o1', 'o3', 'o4')
-    ):
+    if _matches_family(developer, leaf, 'openai', ('gpt-', 'o1', 'o3', 'o4')):
         return OpenEvalProvenance(
             EXTERNALLY_MANAGED,
             CLOSED_WEIGHTS,

@@ -162,9 +162,8 @@ def test_data_source_typos_are_normalized():
         )
         == 'Self-Reported'
     )
-    assert (
-        'raw_leaderboard_data_source'
-        not in (self_reported.source_metadata.additional_details or {})
+    assert 'raw_leaderboard_data_source' not in (
+        self_reported.source_metadata.additional_details or {}
     )
 
 

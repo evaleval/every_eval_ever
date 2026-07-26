@@ -55,9 +55,7 @@ def swe_bench_verified_provenance(
         )
     if source_open is False:
         platform = (
-            normalized_developer
-            if normalized_developer != UNKNOWN
-            else UNKNOWN
+            normalized_developer if normalized_developer != UNKNOWN else UNKNOWN
         )
         return SWEBenchVerifiedProvenance(
             normalized_developer,

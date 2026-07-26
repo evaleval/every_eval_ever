@@ -48,7 +48,9 @@ def arc_agi_provenance(model_id: str) -> ArcAgiProvenance:
 
     if developer == 'mistralai':
         availability = (
-            OPEN_WEIGHTS if leaf.startswith('magistral-small-') else CLOSED_WEIGHTS
+            OPEN_WEIGHTS
+            if leaf.startswith('magistral-small-')
+            else CLOSED_WEIGHTS
         )
     elif developer in {
         'deepseek',

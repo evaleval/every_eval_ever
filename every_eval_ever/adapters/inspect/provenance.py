@@ -41,7 +41,7 @@ def _canonical_model_id(model_id: str) -> str:
     normalized = model_id.strip().casefold()
     duplicate_prefix = 'anthropic/anthropic/'
     if normalized.startswith(duplicate_prefix):
-        return f'anthropic/{model_id.strip()[len(duplicate_prefix):]}'
+        return f'anthropic/{model_id.strip()[len(duplicate_prefix) :]}'
     return model_id.strip()
 
 

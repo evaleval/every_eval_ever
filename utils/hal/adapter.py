@@ -833,9 +833,7 @@ def process_benchmark(
     for record, developer, model_slug, row in prepared:
         path = save_record(record, benchmark_out_root, developer, model_slug)
         score_pct = f'{row.accuracy * 100:.2f}%'
-        cost_str = (
-            f'${row.cost_usd:.2f}' if row.cost_usd is not None else 'N/A'
-        )
+        cost_str = f'${row.cost_usd:.2f}' if row.cost_usd is not None else 'N/A'
         print(
             f'  [{row.rank:2d}] {row.model_raw:<45s}  {score_pct}  {cost_str}  → {path.relative_to(out_root)}'
         )

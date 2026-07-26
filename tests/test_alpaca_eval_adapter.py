@@ -64,7 +64,10 @@ def _make_csv_response(rows: list[dict]) -> MagicMock:
 
 def test_fetch_csv_returns_rows():
     mock_resp = _make_csv_response([_V1_ROW])
-    with patch('every_eval_ever.converters.alpaca_eval.adapter.requests.get', return_value=mock_resp):
+    with patch(
+        'every_eval_ever.converters.alpaca_eval.adapter.requests.get',
+        return_value=mock_resp,
+    ):
         rows = _fetch_csv('http://example.com/fake.csv')
     assert len(rows) == 1
     assert rows[0]['win_rate'] == '95.28'
@@ -76,7 +79,9 @@ def test_fetch_csv_returns_rows():
 
 
 def test_model_name_from_unnamed_column():
-    assert _model_name_from_row({'': 'my_model', 'win_rate': '50'}) == 'my_model'
+    assert (
+        _model_name_from_row({'': 'my_model', 'win_rate': '50'}) == 'my_model'
+    )
 
 
 def test_model_name_fallback_to_first_value():
@@ -90,7 +95,10 @@ def test_model_name_fallback_to_first_value():
 
 def test_fetch_leaderboard_v1_produces_log():
     mock_resp = _make_csv_response([_V1_ROW])
-    with patch('every_eval_ever.converters.alpaca_eval.adapter.requests.get', return_value=mock_resp):
+    with patch(
+        'every_eval_ever.converters.alpaca_eval.adapter.requests.get',
+        return_value=mock_resp,
+    ):
         adapter = AlpacaEvalAdapter()
         logs = adapter.fetch_leaderboard('v1')
 
@@ -104,7 +112,10 @@ def test_fetch_leaderboard_v1_produces_log():
 
 def test_fetch_leaderboard_v1_win_rate_value():
     mock_resp = _make_csv_response([_V1_ROW])
-    with patch('every_eval_ever.converters.alpaca_eval.adapter.requests.get', return_value=mock_resp):
+    with patch(
+        'every_eval_ever.converters.alpaca_eval.adapter.requests.get',
+        return_value=mock_resp,
+    ):
         logs = AlpacaEvalAdapter().fetch_leaderboard('v1')
 
     results = {r.evaluation_name: r for r in logs[0].evaluation_results}
@@ -114,7 +125,10 @@ def test_fetch_leaderboard_v1_win_rate_value():
 
 def test_fetch_leaderboard_v1_source_data_url_points_to_csv():
     mock_resp = _make_csv_response([_V1_ROW])
-    with patch('every_eval_ever.converters.alpaca_eval.adapter.requests.get', return_value=mock_resp):
+    with patch(
+        'every_eval_ever.converters.alpaca_eval.adapter.requests.get',
+        return_value=mock_resp,
+    ):
         logs = AlpacaEvalAdapter().fetch_leaderboard('v1')
 
     source_url = logs[0].evaluation_results[0].source_data.url[0]
@@ -123,7 +137,10 @@ def test_fetch_leaderboard_v1_source_data_url_points_to_csv():
 
 def test_fetch_leaderboard_v1_no_lc_win_rate():
     mock_resp = _make_csv_response([_V1_ROW])
-    with patch('every_eval_ever.converters.alpaca_eval.adapter.requests.get', return_value=mock_resp):
+    with patch(
+        'every_eval_ever.converters.alpaca_eval.adapter.requests.get',
+        return_value=mock_resp,
+    ):
         logs = AlpacaEvalAdapter().fetch_leaderboard('v1')
 
     names = [r.evaluation_name for r in logs[0].evaluation_results]
@@ -137,7 +154,10 @@ def test_fetch_leaderboard_v1_no_lc_win_rate():
 
 def test_fetch_leaderboard_v2_has_lc_win_rate():
     mock_resp = _make_csv_response([_V2_ROW])
-    with patch('every_eval_ever.converters.alpaca_eval.adapter.requests.get', return_value=mock_resp):
+    with patch(
+        'every_eval_ever.converters.alpaca_eval.adapter.requests.get',
+        return_value=mock_resp,
+    ):
         logs = AlpacaEvalAdapter().fetch_leaderboard('v2')
 
     names = [r.evaluation_name for r in logs[0].evaluation_results]
@@ -146,16 +166,28 @@ def test_fetch_leaderboard_v2_has_lc_win_rate():
 
 def test_fetch_leaderboard_v2_lc_win_rate_value():
     mock_resp = _make_csv_response([_V2_ROW])
-    with patch('every_eval_ever.converters.alpaca_eval.adapter.requests.get', return_value=mock_resp):
+    with patch(
+        'every_eval_ever.converters.alpaca_eval.adapter.requests.get',
+        return_value=mock_resp,
+    ):
         logs = AlpacaEvalAdapter().fetch_leaderboard('v2')
 
     results = {r.evaluation_name: r for r in logs[0].evaluation_results}
-    assert abs(results['Length-Controlled Win Rate'].score_details.score - 55.12 / 100) < 1e-5
+    assert (
+        abs(
+            results['Length-Controlled Win Rate'].score_details.score
+            - 55.12 / 100
+        )
+        < 1e-5
+    )
 
 
 def test_fetch_leaderboard_v2_source_data_url_points_to_csv():
     mock_resp = _make_csv_response([_V2_ROW])
-    with patch('every_eval_ever.converters.alpaca_eval.adapter.requests.get', return_value=mock_resp):
+    with patch(
+        'every_eval_ever.converters.alpaca_eval.adapter.requests.get',
+        return_value=mock_resp,
+    ):
         logs = AlpacaEvalAdapter().fetch_leaderboard('v2')
 
     source_url = logs[0].evaluation_results[0].source_data.url[0]
@@ -169,14 +201,26 @@ def test_fetch_leaderboard_v2_source_data_url_points_to_csv():
 
 def test_metric_ids_are_set():
     mock_resp = _make_csv_response([_V2_ROW])
-    with patch('every_eval_ever.converters.alpaca_eval.adapter.requests.get', return_value=mock_resp):
+    with patch(
+        'every_eval_ever.converters.alpaca_eval.adapter.requests.get',
+        return_value=mock_resp,
+    ):
         logs = AlpacaEvalAdapter().fetch_leaderboard('v2')
 
     by_name = {r.evaluation_name: r for r in logs[0].evaluation_results}
     assert by_name['Win Rate'].metric_config.metric_id == 'alpaca_eval.win_rate'
-    assert by_name['Length-Controlled Win Rate'].metric_config.metric_id == 'alpaca_eval.lc_win_rate'
-    assert by_name['Discrete Win Rate'].metric_config.metric_id == 'alpaca_eval.discrete_win_rate'
-    assert by_name['Average Response Length'].metric_config.metric_id == 'alpaca_eval.avg_length'
+    assert (
+        by_name['Length-Controlled Win Rate'].metric_config.metric_id
+        == 'alpaca_eval.lc_win_rate'
+    )
+    assert (
+        by_name['Discrete Win Rate'].metric_config.metric_id
+        == 'alpaca_eval.discrete_win_rate'
+    )
+    assert (
+        by_name['Average Response Length'].metric_config.metric_id
+        == 'alpaca_eval.avg_length'
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -188,7 +232,10 @@ def test_null_model_is_skipped():
     null_row = dict(_V1_ROW)
     null_row[''] = 'NullModel'
     mock_resp = _make_csv_response([null_row])
-    with patch('every_eval_ever.converters.alpaca_eval.adapter.requests.get', return_value=mock_resp):
+    with patch(
+        'every_eval_ever.converters.alpaca_eval.adapter.requests.get',
+        return_value=mock_resp,
+    ):
         logs = AlpacaEvalAdapter().fetch_leaderboard('v1')
     assert logs == []
 

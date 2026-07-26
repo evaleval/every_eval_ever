@@ -46,8 +46,7 @@ OPEN_PROPRIETARY_OVERRIDES = frozenset(
 
 MODEL_AVAILABILITY_SOURCES = {
     'mistral_small_2506': (
-        'https://huggingface.co/mistralai/'
-        'Mistral-Small-3.2-24B-Instruct-2506'
+        'https://huggingface.co/mistralai/Mistral-Small-3.2-24B-Instruct-2506'
     ),
     'mistral_nemo_2407': (
         'https://huggingface.co/mistralai/Mistral-Nemo-Instruct-2407'
@@ -78,7 +77,9 @@ def bfcl_provenance(
         raise ValueError('BFCL model link must be non-blank text')
     link = urlsplit(model_link.strip())
     if link.scheme != 'https' or not link.netloc:
-        raise ValueError(f'BFCL model link must be absolute HTTPS: {model_link!r}')
+        raise ValueError(
+            f'BFCL model link must be absolute HTTPS: {model_link!r}'
+        )
 
     license_name = source_license.strip()
     if license_name == 'Proprietary':
@@ -94,9 +95,7 @@ def bfcl_provenance(
             UNKNOWN,
         )
     if license_name in REVIEWED_OPEN_LICENSES:
-        return BFCLProvenance(
-            UNKNOWN, OPEN_WEIGHTS, UNKNOWN, UNKNOWN, UNKNOWN
-        )
+        return BFCLProvenance(UNKNOWN, OPEN_WEIGHTS, UNKNOWN, UNKNOWN, UNKNOWN)
     raise ValueError(
         f'unreviewed BFCL license {source_license!r} for {model_id!r}'
     )

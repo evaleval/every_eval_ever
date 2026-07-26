@@ -67,10 +67,7 @@ def terminal_bench_provenance(model_id: str) -> TerminalBenchProvenance:
         )
         or (developer == 'moonshot-ai' and leaf.startswith('kimi-k2'))
         or (developer == 'openai' and leaf.startswith('gpt-oss-'))
-        or (
-            developer == 'zhipu-ai'
-            and leaf in {'glm-4.6', 'glm-4.7', 'glm-5'}
-        )
+        or (developer == 'zhipu-ai' and leaf in {'glm-4.6', 'glm-4.7', 'glm-5'})
     )
     if open_weight:
         return TerminalBenchProvenance(

@@ -285,9 +285,9 @@ def main():
         model_info = eval_log.model_info
         developer_slug = sanitize_filename(model_info.developer or 'unknown')
         model_name = sanitize_filename(model_info.name)
-        collection = eval_log.evaluation_results[0].source_data.dataset_name.replace(
-            '/', '_'
-        )
+        collection = eval_log.evaluation_results[
+            0
+        ].source_data.dataset_name.replace('/', '_')
         filepath = save_evaluation_log(
             eval_log,
             Path(args.output_dir) / collection,

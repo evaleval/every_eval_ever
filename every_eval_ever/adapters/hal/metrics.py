@@ -18,7 +18,10 @@ def hal_metric_identity(
         if slug != 'gaia':
             raise ValueError(f'HAL level metric outside GAIA: {name!r}')
         number = level.group(1)
-        return f'hal.gaia.level{number}_accuracy', f'GAIA Level {number} Accuracy'
+        return (
+            f'hal.gaia.level{number}_accuracy',
+            f'GAIA Level {number} Accuracy',
+        )
     return f'hal.{slug}.accuracy', f'{name} Accuracy'
 
 
