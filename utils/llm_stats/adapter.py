@@ -896,10 +896,35 @@ def source_organization_from_url(url: Any) -> str | None:
         return None
 
     parsed = urlparse(urls[0])
-    host = parsed.netloc.lower().removeprefix('www.')
+    host = (parsed.hostname or '').removeprefix('www.')
     path_parts = [part for part in parsed.path.split('/') if part]
     if host in {'x.com', 'twitter.com'} and path_parts:
         return normalize_slug(path_parts[0])
+
+    # On hosting platforms the organization is the account that owns the
+    # content, not the platform, so read it from the URL instead of the
+    # domain. Editorial and paper URLs carry no account, so infer nothing.
+    if host in {'github.com', 'gist.github.com', 'raw.githubusercontent.com'}:
+        return normalize_slug(path_parts[0]) if path_parts else None
+    if host == 'huggingface.co':
+        if not path_parts or path_parts[0] in {
+            'blog',
+            'papers',
+            'posts',
+            'collections',
+            'docs',
+        }:
+            return None
+        if path_parts[0] in {'datasets', 'spaces'}:
+            if len(path_parts) > 1:
+                return normalize_slug(path_parts[1])
+            return None
+        return normalize_slug(path_parts[0])
+    if host.endswith('.github.io'):
+        owner = host.removesuffix('.github.io')
+        return normalize_slug(owner) if owner else None
+    if host == 'arxiv.org':
+        return None
 
     domain_overrides = {
         'openai.com': 'openai',
