@@ -297,11 +297,13 @@ def test_deferred_collection_pr_discloses_limited_dedup_scope():
     assert 'do not merge' in description
 
 
-def test_scheduled_cron_publishes_with_explicit_deferred_dedup():
+def test_cron_is_manual_only_with_explicit_deferred_dedup():
     workflow = (
         Path(__file__).parents[1] / '.github' / 'workflows' / 'adapter_cron.yml'
     ).read_text()
 
+    assert 'schedule:' not in workflow
+    assert 'workflow_dispatch:' in workflow
     assert 'EEE_CRON_DEDUP_MODE' in workflow
     assert "|| 'deferred'" in workflow
     assert 'EEE_CRON_PUBLISH_ENABLED' not in workflow
