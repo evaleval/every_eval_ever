@@ -563,8 +563,8 @@ class TestSemanticWarnings:
     def test_score_metadata_missing_and_bounds_warn(self):
         data = json.loads(json.dumps(VALID_AGGREGATE))
         warnings = check_score_metadata(data)
-        assert any("non-finite 'min_score'" in warning for warning in warnings)
-        assert any("non-finite 'max_score'" in warning for warning in warnings)
+        assert any("invalid 'min_score'" in warning for warning in warnings)
+        assert any("invalid 'max_score'" in warning for warning in warnings)
 
         data['evaluation_results'][0]['metric_config'].update(
             {'score_type': 'continuous', 'min_score': 0, 'max_score': 1}
@@ -581,12 +581,26 @@ class TestSemanticWarnings:
         metric = data['evaluation_results'][0]['metric_config']
         metric.update({'min_score': None, 'max_score': float('nan')})
         warnings = check_score_metadata(data)
-        assert any("non-finite 'min_score'" in warning for warning in warnings)
-        assert any("non-finite 'max_score'" in warning for warning in warnings)
+        assert any("invalid 'min_score'" in warning for warning in warnings)
+        assert any("invalid 'max_score'" in warning for warning in warnings)
 
         metric.update({'min_score': 2, 'max_score': 1})
         warnings = check_score_metadata(data)
         assert any('greater than max_score' in warning for warning in warnings)
+
+    def test_score_metadata_accepts_strict_json_infinity_bounds(self):
+        data = json.loads(json.dumps(VALID_AGGREGATE))
+        metric = data['evaluation_results'][0]['metric_config']
+        metric.update(
+            {
+                'score_type': 'continuous',
+                'min_score': '-Infinity',
+                'max_score': 'Infinity',
+            }
+        )
+        data['evaluation_results'][0]['score_details']['score'] = 1.5
+
+        assert check_score_metadata(data) == []
 
     def test_nonstandard_or_ambiguous_json_is_rejected(self, tmp_path: Path):
         nan_path = tmp_path / 'nan.json'

@@ -45,7 +45,20 @@ def _log(min_score, max_score):
             evaluator_relationship='third_party',
         ),
         eval_library=ET.EvalLibrary(name='unknown', version='unknown'),
-        model_info=ET.ModelInfo(name='m', id='dev/model'),
+        model_info=ET.ModelInfo(
+            name='m',
+            id='dev/model',
+            developer='unknown',
+            inference_platform='unknown',
+            inference_engine=ET.InferenceEngine(
+                name='unknown',
+                version='unknown',
+            ),
+            additional_details={
+                'deployment_type': 'unknown',
+                'model_availability': 'unknown',
+            },
+        ),
         evaluation_results=[
             ET.EvaluationResult(
                 evaluation_name='e',
@@ -75,15 +88,18 @@ def test_field_stays_float_and_reads_back():
     # the wire form is a string, but the Python value is a real float
     mc = _mc(0.0, float('inf'))
     assert mc.max_score == float('inf')
-    reparsed = ET.MetricConfig.model_validate(
-        json.loads(mc.model_dump_json())
-    )
+    reparsed = ET.MetricConfig.model_validate(json.loads(mc.model_dump_json()))
     assert reparsed.max_score == float('inf')
     # convertibility is enforced by the float type: a non-numeric string is rejected
     with pytest.raises(ValidationError):
         ET.MetricConfig.model_validate(
-            {'metric_name': 'x', 'lower_is_better': False,
-             'score_type': 'continuous', 'min_score': 0.0, 'max_score': 'banana'}
+            {
+                'metric_name': 'x',
+                'lower_is_better': False,
+                'score_type': 'continuous',
+                'min_score': 0.0,
+                'max_score': 'banana',
+            }
         )
 
 
@@ -125,11 +141,18 @@ def test_no_model_wide_inf_config():
     # ser_json_inf_nan -- so other MetricConfig floats / other models aren't
     # swept up (no inf/NaN-everywhere blast radius).
     assert ET.MetricConfig.model_config.get('ser_json_inf_nan') is None
-    assert _mc(0.0, 1.0).model_dump(mode='json')['max_score'] == 1.0  # finite stays a number
+    assert (
+        _mc(0.0, 1.0).model_dump(mode='json')['max_score'] == 1.0
+    )  # finite stays a number
 
 
 def test_aggregate_round_trip_validates(tmp_path):
-    path = save_evaluation_log(_log(0.0, float('inf')), tmp_path, 'dev', 'model')
+    path = save_evaluation_log(
+        _log(0.0, float('inf')),
+        tmp_path / 'data' / 'test-benchmark',
+        'dev',
+        'model',
+    )
     report = validate_file(path)
     assert report.valid, report.errors
     mc = json.loads(path.read_text())['evaluation_results'][0]['metric_config']

@@ -294,40 +294,37 @@ def check_score_metadata(data: dict[str, Any]) -> list[str]:
                 "'score_type'"
             )
 
-        for key in ('min_score', 'max_score'):
-            value = metric.get(key)
-            if not _is_finite_number(value):
+        raw_lo = metric.get('min_score')
+        raw_hi = metric.get('max_score')
+        lo = _metric_bound(raw_lo)
+        hi = _metric_bound(raw_hi)
+        for key, value in (('min_score', lo), ('max_score', hi)):
+            if value is None:
                 warnings.append(
                     f'evaluation_results[{index}].metric_config: missing or '
-                    f"non-finite '{key}'"
+                    f"invalid '{key}'"
                 )
 
         score_details = result.get('score_details')
         if not isinstance(score_details, dict):
             continue
         score = score_details.get('score')
-        lo = metric.get('min_score')
-        hi = metric.get('max_score')
         if not _is_finite_number(score):
             warnings.append(
                 f'evaluation_results[{index}].score_details.score: expected a '
                 f'finite number, got {score!r}'
             )
             continue
-        if _is_finite_number(lo) and _is_finite_number(hi) and lo > hi:
+        if lo is not None and hi is not None and lo > hi:
             warnings.append(
-                f'evaluation_results[{index}].metric_config: min_score {lo} '
-                f'is greater than max_score {hi}'
+                f'evaluation_results[{index}].metric_config: min_score '
+                f'{raw_lo} is greater than max_score {raw_hi}'
             )
             continue
-        if (
-            _is_finite_number(lo)
-            and _is_finite_number(hi)
-            and (score < lo or score > hi)
-        ):
+        if lo is not None and hi is not None and (score < lo or score > hi):
             warnings.append(
                 f'evaluation_results[{index}]: score {score} is outside '
-                f'[min_score={lo}, max_score={hi}]'
+                f'[min_score={raw_lo}, max_score={raw_hi}]'
             )
     return warnings
 
@@ -441,6 +438,21 @@ def _is_finite_number(value: Any) -> bool:
         and not isinstance(value, bool)
         and math.isfinite(value)
     )
+
+
+def _metric_bound(value: Any) -> float | None:
+    """Return a comparable metric bound, including the strict-JSON infinity form."""
+    if value == 'Infinity':
+        return math.inf
+    if value == '-Infinity':
+        return -math.inf
+    if (
+        isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and not math.isnan(value)
+    ):
+        return float(value)
+    return None
 
 
 def check_integer_counts(data: dict[str, Any]) -> list[str]:
