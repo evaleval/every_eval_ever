@@ -70,6 +70,7 @@ from every_eval_ever.eval_types import (
     ScoreDetails,
     ScoreType,
     SourceDataHf,
+    SourceDataPrivate,
     SourceMetadata,
     SourceType,
     Uncertainty,
@@ -343,6 +344,75 @@ class HELMAdapter(BaseEvaluationAdapter):
 
         return run_spec_name.split(':')[0]
 
+    def _extract_source_data(
+        self,
+        run_spec: RunSpec,
+        dataset_name: str,
+        request_states: List[RequestState],
+        metadata_args: Dict[str, Any],
+    ) -> SourceDataHf | SourceDataPrivate:
+        """Represent only source provenance established by the HELM log."""
+        scenario_name = str(run_spec.scenario_spec.class_name)
+        scenario_args = run_spec.scenario_spec.args or {}
+        scenario_args_json = json.dumps(
+            scenario_args,
+            sort_keys=True,
+            separators=(',', ':'),
+        )
+        sample_ids = [str(state.instance.id) for state in request_states]
+        shared_details = {
+            'scenario_name': scenario_name,
+            'scenario_args': scenario_args_json,
+        }
+
+        hf_repo = metadata_args.get('hf_repo')
+        if hf_repo is not None:
+            if not isinstance(hf_repo, str) or not hf_repo.strip():
+                raise ValueError(
+                    'HELM hf_repo metadata must be a non-blank string'
+                )
+            return SourceDataHf(
+                dataset_name=dataset_name,
+                source_type='hf_dataset',
+                hf_repo=hf_repo.strip(),
+                hf_split=metadata_args.get('hf_split'),
+                hf_config=metadata_args.get('hf_config'),
+                hf_revision=metadata_args.get('hf_revision'),
+                samples_number=len(set(sample_ids)),
+                sample_ids=sample_ids,
+                additional_details=shared_details,
+            )
+
+        source_id = metadata_args.get('source_id')
+        if source_id is None:
+            source_id = f'helm-scenario:{scenario_name}:{scenario_args_json}'
+        if not isinstance(source_id, str) or not source_id.strip():
+            raise ValueError(
+                'HELM source_id metadata must be a non-blank string'
+            )
+
+        source_version = metadata_args.get('source_version')
+        if source_version is not None and (
+            not isinstance(source_version, str) or not source_version.strip()
+        ):
+            raise ValueError(
+                'HELM source_version metadata must be a non-blank string'
+            )
+
+        return SourceDataPrivate(
+            dataset_name=dataset_name,
+            source_type='other',
+            source_id=source_id.strip(),
+            source_version=source_version.strip()
+            if isinstance(source_version, str)
+            else None,
+            additional_details={
+                **shared_details,
+                'samples_number': str(len(set(sample_ids))),
+                'sample_ids_json': json.dumps(sample_ids),
+            },
+        )
+
     def _transform_single(
         self, raw_data: Dict, metadata_args: Dict[str, Any]
     ) -> EvaluationLog:
@@ -392,19 +462,11 @@ class HELMAdapter(BaseEvaluationAdapter):
             run_spec.name, scenario_dict.get('name') if scenario_dict else None
         )
 
-        source_data = SourceDataHf(  # TODO check if always available HF dataset
-            dataset_name=dataset_name,
-            source_type='hf_dataset',
-            samples_number=len(
-                set(state.instance.id for state in request_states)
-            ),
-            sample_ids=[str(state.instance.id) for state in request_states],
-            additional_details={
-                'scenario_name': str(run_spec.scenario_spec.class_name),
-                'scenario_args': json.dumps(run_spec.scenario_spec.args)
-                if run_spec.scenario_spec.args
-                else '',
-            },
+        source_data = self._extract_source_data(
+            run_spec,
+            dataset_name,
+            request_states,
+            metadata_args,
         )
 
         evaluation_id = f'{source_data.dataset_name}/{model_info.id.replace("/", "_")}/{evaluation_timestamp}'

@@ -1,7 +1,8 @@
-import pytest
-
+import json
 import tempfile
 from pathlib import Path
+
+import pytest
 
 from every_eval_ever.converters.helm import adapter as helm_adapter_module
 from every_eval_ever.converters.helm.adapter import HELMAdapter
@@ -9,9 +10,10 @@ from every_eval_ever.eval_types import (
     EvaluationLog,
     EvaluatorRelationship,
     SourceDataHf,
+    SourceDataPrivate,
     SourceMetadata,
 )
-
+from every_eval_ever.validation_core import check_dataset_provenance
 
 pytestmark = pytest.mark.skipif(
     helm_adapter_module._HELM_IMPORT_ERROR is not None,
@@ -36,9 +38,6 @@ def _load_eval(adapter, filepath, metadata_args):
 
     converted_eval = converted_eval[0]
     assert isinstance(converted_eval, EvaluationLog)
-    assert isinstance(
-        converted_eval.evaluation_results[0].source_data, SourceDataHf
-    )
 
     assert isinstance(converted_eval.source_metadata, SourceMetadata)
     assert converted_eval.source_metadata.source_name == 'HELM'
@@ -76,10 +75,16 @@ def test_mmlu_eval():
     assert (
         converted_eval.evaluation_results[0].source_data.dataset_name == 'mmlu'
     )
-    assert converted_eval.evaluation_results[0].source_data.hf_repo is None
-    assert (
-        len(converted_eval.evaluation_results[0].source_data.sample_ids) == 10
+    source_data = converted_eval.evaluation_results[0].source_data
+    assert isinstance(source_data, SourceDataPrivate)
+    assert source_data.source_id == (
+        'helm-scenario:helm.benchmark.scenarios.mmlu_scenario.'
+        'MMLUScenario:{"subject":"philosophy"}'
     )
+    assert (
+        len(json.loads(source_data.additional_details['sample_ids_json'])) == 10
+    )
+    assert check_dataset_provenance(converted_eval.model_dump()) == []
 
     assert converted_eval.model_info.name == 'openai/gpt2'
     assert converted_eval.model_info.id == 'openai/gpt2'
@@ -121,9 +126,14 @@ def test_hellswag_eval():
         converted_eval.evaluation_results[0].source_data.dataset_name
         == 'hellaswag'
     )
-    assert converted_eval.evaluation_results[0].source_data.hf_repo is None
+    source_data = converted_eval.evaluation_results[0].source_data
+    assert isinstance(source_data, SourceDataPrivate)
+    assert source_data.source_id == (
+        'helm-scenario:helm.benchmark.scenarios.commonsense_scenario.'
+        'HellaSwagScenario:{}'
+    )
     assert (
-        len(converted_eval.evaluation_results[0].source_data.sample_ids) == 10
+        len(json.loads(source_data.additional_details['sample_ids_json'])) == 10
     )
 
     assert converted_eval.model_info.name == 'eleutherai/pythia-1b-v0'
@@ -162,8 +172,15 @@ def test_narrativeqa_eval():
         converted_eval.evaluation_results[0].source_data.dataset_name
         == 'narrativeqa'
     )
-    assert converted_eval.evaluation_results[0].source_data.hf_repo is None
-    assert len(converted_eval.evaluation_results[0].source_data.sample_ids) == 5
+    source_data = converted_eval.evaluation_results[0].source_data
+    assert isinstance(source_data, SourceDataPrivate)
+    assert source_data.source_id == (
+        'helm-scenario:helm.benchmark.scenarios.narrativeqa_scenario.'
+        'NarrativeQAScenario:{}'
+    )
+    assert (
+        len(json.loads(source_data.additional_details['sample_ids_json'])) == 5
+    )
 
     assert converted_eval.model_info.name == 'openai/gpt2'
     assert converted_eval.model_info.id == 'openai/gpt2'
@@ -181,6 +198,32 @@ def test_narrativeqa_eval():
     assert converted_eval.detailed_evaluation_results.format is not None
     # Per-(sample, core metric): >= sample count, not equal to it.
     assert converted_eval.detailed_evaluation_results.total_rows >= 5
+
+
+def test_explicit_hf_dataset_provenance_is_preserved():
+    adapter = HELMAdapter()
+    metadata_args = {
+        'source_organization_name': 'TestOrg',
+        'evaluator_relationship': EvaluatorRelationship.first_party,
+        'hf_repo': 'example/mmlu',
+        'hf_config': 'philosophy',
+        'hf_split': 'test',
+        'hf_revision': 'abc123',
+    }
+
+    converted_eval = _load_eval(
+        adapter,
+        'tests/data/helm/mmlu:subject=philosophy,method=multiple_choice_joint,model=openai_gpt2',
+        metadata_args,
+    )
+
+    source_data = converted_eval.evaluation_results[0].source_data
+    assert isinstance(source_data, SourceDataHf)
+    assert source_data.hf_repo == 'example/mmlu'
+    assert source_data.hf_config == 'philosophy'
+    assert source_data.hf_split == 'test'
+    assert source_data.hf_revision == 'abc123'
+    assert len(source_data.sample_ids) == 10
 
 
 def test_missing_model_deployment_falls_back_to_model():

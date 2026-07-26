@@ -56,6 +56,22 @@ def parse_args():
         default='unknown',
         help='Version of the evaluation library',
     )
+    parser.add_argument(
+        '--hf_repo',
+        type=str,
+        default=None,
+        help='Exact Hugging Face dataset repository, when known.',
+    )
+    parser.add_argument('--hf_config', type=str, default=None)
+    parser.add_argument('--hf_split', type=str, default=None)
+    parser.add_argument('--hf_revision', type=str, default=None)
+    parser.add_argument(
+        '--source_id',
+        type=str,
+        default=None,
+        help='Stable source identifier when no exact HF repository is known.',
+    )
+    parser.add_argument('--source_version', type=str, default=None)
 
     args = parser.parse_args()
     return args
@@ -151,6 +167,12 @@ if __name__ == '__main__':
         'parent_eval_output_dir': args.output_dir,
         'eval_library_name': args.eval_library_name,
         'eval_library_version': args.eval_library_version,
+        'hf_repo': args.hf_repo,
+        'hf_config': args.hf_config,
+        'hf_split': args.hf_split,
+        'hf_revision': args.hf_revision,
+        'source_id': args.source_id,
+        'source_version': args.source_version,
     }
 
     unified_output = helm_converter.convert_to_unified_schema(metadata_args)
