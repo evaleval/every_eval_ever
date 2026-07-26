@@ -462,6 +462,8 @@ def check_integer_counts(data: dict[str, Any]) -> list[str]:
     def walk(obj: Any, path: str) -> None:
         if isinstance(obj, dict):
             for key, value in obj.items():
+                if key == 'additional_details':
+                    continue  # schema types all additional_details into str, so nothing here can be int
                 child = f'{path}.{key}'
                 if key in _COUNT_FIELDS and value is not None:
                     if isinstance(value, bool) or not isinstance(value, int):
