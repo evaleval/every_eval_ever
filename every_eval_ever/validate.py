@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import glob
 import json
 import sys
 from pathlib import Path
@@ -53,7 +54,7 @@ __all__ = [
 
 
 class _LocalRepositoryFiles:
-    """Answer whether a repository-relative file exists in this checkout."""
+    """Read repository-relative files from the current local checkout."""
 
     def __contains__(self, repo_path: object) -> bool:
         if not isinstance(repo_path, str):
@@ -61,25 +62,39 @@ class _LocalRepositoryFiles:
         path = Path(repo_path)
         return not path.is_absolute() and path.is_file()
 
+    def read_text(self, repo_path: str) -> str:
+        path = Path(repo_path)
+        if path.is_absolute():
+            raise OSError(f'expected a repository-relative path: {repo_path}')
+        return path.read_text(encoding='utf-8')
+
 
 def expand_paths(paths: list[str]) -> list[Path]:
-    """Expand each directory to its direct JSON and JSONL children."""
+    """Expand fixed-depth glob arguments without accepting directories."""
     result: list[Path] = []
-    for p in paths:
-        path = Path(p)
-        if path.is_file():
-            result.append(path)
-        elif path.is_dir():
-            result.extend(
-                sorted(
-                    child
-                    for child in path.iterdir()
-                    if child.is_file()
-                    and child.suffix in {'.json', '.jsonl'}
-                )
+    seen: set[Path] = set()
+    for value in paths:
+        if '**' in value:
+            raise ValueError(
+                f'recursive glob patterns are not supported: {value!r}'
             )
-        else:
-            result.append(path)
+        matches = (
+            sorted(glob.glob(value, recursive=False))
+            if glob.has_magic(value)
+            else [value]
+        )
+        if not matches:
+            raise ValueError(f'file pattern matched no files: {value!r}')
+        for match in matches:
+            path = Path(match)
+            if path.is_dir():
+                raise ValueError(
+                    f'directory arguments are not supported: {match!r}; '
+                    'pass files or a fixed-depth glob'
+                )
+            if path not in seen:
+                result.append(path)
+                seen.add(path)
     return result
 
 
@@ -199,8 +214,8 @@ def main(argv: list[str] | None = None) -> int:
         'paths',
         nargs='+',
         help=(
-            'Files or directories to validate. Directories include only their '
-            'immediate .json and .jsonl files.'
+            'Files or fixed-depth glob patterns to validate. Directories and '
+            'recursive ** patterns are not supported.'
         ),
     )
     parser.add_argument(
@@ -218,17 +233,23 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    file_paths = expand_paths(args.paths)
+    try:
+        file_paths = expand_paths(args.paths)
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
     if not file_paths:
         print('No files found to validate.', file=sys.stderr)
         return 1
 
+    local_repository = _LocalRepositoryFiles()
     reports = [
         validate_file(
             path,
             max_errors=args.max_errors,
             repo_path=path.as_posix(),
-            available_files=_LocalRepositoryFiles(),
+            available_files=local_repository,
+            read_repo_file=local_repository.read_text,
             run_semantic_checks=True,
         )
         for path in file_paths

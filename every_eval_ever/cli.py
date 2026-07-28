@@ -215,6 +215,7 @@ def _cmd_convert_alpaca_eval(args: argparse.Namespace) -> int:
                 )
             if args.evaluator_relationship != 'third_party':
                 from every_eval_ever.eval_types import EvaluatorRelationship
+
                 log.source_metadata.evaluator_relationship = (
                     EvaluatorRelationship(args.evaluator_relationship)
                 )
@@ -260,8 +261,8 @@ def build_parser() -> argparse.ArgumentParser:
         'paths',
         nargs='+',
         help=(
-            'Files or directories to validate. Directories include only their '
-            'immediate .json and .jsonl files.'
+            'Files or fixed-depth glob patterns to validate. Directories and '
+            'recursive ** patterns are not supported.'
         ),
     )
     validate_parser.add_argument(

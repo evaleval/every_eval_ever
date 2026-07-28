@@ -51,10 +51,22 @@ class ValidationContext:
 
     repo_path: str
     available_files: Container[str] = field(default_factory=frozenset)
+    read_repo_file: Callable[[str], str] | None = None
+
+
+@dataclass(frozen=True)
+class InstanceFileSummary:
+    """Cross-file values collected while validating a JSONL file."""
+
+    line_count: int
+    evaluation_ids: frozenset[str]
+    model_ids: frozenset[str]
+    content_valid: bool = True
 
 
 CheckScope = Literal['aggregate', 'instance', 'file']
 CheckSeverity = Literal['error', 'warning']
+ValidationPayload = dict[str, Any] | InstanceFileSummary | None
 
 
 @dataclass(frozen=True)
@@ -64,7 +76,7 @@ class ValidationCheck:
     name: str
     scope: CheckScope
     severity: CheckSeverity
-    run: Callable[[ValidationContext, dict[str, Any] | None], list[str]]
+    run: Callable[[ValidationContext, ValidationPayload], list[str]]
 
 
 class SemanticCheckError(RuntimeError):
@@ -150,7 +162,7 @@ def _json_error_details(
 
 def check_path_structure(repo_path: str) -> list[str]:
     """Enforce aggregate and instance datastore paths."""
-    parts = [p for p in repo_path.split('/') if p]
+    parts = repo_path.split('/')
 
     if len(parts) != _EXPECTED_PATH_PARTS:
         return [
@@ -158,6 +170,16 @@ def check_path_structure(repo_path: str) -> list[str]:
             "'data/benchmark/developer/model/uuid.json' or "
             "'data/benchmark/developer/model/uuid_samples.jsonl', "
             f"got {len(parts)} components in '{repo_path}'"
+        ]
+
+    if (
+        repo_path.startswith('/')
+        or '\\' in repo_path
+        or any(part in {'', '.', '..'} for part in parts)
+    ):
+        return [
+            'Path must be a clean repository-relative path without empty, '
+            f"current, or parent components: '{repo_path}'"
         ]
 
     if parts[0] != 'data':
@@ -179,7 +201,7 @@ def check_path_structure(repo_path: str) -> list[str]:
 def resolve_companion_repo_path(
     repo_path: str, aggregate_data: dict[str, Any]
 ) -> str | None:
-    """Resolve an aggregate's optional companion to a safe repository path."""
+    """Return the one companion path allowed for an aggregate."""
     detail = aggregate_data.get('detailed_evaluation_results')
     if detail is None:
         return None
@@ -192,32 +214,121 @@ def resolve_companion_repo_path(
             'detailed_evaluation_results.file_path: missing or blank companion path'
         )
 
-    normalized_reference = reference.strip().replace('\\', '/')
-    reference_path = PurePosixPath(normalized_reference)
-    has_windows_drive = re.match(r'^[A-Za-z]:/', normalized_reference) is not None
-    if (
-        reference_path.is_absolute()
-        or has_windows_drive
-        or '..' in reference_path.parts
-    ):
+    aggregate_path = PurePosixPath(repo_path)
+    expected_name = f'{aggregate_path.stem}_samples.jsonl'
+    normalized_reference = reference.strip()
+    if normalized_reference != expected_name:
         raise ValueError(
-            'detailed_evaluation_results.file_path: expected a relative '
-            f'repository path without parent traversal, got {reference!r}'
+            'detailed_evaluation_results.file_path: expected exactly '
+            f'{expected_name!r} so the aggregate and samples share one UUID '
+            f'and folder, got {reference!r}'
         )
 
-    if reference_path.parts and reference_path.parts[0] == 'data':
-        return reference_path.as_posix()
-    return (PurePosixPath(repo_path).parent / reference_path).as_posix()
+    return (aggregate_path.parent / expected_name).as_posix()
+
+
+def _aggregate_repo_path_for_samples(repo_path: str) -> str | None:
+    sample_path = PurePosixPath(repo_path)
+    suffix = '_samples.jsonl'
+    if not sample_path.name.endswith(suffix):
+        return None
+    aggregate_name = f'{sample_path.name[: -len(suffix)]}.json'
+    return (sample_path.parent / aggregate_name).as_posix()
+
+
+def _summary_identifier(value: Any) -> str:
+    return value if isinstance(value, str) else repr(value)
+
+
+def _summarize_jsonl_text(content: str) -> InstanceFileSummary:
+    evaluation_ids: set[str] = set()
+    model_ids: set[str] = set()
+    line_count = 0
+    for source_line, line in enumerate(content.splitlines(), start=1):
+        stripped = line.strip()
+        if not stripped:
+            continue
+        line_count += 1
+        try:
+            row = strict_json_loads(stripped)
+        except (json.JSONDecodeError, StrictJSONError) as exc:
+            _, message = _json_error_details(exc, line_num=source_line)
+            raise ValueError(
+                f'samples line {source_line} is invalid JSON: {message}'
+            ) from exc
+        if not isinstance(row, dict):
+            raise ValueError(
+                f'samples line {source_line} must contain a JSON object'
+            )
+        evaluation_ids.add(_summary_identifier(row.get('evaluation_id')))
+        model_ids.add(_summary_identifier(row.get('model_id')))
+    return InstanceFileSummary(
+        line_count=line_count,
+        evaluation_ids=frozenset(evaluation_ids),
+        model_ids=frozenset(model_ids),
+    )
+
+
+def _compare_aggregate_and_samples(
+    aggregate_data: dict[str, Any],
+    samples: InstanceFileSummary,
+) -> list[str]:
+    if not samples.content_valid:
+        return []
+
+    errors: list[str] = []
+    expected_evaluation_id = aggregate_data.get('evaluation_id')
+    unexpected_evaluation_ids = samples.evaluation_ids - {
+        _summary_identifier(expected_evaluation_id)
+    }
+    if unexpected_evaluation_ids:
+        errors.append(
+            'samples evaluation_id values must match the aggregate '
+            f'evaluation_id {expected_evaluation_id!r}; got '
+            f'{sorted(unexpected_evaluation_ids)!r}'
+        )
+
+    model_info = aggregate_data.get('model_info')
+    expected_model_id = (
+        model_info.get('id') if isinstance(model_info, dict) else None
+    )
+    unexpected_model_ids = samples.model_ids - {
+        _summary_identifier(expected_model_id)
+    }
+    if unexpected_model_ids:
+        errors.append(
+            'samples model_id values must match the aggregate model_info.id '
+            f'{expected_model_id!r}; got {sorted(unexpected_model_ids)!r}'
+        )
+
+    detail = aggregate_data.get('detailed_evaluation_results')
+    total_rows = detail.get('total_rows') if isinstance(detail, dict) else None
+    if isinstance(total_rows, int) and total_rows != samples.line_count:
+        errors.append(
+            'detailed_evaluation_results.total_rows does not match the '
+            f'companion file: declared {total_rows}, found {samples.line_count}'
+        )
+    return errors
 
 
 def check_companion_exists(
     repo_path: str,
     aggregate_data: dict[str, Any],
     available_files: Container[str],
+    read_repo_file: Callable[[str], str] | None = None,
 ) -> list[str]:
-    """Warn when an aggregate's declared detailed-results path is unusable."""
+    """Enforce an aggregate's forward and reverse samples relationship."""
+    expected_path = (
+        PurePosixPath(repo_path).parent
+        / f'{PurePosixPath(repo_path).stem}_samples.jsonl'
+    ).as_posix()
     detail = aggregate_data.get('detailed_evaluation_results')
     if detail is None:
+        if expected_path in available_files:
+            return [
+                'detailed_evaluation_results is required because sibling '
+                f'samples file {expected_path!r} exists'
+            ]
         return []
 
     try:
@@ -227,27 +338,99 @@ def check_companion_exists(
     if resolved_text is None:
         return []
 
-    warnings: list[str] = []
-    reference = detail['file_path']
-    reference_path = PurePosixPath(reference.strip().replace('\\', '/'))
+    errors: list[str] = []
     for path_error in check_path_structure(resolved_text):
-        warnings.append(
+        errors.append(
             'detailed_evaluation_results.file_path: '
             f'declared companion has invalid datastore path: {path_error}'
         )
     declared_format = detail.get('format')
-    if declared_format == 'jsonl' and reference_path.suffix != '.jsonl':
-        warnings.append(
-            'detailed_evaluation_results.file_path: format is jsonl but '
-            f'path is {reference!r}'
+    if declared_format != 'jsonl':
+        errors.append(
+            'detailed_evaluation_results.format must be exactly '
+            f"'jsonl', got {declared_format!r}"
         )
 
     if resolved_text not in available_files:
-        warnings.append(
+        errors.append(
             'detailed_evaluation_results.file_path: referenced companion '
             f'{resolved_text!r} was not found in the dataset or this batch'
         )
-    return warnings
+        return errors
+    if read_repo_file is None:
+        errors.append(
+            'detailed_evaluation_results.file_path: companion contents could '
+            'not be checked because no repository file reader was provided'
+        )
+        return errors
+
+    try:
+        samples = _summarize_jsonl_text(read_repo_file(resolved_text))
+    except (OSError, ValueError) as exc:
+        errors.append(
+            'detailed_evaluation_results.file_path: could not inspect '
+            f'companion {resolved_text!r}: {exc}'
+        )
+        return errors
+    errors.extend(_compare_aggregate_and_samples(aggregate_data, samples))
+    return errors
+
+
+def check_instance_companion(
+    repo_path: str,
+    samples: InstanceFileSummary,
+    available_files: Container[str],
+    read_repo_file: Callable[[str], str] | None = None,
+) -> list[str]:
+    """Require a samples file's aggregate to exist and point back to it."""
+    aggregate_path = _aggregate_repo_path_for_samples(repo_path)
+    if aggregate_path is None:
+        return []
+    if aggregate_path not in available_files:
+        return [f'samples file requires sibling aggregate {aggregate_path!r}']
+    if read_repo_file is None:
+        return [
+            f'sibling aggregate {aggregate_path!r} could not be checked '
+            'because no repository file reader was provided'
+        ]
+
+    try:
+        aggregate_data = strict_json_loads(read_repo_file(aggregate_path))
+    except (OSError, json.JSONDecodeError, StrictJSONError) as exc:
+        return [
+            f'could not inspect sibling aggregate {aggregate_path!r}: {exc}'
+        ]
+    if not isinstance(aggregate_data, dict):
+        return [
+            f'sibling aggregate {aggregate_path!r} must contain a JSON object'
+        ]
+
+    detail = aggregate_data.get('detailed_evaluation_results')
+    if detail is None:
+        return [
+            f'sibling aggregate {aggregate_path!r} must declare '
+            'detailed_evaluation_results for this samples file'
+        ]
+    try:
+        declared_samples = resolve_companion_repo_path(
+            aggregate_path, aggregate_data
+        )
+    except ValueError as exc:
+        return [str(exc)]
+    if declared_samples != repo_path:
+        return [
+            f'sibling aggregate {aggregate_path!r} does not point to '
+            f'this samples file {repo_path!r}'
+        ]
+
+    errors: list[str] = []
+    if isinstance(detail, dict) and detail.get('format') != 'jsonl':
+        errors.append(
+            'detailed_evaluation_results.format must be exactly '
+            f"'jsonl', got {detail.get('format')!r}"
+        )
+    errors.extend(_compare_aggregate_and_samples(aggregate_data, samples))
+    return errors
 
 
 def check_score_metadata(data: dict[str, Any]) -> list[str]:
@@ -377,33 +560,49 @@ def check_model_deployment(data: dict[str, Any]) -> list[str]:
 
 
 def _file_check_path(
-    context: ValidationContext, data: dict[str, Any] | None
+    context: ValidationContext, data: ValidationPayload
 ) -> list[str]:
     return check_path_structure(context.repo_path)
 
 
 def _aggregate_check_companion(
-    context: ValidationContext, data: dict[str, Any] | None
+    context: ValidationContext, data: ValidationPayload
 ) -> list[str]:
-    if data is None:
+    if not isinstance(data, dict):
         return []
     return check_companion_exists(
-        context.repo_path, data, context.available_files
+        context.repo_path,
+        data,
+        context.available_files,
+        context.read_repo_file,
+    )
+
+
+def _instance_check_companion(
+    context: ValidationContext, data: ValidationPayload
+) -> list[str]:
+    if not isinstance(data, InstanceFileSummary):
+        return []
+    return check_instance_companion(
+        context.repo_path,
+        data,
+        context.available_files,
+        context.read_repo_file,
     )
 
 
 def _aggregate_check_score_metadata(
-    context: ValidationContext, data: dict[str, Any] | None
+    context: ValidationContext, data: ValidationPayload
 ) -> list[str]:
-    if data is None:
+    if not isinstance(data, dict):
         return []
     return check_score_metadata(data)
 
 
 def _aggregate_check_model_deployment(
-    context: ValidationContext, data: dict[str, Any] | None
+    context: ValidationContext, data: ValidationPayload
 ) -> list[str]:
-    if data is None:
+    if not isinstance(data, dict):
         return []
     return check_model_deployment(data)
 
@@ -412,6 +611,9 @@ REGISTERED_CHECKS: tuple[ValidationCheck, ...] = (
     ValidationCheck('path structure', 'file', 'error', _file_check_path),
     ValidationCheck(
         'companion file', 'aggregate', 'error', _aggregate_check_companion
+    ),
+    ValidationCheck(
+        'aggregate file', 'instance', 'error', _instance_check_companion
     ),
     ValidationCheck(
         'score metadata', 'aggregate', 'error', _aggregate_check_score_metadata
@@ -429,7 +631,7 @@ def run_registered_checks(
     context: ValidationContext,
     *,
     file_type: Literal['aggregate', 'instance'],
-    data: dict[str, Any] | None,
+    data: ValidationPayload,
     checks: tuple[ValidationCheck, ...] = REGISTERED_CHECKS,
 ) -> SemanticCheckReport:
     """Run registered checks and preserve their explicit severity."""
@@ -464,9 +666,10 @@ def validate_aggregate(
     *,
     repo_path: str | None = None,
     available_files: Container[str] | None = None,
+    read_repo_file: Callable[[str], str] | None = None,
     run_semantic_checks: bool = False,
 ) -> ValidationReport:
-    """Validate an aggregate file, optionally including bot-only checks."""
+    """Validate one aggregate file and its repository relationship."""
     report = ValidationReport(
         file_path=file_path, valid=True, file_type='aggregate'
     )
@@ -516,6 +719,7 @@ def validate_aggregate(
         context = ValidationContext(
             repo_path=repo_path,
             available_files=available_files,
+            read_repo_file=read_repo_file,
         )
         try:
             semantic_report = run_registered_checks(
@@ -538,18 +742,23 @@ def validate_aggregate(
     return report
 
 
-def _validate_instance_line(line: str, line_num: int) -> list[dict[str, Any]]:
+def _validate_instance_line(
+    line: str, line_num: int
+) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
     try:
         data = strict_json_loads(line)
     except (json.JSONDecodeError, StrictJSONError) as exc:
         location, message = _json_error_details(exc, line_num=line_num)
-        return [
-            {
-                'loc': location,
-                'msg': message,
-                'type': 'json_parse_error',
-            }
-        ]
+        return (
+            [
+                {
+                    'loc': location,
+                    'msg': message,
+                    'type': 'json_parse_error',
+                }
+            ],
+            None,
+        )
 
     try:
         InstanceLevelEvaluationLog.model_validate(data)
@@ -557,9 +766,9 @@ def _validate_instance_line(line: str, line_num: int) -> list[dict[str, Any]]:
         errors = pydantic_errors_to_dicts(exc)
         for error in errors:
             error['loc'] = f'line {line_num} -> {error["loc"]}'
-        return errors
+        return errors, data if isinstance(data, dict) else None
 
-    return []
+    return [], data if isinstance(data, dict) else None
 
 
 def validate_instance_file(
@@ -568,9 +777,10 @@ def validate_instance_file(
     *,
     repo_path: str | None = None,
     available_files: Container[str] | None = None,
+    read_repo_file: Callable[[str], str] | None = None,
     run_semantic_checks: bool = False,
 ) -> ValidationReport:
-    """Validate a JSONL file, optionally including bot-only checks."""
+    """Validate one JSONL file and its repository relationship."""
     report = ValidationReport(
         file_path=file_path, valid=True, file_type='instance'
     )
@@ -583,6 +793,9 @@ def validate_instance_file(
         )
         return report
 
+    evaluation_ids: set[str] = set()
+    model_ids: set[str] = set()
+    content_valid = True
     with handle:
         for line_num, line in enumerate(handle, start=1):
             stripped = line.strip()
@@ -590,11 +803,17 @@ def validate_instance_file(
                 continue
 
             report.line_count += 1
-            line_errors = _validate_instance_line(stripped, line_num)
+            line_errors, data = _validate_instance_line(stripped, line_num)
+            if data is not None:
+                evaluation_ids.add(
+                    _summary_identifier(data.get('evaluation_id'))
+                )
+                model_ids.add(_summary_identifier(data.get('model_id')))
             if not line_errors:
                 continue
 
             report.valid = False
+            content_valid = False
             remaining = max_errors - len(report.errors)
             if remaining <= 0:
                 report.errors.append(
@@ -622,6 +841,13 @@ def validate_instance_file(
                 )
                 break
 
+    summary = InstanceFileSummary(
+        line_count=report.line_count,
+        evaluation_ids=frozenset(evaluation_ids),
+        model_ids=frozenset(model_ids),
+        content_valid=content_valid,
+    )
+
     if run_semantic_checks:
         if repo_path is None:
             report.valid = False
@@ -638,10 +864,11 @@ def validate_instance_file(
         context = ValidationContext(
             repo_path=repo_path,
             available_files=available_files,
+            read_repo_file=read_repo_file,
         )
         try:
             semantic_report = run_registered_checks(
-                context, file_type='instance', data=None
+                context, file_type='instance', data=summary
             )
             report.errors.extend(semantic_report.errors)
             report.warnings.extend(semantic_report.warnings)
@@ -666,6 +893,7 @@ def validate_file(
     *,
     repo_path: str | None = None,
     available_files: Container[str] | None = None,
+    read_repo_file: Callable[[str], str] | None = None,
     run_semantic_checks: bool = False,
 ) -> ValidationReport:
     """Dispatch validation by extension."""
@@ -674,6 +902,7 @@ def validate_file(
             file_path,
             repo_path=repo_path,
             available_files=available_files,
+            read_repo_file=read_repo_file,
             run_semantic_checks=run_semantic_checks,
         )
     if file_path.suffix == '.jsonl':
@@ -682,6 +911,7 @@ def validate_file(
             max_errors=max_errors,
             repo_path=repo_path,
             available_files=available_files,
+            read_repo_file=read_repo_file,
             run_semantic_checks=run_semantic_checks,
         )
 

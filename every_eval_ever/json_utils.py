@@ -3,46 +3,11 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Callable
-from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import Any
 
 
 class StrictJSONError(ValueError):
     """Raised for JSON extensions or ambiguous objects we do not accept."""
-
-
-class StrictJSONReader(Protocol):
-    """Backend contract for strict, hook-capable JSON readers."""
-
-    def loads(
-        self,
-        content: str | bytes,
-        *,
-        parse_constant: Callable[[str], None],
-        object_pairs_hook: Callable[[list[tuple[str, Any]]], dict[str, Any]],
-    ) -> Any: ...
-
-
-@dataclass(frozen=True)
-class StdlibJSONReader:
-    """Standard-library implementation of the strict reader contract."""
-
-    def loads(
-        self,
-        content: str | bytes,
-        *,
-        parse_constant: Callable[[str], None],
-        object_pairs_hook: Callable[[list[tuple[str, Any]]], dict[str, Any]],
-    ) -> Any:
-        return json.loads(
-            content,
-            parse_constant=parse_constant,
-            object_pairs_hook=object_pairs_hook,
-        )
-
-
-STDLIB_JSON_READER = StdlibJSONReader()
 
 
 def _reject_constant(value: str) -> None:
@@ -58,16 +23,9 @@ def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return result
 
 
-def strict_json_loads(
-    content: str | bytes, *, reader: StrictJSONReader = STDLIB_JSON_READER
-) -> Any:
-    """Parse unambiguous JSON with an explicit strict reader backend.
-
-    Alternative readers are opt-in and must implement the hook contract. A
-    missing or incompatible accelerated reader raises normally; this function
-    never silently falls back to a different parser.
-    """
-    return reader.loads(
+def strict_json_loads(content: str | bytes) -> Any:
+    """Parse standards-compliant JSON and reject duplicate object keys."""
+    return json.loads(
         content,
         parse_constant=_reject_constant,
         object_pairs_hook=_reject_duplicate_keys,

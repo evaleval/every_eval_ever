@@ -16,6 +16,7 @@ from every_eval_ever.validate import (
     check_path_structure,
     check_score_metadata,
     validate_aggregate,
+    validate_instance_file,
 )
 from every_eval_ever.validate import (
     main as validate_main,
@@ -69,16 +70,58 @@ def write_aggregate(tmp_path: Path, data: dict) -> Path:
     return path
 
 
+def valid_sample() -> dict:
+    return {
+        'schema_version': 'instance_level_eval_0.2.2',
+        'evaluation_id': valid_aggregate()['evaluation_id'],
+        'model_id': valid_aggregate()['model_info']['id'],
+        'evaluation_name': 'bench',
+        'sample_id': 'sample-1',
+        'interaction_type': 'single_turn',
+        'input': {'raw': 'question', 'reference': ['answer']},
+        'output': {'raw': ['answer']},
+        'answer_attribution': [
+            {
+                'turn_idx': 0,
+                'source': 'output.raw',
+                'extracted_value': 'answer',
+                'extraction_method': 'exact_match',
+                'is_terminal': True,
+            }
+        ],
+        'evaluation': {'score': 1.0, 'is_correct': True},
+    }
+
+
+def write_samples(tmp_path: Path, rows: list[dict]) -> Path:
+    path = tmp_path / UUID / f'{UUID}_samples.jsonl'
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        ''.join(f'{json.dumps(row)}\n' for row in rows),
+        encoding='utf-8',
+    )
+    return path
+
+
 def validate_data(
     tmp_path: Path,
     data: dict,
     *,
     available_files: set[str] | None = None,
+    repo_files: dict[str, str] | None = None,
 ):
+    available = available_files or {AGGREGATE_REPO_PATH}
+    if repo_files is None:
+        repo_files = (
+            {COMPANION_REPO_PATH: ''}
+            if COMPANION_REPO_PATH in available
+            else {}
+        )
     return validate_aggregate(
         write_aggregate(tmp_path, data),
         repo_path=AGGREGATE_REPO_PATH,
-        available_files=available_files or {AGGREGATE_REPO_PATH},
+        available_files=available,
+        read_repo_file=repo_files.__getitem__,
         run_semantic_checks=True,
     )
 
@@ -88,6 +131,9 @@ def test_path_structure_accepts_only_datastore_file_conventions():
     assert check_path_structure(COMPANION_REPO_PATH) == []
     assert check_path_structure(f'data/bench/dev/model/{UUID}.jsonl')
     assert check_path_structure(f'data/bench/dev/model/{UUID}_samples.json')
+    assert check_path_structure(f'data/bench/sub/dev/model/{UUID}.json')
+    assert check_path_structure(f'/data/bench/dev/model/{UUID}.json')
+    assert check_path_structure(f'data/bench/../model/{UUID}.json')
 
 
 def test_companion_check_uses_declared_path(tmp_path):
@@ -121,6 +167,113 @@ def test_companion_check_accepts_existing_declared_relative_path(tmp_path):
     assert report.valid is True, report.errors
 
 
+def test_aggregate_requires_tag_when_samples_sibling_exists(tmp_path):
+    report = validate_data(
+        tmp_path,
+        valid_aggregate(),
+        available_files={AGGREGATE_REPO_PATH, COMPANION_REPO_PATH},
+    )
+
+    assert report.valid is False
+    assert any(
+        'detailed_evaluation_results is required' in error['msg']
+        for error in report.errors
+    )
+
+
+def test_companion_must_use_same_uuid_and_basename(tmp_path):
+    other_uuid = '550e8400-e29b-41d4-a716-446655440001'
+    for reference in (
+        f'{other_uuid}_samples.jsonl',
+        COMPANION_REPO_PATH,
+        f'other/{UUID}_samples.jsonl',
+    ):
+        data = valid_aggregate()
+        data['detailed_evaluation_results'] = {
+            'format': 'jsonl',
+            'file_path': reference,
+        }
+        report = validate_data(tmp_path, data)
+
+        assert report.valid is False
+        assert any(
+            'expected exactly' in error['msg'] for error in report.errors
+        )
+
+
+def test_pair_ids_and_total_rows_must_match(tmp_path):
+    data = valid_aggregate()
+    data['detailed_evaluation_results'] = {
+        'format': 'jsonl',
+        'file_path': f'{UUID}_samples.jsonl',
+        'total_rows': 2,
+    }
+    sample = valid_sample()
+    sample['evaluation_id'] = 'different-evaluation'
+    sample['model_id'] = 'different/model'
+    samples_text = f'{json.dumps(sample)}\n'
+
+    report = validate_data(
+        tmp_path,
+        data,
+        available_files={AGGREGATE_REPO_PATH, COMPANION_REPO_PATH},
+        repo_files={COMPANION_REPO_PATH: samples_text},
+    )
+
+    assert report.valid is False
+    messages = [error['msg'] for error in report.errors]
+    assert any('samples evaluation_id' in message for message in messages)
+    assert any('samples model_id' in message for message in messages)
+    assert any('total_rows' in error['loc'] for error in report.errors)
+
+
+def test_samples_requires_aggregate_that_points_back(tmp_path):
+    sample_path = write_samples(tmp_path, [valid_sample()])
+    report = validate_instance_file(
+        sample_path,
+        repo_path=COMPANION_REPO_PATH,
+        available_files={COMPANION_REPO_PATH},
+        read_repo_file={}.get,
+        run_semantic_checks=True,
+    )
+    assert report.valid is False
+    assert any(
+        'requires sibling aggregate' in error['msg'] for error in report.errors
+    )
+
+    aggregate = valid_aggregate()
+    report = validate_instance_file(
+        sample_path,
+        repo_path=COMPANION_REPO_PATH,
+        available_files={AGGREGATE_REPO_PATH, COMPANION_REPO_PATH},
+        read_repo_file={
+            AGGREGATE_REPO_PATH: json.dumps(aggregate),
+        }.__getitem__,
+        run_semantic_checks=True,
+    )
+    assert report.valid is False
+    assert any(
+        'must declare detailed_evaluation_results' in error['msg']
+        for error in report.errors
+    )
+
+    aggregate['detailed_evaluation_results'] = {
+        'format': 'jsonl',
+        'file_path': f'{UUID}_samples.jsonl',
+        'total_rows': 1,
+    }
+    report = validate_instance_file(
+        sample_path,
+        repo_path=COMPANION_REPO_PATH,
+        available_files={AGGREGATE_REPO_PATH, COMPANION_REPO_PATH},
+        read_repo_file={
+            AGGREGATE_REPO_PATH: json.dumps(aggregate),
+        }.__getitem__,
+        run_semantic_checks=True,
+    )
+    assert report.valid is True, report.errors
+
+
 def test_companion_check_supports_bot_file_lookup(tmp_path):
     class BotFileLookup:
         def __contains__(self, path: object) -> bool:
@@ -135,6 +288,7 @@ def test_companion_check_supports_bot_file_lookup(tmp_path):
         write_aggregate(tmp_path, data),
         repo_path=AGGREGATE_REPO_PATH,
         available_files=BotFileLookup(),
+        read_repo_file=lambda path: '',
         run_semantic_checks=True,
     )
 
@@ -157,9 +311,7 @@ def test_companion_check_enforces_companion_path_convention(tmp_path):
     )
 
     assert report.valid is False
-    assert any(
-        'invalid datastore path' in error['msg'] for error in report.errors
-    )
+    assert any('expected exactly' in error['msg'] for error in report.errors)
 
 
 def test_companion_check_rejects_absolute_and_parent_paths(tmp_path):
@@ -176,7 +328,7 @@ def test_companion_check_rejects_absolute_and_parent_paths(tmp_path):
         report = validate_data(tmp_path, data)
         assert report.valid is False
         assert any(
-            'parent traversal' in error['msg'] for error in report.errors
+            'expected exactly' in error['msg'] for error in report.errors
         )
 
 
@@ -259,7 +411,9 @@ def test_repository_checks_require_a_repository_path(tmp_path):
     )
 
     assert report.valid is False
-    assert any('repo_path is required' in error['msg'] for error in report.errors)
+    assert any(
+        'repo_path is required' in error['msg'] for error in report.errors
+    )
 
 
 def test_local_command_runs_the_same_repository_checks(
@@ -285,6 +439,12 @@ def test_local_command_runs_the_same_repository_checks(
 
     assert exit_code == 0
     assert json.loads(capsys.readouterr().out)[0]['valid'] is True
+
+    exit_code = validate_main(['--format', 'json', 'data/*/*/*/*.json*'])
+    reports = json.loads(capsys.readouterr().out)
+    assert exit_code == 0
+    assert len(reports) == 2
+    assert all(report['valid'] for report in reports)
 
     companion_path.unlink()
     exit_code = validate_main(

@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from every_eval_ever.validate import (
     expand_paths,
     render_report_github,
@@ -336,22 +338,32 @@ class TestFileDispatch:
         assert report.valid is False
         assert report.errors[0]['type'] == 'unsupported_extension'
 
-    def test_directory_expansion_is_not_recursive(self, tmp_path: Path):
+    def test_fixed_depth_glob_expands_files_without_nested_matches(
+        self, tmp_path: Path
+    ):
         sub = tmp_path / 'sub'
         sub.mkdir()
         direct_json = _write_json(sub, 'a.json', VALID_AGGREGATE)
-        _write_jsonl(sub, 'b.jsonl', [VALID_SINGLE_TURN])
+        direct_jsonl = _write_jsonl(sub, 'b.jsonl', [VALID_SINGLE_TURN])
         (sub / 'c.txt').write_text('ignored')
         nested = sub / 'nested'
         nested.mkdir()
         nested_json = _write_json(nested, 'hidden.json', VALID_AGGREGATE)
 
-        paths = expand_paths([str(sub)])
+        paths = expand_paths([f'{sub}/*.json*'])
 
         assert direct_json in paths
-        assert any(path.suffix == '.jsonl' for path in paths)
+        assert direct_jsonl in paths
         assert nested_json not in paths
         assert all(path.parent == sub for path in paths)
+
+    def test_directory_and_recursive_glob_arguments_are_rejected(
+        self, tmp_path: Path
+    ):
+        with pytest.raises(ValueError, match='directory arguments'):
+            expand_paths([str(tmp_path)])
+        with pytest.raises(ValueError, match='recursive glob'):
+            expand_paths([f'{tmp_path}/**/*.json'])
 
 
 class TestMaxErrors:
