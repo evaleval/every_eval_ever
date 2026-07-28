@@ -336,17 +336,22 @@ class TestFileDispatch:
         assert report.valid is False
         assert report.errors[0]['type'] == 'unsupported_extension'
 
-    def test_directory_expansion(self, tmp_path: Path):
+    def test_directory_expansion_is_not_recursive(self, tmp_path: Path):
         sub = tmp_path / 'sub'
         sub.mkdir()
-        _write_json(sub, 'a.json', VALID_AGGREGATE)
+        direct_json = _write_json(sub, 'a.json', VALID_AGGREGATE)
         _write_jsonl(sub, 'b.jsonl', [VALID_SINGLE_TURN])
         (sub / 'c.txt').write_text('ignored')
+        nested = sub / 'nested'
+        nested.mkdir()
+        nested_json = _write_json(nested, 'hidden.json', VALID_AGGREGATE)
+
         paths = expand_paths([str(sub)])
-        extensions = {p.suffix for p in paths}
-        assert '.json' in extensions
-        assert '.jsonl' in extensions
-        assert '.txt' not in extensions
+
+        assert direct_json in paths
+        assert any(path.suffix == '.jsonl' for path in paths)
+        assert nested_json not in paths
+        assert all(path.parent == sub for path in paths)
 
 
 class TestMaxErrors:

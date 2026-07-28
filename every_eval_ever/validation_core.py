@@ -1,9 +1,4 @@
-"""Shared validation checks for Every Eval Ever data.
-
-This module is the source of truth for package CLI validation and the
-datastore validator Space.  It intentionally keeps orchestration out: callers
-provide local files, repo-relative paths, and available companion files.
-"""
+"""Validation checks shared by the local command and validator bot."""
 
 from __future__ import annotations
 
@@ -52,12 +47,10 @@ class ValidationReport:
 
 @dataclass(frozen=True)
 class ValidationContext:
-    """Context supplied by CLI or Space orchestration for semantic checks."""
+    """Repository information needed by path and companion checks."""
 
-    local_path: Path
     repo_path: str
     available_files: Container[str] = field(default_factory=frozenset)
-    hf_api: Any = None
 
 
 CheckScope = Literal['aggregate', 'instance', 'file']
@@ -84,35 +77,6 @@ class SemanticCheckReport:
 
     errors: list[dict[str, Any]] = field(default_factory=list)
     warnings: list[dict[str, Any]] = field(default_factory=list)
-
-
-def repo_path_from_path(path: Path, *, repo_root: Path | None = None) -> str:
-    """Best-effort repo-relative path for local CLI use.
-
-    ``repo_root`` is authoritative when supplied. Otherwise, prefer the final
-    ``data`` suffix with the expected datastore depth. This avoids choosing an
-    unrelated ancestor directory that also happens to be named ``data``.
-    """
-    if repo_root is not None:
-        resolved_path = path.resolve()
-        resolved_root = repo_root.resolve()
-        try:
-            return resolved_path.relative_to(resolved_root).as_posix()
-        except ValueError as exc:
-            raise ValueError(
-                f'{path} is outside the repository root {repo_root}'
-            ) from exc
-
-    raw = path.as_posix()
-    parts = list(path.parts)
-    data_indices = [index for index, part in enumerate(parts) if part == 'data']
-    for data_index in reversed(data_indices):
-        candidate = parts[data_index:]
-        if len(candidate) == _EXPECTED_PATH_PARTS:
-            return '/'.join(candidate)
-    if data_indices:
-        return '/'.join(parts[data_indices[-1] :])
-    return raw
 
 
 def _format_loc(loc: tuple[Any, ...]) -> str:
@@ -278,11 +242,7 @@ def check_companion_exists(
             f'path is {reference!r}'
         )
 
-    available = {
-        PurePosixPath(path.replace('\\', '/')).as_posix()
-        for path in available_files
-    }
-    if resolved_text not in available:
+    if resolved_text not in available_files:
         warnings.append(
             'detailed_evaluation_results.file_path: referenced companion '
             f'{resolved_text!r} was not found in the dataset or this batch'
@@ -373,14 +333,13 @@ def _metric_bound(value: Any) -> float | None:
     return None
 
 
-def check_model_deployment(data: dict[str, Any], api: Any = None) -> list[str]:
+def check_model_deployment(data: dict[str, Any]) -> list[str]:
     """Require independent deployment-control and weight-availability axes.
 
     ``deployment_type`` describes who controlled the inference deployment;
     ``model_availability`` describes whether model weights are available.
-    Neither value constrains the other. ``api`` is retained in the signature
-    for compatibility with callers that supply validation context, but this
-    rule deliberately performs no provider-specific existence check.
+    Neither value constrains the other. This rule deliberately performs no
+    provider-specific existence check.
     """
     warnings: list[str] = []
     model_info = data.get('model_info')
@@ -428,36 +387,9 @@ def _aggregate_check_companion(
 ) -> list[str]:
     if data is None:
         return []
-    available_files = set(context.available_files)
-    try:
-        resolved_repo_path = resolve_companion_repo_path(
-            context.repo_path, data
-        )
-    except ValueError:
-        resolved_repo_path = None
-
-    detail = data.get('detailed_evaluation_results')
-    reference = detail.get('file_path') if isinstance(detail, dict) else None
-    if resolved_repo_path is not None and isinstance(reference, str):
-        reference_path = PurePosixPath(reference.replace('\\', '/'))
-        if reference_path.parts and reference_path.parts[0] == 'data':
-            repo_parts = PurePosixPath(context.repo_path).parts
-            local_parts = context.local_path.resolve().parts
-            if tuple(local_parts[-len(repo_parts) :]) == repo_parts:
-                repo_root = context.local_path.resolve().parents[
-                    len(repo_parts) - 1
-                ]
-                local_companion = repo_root.joinpath(*reference_path.parts)
-            else:
-                local_companion = None
-        else:
-            local_companion = context.local_path.parent.joinpath(
-                *reference_path.parts
-            )
-        if local_companion is not None and local_companion.is_file():
-            available_files.add(resolved_repo_path)
-
-    return check_companion_exists(context.repo_path, data, available_files)
+    return check_companion_exists(
+        context.repo_path, data, context.available_files
+    )
 
 
 def _aggregate_check_score_metadata(
@@ -473,7 +405,7 @@ def _aggregate_check_model_deployment(
 ) -> list[str]:
     if data is None:
         return []
-    return check_model_deployment(data, context.hf_api)
+    return check_model_deployment(data)
 
 
 REGISTERED_CHECKS: tuple[ValidationCheck, ...] = (
@@ -532,17 +464,12 @@ def validate_aggregate(
     *,
     repo_path: str | None = None,
     available_files: Container[str] | None = None,
-    hf_api: Any = None,
-    run_semantic_checks: bool = True,
+    run_semantic_checks: bool = False,
 ) -> ValidationReport:
-    """Validate a .json file as an EvaluationLog plus semantic warnings."""
+    """Validate an aggregate file, optionally including bot-only checks."""
     report = ValidationReport(
         file_path=file_path, valid=True, file_type='aggregate'
     )
-    repo_path = repo_path or repo_path_from_path(file_path)
-    if available_files is None:
-        available_files = frozenset({repo_path})
-
     try:
         raw = file_path.read_text(encoding='utf-8')
     except OSError as exc:
@@ -574,11 +501,21 @@ def validate_aggregate(
         report.errors = pydantic_errors_to_dicts(exc)
 
     if run_semantic_checks:
+        if repo_path is None:
+            report.valid = False
+            report.errors.append(
+                {
+                    'loc': '(semantic checks)',
+                    'msg': 'repo_path is required for repository validation',
+                    'type': 'semantic_check_error',
+                }
+            )
+            return report
+        if available_files is None:
+            available_files = frozenset({repo_path})
         context = ValidationContext(
-            local_path=file_path,
             repo_path=repo_path,
             available_files=available_files,
-            hf_api=hf_api,
         )
         try:
             semantic_report = run_registered_checks(
@@ -631,16 +568,12 @@ def validate_instance_file(
     *,
     repo_path: str | None = None,
     available_files: Container[str] | None = None,
-    run_semantic_checks: bool = True,
+    run_semantic_checks: bool = False,
 ) -> ValidationReport:
-    """Validate a .jsonl file as InstanceLevelEvaluationLog line-by-line."""
+    """Validate a JSONL file, optionally including bot-only checks."""
     report = ValidationReport(
         file_path=file_path, valid=True, file_type='instance'
     )
-    repo_path = repo_path or repo_path_from_path(file_path)
-    if available_files is None:
-        available_files = frozenset({repo_path})
-
     try:
         handle = file_path.open(encoding='utf-8')
     except OSError as exc:
@@ -690,8 +623,19 @@ def validate_instance_file(
                 break
 
     if run_semantic_checks:
+        if repo_path is None:
+            report.valid = False
+            report.errors.append(
+                {
+                    'loc': '(semantic checks)',
+                    'msg': 'repo_path is required for repository validation',
+                    'type': 'semantic_check_error',
+                }
+            )
+            return report
+        if available_files is None:
+            available_files = frozenset({repo_path})
         context = ValidationContext(
-            local_path=file_path,
             repo_path=repo_path,
             available_files=available_files,
         )
@@ -722,8 +666,7 @@ def validate_file(
     *,
     repo_path: str | None = None,
     available_files: Container[str] | None = None,
-    hf_api: Any = None,
-    run_semantic_checks: bool = True,
+    run_semantic_checks: bool = False,
 ) -> ValidationReport:
     """Dispatch validation by extension."""
     if file_path.suffix == '.json':
@@ -731,7 +674,6 @@ def validate_file(
             file_path,
             repo_path=repo_path,
             available_files=available_files,
-            hf_api=hf_api,
             run_semantic_checks=run_semantic_checks,
         )
     if file_path.suffix == '.jsonl':
@@ -757,28 +699,3 @@ def validate_file(
         }
     )
     return report
-
-
-def validate_many(
-    files: list[tuple[str, Path]],
-    *,
-    max_errors: int = DEFAULT_MAX_ERRORS,
-    available_files: Container[str] | None = None,
-    hf_api: Any = None,
-) -> list[ValidationReport]:
-    """Validate repo-path/local-path pairs with a shared context."""
-    available = (
-        frozenset(repo_path for repo_path, _ in files)
-        if available_files is None
-        else available_files
-    )
-    return [
-        validate_file(
-            local_path,
-            max_errors=max_errors,
-            repo_path=repo_path,
-            available_files=available,
-            hf_api=hf_api,
-        )
-        for repo_path, local_path in files
-    ]

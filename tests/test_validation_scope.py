@@ -15,8 +15,10 @@ from every_eval_ever.eval_types import (
 from every_eval_ever.validate import (
     check_path_structure,
     check_score_metadata,
-    repo_path_from_path,
     validate_aggregate,
+)
+from every_eval_ever.validate import (
+    main as validate_main,
 )
 
 UUID = '550e8400-e29b-41d4-a716-446655440000'
@@ -77,6 +79,7 @@ def validate_data(
         write_aggregate(tmp_path, data),
         repo_path=AGGREGATE_REPO_PATH,
         available_files=available_files or {AGGREGATE_REPO_PATH},
+        run_semantic_checks=True,
     )
 
 
@@ -85,13 +88,6 @@ def test_path_structure_accepts_only_datastore_file_conventions():
     assert check_path_structure(COMPANION_REPO_PATH) == []
     assert check_path_structure(f'data/bench/dev/model/{UUID}.jsonl')
     assert check_path_structure(f'data/bench/dev/model/{UUID}_samples.json')
-
-
-def test_repo_path_uses_explicit_root_and_ignores_data_ancestor(tmp_path):
-    root = tmp_path / 'data' / 'checkout'
-    path = root / AGGREGATE_REPO_PATH
-    assert repo_path_from_path(path, repo_root=root) == AGGREGATE_REPO_PATH
-    assert repo_path_from_path(path) == AGGREGATE_REPO_PATH
 
 
 def test_companion_check_uses_declared_path(tmp_path):
@@ -125,6 +121,26 @@ def test_companion_check_accepts_existing_declared_relative_path(tmp_path):
     assert report.valid is True, report.errors
 
 
+def test_companion_check_supports_bot_file_lookup(tmp_path):
+    class BotFileLookup:
+        def __contains__(self, path: object) -> bool:
+            return path == COMPANION_REPO_PATH
+
+    data = valid_aggregate()
+    data['detailed_evaluation_results'] = {
+        'format': 'jsonl',
+        'file_path': f'{UUID}_samples.jsonl',
+    }
+    report = validate_aggregate(
+        write_aggregate(tmp_path, data),
+        repo_path=AGGREGATE_REPO_PATH,
+        available_files=BotFileLookup(),
+        run_semantic_checks=True,
+    )
+
+    assert report.valid is True, report.errors
+
+
 def test_companion_check_enforces_companion_path_convention(tmp_path):
     data = valid_aggregate()
     data['detailed_evaluation_results'] = {
@@ -144,24 +160,6 @@ def test_companion_check_enforces_companion_path_convention(tmp_path):
     assert any(
         'invalid datastore path' in error['msg'] for error in report.errors
     )
-
-
-def test_single_aggregate_validation_finds_local_companion(tmp_path):
-    data = valid_aggregate()
-    data['detailed_evaluation_results'] = {
-        'format': 'jsonl',
-        'file_path': f'{UUID}_samples.jsonl',
-    }
-    aggregate_path = write_aggregate(tmp_path, data)
-    companion_path = aggregate_path.with_name(f'{UUID}_samples.jsonl')
-    companion_path.write_text('', encoding='utf-8')
-
-    report = validate_aggregate(
-        aggregate_path,
-        repo_path=AGGREGATE_REPO_PATH,
-    )
-
-    assert report.valid is True, report.errors
 
 
 def test_companion_check_rejects_absolute_and_parent_paths(tmp_path):
@@ -252,3 +250,47 @@ def test_strict_json_rejects_nonfinite_tokens_and_duplicate_keys(tmp_path):
     report = validate_aggregate(path, repo_path=AGGREGATE_REPO_PATH)
     assert report.valid is False
     assert 'duplicate JSON object key' in report.errors[0]['msg']
+
+
+def test_repository_checks_require_a_repository_path(tmp_path):
+    report = validate_aggregate(
+        write_aggregate(tmp_path, valid_aggregate()),
+        run_semantic_checks=True,
+    )
+
+    assert report.valid is False
+    assert any('repo_path is required' in error['msg'] for error in report.errors)
+
+
+def test_local_command_runs_the_same_repository_checks(
+    tmp_path, monkeypatch, capsys
+):
+    aggregate_path = (
+        tmp_path / 'data' / 'bench' / 'dev' / 'model' / f'{UUID}.json'
+    )
+    aggregate_path.parent.mkdir(parents=True)
+    data = valid_aggregate()
+    data['detailed_evaluation_results'] = {
+        'format': 'jsonl',
+        'file_path': f'{UUID}_samples.jsonl',
+    }
+    aggregate_path.write_text(json.dumps(data), encoding='utf-8')
+    companion_path = aggregate_path.with_name(f'{UUID}_samples.jsonl')
+    companion_path.write_text('', encoding='utf-8')
+    monkeypatch.chdir(tmp_path)
+
+    exit_code = validate_main(
+        ['--format', 'json', aggregate_path.relative_to(tmp_path).as_posix()]
+    )
+
+    assert exit_code == 0
+    assert json.loads(capsys.readouterr().out)[0]['valid'] is True
+
+    companion_path.unlink()
+    exit_code = validate_main(
+        ['--format', 'json', aggregate_path.relative_to(tmp_path).as_posix()]
+    )
+
+    assert exit_code == 1
+    errors = json.loads(capsys.readouterr().out)[0]['errors']
+    assert any('was not found' in error['msg'] for error in errors)

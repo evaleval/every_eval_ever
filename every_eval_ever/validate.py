@@ -1,8 +1,4 @@
-"""CLI and compatibility wrapper for EEE validation.
-
-The validation rules live in :mod:`every_eval_ever.validation_core` so the
-local CLI and the datastore validator Space run the same checks.
-"""
+"""CLI and compatibility exports for shared EEE validation."""
 
 from __future__ import annotations
 
@@ -26,12 +22,10 @@ from every_eval_ever.validation_core import (
     format_warning,
     get_schema_fingerprint,
     get_schema_version,
-    repo_path_from_path,
     resolve_companion_repo_path,
     validate_aggregate,
     validate_file,
     validate_instance_file,
-    validate_many,
 )
 
 __all__ = [
@@ -51,25 +45,39 @@ __all__ = [
     'render_report_json',
     'render_report_rich',
     'render_summary_rich',
-    'repo_path_from_path',
     'resolve_companion_repo_path',
     'validate_aggregate',
     'validate_file',
     'validate_instance_file',
-    'validate_many',
 ]
 
 
+class _LocalRepositoryFiles:
+    """Answer whether a repository-relative file exists in this checkout."""
+
+    def __contains__(self, repo_path: object) -> bool:
+        if not isinstance(repo_path, str):
+            return False
+        path = Path(repo_path)
+        return not path.is_absolute() and path.is_file()
+
+
 def expand_paths(paths: list[str]) -> list[Path]:
-    """Expand directories to .json and .jsonl files recursively."""
+    """Expand each directory to its direct JSON and JSONL children."""
     result: list[Path] = []
     for p in paths:
         path = Path(p)
         if path.is_file():
             result.append(path)
         elif path.is_dir():
-            for ext in ('*.json', '*.jsonl'):
-                result.extend(sorted(path.rglob(ext)))
+            result.extend(
+                sorted(
+                    child
+                    for child in path.iterdir()
+                    if child.is_file()
+                    and child.suffix in {'.json', '.jsonl'}
+                )
+            )
         else:
             result.append(path)
     return result
@@ -185,12 +193,15 @@ def render_report_github(reports: list[ValidationReport]) -> str:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog='eee-validate',
-        description='Validate EEE schema files using shared package checks',
+        description='Validate EEE files using strict JSON and bundled schemas',
     )
     parser.add_argument(
         'paths',
         nargs='+',
-        help='File or directory paths to validate (.json for aggregate, .jsonl for instance-level)',
+        help=(
+            'Files or directories to validate. Directories include only their '
+            'immediate .json and .jsonl files.'
+        ),
     )
     parser.add_argument(
         '--max-errors',
@@ -205,11 +216,6 @@ def main(argv: list[str] | None = None) -> int:
         dest='output_format',
         help='Output format.',
     )
-    parser.add_argument(
-        '--repo-root',
-        type=Path,
-        help='Repository root used to derive datastore-relative paths.',
-    )
     args = parser.parse_args(argv)
 
     file_paths = expand_paths(args.paths)
@@ -217,19 +223,16 @@ def main(argv: list[str] | None = None) -> int:
         print('No files found to validate.', file=sys.stderr)
         return 1
 
-    try:
-        pairs = [
-            (repo_path_from_path(path, repo_root=args.repo_root), path)
-            for path in file_paths
-        ]
-    except ValueError as exc:
-        parser.error(str(exc))
-    available_files = {repo_path for repo_path, _ in pairs}
-    reports = validate_many(
-        pairs,
-        max_errors=args.max_errors,
-        available_files=available_files,
-    )
+    reports = [
+        validate_file(
+            path,
+            max_errors=args.max_errors,
+            repo_path=path.as_posix(),
+            available_files=_LocalRepositoryFiles(),
+            run_semantic_checks=True,
+        )
+        for path in file_paths
+    ]
 
     if args.output_format == 'json':
         print(render_report_json(reports))

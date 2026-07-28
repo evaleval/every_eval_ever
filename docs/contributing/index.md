@@ -53,5 +53,7 @@ Note: Each file can contain multiple individual results related to one model. Se
 Before submitting, run:
 
 ```bash
-uv run python -m every_eval_ever validate data/
+uv run python -m every_eval_ever validate \
+  data/<benchmark>/<developer>/<model>/<uuid>.json \
+  data/<benchmark>/<developer>/<model>/<uuid>_samples.jsonl
 ```

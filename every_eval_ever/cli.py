@@ -259,7 +259,10 @@ def build_parser() -> argparse.ArgumentParser:
     validate_parser.add_argument(
         'paths',
         nargs='+',
-        help='One or more files or directories containing .json/.jsonl files.',
+        help=(
+            'Files or directories to validate. Directories include only their '
+            'immediate .json and .jsonl files.'
+        ),
     )
     validate_parser.add_argument(
         '--max-errors',
@@ -274,12 +277,6 @@ def build_parser() -> argparse.ArgumentParser:
         dest='output_format',
         help='Output format.',
     )
-    validate_parser.add_argument(
-        '--repo-root',
-        type=Path,
-        help='Repository root used to derive datastore-relative paths.',
-    )
-
     check_duplicates_parser = subparsers.add_parser(
         'check-duplicates',
         help='Detect duplicate evaluation JSON entries',
@@ -406,8 +403,6 @@ def main(argv: list[str] | None = None) -> int:
             '--format',
             args.output_format,
         ]
-        if args.repo_root is not None:
-            validate_args.extend(['--repo-root', str(args.repo_root)])
         validate_args.extend(args.paths)
         return validate_main(validate_args)
 
