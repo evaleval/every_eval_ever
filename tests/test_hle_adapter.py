@@ -45,13 +45,21 @@ def sample_rows() -> list[dict]:
             'calibrationError': None,
             'maxScore': 49.852,
         },
-        # Row missing a score must be silently dropped.
-        {
-            'model': 'broken-row',
-            'company': 'openai',
-            'score': None,
-        },
     ]
+
+
+def test_missing_score_reports_failed_source_record_count():
+    rows = sample_rows() + [
+        {'model': 'broken-row', 'company': 'openai', 'score': None}
+    ]
+
+    try:
+        adapter.make_logs(rows, retrieved_timestamp='123.0')
+    except ValueError as exc:
+        assert 'failed to convert 1 of 4 source records' in str(exc)
+        assert 'row 3: missing score' in str(exc)
+    else:
+        raise AssertionError('expected an incomplete HLE row to fail')
 
 
 def test_make_logs_validate_against_schema():

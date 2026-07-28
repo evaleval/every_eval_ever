@@ -19,6 +19,8 @@ pytest.importorskip(
     reason='inspect-ai not installed; install with: uv sync --extra inspect',
 )
 
+TEST_UUID = '123e4567-e89b-42d3-a456-426614174000'
+
 import json
 import tempfile
 from pathlib import Path
@@ -44,7 +46,7 @@ def _load_eval_and_instances(filepath, metadata_args=None):
     if metadata_args is None:
         metadata_args = {}
     args = {**METADATA_ARGS, **metadata_args}
-    args.setdefault('file_uuid', 'test-uuid')
+    args.setdefault('file_uuid', TEST_UUID)
 
     with tempfile.TemporaryDirectory() as tmpdir:
         args['parent_eval_output_dir'] = tmpdir

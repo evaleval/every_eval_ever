@@ -47,7 +47,12 @@ from eval_types import (
     SourceMetadata,
     Uncertainty,
 )
-from helpers import save_evaluation_log, sanitize_filename
+from helpers import sanitize_filename, save_evaluation_log
+
+from every_eval_ever.helpers.io import (
+    raise_for_failed_records,
+    require_identity,
+)
 
 SCHEMA_VERSION = "0.2.2"
 OUTPUT_DIR = "data/exgentic"
@@ -73,8 +78,8 @@ def parse_model_info(model_name: str) -> tuple[str, str, str]:
     parts = model_name.split("/")
     raw_model = parts[-1] if parts else model_name
 
-    developer_display = "unknown"
-    developer_slug = "unknown"
+    developer_display = None
+    developer_slug = None
     lower = raw_model.lower()
     for prefix, (display, slug) in MODEL_DEVELOPER_MAP.items():
         if lower.startswith(prefix):
@@ -82,6 +87,10 @@ def parse_model_info(model_name: str) -> tuple[str, str, str]:
             developer_slug = slug
             break
 
+    if developer_display is None or developer_slug is None:
+        raise ValueError(
+            f"Cannot determine Exgentic model developer from {model_name!r}"
+        )
     return developer_display, developer_slug, raw_model
 
 
@@ -92,12 +101,20 @@ def make_agent_slug(agent_name: str) -> str:
 
 def convert_result(result: dict, retrieved_timestamp: str) -> EvaluationLog:
     """Convert a single exgentic result dict to an EvaluationLog."""
-    model_name_raw = result.get("model_name") or "unknown"
+    model_name_raw = require_identity(
+        result.get("model_name"), "Exgentic model name"
+    )
     developer_display, developer_slug, model_slug = parse_model_info(model_name_raw)
     model_id = f"{developer_slug}/{model_slug}"
 
-    benchmark = result.get("benchmark_name") or result.get("benchmark") or "unknown"
-    agent_name = result.get("agent_name") or result.get("agent") or "unknown"
+    benchmark = require_identity(
+        result.get("benchmark_name") or result.get("benchmark"),
+        "Exgentic benchmark",
+    )
+    agent_name = require_identity(
+        result.get("agent_name") or result.get("agent"),
+        "Exgentic agent",
+    )
     agent_framework = result.get("agent") or make_agent_slug(agent_name)
     agent_slug = make_agent_slug(agent_name)
     subset = result.get("subset_name")
@@ -108,7 +125,9 @@ def convert_result(result: dict, retrieved_timestamp: str) -> EvaluationLog:
 
     score = result.get("benchmark_score")
     if score is None:
-        score = result.get("average_score", 0.0)
+        score = result.get("average_score")
+    if score is None:
+        raise ValueError("Exgentic benchmark score is required")
 
     # Build uncertainty from session counts
     total = result.get("total_sessions")
@@ -196,21 +215,29 @@ def load_results_from_dir(results_dir: str) -> list[dict]:
     results = []
     base = Path(results_dir)
 
-    for config_path in sorted(base.rglob("config.json")):
+    config_paths = sorted(base.rglob("config.json"))
+    failures: list[tuple[int, str]] = []
+    for index, config_path in enumerate(config_paths):
         try:
             config = json.loads(config_path.read_text())
             run_id = config.get("run_id")
             if not run_id:
+                failures.append((index, f"{config_path}: missing run_id"))
                 continue
             results_path = config_path.parent / run_id / "results.json"
             if not results_path.is_file():
+                failures.append((index, f"{results_path}: file not found"))
                 continue
             payload = json.loads(results_path.read_text())
             if "benchmark_score" not in payload:
+                failures.append(
+                    (index, f"{results_path}: missing benchmark_score")
+                )
                 continue
             results.append(payload)
         except (json.JSONDecodeError, OSError) as e:
-            print(f"Warning: skipping {config_path}: {e}")
+            failures.append((index, f"{config_path}: {e}"))
+    raise_for_failed_records("Exgentic", len(config_paths), failures)
     return results
 
 
@@ -263,11 +290,16 @@ def main():
     retrieved_timestamp = str(time.time())
     count = 0
 
-    for result in results:
+    failures: list[tuple[int, str]] = []
+    for index, result in enumerate(results):
         try:
             eval_log = convert_result(result, retrieved_timestamp)
             model_info = eval_log.model_info
-            developer_slug = sanitize_filename(model_info.developer or "unknown")
+            developer_slug = sanitize_filename(
+                require_identity(
+                    model_info.developer, "Exgentic model developer"
+                )
+            )
             model_name = sanitize_filename(model_info.name)
             filepath = save_evaluation_log(
                 eval_log, args.output_dir, developer_slug, model_name
@@ -279,7 +311,9 @@ def main():
             agent = result.get("agent", "?")
             model = result.get("model_name", "?")
             print(f"Error processing {benchmark}/{agent}/{model}: {e}")
+            failures.append((index, str(e)))
 
+    raise_for_failed_records("Exgentic", len(results), failures)
     print(f"\nGenerated {count} file(s) in {args.output_dir}/")
 
 

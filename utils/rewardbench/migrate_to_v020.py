@@ -73,7 +73,7 @@ def migrate_file(filepath: Path) -> bool:
 
     # Write back
     with open(filepath, 'w') as f:
-        json.dump(data, f, indent=2)
+        json.dump(data, f, indent=2, allow_nan=False)
         f.write('\n')
 
     return True

@@ -70,7 +70,7 @@ class ScoreScale:
     metric_unit: str
     metric_name: str
     metric_kind: str
-    max_score: float
+    max_score: float | None
 
 
 @dataclass(frozen=True)
@@ -344,8 +344,6 @@ def make_logs(
         build_index(payload).items()
     ):
         score_scale = score_scales[benchmark_slug]
-        if score_scale.metric_unit != 'percent':
-            continue
         first = rows[0]
         provider = _optional_str(first.metrics.get('provider'))
         developer = model_id.split('/', 1)[0]
@@ -468,8 +466,12 @@ def make_result(
             metric_kind=score_scale.metric_kind,
             metric_unit=score_scale.metric_unit,
             lower_is_better=False,
-            score_type=ScoreType.continuous,
-            min_score=0.0,
+            score_type=(
+                ScoreType.continuous
+                if score_scale.max_score is not None
+                else None
+            ),
+            min_score=0.0 if score_scale.max_score is not None else None,
             max_score=score_scale.max_score,
             additional_details=_clean_details(
                 {
@@ -481,7 +483,7 @@ def make_result(
                     'max_score_source': (
                         'fixed_percentage_bound'
                         if score_scale.metric_unit == 'percent'
-                        else 'not_exported_without_explicit_source_bounds'
+                        else 'not_provided'
                     ),
                     'leaderboard_page_url': row.source_url,
                 }
@@ -567,7 +569,13 @@ def export_logs(
 def save_raw_payload(payload: dict[str, Any], path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
-        json.dumps(payload, indent=2, sort_keys=True), encoding='utf-8'
+        json.dumps(
+            payload,
+            indent=2,
+            sort_keys=True,
+            allow_nan=False,
+        ),
+        encoding='utf-8',
     )
 
 
@@ -607,7 +615,7 @@ def _score_scale(scores: list[float]) -> ScoreScale:
         metric_unit='points',
         metric_name='Score',
         metric_kind='score',
-        max_score=max(scores) if scores else 0.0,
+        max_score=None,
     )
 
 

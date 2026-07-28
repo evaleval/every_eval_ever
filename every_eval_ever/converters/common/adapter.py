@@ -6,8 +6,6 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Union
 
-from huggingface_hub import model_info
-
 from every_eval_ever.converters.common.error import (
     AdapterError,
     TransformationError,
@@ -189,11 +187,3 @@ class BaseEvaluationAdapter(ABC):
             raise TransformationError(error_msg) from error
         else:
             self.logger.warning(error_msg)
-
-    def _check_if_model_is_on_huggingface(self, model_path):
-        try:
-            info = model_info(model_path)
-            return info
-        except Exception:
-            # self.logger.warning(f"Model '{model_path}' not found on Hugging Face.")
-            pass

@@ -10,6 +10,7 @@ from collections import defaultdict
 from pathlib import Path
 
 from every_eval_ever.helpers import SCHEMA_VERSION
+from every_eval_ever.helpers.io import generate_output_path
 
 SOURCE_URL = "https://arcprize.org/media/data/leaderboard/evaluations.json"
 
@@ -296,6 +297,8 @@ def make_log(
             "additional_details": {
                 "raw_model_id": primary_raw_model_id,
                 "raw_model_aliases_json": json.dumps(all_aliases),
+                "deployment_type": "unknown",
+                "model_availability": "unknown",
             },
         },
         "evaluation_results": make_results(
@@ -307,10 +310,13 @@ def make_log(
 
 
 def write_log(log: dict, out_root: Path, developer: str, model: str) -> Path:
-    out_dir = out_root / "arc-agi" / developer / model
+    out_dir = generate_output_path(out_root / "arc-agi", developer, model)
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / f"{uuid.uuid4()}.json"
-    out_path.write_text(json.dumps(log, indent=2) + "\n", encoding="utf-8")
+    out_path.write_text(
+        json.dumps(log, indent=2, allow_nan=False) + "\n",
+        encoding="utf-8",
+    )
     return out_path
 
 

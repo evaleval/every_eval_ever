@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from every_eval_ever.helpers import SCHEMA_VERSION
+from every_eval_ever.helpers.io import generate_output_path
 
 SOURCE_CSV_URL = "https://gorilla.cs.berkeley.edu/data_overall.csv"
 SOURCE_LEADERBOARD_URL = "https://gorilla.cs.berkeley.edu/leaderboard.html"
@@ -529,6 +530,8 @@ def make_log(
         "raw_model_name": raw_model,
         "organization": org,
         "license": row.get("License", ""),
+        "deployment_type": "unknown",
+        "model_availability": "unknown",
     }
     mode = parse_mode(raw_model)
     if mode is not None:
@@ -569,10 +572,13 @@ def make_log(
 
 
 def write_log(log: dict, out_root: Path, developer: str, model: str) -> Path:
-    out_dir = out_root / "bfcl" / developer / model
+    out_dir = generate_output_path(out_root / "bfcl", developer, model)
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / f"{uuid.uuid4()}.json"
-    out_path.write_text(json.dumps(log, indent=2) + "\n", encoding="utf-8")
+    out_path.write_text(
+        json.dumps(log, indent=2, allow_nan=False) + "\n",
+        encoding="utf-8",
+    )
     return out_path
 
 

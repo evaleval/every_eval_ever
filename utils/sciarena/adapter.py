@@ -8,6 +8,7 @@ import uuid
 from pathlib import Path
 
 from every_eval_ever.helpers import SCHEMA_VERSION, sanitize_filename
+from every_eval_ever.helpers.io import generate_output_path
 
 # Conservative provider mapping.
 # Keep the source alias in raw_model_id and derive a simple lowercase model slug.
@@ -228,6 +229,8 @@ def make_log(
             "developer": developer_name,
             "additional_details": {
                 "raw_model_id": raw_model_id,
+                "deployment_type": "unknown",
+                "model_availability": "unknown",
             },
         },
         "evaluation_results": make_results(row, metric_bounds),
@@ -236,10 +239,13 @@ def make_log(
 
 
 def write_log(log: dict, out_root: Path, developer: str, model: str) -> Path:
-    out_dir = out_root / "sciarena" / developer / model
+    out_dir = generate_output_path(out_root / "sciarena", developer, model)
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / f"{uuid.uuid4()}.json"
-    out_path.write_text(json.dumps(log, indent=2) + "\n", encoding="utf-8")
+    out_path.write_text(
+        json.dumps(log, indent=2, allow_nan=False) + "\n",
+        encoding="utf-8",
+    )
     return out_path
 
 

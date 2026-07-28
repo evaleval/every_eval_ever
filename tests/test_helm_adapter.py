@@ -1,7 +1,7 @@
-import pytest
-
 import tempfile
 from pathlib import Path
+
+import pytest
 
 from every_eval_ever.converters.helm import adapter as helm_adapter_module
 from every_eval_ever.converters.helm.adapter import HELMAdapter
@@ -11,6 +11,8 @@ from every_eval_ever.eval_types import (
     SourceDataHf,
     SourceMetadata,
 )
+
+TEST_UUID = '123e4567-e89b-42d3-a456-426614174000'
 
 
 pytestmark = pytest.mark.skipif(
@@ -28,9 +30,13 @@ def _load_eval(adapter, filepath, metadata_args):
     eval_dirpath = Path(filepath)
 
     with tempfile.TemporaryDirectory() as tmpdir:
+        metadata_args = {
+            **metadata_args,
+            'file_uuid': TEST_UUID,
+            'parent_eval_output_dir': tmpdir,
+        }
         converted_eval = adapter.transform_from_directory(
             eval_dirpath,
-            output_path=str(Path(tmpdir) / 'helm_output'),
             metadata_args=metadata_args,
         )
 
@@ -188,8 +194,8 @@ def test_missing_model_deployment_falls_back_to_model():
     Copies a helm data item and explicitly removes a field to test robustness
     to model_deployment missing. Regression test for #112
     """
-    import shutil
     import json
+    import shutil
     src = Path(
         'tests/data/helm/'
         'mmlu:subject=philosophy,method=multiple_choice_joint,model=openai_gpt2'

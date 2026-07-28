@@ -24,16 +24,14 @@ from every_eval_ever.eval_types import (
     SourceDataUrl,
     Uncertainty,
 )
-
 from every_eval_ever.helpers import (
     SCHEMA_VERSION,
     fetch_json,
     get_developer,
-    make_source_metadata,
     make_model_info,
+    make_source_metadata,
     save_evaluation_log,
 )
-
 
 # Data source URL
 KAGGLE_API_URL = (
@@ -215,14 +213,8 @@ def main():
     print("Fetching Global MMLU Lite results...")
     print("=" * 60)
 
-    try:
-        count = fetch_global_mmlu_lite(retrieved_timestamp)
-        print(f"\nProcessed {count} models from Global MMLU Lite")
-    except Exception as e:
-        print(f"Error processing Global MMLU Lite: {e}")
-        import traceback
-
-        traceback.print_exc()
+    count = fetch_global_mmlu_lite(retrieved_timestamp)
+    print(f"\nProcessed {count} models from Global MMLU Lite")
 
     print("\n" + "=" * 60)
     print("Done!")

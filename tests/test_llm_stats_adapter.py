@@ -289,15 +289,17 @@ def test_relationship_accepts_canonical_values_from_provenance_keys():
     )
 
 
-def test_unknown_source_urls_fall_back_to_attribution_url():
+def test_missing_model_and_benchmark_identity_fails_with_count():
     payload = {
         'models': [],
         'benchmarks': [],
         'scores': [{'score': 0.5}],
     }
 
-    bundles = adapter.make_logs(payload, retrieved_timestamp='1234567890.0')
-    result = bundles[0].log.evaluation_results[0]
-
-    assert result.source_data.url == [adapter.ATTRIBUTION_URL]
-    EvaluationLog.model_validate(bundles[0].log.model_dump())
+    try:
+        adapter.make_logs(payload, retrieved_timestamp='1234567890.0')
+    except ValueError as exc:
+        assert 'failed to convert 1 of 1 source records' in str(exc)
+        assert 'model identity is required' in str(exc)
+    else:
+        raise AssertionError('expected missing identities to fail')

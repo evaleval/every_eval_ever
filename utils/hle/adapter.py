@@ -67,6 +67,7 @@ from every_eval_ever.helpers import (
     sanitize_filename,
     save_evaluation_log,
 )
+from every_eval_ever.helpers.io import raise_for_failed_records
 
 SOURCE_NAME = "Scale SEAL Humanity's Last Exam Leaderboard"
 SOURCE_ORGANIZATION = 'Scale'
@@ -472,11 +473,23 @@ def make_logs(
     timestamp = retrieved_timestamp or str(time.time())
     bundles = []
     seen_ids: set[str] = set()
-    for raw_row in rows:
+    failures: list[tuple[int, str]] = []
+    for index, raw_row in enumerate(rows):
         row = LeaderboardRow(raw=raw_row)
-        if not row.model_display or row.raw.get('score') is None:
+        if not row.model_display:
+            failures.append((index, 'missing model name'))
             continue
-        log, developer, slug = make_log(row, timestamp)
+        if row.raw.get('score') is None:
+            failures.append((index, 'missing score'))
+            continue
+        if normalize_developer(row.company) == 'unknown':
+            failures.append((index, 'missing model developer'))
+            continue
+        try:
+            log, developer, slug = make_log(row, timestamp)
+        except (TypeError, ValueError) as exc:
+            failures.append((index, str(exc)))
+            continue
         if log.model_info.id in seen_ids:
             raise ValueError(
                 f'Duplicate model id {log.model_info.id!r} in leaderboard '
@@ -485,6 +498,9 @@ def make_logs(
             )
         seen_ids.add(log.model_info.id)
         bundles.append((log, developer, slug))
+    raise_for_failed_records('HLE', len(rows), failures)
+    if not bundles:
+        raise ValueError('HLE: converted 0 source records')
     return bundles
 
 
@@ -514,6 +530,7 @@ def run(args: argparse.Namespace) -> int:
                         'rows': rows,
                     },
                     indent=2,
+                    allow_nan=False,
                 ),
                 encoding='utf-8',
             )

@@ -21,6 +21,8 @@ from every_eval_ever.instance_level_types import (
     InteractionType,
 )
 
+TEST_UUID = '123e4567-e89b-42d3-a456-426614174000'
+
 
 def _require_helm():
     """Skip HELM fixture tests when the optional converter deps are absent."""
@@ -123,7 +125,7 @@ def test_mmlu_instance_level():
             'source_organization_name': 'TestOrg',
             'evaluator_relationship': EvaluatorRelationship.first_party,
             'parent_eval_output_dir': tmpdir,
-            'file_uuid': 'test_mmlu',
+            'file_uuid': TEST_UUID,
         }
 
         converted_eval, instance_logs = _load_instance_level_data(
@@ -149,7 +151,7 @@ def test_mmlu_instance_level():
             ('id147', 'exact_match:test')
         ]
         assert log.schema_version == '0.2.2'
-        assert log.evaluation_id == 'test_mmlu_samples'
+        assert log.evaluation_id == converted_eval.evaluation_id
         assert log.model_id == 'openai/gpt2'
         assert log.evaluation_name == 'mmlu'
         assert log.sample_id == 'id147'
@@ -188,7 +190,7 @@ def test_hellaswag_instance_level():
             'source_organization_name': 'TestOrg',
             'evaluator_relationship': EvaluatorRelationship.first_party,
             'parent_eval_output_dir': tmpdir,
-            'file_uuid': 'test_hellaswag',
+            'file_uuid': TEST_UUID,
         }
 
         _, instance_logs = _load_instance_level_data(
@@ -234,7 +236,7 @@ def test_narrativeqa_instance_level():
             'source_organization_name': 'TestOrg',
             'evaluator_relationship': EvaluatorRelationship.first_party,
             'parent_eval_output_dir': tmpdir,
-            'file_uuid': 'test_narrativeqa',
+            'file_uuid': TEST_UUID,
         }
 
         _, instance_logs = _load_instance_level_data(
@@ -283,7 +285,7 @@ def test_per_sample_core_metric_rows_are_emitted():
             'source_organization_name': 'TestOrg',
             'evaluator_relationship': EvaluatorRelationship.first_party,
             'parent_eval_output_dir': tmpdir,
-            'file_uuid': 'test_grain',
+            'file_uuid': TEST_UUID,
         }
         _, instance_logs = _load_instance_level_data(
             adapter,
@@ -312,7 +314,7 @@ def test_bookkeeping_stats_are_not_emitted_as_metric_rows():
             'source_organization_name': 'TestOrg',
             'evaluator_relationship': EvaluatorRelationship.first_party,
             'parent_eval_output_dir': tmpdir,
-            'file_uuid': 'test_correctness',
+            'file_uuid': TEST_UUID,
         }
         _, instance_logs = _load_instance_level_data(
             adapter,
@@ -350,7 +352,7 @@ def test_graded_core_metrics_are_not_binary_correctness():
             'source_organization_name': 'TestOrg',
             'evaluator_relationship': EvaluatorRelationship.first_party,
             'parent_eval_output_dir': tmpdir2,
-            'file_uuid': 'test_correctness_graded',
+            'file_uuid': TEST_UUID,
         }
         _, narr_logs = _load_instance_level_data(
             adapter,
@@ -382,7 +384,7 @@ def test_is_correct_is_true_for_correct_exact_match_rows():
             'source_organization_name': 'TestOrg',
             'evaluator_relationship': EvaluatorRelationship.first_party,
             'parent_eval_output_dir': tmpdir,
-            'file_uuid': 'test_exact_match_true',
+            'file_uuid': TEST_UUID,
         }
         _, instance_logs = _load_instance_level_data(
             adapter,
@@ -454,7 +456,7 @@ def test_total_rows_matches_core_per_instance_stats():
             'source_organization_name': 'TestOrg',
             'evaluator_relationship': EvaluatorRelationship.first_party,
             'parent_eval_output_dir': tmpdir,
-            'file_uuid': 'test_exact_total_rows',
+            'file_uuid': TEST_UUID,
         }
         converted_eval, instance_logs = _load_instance_level_data(
             adapter, fixture, metadata_args
@@ -479,7 +481,7 @@ def test_instance_evaluation_result_ids_join_to_aggregate_results():
             'source_organization_name': 'TestOrg',
             'evaluator_relationship': EvaluatorRelationship.first_party,
             'parent_eval_output_dir': tmpdir,
-            'file_uuid': 'test_join_keys',
+            'file_uuid': TEST_UUID,
         }
         converted_eval, instance_logs = _load_instance_level_data(
             adapter,
@@ -513,7 +515,7 @@ def test_aggregate_evaluation_result_ids_are_unique_and_non_null():
             'source_organization_name': 'TestOrg',
             'evaluator_relationship': EvaluatorRelationship.first_party,
             'parent_eval_output_dir': tmpdir,
-            'file_uuid': 'test_aggregate_ids',
+            'file_uuid': TEST_UUID,
         }
         converted_eval, _ = _load_instance_level_data(
             adapter,
@@ -555,6 +557,7 @@ def test_missing_inst_stats_uses_legacy_exact_match_fallback():
 
     with tempfile.TemporaryDirectory() as tmpdir:
         adapter = HELMInstanceLevelDataAdapter(
+            'tiny/dev_model/123.0',
             'fallback_samples',
             'jsonl',
             'sha256',
@@ -589,7 +592,7 @@ def test_reasoning_traces_none_does_not_break_conversion(monkeypatch):
             'source_organization_name': 'TestOrg',
             'evaluator_relationship': EvaluatorRelationship.first_party,
             'parent_eval_output_dir': tmpdir,
-            'file_uuid': 'test_reasoning_none',
+            'file_uuid': TEST_UUID,
         }
         _, instance_logs = _load_instance_level_data(
             adapter,

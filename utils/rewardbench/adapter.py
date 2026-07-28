@@ -10,6 +10,7 @@ Usage:
     uv run python -m utils.rewardbench.adapter
 """
 
+import json
 import re
 import time
 import uuid
@@ -35,6 +36,7 @@ from every_eval_ever.helpers import (
     get_model_id,
     sanitize_filename,
 )
+from every_eval_ever.helpers.io import generate_output_path, require_identity
 
 # Schema version
 SCHEMA_VERSION = '0.2.1'
@@ -136,14 +138,21 @@ def _make_model_info(
 
 def _save_eval_log(eval_log: EvaluationLog, developer: str, model: str) -> Path:
     """Save an evaluation log to the standard directory structure."""
-    dir_path = (
-        OUTPUT_DIR / sanitize_filename(developer) / sanitize_filename(model)
+    dir_path = generate_output_path(
+        OUTPUT_DIR,
+        sanitize_filename(developer),
+        sanitize_filename(model),
     )
     dir_path.mkdir(parents=True, exist_ok=True)
 
     filepath = dir_path / f'{uuid.uuid4()}.json'
-    json_str = eval_log.model_dump_json(indent=2, exclude_none=True)
-    filepath.write_text(json_str)
+    json_str = json.dumps(
+        eval_log.model_dump(mode='json', exclude_none=True),
+        indent=2,
+        ensure_ascii=False,
+        allow_nan=False,
+    )
+    filepath.write_text(json_str + '\n', encoding='utf-8')
     return filepath
 
 
@@ -278,7 +287,10 @@ def fetch_rewardbench_v2(retrieved_timestamp: str) -> int:
                 print(f'    Error fetching {model_path}: {e}')
                 continue
 
-            model_name = model_data.get('model', 'unknown')
+            model_name = require_identity(
+                model_data.get('model'),
+                'RewardBench model name',
+            )
             model_type = model_data.get('model_type', '')
             developer = get_developer(model_name)
 
@@ -363,27 +375,15 @@ def main():
     print('Fetching RewardBench v1 results...')
     print('=' * 60)
 
-    try:
-        v1_count = fetch_rewardbench_v1(retrieved_timestamp)
-        print(f'\nProcessed {v1_count} models from RewardBench v1')
-    except Exception as e:
-        print(f'Error processing RewardBench v1: {e}')
-        import traceback
-
-        traceback.print_exc()
+    v1_count = fetch_rewardbench_v1(retrieved_timestamp)
+    print(f'\nProcessed {v1_count} models from RewardBench v1')
 
     print('\n' + '=' * 60)
     print('Fetching RewardBench v2 results...')
     print('=' * 60)
 
-    try:
-        v2_count = fetch_rewardbench_v2(retrieved_timestamp)
-        print(f'\nProcessed {v2_count} models from RewardBench v2')
-    except Exception as e:
-        print(f'Error processing RewardBench v2: {e}')
-        import traceback
-
-        traceback.print_exc()
+    v2_count = fetch_rewardbench_v2(retrieved_timestamp)
+    print(f'\nProcessed {v2_count} models from RewardBench v2')
 
     print('\n' + '=' * 60)
     print('Done!')

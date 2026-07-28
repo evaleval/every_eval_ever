@@ -18,8 +18,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import json
-import uuid
 
 from eval_types import (
     AgenticEvalConfig,
@@ -296,6 +294,7 @@ def convert_entry(entry: dict, retrieved_timestamp: str) -> EvaluationLog:
 def main():
     retrieved_timestamp = str(time.time())
     count = 0
+    errors = 0
 
     for entry in LEADERBOARD_DATA:
         try:
@@ -308,8 +307,14 @@ def main():
         except Exception as e:
             print(f"Error processing rank {entry['rank']} "
                   f"({entry['agent']} / {entry['model']}): {e}")
+            errors += 1
 
-    print(f"\nGenerated {count} files in {OUTPUT_DIR}/")
+    print(f"\nGenerated {count} files, {errors} errors in {OUTPUT_DIR}/")
+    if errors:
+        raise RuntimeError(
+            f"Terminal-Bench 2.0: failed to convert {errors} of "
+            f"{len(LEADERBOARD_DATA)} entries"
+        )
 
 
 if __name__ == "__main__":

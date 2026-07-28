@@ -22,6 +22,8 @@ from every_eval_ever.instance_level_types import (
     InteractionType,
 )
 
+TEST_UUID = '123e4567-e89b-42d3-a456-426614174000'
+
 
 def _load_instance_level_data(adapter, filepath, metadata_args):
     eval_filepath = Path(filepath)
@@ -60,7 +62,7 @@ def test_pubmedqa_instance_level():
             'source_organization_name': 'TestOrg',
             'evaluator_relationship': EvaluatorRelationship.first_party,
             'parent_eval_output_dir': tmpdir,
-            'file_uuid': 'test_pubmedqa',
+            'file_uuid': TEST_UUID,
         }
 
         converted_eval, instance_logs = _load_instance_level_data(
@@ -93,7 +95,7 @@ def test_arc_sonnet_instance_level():
             'source_organization_name': 'TestOrg',
             'evaluator_relationship': EvaluatorRelationship.first_party,
             'parent_eval_output_dir': tmpdir,
-            'file_uuid': 'test_arc_sonnet',
+            'file_uuid': TEST_UUID,
         }
 
         converted_eval, instance_logs = _load_instance_level_data(
@@ -129,7 +131,7 @@ def test_arc_qwen_instance_level():
             'source_organization_name': 'TestOrg',
             'evaluator_relationship': EvaluatorRelationship.first_party,
             'parent_eval_output_dir': tmpdir,
-            'file_uuid': 'test_arc_qwen',
+            'file_uuid': TEST_UUID,
         }
 
         converted_eval, instance_logs = _load_instance_level_data(
@@ -163,7 +165,7 @@ def test_gaia_instance_level():
             'source_organization_name': 'TestOrg',
             'evaluator_relationship': EvaluatorRelationship.first_party,
             'parent_eval_output_dir': tmpdir,
-            'file_uuid': 'test_gaia',
+            'file_uuid': TEST_UUID,
         }
 
         converted_eval, instance_logs = _load_instance_level_data(

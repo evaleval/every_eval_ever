@@ -164,16 +164,21 @@ class InspectInstanceLevelDataAdapter:
         )
 
     def _save_json(self, items: list[InstanceLevelEvaluationLog]):
+        serialized = '\n'.join(
+            json.dumps(
+                item.model_dump(mode='json'),
+                ensure_ascii=False,
+                allow_nan=False,
+            )
+            for item in items
+        )
         eval_dir_path = Path(self.evaluation_dir)
         eval_dir_path.mkdir(parents=True, exist_ok=True)
         path = Path(self.path)
-
-        with path.open('w', encoding='utf-8') as f:
-            for item in items:
-                json_line = json.dumps(
-                    item.model_dump(mode='json'), ensure_ascii=False
-                )
-                f.write(json_line + '\n')
+        path.write_text(
+            serialized + ('\n' if serialized else ''),
+            encoding='utf-8',
+        )
 
         print(
             f'Instance-level eval log was successfully saved to {self.path} path.'

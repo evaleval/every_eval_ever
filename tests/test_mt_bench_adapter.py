@@ -52,9 +52,19 @@ def sample_rows() -> list[dict]:
             'turn': 1,
             'tstamp': 1687000040.0,
         },
-        # Row with no model -> ignored.
-        {'question_id': 99, 'score': 5, 'turn': 1},
     ]
+
+
+def test_missing_model_reports_failed_source_record_count():
+    rows = sample_rows() + [{'question_id': 99, 'score': 5, 'turn': 1}]
+
+    try:
+        adapter.make_logs(rows, retrieved_timestamp='1234567890.0')
+    except ValueError as exc:
+        assert 'failed to convert 1 of 6 source records' in str(exc)
+        assert 'row 5: missing model name' in str(exc)
+    else:
+        raise AssertionError('expected an incomplete MT-Bench row to fail')
 
 
 def test_make_logs_validate_against_schema():

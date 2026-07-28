@@ -10,6 +10,8 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from every_eval_ever.helpers.io import datastore_output_dir
+
 EVALUATOR_RELATIONSHIP_CHOICES = [
     'first_party',
     'third_party',
@@ -31,30 +33,46 @@ def _common_metadata(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def _output_dir_for_log(base_output: Path, log: Any) -> Path:
-    dataset = 'unknown'
-    if log.evaluation_results and log.evaluation_results[0].source_data:
-        dataset = (
-            log.evaluation_results[0].source_data.dataset_name or 'unknown'
+    if not log.evaluation_results:
+        raise ValueError(
+            'evaluation_results must contain at least one result so the '
+            'output collection can be determined'
         )
-    model_id = log.model_info.id or 'unknown'
-    parts = model_id.split('/', 1)
-    developer = parts[0] if len(parts) == 2 else 'unknown'
-    model_name = parts[1] if len(parts) == 2 else model_id
-    out_dir = base_output / dataset / developer / model_name
+    source_data = log.evaluation_results[0].source_data
+    if source_data is None:
+        raise ValueError(
+            'evaluation_results[0].source_data is required for the output path'
+        )
+    out_dir = datastore_output_dir(
+        base_output,
+        source_data.dataset_name,
+        log.model_info.id,
+        log.model_info.developer,
+    )
     out_dir.mkdir(parents=True, exist_ok=True)
     return out_dir
 
 
-def _write_log(
-    log: Any, base_output: Path, eval_uuid: str | None = None
-) -> Path:
+def _write_log(log: Any, base_output: Path, eval_uuid: str) -> Path:
+    try:
+        parsed_uuid = uuid.UUID(eval_uuid)
+    except (AttributeError, TypeError, ValueError) as exc:
+        raise ValueError(
+            f'invalid evaluation file UUID: {eval_uuid!r}'
+        ) from exc
+    if parsed_uuid.version != 4:
+        raise ValueError(f'evaluation file UUID must be UUIDv4: {eval_uuid!r}')
+    eval_uuid = str(parsed_uuid)
+
+    serialized = json.dumps(
+        log.model_dump(mode='json', exclude_none=True),
+        indent=2,
+        ensure_ascii=False,
+        allow_nan=False,
+    )
     out_dir = _output_dir_for_log(base_output, log)
-    eval_uuid = eval_uuid or str(uuid.uuid4())
     out_file = out_dir / f'{eval_uuid}.json'
-    with out_file.open('w', encoding='utf-8') as file:
-        json.dump(
-            log.model_dump(mode='json', exclude_none=True), file, indent=2
-        )
+    out_file.write_text(serialized + '\n', encoding='utf-8')
     return out_file
 
 
@@ -83,6 +101,9 @@ def _cmd_convert_lm_eval(args: argparse.Namespace) -> int:
     else:
         raise FileNotFoundError(f'Path is not a file or directory: {log_path}')
 
+    if not logs:
+        raise ValueError(f'lm-eval conversion produced no logs from {log_path}')
+
     output_dir = Path(args.output_dir)
     for log in logs:
         eval_uuid = str(uuid.uuid4())
@@ -90,18 +111,31 @@ def _cmd_convert_lm_eval(args: argparse.Namespace) -> int:
             meta = adapter.get_eval_metadata(log.evaluation_id)
             parent_dir = meta.get('parent_dir')
             task_name = meta.get('task_name')
-            if parent_dir and task_name:
-                samples_file = find_samples_file(Path(parent_dir), task_name)
-                if samples_file:
-                    detailed = LMEvalInstanceLevelAdapter().transform_and_save(
-                        samples_path=samples_file,
-                        evaluation_id=log.evaluation_id,
-                        model_id=log.model_info.id,
-                        task_name=task_name,
-                        output_dir=str(_output_dir_for_log(output_dir, log)),
-                        file_uuid=eval_uuid,
-                    )
-                    log.detailed_evaluation_results = detailed
+            if not parent_dir or not task_name:
+                raise RuntimeError(
+                    'lm-eval converter lost the source location or task name '
+                    f'for evaluation {log.evaluation_id!r}'
+                )
+            samples_file = find_samples_file(Path(parent_dir), task_name)
+            if samples_file is None:
+                raise FileNotFoundError(
+                    '--include-samples was requested, but no upstream samples '
+                    f'file was found for task {task_name!r} under {parent_dir}'
+                )
+            detailed = LMEvalInstanceLevelAdapter().transform_and_save(
+                samples_path=samples_file,
+                evaluation_id=log.evaluation_id,
+                model_id=log.model_info.id,
+                task_name=task_name,
+                output_dir=str(_output_dir_for_log(output_dir, log)),
+                file_uuid=eval_uuid,
+            )
+            if detailed is None:
+                raise ValueError(
+                    '--include-samples was requested, but the upstream samples '
+                    f'file for task {task_name!r} contained no usable rows'
+                )
+            log.detailed_evaluation_results = detailed
         print(_write_log(log, output_dir, eval_uuid=eval_uuid))
 
     print(f'Converted {len(logs)} evaluation log(s).')
@@ -124,13 +158,22 @@ def _cmd_convert_inspect(args: argparse.Namespace) -> int:
         metadata['file_uuid'] = eval_uuids[0]
         logs = [adapter.transform_from_file(log_path, metadata)]
     elif log_path.is_dir():
-        eval_paths = list_eval_logs(log_path.absolute().as_posix())
+        eval_paths = sorted(
+            list_eval_logs(log_path.absolute().as_posix()),
+            key=lambda path: path.name,
+        )
+        if not eval_paths:
+            raise ValueError(
+                f'Inspect conversion found no evaluation logs in {log_path}'
+            )
         eval_uuids = [str(uuid.uuid4()) for _ in eval_paths]
         metadata['file_uuids'] = eval_uuids
         logs = adapter.transform_from_directory(log_path, metadata)
     else:
         raise FileNotFoundError(f'Path is not a file or directory: {log_path}')
 
+    if not logs:
+        raise ValueError(f'Inspect conversion produced no logs from {log_path}')
     if len(logs) != len(eval_uuids):
         raise RuntimeError(
             'Inspect conversion produced a different number of logs than '
@@ -163,6 +206,10 @@ def _cmd_convert_helm(args: argparse.Namespace) -> int:
             if entry.is_dir()
             and adapter._directory_contains_required_files(entry.path)
         ]
+        if not run_dirs:
+            raise ValueError(
+                f'HELM conversion found no valid run directories in {log_path}'
+            )
         eval_uuids = [str(uuid.uuid4()) for _ in run_dirs]
         metadata['file_uuids'] = eval_uuids
     else:
@@ -174,6 +221,8 @@ def _cmd_convert_helm(args: argparse.Namespace) -> int:
         metadata_args=metadata,
     )
 
+    if not logs:
+        raise ValueError(f'HELM conversion produced no logs from {log_path}')
     if len(logs) != len(eval_uuids):
         raise RuntimeError(
             'HELM conversion produced a different number of logs than '
@@ -203,6 +252,10 @@ def _cmd_convert_alpaca_eval(args: argparse.Namespace) -> int:
         cfg_name = LEADERBOARDS[version]['source_name']
         print(f'\n=== {cfg_name} ===')
         logs = adapter.fetch_leaderboard(version)
+        if not logs:
+            raise ValueError(
+                f'AlpacaEval conversion produced no logs for {version}'
+            )
 
         for log in logs:
             if args.source_organization_name != 'unknown':
@@ -224,7 +277,11 @@ def _cmd_convert_alpaca_eval(args: argparse.Namespace) -> int:
             if args.eval_library_version != 'unknown':
                 log.eval_library.version = args.eval_library_version
 
-            out_file = _write_log(log, output_dir)
+            out_file = _write_log(
+                log,
+                output_dir,
+                eval_uuid=str(uuid.uuid4()),
+            )
             print(f'  {out_file}')
             total += 1
 

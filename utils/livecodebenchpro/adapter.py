@@ -69,7 +69,7 @@ def migrate_file(filepath: Path) -> None:
     data['schema_version'] = '0.2.0'
 
     with open(filepath, 'w') as f:
-        json.dump(data, f, indent=2)
+        json.dump(data, f, indent=2, allow_nan=False)
         f.write('\n')
 
 

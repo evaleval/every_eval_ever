@@ -43,7 +43,12 @@ from every_eval_ever.eval_types import (
     SourceDataHf,
     SourceMetadata,
 )
-from every_eval_ever.helpers import SCHEMA_VERSION, get_developer, get_model_id, save_evaluation_log
+from every_eval_ever.helpers import (
+    SCHEMA_VERSION,
+    get_developer,
+    get_model_id,
+    save_evaluation_log,
+)
 from utils.swe_helpers import parse_date_from_dir, parse_model_from_dir
 
 POLY_REPO = "https://github.com/amazon-science/SWE-PolyBench"
@@ -282,7 +287,6 @@ def main():
         )
 
         for ds in ("PB", "PBVerified"):
-            ds_label = DATASET_LABELS[ds]
             eval_path = Path(tmpdir) / "evaluation" / ds
             if not eval_path.exists():
                 print(f"  [SKIP] No evaluation/{ds} dir")
@@ -309,6 +313,11 @@ def main():
                     errors += 1
 
     print(f"\nGenerated {count} files, {errors} errors → {OUTPUT_BASE}/")
+    if errors:
+        raise RuntimeError(
+            f"SWE-PolyBench: failed to convert {errors} submissions; "
+            f"saved {count}"
+        )
 
 
 if __name__ == "__main__":

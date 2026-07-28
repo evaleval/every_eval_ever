@@ -1,11 +1,7 @@
 import json
 import re
-from pathlib import Path
 from typing import Any, Dict, List, Type
 
-from pydantic import BaseModel
-
-from every_eval_ever.converters.common.utils import get_model_organization_info
 from every_eval_ever.converters.inspect.supplemental_eval_details import (
     SupplementalAgenticEvalConfig,
     SupplementalEvalDetails,
@@ -119,17 +115,10 @@ class AzureAiParser:
         inference_platform = parts[0]
         base_model_name = parts[-1]
 
-        inferred_org_name = get_model_organization_info(base_model_name)
-        developer = (
-            inferred_org_name
-            if inferred_org_name and inferred_org_name != 'not_found'
-            else inference_platform
-        )
-
         return ModelInfo(
             name=model_name,
-            id=f'{developer}/{base_model_name}',  # Corrected 'id' logic
-            developer=developer,
+            id=f'{inference_platform}/{base_model_name}',
+            developer=inference_platform,
             inference_platform=inference_platform,
         )
 
@@ -144,12 +133,7 @@ class CloudApiHandler(ModelPathHandler):
         elif self.model_path.startswith('azureai'):
             return AzureAiParser.parse(self.model_path)
 
-        return ModelInfo(
-            name=self.model_path,
-            id=self.model_path,
-            developer='unknown',
-            inference_platform='cloud_api',
-        )
+        raise ValueError(f'Unsupported cloud model path: {self.model_path}')
 
 
 class HostedOpenHandler(ModelPathHandler):
@@ -164,6 +148,12 @@ class HostedOpenHandler(ModelPathHandler):
         'allam': 'humain-ai',
         'mistral': 'mistral',
         'deepseek': 'deepseek-ai',
+    }
+    MODEL_NAME_DEV_MAP = {
+        'deepseek': 'deepseek-ai',
+        'llama': 'meta-llama',
+        'mistral': 'mistral',
+        'qwen': 'qwen',
     }
 
     def handle(self) -> ModelInfo:
@@ -211,19 +201,29 @@ class HostedOpenHandler(ModelPathHandler):
         elif path_lower.startswith('fireworks'):
             # e.g. fireworks/accounts/fireworks/models/deepseek-r1-0528
             model_name = self.parts[-1]
-            # Assuming get_model_organization_info returns an object with a 'organization' key
-            inferred_org_name = get_model_organization_info(model_name)
-            developer = (
-                inferred_org_name
-                if inferred_org_name != 'not_found'
-                else 'unknown'
+            developer = next(
+                (
+                    known_developer
+                    for marker, known_developer in self.MODEL_NAME_DEV_MAP.items()
+                    if marker in model_name.lower()
+                ),
+                None,
             )
+            if developer is None:
+                raise ValueError(
+                    'Cannot determine the model developer from Fireworks path '
+                    f'{self.model_path!r}; provide a developer/model path'
+                )
             model_id = f'{developer}/{model_name}'
 
         if developer == 'unknown':
             if len(self.parts) >= 2:
                 developer = self.parts[1]
                 model_id = f'{developer}/{self.parts[-1]}'
+            else:
+                raise ValueError(
+                    f'Cannot determine model developer from {self.model_path!r}'
+                )
 
         return ModelInfo(
             name=self.model_path,
@@ -283,6 +283,7 @@ MODEL_HANDLER_MAP: Dict[str, Type[ModelPathHandler]] = {
     # Cloud API Providers
     'bedrock': CloudApiHandler,
     'azure-ai': CloudApiHandler,
+    'azureai': CloudApiHandler,
     # Hosted Open Providers
     'groq': HostedOpenHandler,
     'together': HostedOpenHandler,
@@ -297,6 +298,7 @@ MODEL_HANDLER_MAP: Dict[str, Type[ModelPathHandler]] = {
     'vllm': InferenceEngineHandler,
     'ollama': InferenceEngineHandler,
     'llamacpp': InferenceEngineHandler,
+    'llama-cpp-python': InferenceEngineHandler,
     'sglang': InferenceEngineHandler,
 }
 
@@ -315,23 +317,12 @@ def extract_model_info_from_model_path(model_path: str) -> ModelInfo:
     provider_candidate = model_path.split('/')[0].lower()
     handler_class = MODEL_HANDLER_MAP.get(provider_candidate, None)
 
-    if handler_class:
-        try:
-            handler = handler_class(model_path)
-            return handler.handle()
-        except Exception as e:
-            print(
-                f'Handler failed for {model_path}: {e}. Fallback into unknown model developer.'
-            )
-            pass
+    if handler_class is None:
+        raise ValueError(
+            f'Cannot determine model developer from model path {model_path!r}'
+        )
 
-    # Fallback
-    return ModelInfo(
-        name=model_path,
-        id=model_path,
-        developer='unknown',
-        inference_platform='unknown',
-    )
+    return handler_class(model_path).handle()
 
 
 SYNTHETIC_METRIC_CONFIG_FIELDS = {

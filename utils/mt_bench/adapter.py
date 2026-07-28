@@ -57,6 +57,7 @@ from every_eval_ever.helpers import (
     sanitize_filename,
     save_evaluation_log,
 )
+from every_eval_ever.helpers.io import raise_for_failed_records
 
 SOURCE_NAME = 'MT-Bench'
 SOURCE_ORGANIZATION = 'LMSYS'
@@ -215,13 +216,19 @@ def load_judgments_file(path: Path) -> Iterable[dict]:
 
 
 def aggregate(rows: Iterable[dict]) -> dict[str, ModelScores]:
+    rows = list(rows)
     by_model: dict[str, ModelScores] = {}
-    for row in rows:
+    failures: list[tuple[int, str]] = []
+    for index, row in enumerate(rows):
         model = row.get('model')
         if not isinstance(model, str) or not model:
+            failures.append((index, 'missing model name'))
             continue
         scores = by_model.setdefault(model, ModelScores(model=model))
         scores.add(row)
+    raise_for_failed_records('MT-Bench', len(rows), failures)
+    if not by_model:
+        raise ValueError('MT-Bench: converted 0 source records')
     return by_model
 
 

@@ -29,13 +29,14 @@ import re
 import time
 import uuid
 from dataclasses import dataclass, field
+from html import unescape
 from pathlib import Path
 from typing import Optional
-from urllib.request import urlopen, Request
 from urllib.error import URLError
-from html import unescape
+from urllib.request import Request, urlopen
 
 from every_eval_ever.helpers import SCHEMA_VERSION
+from every_eval_ever.helpers.io import generate_output_path
 
 HAL_BASE_URL = "https://hal.cs.princeton.edu"
 
@@ -670,6 +671,8 @@ def build_eee_record(
         "hal_model_name": row.model_raw,
         "agent_scaffold": row.agent_name,
         "benchmark": benchmark.name,
+        "deployment_type": "unknown",
+        "model_availability": "unknown",
     }
     if effort:
         model_additional["inference_effort"] = effort
@@ -713,10 +716,19 @@ def build_eee_record(
 # ---------------------------------------------------------------------------
 
 def save_record(record: dict, out_root: Path, developer: str, model_slug: str) -> Path:
-    out_dir = out_root / developer / model_slug
+    out_dir = generate_output_path(out_root, developer, model_slug)
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / f"{uuid.uuid4()}.json"
-    out_path.write_text(json.dumps(record, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    out_path.write_text(
+        json.dumps(
+            record,
+            indent=2,
+            ensure_ascii=False,
+            allow_nan=False,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
     return out_path
 
 
@@ -802,6 +814,11 @@ def main() -> None:
 
     print(f"\n{'=' * 60}")
     print(f"Done. Saved {total_saved} files, {total_errors} errors → {args.output_dir}/")
+    if total_errors:
+        raise RuntimeError(
+            f"HAL: failed to convert {total_errors} source records; "
+            f"saved {total_saved}"
+        )
 
 
 if __name__ == "__main__":

@@ -1,7 +1,6 @@
 import datetime
 import json
 import os
-import uuid
 from pathlib import Path
 from typing import Any, Dict, List, cast
 
@@ -74,13 +73,18 @@ from every_eval_ever.eval_types import (
     SourceType,
     Uncertainty,
 )
+from every_eval_ever.helpers.io import (
+    datastore_output_dir,
+    require_identity,
+    require_uuid4,
+)
 
 
 def _require_helm_dependencies() -> None:
     if _HELM_IMPORT_ERROR is not None:
         raise ImportError(
             'HELM converter dependencies are missing. '
-            "Install with: uv sync --extra helm "
+            'Install with: uv sync --extra helm '
             "(or pip install 'every_eval_ever[helm]')."
         ) from _HELM_IMPORT_ERROR
 
@@ -131,14 +135,17 @@ class HELMAdapter(BaseEvaluationAdapter):
         return False
 
     def _split_model_id(self, model_id: str | None) -> tuple[str, str]:
-        """Split a model id into developer/name pieces safely."""
-        model_id = (model_id or '').strip()
-        if not model_id:
-            return ('unknown', 'unknown')
-        if '/' in model_id:
-            developer, name = model_id.split('/', 1)
-            return (developer, name)
-        return ('unknown', model_id)
+        """Split a required developer/model identifier."""
+        model_id = require_identity(model_id, 'HELM model id')
+        if '/' not in model_id:
+            raise ValueError(
+                f"HELM model id must use 'developer/model' format: {model_id!r}"
+            )
+        developer, name = model_id.split('/', 1)
+        return (
+            require_identity(developer, 'HELM model developer'),
+            require_identity(name, 'HELM model name'),
+        )
 
     def _extract_model_info(self, adapter_spec: AdapterSpec) -> ModelInfo:
         """Extracts model metadata from HELM, tolerating missing deployments."""
@@ -148,7 +155,10 @@ class HELMAdapter(BaseEvaluationAdapter):
         ).strip()
 
         if not model_deployment_name:
-            model_name = fallback_model_name or 'unknown'
+            model_name = require_identity(
+                fallback_model_name,
+                'HELM adapter_spec.model',
+            )
             developer, _ = self._split_model_id(model_name)
             return ModelInfo(
                 name=model_name,
@@ -160,7 +170,10 @@ class HELMAdapter(BaseEvaluationAdapter):
         try:
             deployment = get_model_deployment(model_deployment_name)
         except ModelDeploymentNotFoundError:
-            model_name = fallback_model_name or model_deployment_name
+            model_name = require_identity(
+                fallback_model_name or model_deployment_name,
+                'HELM model id',
+            )
             developer, _ = self._split_model_id(model_name)
             inference_platform = (
                 model_deployment_name.split('/', 1)[0]
@@ -230,48 +243,67 @@ class HELMAdapter(BaseEvaluationAdapter):
         """
         aggregate_logs: List[EvaluationLog] = []
         metadata_args = metadata_args or {}
+        if output_path and not metadata_args.get('parent_eval_output_dir'):
+            metadata_args = {
+                **metadata_args,
+                'parent_eval_output_dir': output_path,
+            }
         dir_path = str(dir_path)
 
         file_uuids = metadata_args.get('file_uuids')
+        writes_samples = bool(metadata_args.get('parent_eval_output_dir'))
 
         if self._directory_contains_required_files(dir_path):
             data = self._load_evaluation_run_logfiles(dir_path)
             per_log_metadata_args = dict(metadata_args)
-            if (
-                isinstance(file_uuids, list)
-                and file_uuids
-                and file_uuids[0]
-            ):
-                per_log_metadata_args['file_uuid'] = file_uuids[0]
+            if file_uuids is not None:
+                if not isinstance(file_uuids, list) or len(file_uuids) != 1:
+                    raise ValueError(
+                        'metadata_args["file_uuids"] must contain exactly one '
+                        'UUID for a single HELM run'
+                    )
+                candidate_uuid = file_uuids[0]
             else:
-                per_log_metadata_args['file_uuid'] = metadata_args.get(
-                    'file_uuid'
-                ) or str(uuid.uuid4())
+                candidate_uuid = metadata_args.get('file_uuid')
+            if writes_samples:
+                per_log_metadata_args['file_uuid'] = require_uuid4(
+                    candidate_uuid,
+                    "metadata_args['file_uuid']",
+                )
             agg = self._transform_single(data, per_log_metadata_args)
             aggregate_logs.append(agg)
         else:
-            converted_idx = 0
-            for entry in os.scandir(dir_path):
-                if entry.is_dir() and self._directory_contains_required_files(
-                    entry.path
-                ):
-                    data = self._load_evaluation_run_logfiles(entry.path)
-                    per_log_metadata_args = dict(metadata_args)
-                    if (
-                        isinstance(file_uuids, list)
-                        and converted_idx < len(file_uuids)
-                        and file_uuids[converted_idx]
-                    ):
-                        per_log_metadata_args['file_uuid'] = file_uuids[
-                            converted_idx
-                        ]
-                    else:
-                        per_log_metadata_args['file_uuid'] = str(
-                            uuid.uuid4()
-                        )
-                    agg = self._transform_single(data, per_log_metadata_args)
-                    aggregate_logs.append(agg)
-                    converted_idx += 1
+            run_entries = sorted(
+                (
+                    entry
+                    for entry in os.scandir(dir_path)
+                    if entry.is_dir()
+                    and self._directory_contains_required_files(entry.path)
+                ),
+                key=lambda entry: entry.path,
+            )
+            if not run_entries:
+                raise ValueError(
+                    f'No valid HELM run directories found in {dir_path}'
+                )
+            if writes_samples and (
+                not isinstance(file_uuids, list)
+                or len(file_uuids) != len(run_entries)
+            ):
+                raise ValueError(
+                    'metadata_args["file_uuids"] must contain exactly one UUID '
+                    f'for each HELM run ({len(run_entries)} required)'
+                )
+            for converted_idx, entry in enumerate(run_entries):
+                data = self._load_evaluation_run_logfiles(entry.path)
+                per_log_metadata_args = dict(metadata_args)
+                if writes_samples:
+                    per_log_metadata_args['file_uuid'] = require_uuid4(
+                        file_uuids[converted_idx],
+                        f'file_uuids[{converted_idx}]',
+                    )
+                agg = self._transform_single(data, per_log_metadata_args)
+                aggregate_logs.append(agg)
 
         return aggregate_logs
 
@@ -286,21 +318,29 @@ class HELMAdapter(BaseEvaluationAdapter):
             request: The specific request object from scenario_state.json (optional).
         """
         req = request_state.request
-        temperature = req.temperature if req.temperature is not None else getattr(
-            adapter_spec, 'temperature', None
+        temperature = (
+            req.temperature
+            if req.temperature is not None
+            else getattr(adapter_spec, 'temperature', None)
         )
-        max_tokens = req.max_tokens if req.max_tokens is not None else getattr(
-            adapter_spec, 'max_tokens', None
+        max_tokens = (
+            req.max_tokens
+            if req.max_tokens is not None
+            else getattr(adapter_spec, 'max_tokens', None)
         )
         # multiple_choice_separate_* methods score by log-prob and set max_tokens=0;
         # GenerationArgs requires max_tokens >= 1, so treat 0 as None (not applicable)
         if max_tokens == 0:
             max_tokens = None
-        top_p = req.top_p if req.top_p is not None else getattr(
-            adapter_spec, 'top_p', None
+        top_p = (
+            req.top_p
+            if req.top_p is not None
+            else getattr(adapter_spec, 'top_p', None)
         )
-        top_k = req.top_k_per_token if req.top_k_per_token is not None else getattr(
-            adapter_spec, 'top_k_per_token', None
+        top_k = (
+            req.top_k_per_token
+            if req.top_k_per_token is not None
+            else getattr(adapter_spec, 'top_k_per_token', None)
         )
 
         is_reasoning = extract_reasoning(request_state) is not None
@@ -516,12 +556,24 @@ class HELMAdapter(BaseEvaluationAdapter):
 
         if request_states:
             parent_eval_output_dir = metadata_args.get('parent_eval_output_dir')
-            detailed_results_id = f'{metadata_args.get("file_uuid")}_samples'
-            model_dev, model_name = self._split_model_id(model_info.id)
-            evaluation_dir = f'{parent_eval_output_dir}/{source_data.dataset_name}/{model_dev}/{model_name}'
+        else:
+            parent_eval_output_dir = None
+        if request_states and parent_eval_output_dir:
+            file_uuid = require_uuid4(
+                metadata_args.get('file_uuid'),
+                "metadata_args['file_uuid']",
+            )
+            detailed_results_id = f'{file_uuid}_samples'
+            evaluation_dir = datastore_output_dir(
+                parent_eval_output_dir,
+                source_data.dataset_name,
+                model_info.id,
+                model_info.developer,
+            ).as_posix()
 
             instance_level_log_path, instance_level_rows_number = (
                 HELMInstanceLevelDataAdapter(
+                    evaluation_id,
                     detailed_results_id,
                     Format.jsonl.value,
                     HashAlgorithm.sha256.value,

@@ -22,6 +22,7 @@ except ImportError as exc:
     ) from exc
 
 from every_eval_ever.eval_types import EvaluationLog, EvaluatorRelationship
+from every_eval_ever.helpers.io import datastore_output_dir, require_uuid4
 from every_eval_ever.instance_level_types import InstanceLevelEvaluationLog
 
 logger = logging.getLogger(__name__)
@@ -124,27 +125,21 @@ class InspectEvalLogConverter:
         output_filedir: str,
         output_filepath: str,
     ) -> bool:
-        try:
-            json_str = unified_eval_log.model_dump_json(
-                indent=4, exclude_none=True
-            )
-
-            unified_eval_log_dir = Path(f'{self.output_dir}/{output_filedir}')
-            unified_eval_log_dir.mkdir(parents=True, exist_ok=True)
-
-            unified_eval_path = f'{unified_eval_log_dir}/{output_filepath}'
-            with open(unified_eval_path, 'w') as json_file:
-                json_file.write(json_str)
-
-            logger.info(
-                'Unified eval log was successfully saved to %s path.',
-                unified_eval_path,
-            )
-        except Exception as e:
-            logger.exception(
-                'Problem with saving unified eval log to file: %s', e
-            )
-            raise e
+        json_str = json.dumps(
+            unified_eval_log.model_dump(mode='json', exclude_none=True),
+            indent=4,
+            ensure_ascii=False,
+            allow_nan=False,
+        )
+        unified_eval_log_dir = self.output_dir / output_filedir
+        unified_eval_log_dir.mkdir(parents=True, exist_ok=True)
+        unified_eval_path = unified_eval_log_dir / output_filepath
+        unified_eval_path.write_text(json_str + '\n', encoding='utf-8')
+        logger.info(
+            'Unified eval log was successfully saved to %s path.',
+            unified_eval_path,
+        )
+        return True
 
 
 def save_evaluation_log(
@@ -152,19 +147,18 @@ def save_evaluation_log(
     inspect_converter: InspectEvalLogConverter,
     file_uuid: str,
 ) -> bool:
-    try:
-        model_developer, model_name = unified_output.model_info.id.split('/')
-        filedir = f'{unified_output.evaluation_results[0].source_data.dataset_name}/{model_developer}/{model_name}'
-        filename = f'{file_uuid}.json'
-        inspect_converter.save_to_file(unified_output, filedir, filename)
-        return True
-    except Exception as e:
-        logger.error(
-            'Failed to save eval log %s to file. %s',
-            unified_output.evaluation_id,
-            str(e),
-        )
-        return False
+    file_uuid = require_uuid4(file_uuid)
+    if not unified_output.evaluation_results:
+        raise ValueError('Inspect output contains no evaluation results')
+    output_dir = datastore_output_dir(
+        inspect_converter.output_dir,
+        unified_output.evaluation_results[0].source_data.dataset_name,
+        unified_output.model_info.id,
+        unified_output.model_info.developer,
+    )
+    filedir = output_dir.relative_to(inspect_converter.output_dir).as_posix()
+    filename = f'{file_uuid}.json'
+    return inspect_converter.save_to_file(unified_output, filedir, filename)
 
 
 if __name__ == '__main__':
@@ -187,17 +181,25 @@ if __name__ == '__main__':
         'eval_library_version': args.eval_library_version,
     }
     if args.supplemental_eval_details_path:
-        with open(args.supplemental_eval_details_path, 'r', encoding='utf-8') as f:
-            base_metadata_args["supplemental_eval_details"] = (
+        with open(
+            args.supplemental_eval_details_path, 'r', encoding='utf-8'
+        ) as f:
+            base_metadata_args['supplemental_eval_details'] = (
                 SupplementalEvalDetails.model_validate(json.load(f))
             )
 
     if inspect_converter.is_log_path_directory:
-        log_paths: List[Path] = list_eval_logs(
-            inspect_converter.log_path.absolute().as_posix()
+        log_paths: List[Path] = sorted(
+            list_eval_logs(
+                inspect_converter.log_path.absolute().as_posix()
+            ),
+            key=lambda path: path.name,
         )
         if not log_paths:
-            logger.warning('Missing evaluations logs to convert!')
+            raise ValueError(
+                f'No Inspect evaluation logs found in '
+                f'{inspect_converter.log_path}'
+            )
         else:
             file_uuids = [str(uuid.uuid4()) for _ in log_paths]
             metadata_args = {
@@ -222,7 +224,7 @@ if __name__ == '__main__':
                         file_uuid,
                     )
             else:
-                logger.warning('Missing unified schema result!')
+                raise ValueError('Inspect conversion produced no logs')
     else:
         file_uuid = str(uuid.uuid4())
         metadata_args = {
@@ -241,4 +243,4 @@ if __name__ == '__main__':
                 file_uuid,
             )
         else:
-            logger.warning('Missing unified schema result!')
+            raise ValueError('Inspect conversion produced no log')

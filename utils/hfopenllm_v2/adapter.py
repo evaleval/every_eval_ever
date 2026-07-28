@@ -28,6 +28,7 @@ from every_eval_ever.helpers import (
     make_source_metadata,
     save_evaluation_log,
 )
+from every_eval_ever.helpers.io import raise_for_failed_records
 
 # Source URL
 SOURCE_URL = 'https://open-llm-leaderboard-open-llm-leaderboard.hf.space/api/leaderboard/formatted'
@@ -183,8 +184,9 @@ def process_models(
     """Process a list of model evaluation dicts and save them."""
     retrieved_timestamp = str(time.time())
     count = 0
+    failures: list[tuple[int, str]] = []
 
-    for model_data in models_data:
+    for index, model_data in enumerate(models_data):
         try:
             model_id = model_data['model']['name']
             if '/' not in model_id:
@@ -206,7 +208,9 @@ def process_models(
         except Exception as e:
             model_name = model_data.get('model', {}).get('name', 'unknown')
             print(f'Error processing {model_name}: {e}')
+            failures.append((index, str(e)))
 
+    raise_for_failed_records('HF Open LLM v2', len(models_data), failures)
     return count
 
 

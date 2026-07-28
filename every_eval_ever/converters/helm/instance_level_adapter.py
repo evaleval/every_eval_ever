@@ -97,20 +97,22 @@ def _evaluation_result_id(
 # where ``score > 0`` reasonably maps to ``is_correct=True``. Keep this list
 # tight: graded core metrics such as rouge/bleu/f1 should stay out of it
 # because a positive score is not the same as a binary correctness claim.
-_BINARY_CORRECTNESS_METRIC_NAMES: frozenset[str] = frozenset({
-    'exact_match',
-    'quasi_exact_match',
-    'prefix_exact_match',
-    'quasi_prefix_exact_match',
-    'exact_match@5',
-    'quasi_exact_match@5',
-    'prefix_exact_match@5',
-    'quasi_prefix_exact_match@5',
-    'ifeval_strict_accuracy',
-    'chain_of_thought_correctness',
-    'math_equiv',
-    'math_equiv_chain_of_thought',
-})
+_BINARY_CORRECTNESS_METRIC_NAMES: frozenset[str] = frozenset(
+    {
+        'exact_match',
+        'quasi_exact_match',
+        'prefix_exact_match',
+        'quasi_prefix_exact_match',
+        'exact_match@5',
+        'quasi_exact_match@5',
+        'prefix_exact_match@5',
+        'quasi_prefix_exact_match@5',
+        'ifeval_strict_accuracy',
+        'chain_of_thought_correctness',
+        'math_equiv',
+        'math_equiv_chain_of_thought',
+    }
+)
 
 
 def _is_correct_for_metric(metric_name: str | None, score: float) -> bool:
@@ -131,30 +133,36 @@ def _is_correct_for_metric(metric_name: str | None, score: float) -> bool:
 class HELMInstanceLevelDataAdapter:
     def __init__(
         self,
-        evaulation_id: str,
+        evaluation_id: str,
+        file_basename: str,
         format: str,
         hash_algorithm: str,
         evaluation_dir: str,
     ):
         _require_helm_dependencies()
-        self.evaluation_id = evaulation_id
+        self.evaluation_id = evaluation_id
         self.format = format
         self.hash_algorithm = hash_algorithm
         self.evaluation_dir = evaluation_dir
-        self.path = f'{evaluation_dir}/{evaulation_id}.{format}'
+        self.path = f'{evaluation_dir}/{file_basename}.{format}'
 
     def _save_json(self, items: List[InstanceLevelEvaluationLog]):
         """Write one validated instance-level log per JSONL line."""
+        serialized = '\n'.join(
+            json.dumps(
+                item.model_dump(mode='json'),
+                ensure_ascii=False,
+                allow_nan=False,
+            )
+            for item in items
+        )
         eval_dir_path = Path(self.evaluation_dir)
         eval_dir_path.mkdir(parents=True, exist_ok=True)
         path = Path(self.path)
-
-        with path.open('w', encoding='utf-8') as f:
-            for item in items:
-                json_line = json.dumps(
-                    item.model_dump(mode='json'), ensure_ascii=False
-                )
-                f.write(json_line + '\n')
+        path.write_text(
+            serialized + ('\n' if serialized else ''),
+            encoding='utf-8',
+        )
 
         print(
             f'Instance-level eval log was successfully saved to {self.path} path.'
@@ -299,7 +307,8 @@ class HELMInstanceLevelDataAdapter:
                         evaluation_result_id=evaluation_result_id,
                         sample_id=str(state.instance.id),
                         sample_hash=sha256_string(
-                            state.request.prompt + (correct_refs[0] if correct_refs else '')
+                            state.request.prompt
+                            + (correct_refs[0] if correct_refs else '')
                         ),  # TODO use all references
                         interaction_type=InteractionType.single_turn,
                         input=Input(
@@ -337,8 +346,7 @@ class HELMInstanceLevelDataAdapter:
                         performance=Performance(
                             generation_time_ms=(
                                 state.result.request_time * 1000
-                                if state.result
-                                and state.result.request_time
+                                if state.result and state.result.request_time
                                 else None
                             )
                         ),

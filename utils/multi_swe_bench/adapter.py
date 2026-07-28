@@ -40,7 +40,12 @@ from every_eval_ever.eval_types import (
     SourceDataUrl,
     SourceMetadata,
 )
-from every_eval_ever.helpers import SCHEMA_VERSION, get_developer, get_model_id, save_evaluation_log
+from every_eval_ever.helpers import (
+    SCHEMA_VERSION,
+    get_developer,
+    get_model_id,
+    save_evaluation_log,
+)
 from utils.swe_helpers import parse_date_from_dir, parse_model_from_dir
 
 MULTI_SWE_REPO = "https://github.com/multi-swe-bench/experiments"
@@ -195,6 +200,11 @@ def main():
                     errors += 1
 
     print(f"\nGenerated {count} files, {errors} errors → {OUTPUT_BASE}/")
+    if errors:
+        raise RuntimeError(
+            f"Multi-SWE-bench: failed to convert {errors} submissions; "
+            f"saved {count}"
+        )
 
 
 if __name__ == "__main__":

@@ -106,7 +106,7 @@ def test_make_logs_validate_against_schema():
     bundles = adapter.make_logs(
         sample_payload(), retrieved_timestamp='1234567890.0'
     )
-    assert len(bundles) == 2
+    assert len(bundles) == 4
 
     for bundle in bundles:
         validated = EvaluationLog.model_validate(bundle.log.model_dump())
@@ -187,14 +187,25 @@ def test_preserves_source_fields_and_uncertainty():
     assert overall.score_details.uncertainty.standard_error.value == 4.748
 
 
-def test_non_percent_scores_are_skipped_without_explicit_bounds():
+def test_non_percent_scores_are_kept_without_invented_bounds():
     bundles = adapter.make_logs(
         sample_payload(), retrieved_timestamp='1234567890.0'
     )
-    model_ids = {bundle.log.model_info.id for bundle in bundles}
+    by_model = {bundle.log.model_info.id: bundle.log for bundle in bundles}
 
-    assert 'anthropic/claude-opus-4-7' not in model_ids
-    assert 'anthropic/claude-sonnet-4-6' not in model_ids
+    for model_id in (
+        'anthropic/claude-opus-4-7',
+        'anthropic/claude-sonnet-4-6',
+    ):
+        result = by_model[model_id].evaluation_results[0]
+        assert result.metric_config.metric_unit == 'points'
+        assert result.metric_config.score_type is None
+        assert result.metric_config.min_score is None
+        assert result.metric_config.max_score is None
+        assert (
+            result.metric_config.additional_details['max_score_source']
+            == 'not_provided'
+        )
 
 
 def test_canonical_model_id_collisions_fail_clearly():
@@ -365,7 +376,7 @@ def test_export_paths_validate(tmp_path: Path):
     )
     paths = adapter.export_logs(bundles, output_dir)
 
-    assert len(paths) == 2
+    assert len(paths) == 4
     for path in paths:
         assert path.parent.parent.parent == output_dir
         report = validate_file(path)

@@ -26,11 +26,14 @@ from every_eval_ever.eval_types import (
     SourceMetadata,
 )
 
+TEST_UUID = '123e4567-e89b-42d3-a456-426614174000'
+OTHER_TEST_UUID = '123e4567-e89b-42d3-a456-426614174001'
+
 
 def _load_eval(adapter, filepath, metadata_args):
     eval_path = Path(filepath)
     metadata_args = dict(metadata_args)
-    metadata_args.setdefault('file_uuid', 'test-file-uuid')
+    metadata_args.setdefault('file_uuid', TEST_UUID)
 
     with tempfile.TemporaryDirectory() as tmpdir:
         metadata_args['parent_eval_output_dir'] = tmpdir
@@ -115,7 +118,7 @@ def test_pubmedqa_eval():
     assert converted_eval.detailed_evaluation_results.total_rows == 2
 
 
-def test_transform_without_metadata_args_uses_defaults(tmp_path, caplog):
+def test_transform_without_output_metadata_does_not_write_samples(tmp_path):
     adapter = InspectAIAdapter()
     eval_file = (
         Path(__file__).resolve().parent
@@ -128,18 +131,15 @@ def test_transform_without_metadata_args_uses_defaults(tmp_path, caplog):
         )
 
     assert isinstance(converted_eval, EvaluationLog)
-    assert "Missing metadata_args['file_uuid']" in caplog.text
     assert converted_eval.source_metadata.source_organization_name == 'unknown'
     assert (
         converted_eval.source_metadata.evaluator_relationship
         == EvaluatorRelationship.third_party
     )
-    assert converted_eval.detailed_evaluation_results is not None
-    assert converted_eval.detailed_evaluation_results.total_rows == 2
-    assert _extract_file_uuid_from_detailed_results(converted_eval) != 'none'
+    assert converted_eval.detailed_evaluation_results is None
 
 
-def test_transform_directory_assigns_unique_file_uuid_per_log():
+def test_transform_directory_requires_one_uuid_per_written_log():
     adapter = InspectAIAdapter()
     fixture_dir = Path(__file__).resolve().parent / 'data/inspect'
 
@@ -157,29 +157,23 @@ def test_transform_directory_assigns_unique_file_uuid_per_log():
             target = tmp_logs_path / target_name
             target.write_bytes(source.read_bytes())
 
-        converted_logs = adapter.transform_from_directory(
-            tmp_logs_path,
-            metadata_args={
-                'source_organization_name': 'TestOrg',
-                'evaluator_relationship': EvaluatorRelationship.first_party,
-                'parent_eval_output_dir': tmp_out_dir,
-                'file_uuid': 'shared-uuid',
-            },
-        )
-
-    assert len(converted_logs) == 2
-
-    uuids = {
-        _extract_file_uuid_from_detailed_results(log) for log in converted_logs
-    }
-    assert 'shared-uuid' not in uuids
-    assert len(uuids) == 2
+        with pytest.raises(AdapterError, match='exactly one UUID'):
+            adapter.transform_from_directory(
+                tmp_logs_path,
+                metadata_args={
+                    'source_organization_name': 'TestOrg',
+                    'evaluator_relationship': (
+                        EvaluatorRelationship.first_party
+                    ),
+                    'parent_eval_output_dir': tmp_out_dir,
+                },
+            )
 
 
 def test_transform_directory_uses_file_uuids_metadata_when_provided():
     adapter = InspectAIAdapter()
     fixture_dir = Path(__file__).resolve().parent / 'data/inspect'
-    expected_uuids = ['explicit-uuid-1', 'explicit-uuid-2']
+    expected_uuids = [TEST_UUID, OTHER_TEST_UUID]
 
     with (
         tempfile.TemporaryDirectory() as tmp_logs_dir,
@@ -661,7 +655,7 @@ def test_supplemental_eval_details_fails_on_deprecated_per_result_schema():
 
     with tempfile.TemporaryDirectory() as tmpdir:
         metadata_args = dict(metadata_args)
-        metadata_args['file_uuid'] = 'test-file-uuid'
+        metadata_args['file_uuid'] = TEST_UUID
         metadata_args['parent_eval_output_dir'] = tmpdir
         with pytest.raises(AdapterError):
             adapter.transform_from_file(
@@ -691,7 +685,7 @@ def test_supplemental_eval_details_fails_on_duplicate_evaluation_name():
 
     with tempfile.TemporaryDirectory() as tmpdir:
         metadata_args = dict(metadata_args)
-        metadata_args['file_uuid'] = 'test-file-uuid'
+        metadata_args['file_uuid'] = TEST_UUID
         metadata_args['parent_eval_output_dir'] = tmpdir
         with pytest.raises(AdapterError):
             adapter.transform_from_file(
@@ -718,7 +712,7 @@ def test_supplemental_eval_details_fails_on_invalid_schema():
 
     with tempfile.TemporaryDirectory() as tmpdir:
         metadata_args = dict(metadata_args)
-        metadata_args['file_uuid'] = 'test-file-uuid'
+        metadata_args['file_uuid'] = TEST_UUID
         metadata_args['parent_eval_output_dir'] = tmpdir
         with pytest.raises(AdapterError):
             adapter.transform_from_file(

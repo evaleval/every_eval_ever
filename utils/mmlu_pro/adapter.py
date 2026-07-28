@@ -55,6 +55,7 @@ from every_eval_ever.helpers import (
     sanitize_filename,
     save_evaluation_log,
 )
+from every_eval_ever.helpers.io import raise_for_failed_records
 
 SOURCE_NAME = 'MMLU-Pro Leaderboard'
 SOURCE_ORGANIZATION = 'TIGER-Lab'
@@ -359,6 +360,7 @@ def make_logs(
     rows: Iterable[dict[str, str]],
     retrieved_timestamp: str | None = None,
 ) -> list[tuple[EvaluationLog, str, str]]:
+    rows = list(rows)
     timestamp = retrieved_timestamp or str(time.time())
     bundles: list[tuple[EvaluationLog, str, str]] = []
     # The CSV occasionally has identical duplicate rows (e.g. 'LLaDA' is
@@ -368,9 +370,19 @@ def make_logs(
     # Dedup on (model_id, data_source, overall) so legitimate variants
     # survive and exact dupes are dropped.
     seen: set[tuple[str, str, str]] = set()
-    for row in rows:
-        result = make_log(row, timestamp)
+    failures: list[tuple[int, str]] = []
+    for index, row in enumerate(rows):
+        try:
+            result = make_log(row, timestamp)
+        except (TypeError, ValueError) as exc:
+            failures.append((index, str(exc)))
+            continue
         if result is None:
+            if not row.get('Models', '').strip():
+                reason = 'missing model name'
+            else:
+                reason = 'missing or invalid overall score'
+            failures.append((index, reason))
             continue
         log, developer, slug = result
         data_source = (log.source_metadata.additional_details or {}).get(
@@ -389,6 +401,9 @@ def make_logs(
             continue
         seen.add(key)
         bundles.append((log, developer, slug))
+    raise_for_failed_records('MMLU-Pro', len(rows), failures)
+    if not bundles:
+        raise ValueError('MMLU-Pro: converted 0 source records')
     return bundles
 
 

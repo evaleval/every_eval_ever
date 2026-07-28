@@ -43,6 +43,10 @@ from every_eval_ever.helpers import (
     sanitize_filename,
     save_evaluation_log,
 )
+from every_eval_ever.helpers.io import (
+    raise_for_failed_records,
+    require_identity,
+)
 
 DEFAULT_BASE_URL = 'https://api.llm-stats.com'
 ATTRIBUTION_URL = 'https://llm-stats.com/'
@@ -447,7 +451,12 @@ def maybe_save_raw_json(payload: dict[str, Any], path: Path | None) -> None:
     if path.suffix.lower() == '.json':
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(
-            json.dumps(payload, indent=2, sort_keys=True),
+            json.dumps(
+                payload,
+                indent=2,
+                sort_keys=True,
+                allow_nan=False,
+            ),
             encoding='utf-8',
         )
         return
@@ -456,11 +465,21 @@ def maybe_save_raw_json(payload: dict[str, Any], path: Path | None) -> None:
     for endpoint in ('models', 'benchmarks', 'scores'):
         endpoint_path = path / f'{endpoint}.json'
         endpoint_path.write_text(
-            json.dumps(payload.get(endpoint), indent=2, sort_keys=True),
+            json.dumps(
+                payload.get(endpoint),
+                indent=2,
+                sort_keys=True,
+                allow_nan=False,
+            ),
             encoding='utf-8',
         )
     (path / 'combined.json').write_text(
-        json.dumps(payload, indent=2, sort_keys=True),
+        json.dumps(
+            payload,
+            indent=2,
+            sort_keys=True,
+            allow_nan=False,
+        ),
         encoding='utf-8',
     )
 
@@ -549,12 +568,17 @@ def resolve_model(
     fallback_name = first_present(
         score, ('model_name', 'modelName', 'model_display_name')
     )
+    identity = ref or fallback_name
+    identity = require_identity(
+        str(identity) if identity is not None else None,
+        'LLM Stats model identity',
+    )
 
     fallback = {
-        'id': ref or fallback_name or 'unknown',
-        'model_id': ref or fallback_name or 'unknown',
-        'name': fallback_name or ref or 'unknown',
-        'model_name': fallback_name or ref or 'unknown',
+        'id': identity,
+        'model_id': identity,
+        'name': str(fallback_name or ref),
+        'model_name': str(fallback_name or ref),
     }
     for key in (
         'organization_id',
@@ -600,9 +624,14 @@ def resolve_benchmark(
     fallback_name = first_present(
         score, ('benchmark_name', 'benchmarkName', 'dataset_name')
     )
+    identity = ref or fallback_name
+    identity = require_identity(
+        str(identity) if identity is not None else None,
+        'LLM Stats benchmark identity',
+    )
     return {
-        'id': ref or fallback_name or 'unknown',
-        'name': fallback_name or ref or 'unknown',
+        'id': identity,
+        'name': str(fallback_name or ref),
     }
 
 
@@ -661,12 +690,18 @@ def provider_value(model: dict[str, Any]) -> tuple[str | None, str | None]:
 
 def model_source_id(model: dict[str, Any]) -> str:
     value = first_present(model, MODEL_ID_KEYS)
-    return str(value) if value not in (None, '') else 'unknown'
+    return require_identity(
+        str(value) if value not in (None, '') else None,
+        'LLM Stats model id',
+    )
 
 
 def benchmark_source_id(benchmark: dict[str, Any]) -> str:
     value = first_present(benchmark, BENCHMARK_ID_KEYS)
-    return str(value) if value not in (None, '') else 'unknown'
+    return require_identity(
+        str(value) if value not in (None, '') else None,
+        'LLM Stats benchmark id',
+    )
 
 
 def model_display_name(model: dict[str, Any]) -> str:
@@ -682,14 +717,20 @@ def model_display_name(model: dict[str, Any]) -> str:
             'slug',
         ),
     )
-    return str(value) if value not in (None, '') else 'unknown'
+    return require_identity(
+        str(value) if value not in (None, '') else None,
+        'LLM Stats model name',
+    )
 
 
 def benchmark_display_name(benchmark: dict[str, Any]) -> str:
     value = first_present(
         benchmark, ('name', 'display_name', 'displayName', 'id', 'slug')
     )
-    return str(value) if value not in (None, '') else 'unknown'
+    return require_identity(
+        str(value) if value not in (None, '') else None,
+        'LLM Stats benchmark name',
+    )
 
 
 def split_model_id(value: str) -> tuple[str | None, str | None]:
@@ -708,7 +749,10 @@ def normalize_model_info(model: dict[str, Any]) -> tuple[ModelInfo, str, str]:
     developer_hint = (
         provider_slug or raw_developer_from_id or get_developer(name)
     )
-    developer = normalize_slug(developer_hint, 'unknown')
+    developer = normalize_slug(
+        require_identity(developer_hint, 'LLM Stats model developer'),
+        name,
+    )
 
     raw_slug = first_present(model, ('slug', 'model_slug', 'modelSlug'))
     model_hint = raw_slug or raw_model_from_id or raw_id or name
@@ -870,15 +914,11 @@ def dedupe_urls(urls: list[str]) -> list[str]:
 
 def llm_stats_model_url(model: dict[str, Any]) -> str | None:
     raw_id = model_source_id(model)
-    if raw_id == 'unknown':
-        return None
     return f'https://llm-stats.com/models/{normalize_slug(raw_id)}'
 
 
 def llm_stats_benchmark_url(benchmark: dict[str, Any]) -> str | None:
     raw_id = benchmark_source_id(benchmark)
-    if raw_id == 'unknown':
-        return None
     return f'https://llm-stats.com/benchmarks/{normalize_slug(raw_id)}'
 
 
@@ -1206,18 +1246,24 @@ def make_logs(
     )
     model_infos: dict[tuple[str, str, str], ModelInfo] = {}
 
-    for score in scores:
-        model = resolve_model(score, model_index)
-        benchmark = resolve_benchmark(score, benchmark_index)
-        model_info, developer, model_slug = normalize_model_info(model)
-        relationship = relationship_from_score(score)
-        result = make_evaluation_result(score, model, benchmark, base_url)
-        if result is None:
-            continue
+    failures: list[tuple[int, str]] = []
+    for index, score in enumerate(scores):
+        try:
+            model = resolve_model(score, model_index)
+            benchmark = resolve_benchmark(score, benchmark_index)
+            model_info, developer, model_slug = normalize_model_info(model)
+            relationship = relationship_from_score(score)
+            result = make_evaluation_result(score, model, benchmark, base_url)
+            if result is None:
+                raise ValueError('missing or invalid score value')
 
-        key = (developer, model_slug, relationship)
-        groups[key].append(result)
-        model_infos[key] = model_info
+            key = (developer, model_slug, relationship)
+            groups[key].append(result)
+            model_infos[key] = model_info
+        except Exception as exc:
+            failures.append((index, str(exc)))
+
+    raise_for_failed_records('LLM Stats', len(scores), failures)
 
     bundles: list[LogBundle] = []
     for (developer, model_slug, relationship), results in sorted(
@@ -1242,6 +1288,8 @@ def make_logs(
             LogBundle(log=log, developer=developer, model=model_slug)
         )
 
+    if not bundles:
+        raise ValueError('LLM Stats: converted 0 source records')
     return bundles
 
 

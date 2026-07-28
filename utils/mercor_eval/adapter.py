@@ -48,6 +48,7 @@ from every_eval_ever.helpers import (
     sanitize_filename,
     save_evaluation_log,
 )
+from every_eval_ever.helpers.io import require_identity
 
 DEFAULT_BASE_URL = 'https://coil.mercor.com/external/evals/v1'
 DEFAULT_OUTPUT_DIR = Path('data')
@@ -576,14 +577,28 @@ def make_bundles(
         config = model.get('config') or {}
         if not isinstance(config, dict):
             raise ValueError('Mercor model config must be an object.')
-        provider = config.get('provider') or 'unknown'
-        model_name = str(model.get('name') or config.get('model') or 'unknown')
+        model_name = require_identity(
+            str(model.get('name') or config.get('model') or ''),
+            'Mercor model name',
+        )
+        provider = config.get('provider')
+        if '/' not in model_name:
+            provider = require_identity(
+                str(provider or ''),
+                'Mercor model provider',
+            )
         developer, model_id, output_model_name = resolve_model_identity(
             model_name,
             provider,
         )
-        mercor_model_id = str(model.get('id') or 'unknown')
-        evaluation_id = str(row.get('evaluationId') or 'unknown')
+        mercor_model_id = require_identity(
+            str(model.get('id') or ''),
+            'Mercor model id',
+        )
+        evaluation_id = require_identity(
+            str(row.get('evaluationId') or ''),
+            'Mercor evaluation id',
+        )
         benchmark_slug = normalize_slug(benchmark['benchmarkName'])
         log_evaluation_id = (
             f'{benchmark_slug}/{developer}_{output_model_name}/'

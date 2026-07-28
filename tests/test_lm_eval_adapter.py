@@ -255,14 +255,16 @@ def test_instance_level_transform_and_save():
             model_id='test-model',
             task_name='math_perturbed_full',
             output_dir=tmpdir,
-            file_uuid='abc123',
+            file_uuid='123e4567-e89b-42d3-a456-426614174000',
         )
         assert result is not None
         assert result.total_rows == 10
         assert result.format.value == 'jsonl'
         assert result.checksum  # non-empty sha256
         assert (Path(tmpdir) / result.file_path).exists()
-        assert result.file_path == 'abc123_samples.jsonl'
+        assert result.file_path == (
+            '123e4567-e89b-42d3-a456-426614174000_samples.jsonl'
+        )
 
 
 def test_instance_level_transform_and_save_no_output_dir():

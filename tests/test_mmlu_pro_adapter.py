@@ -55,13 +55,6 @@ def sample_rows() -> list[dict]:
             'Model Size(B)': '8',
             'Overall': '0.370',
         },
-        # Missing overall score — should be skipped.
-        {
-            'Models': 'broken-model',
-            'Data Source': 'Self-Reported',
-            'Model Size(B)': 'unk',
-            'Overall': '',
-        },
         # EXAONE — exercises DEVELOPER_OVERRIDES.
         {
             'Models': 'EXAONE-3.5-2.4B-Instruct',
@@ -72,10 +65,29 @@ def sample_rows() -> list[dict]:
     ]
 
 
+def test_missing_score_reports_failed_source_record_count():
+    rows = sample_rows() + [
+        {
+            'Models': 'broken-model',
+            'Data Source': 'Self-Reported',
+            'Model Size(B)': 'unk',
+            'Overall': '',
+        }
+    ]
+
+    try:
+        adapter.make_logs(rows, retrieved_timestamp='123.0')
+    except ValueError as exc:
+        assert 'failed to convert 1 of 7 source records' in str(exc)
+        assert 'row 6: missing or invalid overall score' in str(exc)
+    else:
+        raise AssertionError('expected an incomplete MMLU-Pro row to fail')
+
+
 def test_make_logs_validate_against_schema():
     bundles = adapter.make_logs(sample_rows(), retrieved_timestamp='123.0')
     # GPT-4o + 2 Claude variants + LLaDA (deduped) + EXAONE = 5 logs;
-    # broken-model is dropped, second LLaDA is dropped.
+    # The exact duplicate LLaDA row is dropped.
     assert len(bundles) == 5
     for log, _, _ in bundles:
         validated = EvaluationLog.model_validate(log.model_dump())

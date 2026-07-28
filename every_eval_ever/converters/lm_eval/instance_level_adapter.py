@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
@@ -59,11 +60,22 @@ class LMEvalInstanceLevelAdapter:
         """Transform samples and save to JSONL, returning a DetailedEvaluationResults pointer.
 
         If output_dir is None, returns None (skips instance-level output).
-        If file_uuid is provided, the output file is named {file_uuid}_samples.jsonl
-        so it shares the UUID of the corresponding evaluation result file.
+        Otherwise file_uuid is required so the samples file shares the UUID of
+        the corresponding aggregate result file.
         """
         if output_dir is None:
             return None
+        if file_uuid is None:
+            raise ValueError(
+                'file_uuid is required when writing lm-eval samples'
+            )
+        try:
+            parsed_uuid = uuid.UUID(file_uuid)
+        except (AttributeError, TypeError, ValueError) as exc:
+            raise ValueError(f'invalid file_uuid: {file_uuid!r}') from exc
+        if parsed_uuid.version != 4:
+            raise ValueError(f'file_uuid must be UUIDv4: {file_uuid!r}')
+        file_uuid = str(parsed_uuid)
 
         logs = self.transform_samples(
             samples_path, evaluation_id, model_id, task_name
@@ -73,17 +85,16 @@ class LMEvalInstanceLevelAdapter:
 
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
-        if file_uuid:
-            out_file = output_dir / f'{file_uuid}_samples.jsonl'
-        else:
-            out_file = output_dir / f'samples_{task_name}.jsonl'
-
-        with open(out_file, 'w') as f:
-            for log in logs:
-                f.write(
-                    json.dumps(log.model_dump(mode='json'), ensure_ascii=False)
-                    + '\n'
-                )
+        out_file = output_dir / f'{file_uuid}_samples.jsonl'
+        serialized = '\n'.join(
+            json.dumps(
+                log.model_dump(mode='json'),
+                ensure_ascii=False,
+                allow_nan=False,
+            )
+            for log in logs
+        )
+        out_file.write_text(serialized + '\n', encoding='utf-8')
 
         file_hash = hashlib.sha256(out_file.read_bytes()).hexdigest()
 

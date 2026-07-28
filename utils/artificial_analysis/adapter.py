@@ -27,6 +27,7 @@ from every_eval_ever.helpers import (
     sanitize_filename,
     save_evaluation_log,
 )
+from every_eval_ever.helpers.io import require_identity
 
 SOURCE_URL = "https://artificialanalysis.ai/api/v2/data/llms/models"
 API_REFERENCE_URL = "https://artificialanalysis.ai/api-reference"
@@ -349,17 +350,21 @@ def stringify(value: Any) -> str:
 
 
 def normalize_slug(value: str | None, fallback: str) -> str:
-    raw = (value or fallback).strip().lower()
+    raw = require_identity(value or fallback, "Artificial Analysis identity")
+    raw = raw.lower()
     sanitized = sanitize_filename(raw)
     sanitized = sanitized.replace(" ", "-").replace("_", "-")
     while "--" in sanitized:
         sanitized = sanitized.replace("--", "-")
     sanitized = sanitized.strip("-")
-    return sanitized or "unknown"
+    if not sanitized:
+        raise ValueError("Artificial Analysis identity has no usable path characters")
+    return sanitized
 
 
 def make_model_path_name(model: dict[str, Any]) -> str:
-    return normalize_slug(model.get("slug"), model.get("name", "unknown"))
+    name = require_identity(model.get("name"), "Artificial Analysis model name")
+    return normalize_slug(model.get("slug"), name)
 
 
 def load_payload(input_json: Path) -> dict[str, Any]:
@@ -385,7 +390,12 @@ def maybe_save_raw_json(payload: dict[str, Any], path: Path | None) -> None:
         return
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
-        json.dumps(payload, indent=2, sort_keys=True),
+        json.dumps(
+            payload,
+            indent=2,
+            sort_keys=True,
+            allow_nan=False,
+        ),
         encoding="utf-8",
     )
 
@@ -463,8 +473,13 @@ def make_source_metadata_details(
 
 def make_model_info(model: dict[str, Any]) -> tuple[ModelInfo, str, str]:
     creator = model.get("model_creator") or {}
+    if not isinstance(creator, dict):
+        raise ValueError("Artificial Analysis model_creator must be an object")
+    creator_name = require_identity(
+        creator.get("name"), "Artificial Analysis model creator name"
+    )
     developer = normalize_slug(
-        creator.get("slug"), creator.get("name", "unknown")
+        creator.get("slug"), creator_name
     )
     model_path_name = make_model_path_name(model)
 
@@ -691,7 +706,10 @@ def run(args: argparse.Namespace) -> int:
         key=lambda row: (
             normalize_slug(
                 (row.get("model_creator") or {}).get("slug"),
-                (row.get("model_creator") or {}).get("name", "unknown"),
+                require_identity(
+                    (row.get("model_creator") or {}).get("name"),
+                    "Artificial Analysis model creator name",
+                ),
             ),
             make_model_path_name(row),
             str(row["id"]),

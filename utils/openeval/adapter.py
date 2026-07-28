@@ -1190,6 +1190,7 @@ def save_instance_logs(
                 json.dumps(
                     instance_log.model_dump(mode='json', exclude_none=True),
                     ensure_ascii=False,
+                    allow_nan=False,
                 )
                 + '\n'
             )
@@ -1226,8 +1227,14 @@ def export_logs(bundles: list[LogBundle], output_dir: Path) -> list[Path]:
         )
         if detailed is not None:
             bundle.log.detailed_evaluation_results = detailed
+            serialized = json.dumps(
+                bundle.log.model_dump(mode='json', exclude_none=True),
+                indent=2,
+                ensure_ascii=False,
+                allow_nan=False,
+            )
             path.write_text(
-                bundle.log.model_dump_json(indent=2, exclude_none=True),
+                serialized + '\n',
                 encoding='utf-8',
             )
         paths.append(path)

@@ -2,11 +2,10 @@
 
 import argparse
 import json
-import sys
 import uuid
 from pathlib import Path
 
-from every_eval_ever.converters import SCHEMA_VERSION
+from every_eval_ever.helpers.io import datastore_output_dir
 
 from .adapter import LEADERBOARDS, AlpacaEvalAdapter
 
@@ -42,27 +41,30 @@ def main():
     for version in versions:
         cfg_name = LEADERBOARDS[version]['source_name']
         print(f'\n=== {cfg_name} ===')
-        try:
-            logs = adapter.fetch_leaderboard(version)
-        except Exception as exc:
-            print(f'  ERROR: {exc}', file=sys.stderr)
-            continue
+        logs = adapter.fetch_leaderboard(version)
+        if not logs:
+            raise ValueError(
+                f'AlpacaEval conversion produced no logs for {version}'
+            )
 
         benchmark_key = f'alpaca_eval_{version}'
 
         for log in logs:
-            parts = log.model_info.id.split('/', 1)
-            developer = parts[0] if len(parts) == 2 else 'unknown'
-            model_name = parts[1] if len(parts) == 2 else log.model_info.id
-
-            out_dir = output_dir / benchmark_key / developer / model_name
+            out_dir = datastore_output_dir(
+                output_dir,
+                benchmark_key,
+                log.model_info.id,
+                log.model_info.developer,
+            )
             out_dir.mkdir(parents=True, exist_ok=True)
             out_file = out_dir / f'{uuid.uuid4()}.json'
-
-            with out_file.open('w', encoding='utf-8') as f:
-                json.dump(
-                    log.model_dump(mode='json', exclude_none=True), f, indent=2
-                )
+            serialized = json.dumps(
+                log.model_dump(mode='json', exclude_none=True),
+                indent=2,
+                ensure_ascii=False,
+                allow_nan=False,
+            )
+            out_file.write_text(serialized + '\n', encoding='utf-8')
             print(f'  {out_file}')
             total += 1
 
