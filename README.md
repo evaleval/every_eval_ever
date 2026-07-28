@@ -213,9 +213,11 @@ uv run python -m every_eval_ever validate \
   data/benchmark/dev/model/uuid_samples.jsonl
 ```
 
-Run the command from the repository root and use `data/...` paths. File type is determined by extension: `.json` validates against `EvaluationLog`, while `.jsonl` validates each line against `InstanceLevelEvaluationLog`. Paths must be exactly `data/<collection>/<developer>/<model>/<uuid>.json` or the matching `<uuid>_samples.jsonl`. Directory arguments and recursive `**` globs are rejected.
+Run the command from the repository root and use `data/...` paths. File type is determined by extension: `.json` validates against `EvaluationLog`, while `.jsonl` validates each line against `InstanceLevelEvaluationLog`. Paths must be exactly `data/<collection>/<developer>/<model>/<uuid>.json` or the matching `<uuid>_samples.jsonl`. Directory arguments are not accepted; use a fixed-depth or explicit recursive glob to select local files.
 
 When samples exist, both files must be in the same folder and use the same UUID. The aggregate must point to the samples basename in `detailed_evaluation_results.file_path`, and the JSONL must point back to that aggregate. Their evaluation IDs, model IDs, and declared row count must agree.
+
+Local validation checks only the files present in the local checkout and their expected siblings. The PR bot remains responsible for checking every changed datastore path against the complete PR branch.
 
 #### Output formats
 

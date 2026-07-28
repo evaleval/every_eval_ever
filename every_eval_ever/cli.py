@@ -261,8 +261,8 @@ def build_parser() -> argparse.ArgumentParser:
         'paths',
         nargs='+',
         help=(
-            'Files or fixed-depth glob patterns to validate. Directories and '
-            'recursive ** patterns are not supported.'
+            'Files or glob patterns to validate. Directory arguments are not '
+            'supported; use a glob to select files.'
         ),
     )
     validate_parser.add_argument(

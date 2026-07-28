@@ -357,13 +357,19 @@ class TestFileDispatch:
         assert nested_json not in paths
         assert all(path.parent == sub for path in paths)
 
-    def test_directory_and_recursive_glob_arguments_are_rejected(
-        self, tmp_path: Path
-    ):
+    def test_directory_arguments_are_rejected(self, tmp_path: Path):
         with pytest.raises(ValueError, match='directory arguments'):
             expand_paths([str(tmp_path)])
-        with pytest.raises(ValueError, match='recursive glob'):
-            expand_paths([f'{tmp_path}/**/*.json'])
+
+    def test_explicit_recursive_glob_is_honored(self, tmp_path: Path):
+        direct = _write_json(tmp_path, 'direct.json', VALID_AGGREGATE)
+        nested_dir = tmp_path / 'nested'
+        nested_dir.mkdir()
+        nested = _write_json(nested_dir, 'nested.json', VALID_AGGREGATE)
+
+        paths = expand_paths([f'{tmp_path}/**/*.json'])
+
+        assert paths == [direct, nested]
 
 
 class TestMaxErrors:

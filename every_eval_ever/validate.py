@@ -70,16 +70,12 @@ class _LocalRepositoryFiles:
 
 
 def expand_paths(paths: list[str]) -> list[Path]:
-    """Expand fixed-depth glob arguments without accepting directories."""
+    """Expand explicit glob arguments without accepting directories."""
     result: list[Path] = []
     seen: set[Path] = set()
     for value in paths:
-        if '**' in value:
-            raise ValueError(
-                f'recursive glob patterns are not supported: {value!r}'
-            )
         matches = (
-            sorted(glob.glob(value, recursive=False))
+            sorted(glob.glob(value, recursive='**' in value))
             if glob.has_magic(value)
             else [value]
         )
@@ -214,8 +210,8 @@ def main(argv: list[str] | None = None) -> int:
         'paths',
         nargs='+',
         help=(
-            'Files or fixed-depth glob patterns to validate. Directories and '
-            'recursive ** patterns are not supported.'
+            'Files or glob patterns to validate. Directory arguments are not '
+            'supported; use a glob to select files.'
         ),
     )
     parser.add_argument(
