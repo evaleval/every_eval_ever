@@ -43,6 +43,8 @@ jobs:
           uv run --project .github/ci-types python post_codegen.py
           PYTHONPATH="${{ github.workspace }}" uv run --project .github/ci-types pytest \
             tests/test_validate.py \
+            tests/test_validation_scope.py \
+            tests/test_inf_serialization.py \
             tests/test_check_duplicate_entries.py
       
       - name: Create or update PR
