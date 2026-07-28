@@ -535,6 +535,8 @@ def test_supplemental_eval_details_fill_only_top_level_fields():
     assert converted_eval.model_info.additional_details == {
         'num_parameters': '42',
         'is_test_model': 'true',
+        'deployment_type': 'unknown',
+        'model_availability': 'unknown',
     }
     assert result.source_data.additional_details['shuffled'] == 'False'
     assert result.source_data.additional_details['subset'] == '{"name": "full"}'

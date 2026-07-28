@@ -89,7 +89,7 @@ class LMEvalInstanceLevelAdapter:
 
         return DetailedEvaluationResults(
             format=Format.jsonl,
-            file_path=str(out_file),
+            file_path=out_file.name,
             hash_algorithm=HashAlgorithm.sha256,
             checksum=file_hash,
             total_rows=len(logs),

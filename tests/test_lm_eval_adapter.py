@@ -12,6 +12,7 @@ from every_eval_ever.converters.lm_eval.utils import (
 from every_eval_ever.eval_types import (
     EvaluationLog,
     EvaluatorRelationship,
+    ScoreType,
     SourceDataHf,
 )
 
@@ -260,8 +261,8 @@ def test_instance_level_transform_and_save():
         assert result.total_rows == 10
         assert result.format.value == 'jsonl'
         assert result.checksum  # non-empty sha256
-        assert Path(result.file_path).exists()
-        assert 'abc123_samples.jsonl' in result.file_path
+        assert (Path(tmpdir) / result.file_path).exists()
+        assert result.file_path == 'abc123_samples.jsonl'
 
 
 def test_instance_level_transform_and_save_no_output_dir():
@@ -292,3 +293,31 @@ def test_na_stderr_treated_as_absent():
     assert uncertainty is not None
     assert uncertainty.standard_error is None
     assert uncertainty.num_samples == 100
+
+
+def test_unbounded_metric_uses_quoted_infinity():
+    adapter = LMEvalAdapter()
+    raw_data = {
+        'results': {'mytask': {'word_perplexity,none': 2.0}},
+    }
+
+    [result] = adapter._build_evaluation_results(raw_data, 'mytask')
+
+    assert result.metric_config.score_type == ScoreType.continuous
+    assert result.metric_config.min_score == 1.0
+    assert result.metric_config.max_score == float('inf')
+    assert '"max_score":"Infinity"' in result.model_dump_json()
+
+
+def test_unknown_metric_is_preserved_without_invented_bounds():
+    adapter = LMEvalAdapter()
+    raw_data = {
+        'results': {'mytask': {'custom_metric,none': 2.0}},
+    }
+
+    [result] = adapter._build_evaluation_results(raw_data, 'mytask')
+
+    assert result.score_details.score == 2.0
+    assert result.metric_config.score_type is None
+    assert result.metric_config.min_score is None
+    assert result.metric_config.max_score is None

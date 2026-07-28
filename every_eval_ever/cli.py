@@ -274,6 +274,11 @@ def build_parser() -> argparse.ArgumentParser:
         dest='output_format',
         help='Output format.',
     )
+    validate_parser.add_argument(
+        '--repo-root',
+        type=Path,
+        help='Repository root used to derive datastore-relative paths.',
+    )
 
     check_duplicates_parser = subparsers.add_parser(
         'check-duplicates',
@@ -395,15 +400,16 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == 'validate':
         from every_eval_ever.validate import main as validate_main
 
-        return validate_main(
-            [
-                *args.paths,
-                '--max-errors',
-                str(args.max_errors),
-                '--format',
-                args.output_format,
-            ]
-        )
+        validate_args = [
+            '--max-errors',
+            str(args.max_errors),
+            '--format',
+            args.output_format,
+        ]
+        if args.repo_root is not None:
+            validate_args.extend(['--repo-root', str(args.repo_root)])
+        validate_args.extend(args.paths)
+        return validate_main(validate_args)
 
     if args.command == 'check-duplicates':
         from every_eval_ever.check_duplicate_entries import (

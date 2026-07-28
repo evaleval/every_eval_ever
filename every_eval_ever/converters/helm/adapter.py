@@ -3,7 +3,7 @@ import json
 import os
 import uuid
 from pathlib import Path
-from typing import Any, Dict, List, Union, cast
+from typing import Any, Dict, List, cast
 
 _HELM_IMPORT_ERROR: Exception | None = None
 try:
@@ -49,12 +49,12 @@ from every_eval_ever.converters.common.adapter import (
     SupportedLibrary,
 )
 from every_eval_ever.converters.common.utils import sha256_file
-from every_eval_ever.converters.helm.metrics import is_core_metric
 from every_eval_ever.converters.helm.instance_level_adapter import (
     HELMInstanceLevelDataAdapter,
     _evaluation_result_id,
     _score_from_stat,
 )
+from every_eval_ever.converters.helm.metrics import is_core_metric
 from every_eval_ever.converters.helm.utils import extract_reasoning
 from every_eval_ever.eval_types import (
     DetailedEvaluationResults,
@@ -536,7 +536,7 @@ class HELMAdapter(BaseEvaluationAdapter):
 
             detailed_evaluation_results = DetailedEvaluationResults(
                 format=Format.jsonl,
-                file_path=instance_level_log_path,
+                file_path=Path(instance_level_log_path).name,
                 hash_algorithm=HashAlgorithm.sha256,
                 checksum=sha256_file(instance_level_log_path),
                 total_rows=instance_level_rows_number,

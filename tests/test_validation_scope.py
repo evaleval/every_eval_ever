@@ -1,0 +1,254 @@
+"""Focused coverage for the scoped validator rules retained from PR #194."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import pytest
+from pydantic import ValidationError
+
+from every_eval_ever.eval_types import (
+    DetailedEvaluationResults,
+    ModelInfo,
+)
+from every_eval_ever.validate import (
+    check_path_structure,
+    check_score_metadata,
+    repo_path_from_path,
+    validate_aggregate,
+)
+
+UUID = '550e8400-e29b-41d4-a716-446655440000'
+AGGREGATE_REPO_PATH = f'data/bench/dev/model/{UUID}.json'
+COMPANION_REPO_PATH = f'data/bench/dev/model/{UUID}_samples.jsonl'
+
+
+def valid_aggregate() -> dict:
+    return {
+        'schema_version': '0.2.2',
+        'evaluation_id': 'bench/dev_model/123',
+        'retrieved_timestamp': '123',
+        'source_metadata': {
+            'source_type': 'evaluation_run',
+            'source_organization_name': 'Test',
+            'evaluator_relationship': 'third_party',
+        },
+        'eval_library': {'name': 'unknown', 'version': 'unknown'},
+        'model_info': {
+            'name': 'model',
+            'id': 'dev/model',
+            'additional_details': {
+                'deployment_type': 'unknown',
+                'model_availability': 'unknown',
+            },
+        },
+        'evaluation_results': [
+            {
+                'evaluation_name': 'bench',
+                'source_data': {
+                    'dataset_name': 'bench',
+                    'source_type': 'other',
+                },
+                'metric_config': {
+                    'lower_is_better': False,
+                    'score_type': 'binary',
+                },
+                'score_details': {'score': 1.0},
+            }
+        ],
+    }
+
+
+def write_aggregate(tmp_path: Path, data: dict) -> Path:
+    path = tmp_path / UUID / f'{UUID}.json'
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data), encoding='utf-8')
+    return path
+
+
+def validate_data(
+    tmp_path: Path,
+    data: dict,
+    *,
+    available_files: set[str] | None = None,
+):
+    return validate_aggregate(
+        write_aggregate(tmp_path, data),
+        repo_path=AGGREGATE_REPO_PATH,
+        available_files=available_files or {AGGREGATE_REPO_PATH},
+    )
+
+
+def test_path_structure_accepts_only_datastore_file_conventions():
+    assert check_path_structure(AGGREGATE_REPO_PATH) == []
+    assert check_path_structure(COMPANION_REPO_PATH) == []
+    assert check_path_structure(f'data/bench/dev/model/{UUID}.jsonl')
+    assert check_path_structure(f'data/bench/dev/model/{UUID}_samples.json')
+
+
+def test_repo_path_uses_explicit_root_and_ignores_data_ancestor(tmp_path):
+    root = tmp_path / 'data' / 'checkout'
+    path = root / AGGREGATE_REPO_PATH
+    assert repo_path_from_path(path, repo_root=root) == AGGREGATE_REPO_PATH
+    assert repo_path_from_path(path) == AGGREGATE_REPO_PATH
+
+
+def test_companion_check_uses_declared_path(tmp_path):
+    data = valid_aggregate()
+    data['detailed_evaluation_results'] = {
+        'format': 'jsonl',
+        'file_path': 'different_samples.jsonl',
+    }
+    report = validate_data(
+        tmp_path,
+        data,
+        available_files={AGGREGATE_REPO_PATH, COMPANION_REPO_PATH},
+    )
+    assert report.valid is False
+    assert any(
+        'different_samples.jsonl' in error['msg'] for error in report.errors
+    )
+
+
+def test_companion_check_accepts_existing_declared_relative_path(tmp_path):
+    data = valid_aggregate()
+    data['detailed_evaluation_results'] = {
+        'format': 'jsonl',
+        'file_path': f'{UUID}_samples.jsonl',
+    }
+    report = validate_data(
+        tmp_path,
+        data,
+        available_files={AGGREGATE_REPO_PATH, COMPANION_REPO_PATH},
+    )
+    assert report.valid is True, report.errors
+
+
+def test_companion_check_enforces_companion_path_convention(tmp_path):
+    data = valid_aggregate()
+    data['detailed_evaluation_results'] = {
+        'format': 'jsonl',
+        'file_path': 'details.jsonl',
+    }
+    report = validate_data(
+        tmp_path,
+        data,
+        available_files={
+            AGGREGATE_REPO_PATH,
+            'data/bench/dev/model/details.jsonl',
+        },
+    )
+
+    assert report.valid is False
+    assert any(
+        'invalid datastore path' in error['msg'] for error in report.errors
+    )
+
+
+def test_single_aggregate_validation_finds_local_companion(tmp_path):
+    data = valid_aggregate()
+    data['detailed_evaluation_results'] = {
+        'format': 'jsonl',
+        'file_path': f'{UUID}_samples.jsonl',
+    }
+    aggregate_path = write_aggregate(tmp_path, data)
+    companion_path = aggregate_path.with_name(f'{UUID}_samples.jsonl')
+    companion_path.write_text('', encoding='utf-8')
+
+    report = validate_aggregate(
+        aggregate_path,
+        repo_path=AGGREGATE_REPO_PATH,
+    )
+
+    assert report.valid is True, report.errors
+
+
+def test_companion_check_rejects_absolute_and_parent_paths(tmp_path):
+    for file_path in (
+        '/tmp/details.jsonl',
+        '../details.jsonl',
+        r'C:\tmp\details.jsonl',
+    ):
+        data = valid_aggregate()
+        data['detailed_evaluation_results'] = {
+            'format': 'jsonl',
+            'file_path': file_path,
+        }
+        report = validate_data(tmp_path, data)
+        assert report.valid is False
+        assert any(
+            'parent traversal' in error['msg'] for error in report.errors
+        )
+
+
+def test_score_bounds_are_required_only_for_continuous_metrics():
+    data = valid_aggregate()
+    metric = data['evaluation_results'][0]['metric_config']
+    assert check_score_metadata(data) == []
+
+    metric.pop('score_type')
+    assert check_score_metadata(data) == []
+
+    metric['score_type'] = 'continuous'
+    findings = check_score_metadata(data)
+    assert any('min_score' in finding for finding in findings)
+    assert any('max_score' in finding for finding in findings)
+
+
+def test_score_bounds_accept_infinity_and_reject_reversed_ranges():
+    data = valid_aggregate()
+    metric = data['evaluation_results'][0]['metric_config']
+    metric.update(
+        {
+            'score_type': 'continuous',
+            'min_score': '-Infinity',
+            'max_score': 'Infinity',
+        }
+    )
+    assert check_score_metadata(data) == []
+
+    metric.update({'min_score': 2, 'max_score': 1})
+    assert any(
+        'greater than max_score' in finding
+        for finding in check_score_metadata(data)
+    )
+
+
+def test_model_unknown_placeholders_pass_but_missing_raw_fields_fail(tmp_path):
+    assert validate_data(tmp_path, valid_aggregate()).valid is True
+
+    missing = valid_aggregate()
+    missing['model_info'].pop('additional_details')
+    report = validate_data(tmp_path, missing)
+    assert report.valid is False
+    assert any('deployment_type' in error['msg'] for error in report.errors)
+    assert any('model_availability' in error['msg'] for error in report.errors)
+
+
+def test_model_info_objects_default_new_fields_to_unknown():
+    model = ModelInfo(name='model', id='dev/model')
+    assert model.additional_details == {
+        'deployment_type': 'unknown',
+        'model_availability': 'unknown',
+    }
+
+
+def test_detailed_results_requires_jsonl_path():
+    with pytest.raises(ValidationError):
+        DetailedEvaluationResults()
+    with pytest.raises(ValidationError):
+        DetailedEvaluationResults(format='json', file_path='details.json')
+
+
+def test_strict_json_rejects_nonfinite_tokens_and_duplicate_keys(tmp_path):
+    path = write_aggregate(tmp_path, valid_aggregate())
+    path.write_text('{"score": NaN}', encoding='utf-8')
+    report = validate_aggregate(path, repo_path=AGGREGATE_REPO_PATH)
+    assert report.valid is False
+    assert 'non-finite JSON number' in report.errors[0]['msg']
+
+    path.write_text('{"x": 1, "x": 2}', encoding='utf-8')
+    report = validate_aggregate(path, repo_path=AGGREGATE_REPO_PATH)
+    assert report.valid is False
+    assert 'duplicate JSON object key' in report.errors[0]['msg']

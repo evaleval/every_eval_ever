@@ -219,13 +219,20 @@
                                 "description": "Indicates whether there is an Unknown Level - if True, then a score of -1 will be treated as Unknown"
                             },
                             "min_score": {
-                                "type": "number",
-                 
-                                "description": "Minimum possible score for continuous metric"
+                                "oneOf": [
+                                    { "type": "number" },
+                                    { "type": "string", "enum": ["Infinity", "-Infinity"] },
+                                    { "type": "null" }
+                                ],
+                                "description": "Minimum possible score for a continuous metric. Use the string \"-Infinity\" when unbounded below. Absence/null means not provided."
                             },
                             "max_score": {
-                                "type": "number",
-                                "description": "Maximum possible score for continuous metric"
+                                "oneOf": [
+                                    { "type": "number" },
+                                    { "type": "string", "enum": ["Infinity", "-Infinity"] },
+                                    { "type": "null" }
+                                ],
+                                "description": "Maximum possible score for a continuous metric. Use the string \"Infinity\" when unbounded above. Absence/null means not provided."
                             },
                             "llm_scoring": {
                                 "type": "object",
@@ -279,6 +286,9 @@
                             }
                         },
                         "if": {
+                            "required": [
+                                "score_type"
+                            ],
                             "properties": {
                                 "score_type": {
                                     "const": "levels"
@@ -293,6 +303,9 @@
                         },
                         "else": {
                             "if": {
+                                "required": [
+                                    "score_type"
+                                ],
                                 "properties": {
                                     "score_type": {
                                         "const": "continuous"
@@ -543,13 +556,16 @@
         "detailed_evaluation_results": {
             "type": "object",
             "description": "Reference to the evaluation results for all individual samples in the evaluation",
+            "required": [
+                "format",
+                "file_path"
+            ],
             "properties": {
                 "format": {
                     "type": "string",
                     "description": "Format of the detailed evaluation results",
                     "enum": [
-                        "jsonl",
-                        "json"
+                        "jsonl"
                     ]
                 },
                 "file_path": {

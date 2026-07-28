@@ -56,7 +56,7 @@ MODEL_TYPE_TO_INFERENCE_ENGINE = {
 }
 
 # Known metric bounds: metric_name -> (min_score, max_score)
-# max_score of None means unbounded
+# Infinite bounds are serialized as the JSON strings "Infinity"/"-Infinity".
 KNOWN_METRIC_BOUNDS = {
     'acc': (0.0, 1.0),
     'acc_norm': (0.0, 1.0),
@@ -71,6 +71,10 @@ KNOWN_METRIC_BOUNDS = {
     'rouge2': (0.0, 1.0),
     'rougeL': (0.0, 1.0),
     'rougeLsum': (0.0, 1.0),
-    'ter': (0.0, None),
+    'ter': (0.0, float('inf')),
+    'word_perplexity': (1.0, float('inf')),
+    'byte_perplexity': (1.0, float('inf')),
+    'perplexity': (1.0, float('inf')),
+    'bits_per_byte': (0.0, float('inf')),
     'brier_score': (0.0, 1.0),
 }

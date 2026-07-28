@@ -9,14 +9,37 @@ from every_eval_ever.validate import (
     expand_paths,
     render_report_github,
     render_report_json,
-    validate_aggregate,
-    validate_file,
-    validate_instance_file,
+)
+from every_eval_ever.validate import (
+    validate_aggregate as _validate_aggregate,
+)
+from every_eval_ever.validate import (
+    validate_file as _validate_file,
+)
+from every_eval_ever.validate import (
+    validate_instance_file as _validate_instance_file,
 )
 
 # ---------------------------------------------------------------------------
 # Helpers — minimal valid data fixtures
 # ---------------------------------------------------------------------------
+
+
+def validate_aggregate(file_path: Path, **kwargs):
+    """Keep legacy schema tests independent from the new semantic rules."""
+    kwargs.setdefault('run_semantic_checks', False)
+    return _validate_aggregate(file_path, **kwargs)
+
+
+def validate_instance_file(file_path: Path, *args, **kwargs):
+    kwargs.setdefault('run_semantic_checks', False)
+    return _validate_instance_file(file_path, *args, **kwargs)
+
+
+def validate_file(file_path: Path, *args, **kwargs):
+    kwargs.setdefault('run_semantic_checks', False)
+    return _validate_file(file_path, *args, **kwargs)
+
 
 VALID_AGGREGATE: dict = {
     'schema_version': '0.2.2',

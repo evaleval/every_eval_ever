@@ -251,20 +251,26 @@ class LMEvalAdapter(BaseEvaluationAdapter):
             is_higher_better = higher_is_better.get(metric_name, True)
 
             bounds = KNOWN_METRIC_BOUNDS.get(metric_name)
-            min_score = bounds[0] if bounds else None
-            max_score = bounds[1] if bounds else None
 
             description = metric_name
             if filter_name != 'none':
                 description = f'{metric_name} (filter: {filter_name})'
 
-            metric_config = MetricConfig(
-                evaluation_description=description,
-                lower_is_better=not is_higher_better,
-                score_type=ScoreType.continuous,
-                min_score=min_score,
-                max_score=max_score,
-            )
+            if bounds is None:
+                # Preserve metrics whose mathematical range is not yet known
+                # without falsely declaring them continuous and unbounded.
+                metric_config = MetricConfig(
+                    evaluation_description=description,
+                    lower_is_better=not is_higher_better,
+                )
+            else:
+                metric_config = MetricConfig(
+                    evaluation_description=description,
+                    lower_is_better=not is_higher_better,
+                    score_type=ScoreType.continuous,
+                    min_score=bounds[0],
+                    max_score=bounds[1],
+                )
 
             uncertainty = None
             num_samples = (

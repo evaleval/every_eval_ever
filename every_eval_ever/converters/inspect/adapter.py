@@ -657,7 +657,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
 
             detailed_evaluation_results = DetailedEvaluationResults(
                 format=Format.jsonl,
-                file_path=instance_level_log_path,
+                file_path=Path(instance_level_log_path).name,
                 hash_algorithm=HashAlgorithm.sha256.value,
                 checksum=sha256_file(instance_level_log_path),
                 total_rows=instance_level_rows_number,

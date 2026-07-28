@@ -52,10 +52,14 @@ def _load_eval_and_instances(filepath, metadata_args=None):
 
         instance_logs = []
         if converted.detailed_evaluation_results:
-            instance_path = Path(
-                converted.detailed_evaluation_results.file_path
+            matches = list(
+                Path(tmpdir).rglob(
+                    converted.detailed_evaluation_results.file_path
+                )
             )
-            if instance_path.exists():
+            if matches:
+                assert len(matches) == 1
+                instance_path = matches[0]
                 with instance_path.open('r', encoding='utf-8') as f:
                     for line in f:
                         if line.strip():

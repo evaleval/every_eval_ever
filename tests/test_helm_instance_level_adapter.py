@@ -7,14 +7,14 @@ import pytest
 
 from every_eval_ever.converters.helm import adapter as helm_adapter_module
 from every_eval_ever.converters.helm.adapter import HELMAdapter
-from every_eval_ever.converters.helm.metrics import is_core_metric
 from every_eval_ever.converters.helm.instance_level_adapter import (
-    HELMInstanceLevelDataAdapter,
     _BINARY_CORRECTNESS_METRIC_NAMES,
+    HELMInstanceLevelDataAdapter,
     _evaluation_result_id,
     _is_correct_for_metric,
     _score_from_stat,
 )
+from every_eval_ever.converters.helm.metrics import is_core_metric
 from every_eval_ever.eval_types import EvaluatorRelationship
 from every_eval_ever.instance_level_types import (
     InstanceLevelEvaluationLog,
@@ -45,8 +45,13 @@ def _load_instance_level_data(adapter, filepath, metadata_args):
 
     converted_eval = converted_eval_list[0]
 
-    instance_level_path = Path(
-        converted_eval.detailed_evaluation_results.file_path
+    model_dev, model_name = converted_eval.model_info.id.split('/', 1)
+    instance_level_path = (
+        Path(metadata_args['parent_eval_output_dir'])
+        / converted_eval.evaluation_results[0].source_data.dataset_name
+        / model_dev
+        / model_name
+        / converted_eval.detailed_evaluation_results.file_path
     )
     instance_logs = []
     with instance_level_path.open('r', encoding='utf-8') as f:

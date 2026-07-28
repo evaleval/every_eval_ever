@@ -22,6 +22,7 @@ PATCHES = [
         'file': 'every_eval_ever/instance_level_types.py',
         'import_add': 'model_validator',
         'class_name': 'InstanceLevelEvaluationLog',
+        'marker': 'def validate_interaction_type_consistency',
         'validator': """
     # --- validators (added by post_codegen.py) ---
 
@@ -49,9 +50,27 @@ PATCHES = [
     {
         'file': 'every_eval_ever/eval_types.py',
         'import_add': 'model_validator',
-        'class_name': 'MetricConfig',
+        'class_name': 'ModelInfo',
+        'marker': 'def default_model_metadata',
         'validator': """
-    # --- validators (added by post_codegen.py) ---
+    # --- validator (added by post_codegen.py) ---
+
+    @model_validator(mode="after")
+    def default_model_metadata(self):
+        details = dict(self.additional_details or {})
+        details.setdefault("deployment_type", "unknown")
+        details.setdefault("model_availability", "unknown")
+        self.additional_details = details
+        return self
+""",
+    },
+    {
+        'file': 'every_eval_ever/eval_types.py',
+        'import_add': ['model_validator', 'field_serializer'],
+        'class_name': 'MetricConfig',
+        'marker': 'def validate_score_type_requirements',
+        'validator': """
+    # --- validators / serializers (added by post_codegen.py) ---
 
     @model_validator(mode="after")
     def validate_score_type_requirements(self):
@@ -65,7 +84,27 @@ PATCHES = [
                 raise ValueError("score_type 'continuous' requires min_score")
             if self.max_score is None:
                 raise ValueError("score_type 'continuous' requires max_score")
+        # A NaN bound is never meaningful (and NaN != NaN breaks comparisons).
+        # inf/-inf are allowed (unbounded); null is handled above per score_type.
+        for _name in ('min_score', 'max_score'):
+            _v = getattr(self, _name)
+            if _v is not None and _v != _v:
+                raise ValueError(f'{_name} must not be NaN')
         return self
+
+    @field_serializer('min_score', 'max_score', when_used='json')
+    def _serialize_bound(self, value):
+        # An unbounded bound is +/-inf; emit it as the JSON string
+        # "Infinity"/"-Infinity" (valid JSON that reads back to a float) rather
+        # than pydantic's default null or the non-standard bare Infinity token.
+        # when_used='json' covers BOTH model_dump_json() and
+        # model_dump(mode='json'); mode='python' keeps the native float. null
+        # stays null (reserved for "not provided", never unbounded).
+        if value == float('inf'):
+            return 'Infinity'
+        if value == float('-inf'):
+            return '-Infinity'
+        return value
 """,
     },
 ]
@@ -84,14 +123,45 @@ DISCRIMINATOR_PATCH = {
 
 def add_import(content: str, symbol: str) -> str:
     """Add a symbol to the pydantic import line if not already present."""
-    if symbol in content:
+    block_match = re.search(
+        r'from pydantic import \(\n(?P<body>.*?)\n\)',
+        content,
+        re.DOTALL,
+    )
+    if block_match:
+        imports = [
+            line.strip().removesuffix(',')
+            for line in block_match.group('body').splitlines()
+            if line.strip()
+        ]
+        if symbol in imports:
+            return content
+        imports.append(symbol)
+        body = ''.join(
+            f'    {item},\n' for item in sorted(set(imports), key=str.casefold)
+        ).rstrip()
+        replacement = f'from pydantic import (\n{body}\n)'
+        return (
+            content[: block_match.start()]
+            + replacement
+            + content[block_match.end() :]
+        )
+
+    line_match = re.search(r'from pydantic import (.+)', content)
+    if line_match is None:
+        raise ValueError('pydantic import not found')
+    imports = [item.strip() for item in line_match.group(1).split(',')]
+    if symbol in imports:
         return content
-
-    def replacer(m):
-        existing = m.group(1)
-        return f'from pydantic import {existing}, {symbol}'
-
-    return re.sub(r'from pydantic import (.+)', replacer, content, count=1)
+    imports.append(symbol)
+    replacement = 'from pydantic import ' + ', '.join(
+        sorted(set(imports), key=str.casefold)
+    )
+    return (
+        content[: line_match.start()]
+        + replacement
+        + content[line_match.end() :]
+    )
 
 
 def append_to_last_class_field(
@@ -126,12 +196,13 @@ def patch_file(patch: dict) -> None:
     path = Path(__file__).parent / patch['file']
     content = path.read_text()
 
-    # Check if already patched
-    if 'post_codegen.py' in content:
+    if patch['marker'] in content:
         print(f'  {patch["file"]}: already patched, skipping')
         return
 
-    content = add_import(content, patch['import_add'])
+    imports = patch['import_add']
+    for symbol in [imports] if isinstance(imports, str) else imports:
+        content = add_import(content, symbol)
     content = append_to_last_class_field(
         content, patch['class_name'], patch['validator']
     )
@@ -145,8 +216,15 @@ def apply_discriminator_patch(patch: dict) -> None:
     path = Path(__file__).parent / patch['file']
     content = path.read_text()
 
-    # Check if the specific replacement has already been applied
-    if patch['replacement'] in content:
+    # Ruff may expand the replacement across several lines, so detect the
+    # resulting annotation structurally instead of relying on exact formatting.
+    discriminator_pattern = re.compile(
+        r'source_data:\s*Annotated\[\s*'
+        r'SourceDataUrl\s*\|\s*SourceDataHf\s*\|\s*SourceDataPrivate\s*,'
+        r'\s*Discriminator\([\'"]source_type[\'"]\)',
+        re.DOTALL,
+    )
+    if discriminator_pattern.search(content):
         print(f'  {patch["file"]}: discriminator already patched, skipping')
         return
 

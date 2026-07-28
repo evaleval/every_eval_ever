@@ -14,6 +14,7 @@ from pydantic import (
     Field,
     confloat,
     conint,
+    field_serializer,
     model_validator,
 )
 
@@ -250,7 +251,6 @@ class GenerationConfig(BaseModel):
 
 class Format(Enum):
     jsonl = 'jsonl'
-    json = 'json'
 
 
 class HashAlgorithm(Enum):
@@ -259,11 +259,11 @@ class HashAlgorithm(Enum):
 
 
 class DetailedEvaluationResults(BaseModel):
-    format: Format | None = Field(
-        None, description='Format of the detailed evaluation results'
+    format: Format = Field(
+        ..., description='Format of the detailed evaluation results'
     )
-    file_path: str | None = Field(
-        None, description='Path to the detailed evaluation results file'
+    file_path: str = Field(
+        ..., description='Path to the detailed evaluation results file'
     )
     hash_algorithm: HashAlgorithm | None = Field(
         None,
@@ -311,6 +311,17 @@ class ModelInfo(BaseModel):
         None,
         description='Additional parameters (key-value pairs, all values must be strings)',
     )
+
+    # --- validator (added by post_codegen.py) ---
+
+    @model_validator(mode='after')
+    def default_model_metadata(self):
+        """Emit compatibility placeholders for the new model metadata axes."""
+        details = dict(self.additional_details or {})
+        details.setdefault('deployment_type', 'unknown')
+        details.setdefault('model_availability', 'unknown')
+        self.additional_details = details
+        return self
 
 
 class SourceDataUrl(BaseModel):
@@ -428,10 +439,12 @@ class MetricConfig(BaseModel):
         description='Indicates whether there is an Unknown Level - if True, then a score of -1 will be treated as Unknown',
     )
     min_score: float | None = Field(
-        None, description='Minimum possible score for continuous metric'
+        None,
+        description='Minimum possible score for a continuous metric. Use -inf if unbounded below; null means not provided.',
     )
     max_score: float | None = Field(
-        None, description='Maximum possible score for continuous metric'
+        None,
+        description='Maximum possible score for a continuous metric. Use inf if unbounded above; null means not provided.',
     )
     llm_scoring: LlmScoring | None = Field(
         None, description='Configuration when LLM is used as scorer/judge'
@@ -457,7 +470,19 @@ class MetricConfig(BaseModel):
                 raise ValueError("score_type 'continuous' requires min_score")
             if self.max_score is None:
                 raise ValueError("score_type 'continuous' requires max_score")
+        for name in ('min_score', 'max_score'):
+            value = getattr(self, name)
+            if value is not None and value != value:
+                raise ValueError(f'{name} must not be NaN')
         return self
+
+    @field_serializer('min_score', 'max_score', when_used='json')
+    def _serialize_bound(self, value):
+        if value == float('inf'):
+            return 'Infinity'
+        if value == float('-inf'):
+            return '-Infinity'
+        return value
 
 
 class EvaluationResult(BaseModel):
