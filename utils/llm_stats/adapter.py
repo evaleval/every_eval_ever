@@ -37,14 +37,18 @@ from every_eval_ever.eval_types import (
 )
 from every_eval_ever.helpers import (
     SCHEMA_VERSION,
+    EvaluationLogOutput,
     FetchError,
+    SourceConversionResult,
+    SourceRecordFailure,
+    default_failure_report_path,
     fetch_json,
     get_developer,
     sanitize_filename,
-    save_evaluation_log,
+    save_evaluation_logs,
+    save_failure_report,
 )
 from every_eval_ever.helpers.io import (
-    raise_for_failed_records,
     require_identity,
 )
 
@@ -228,6 +232,14 @@ def parse_args() -> argparse.Namespace:
         default=Path(DEFAULT_OUTPUT_DIR),
         help=f'Output directory (default: {DEFAULT_OUTPUT_DIR}).',
     )
+    parser.add_argument(
+        '--failure-report',
+        type=Path,
+        help=(
+            'Write rejected source rows and reasons here. Defaults beside '
+            '--output-dir when any row fails.'
+        ),
+    )
     return parser.parse_args()
 
 
@@ -345,10 +357,11 @@ def fetch_payload(api_key: str, base_url: str) -> dict[str, Any]:
         headers=headers,
     )
 
+    source_failures: list[SourceRecordFailure] = []
     try:
         scores = fetch_json(api_url(base_url, '/v1/scores'), headers=headers)
     except FetchError:
-        scores = fetch_benchmark_score_payloads(
+        scores, source_failures = fetch_benchmark_score_payloads(
             extract_collection(benchmarks, 'benchmarks'),
             base_url,
             headers,
@@ -358,6 +371,9 @@ def fetch_payload(api_key: str, base_url: str) -> dict[str, Any]:
         'models': models,
         'benchmarks': benchmarks,
         'scores': scores,
+        'source_failures': [
+            failure.model_dump() for failure in source_failures
+        ],
     }
 
 
@@ -365,26 +381,44 @@ def fetch_benchmark_score_payloads(
     benchmarks: list[dict[str, Any]],
     base_url: str,
     headers: dict[str, str],
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], list[SourceRecordFailure]]:
     scores: list[dict[str, Any]] = []
+    failures: list[SourceRecordFailure] = []
 
-    for benchmark in benchmarks:
+    for index, benchmark in enumerate(benchmarks):
         benchmark_id = benchmark_source_id(benchmark)
         if benchmark_id == 'unknown':
+            failures.append(
+                SourceRecordFailure(
+                    source_ref=f'benchmark row {index}',
+                    reason='missing benchmark identity',
+                    source_record=benchmark,
+                )
+            )
             continue
 
+        detail_url = api_url(
+            base_url,
+            f'/leaderboard/benchmarks/{benchmark_id}',
+        )
         try:
             detail = fetch_json(
-                api_url(base_url, f'/leaderboard/benchmarks/{benchmark_id}'),
+                detail_url,
                 headers=headers,
             )
         except FetchError as exc:
-            print(f'Skipping benchmark {benchmark_id!r}: {exc}')
+            failures.append(
+                SourceRecordFailure(
+                    source_ref=detail_url,
+                    reason=str(exc),
+                    source_record=benchmark,
+                )
+            )
             continue
 
         scores.extend(scores_from_benchmark_detail(detail, benchmark))
 
-    return scores
+    return scores, failures
 
 
 def scores_from_benchmark_detail(
@@ -1231,12 +1265,21 @@ def source_metadata(
     )
 
 
-def make_logs(
+def convert_logs(
     payload: dict[str, Any],
     base_url: str = DEFAULT_BASE_URL,
     retrieved_timestamp: str | None = None,
-) -> list[LogBundle]:
+) -> SourceConversionResult[LogBundle]:
     models, benchmarks, scores = validate_payload(payload)
+    source_failures = [
+        SourceRecordFailure(
+            source_ref=str(failure.get('source_ref') or 'unknown source'),
+            reason=str(failure.get('reason') or 'unknown failure'),
+            source_record=failure.get('source_record'),
+        )
+        for failure in payload.get('source_failures', [])
+        if isinstance(failure, dict)
+    ]
     model_index = build_index(models, MODEL_ID_KEYS)
     benchmark_index = build_index(benchmarks, BENCHMARK_ID_KEYS)
     timestamp = retrieved_timestamp or str(time.time())
@@ -1246,7 +1289,7 @@ def make_logs(
     )
     model_infos: dict[tuple[str, str, str], ModelInfo] = {}
 
-    failures: list[tuple[int, str]] = []
+    score_failures: list[SourceRecordFailure] = []
     for index, score in enumerate(scores):
         try:
             model = resolve_model(score, model_index)
@@ -1261,9 +1304,18 @@ def make_logs(
             groups[key].append(result)
             model_infos[key] = model_info
         except Exception as exc:
-            failures.append((index, str(exc)))
-
-    raise_for_failed_records('LLM Stats', len(scores), failures)
+            score_id = first_present(score, ('id', 'score_id', 'scoreId'))
+            score_failures.append(
+                SourceRecordFailure(
+                    source_ref=(
+                        f'score {score_id!r}'
+                        if score_id is not None
+                        else f'score row {index}'
+                    ),
+                    reason=str(exc),
+                    source_record=score,
+                )
+            )
 
     bundles: list[LogBundle] = []
     for (developer, model_slug, relationship), results in sorted(
@@ -1288,23 +1340,43 @@ def make_logs(
             LogBundle(log=log, developer=developer, model=model_slug)
         )
 
-    if not bundles:
+    failures = [*source_failures, *score_failures]
+    if not bundles and not failures:
         raise ValueError('LLM Stats: converted 0 source records')
-    return bundles
+    if source_failures and score_failures:
+        total_records = len(benchmarks) + len(scores)
+    elif source_failures:
+        total_records = len(benchmarks)
+    else:
+        total_records = len(scores)
+    return SourceConversionResult(
+        source_name='LLM Stats',
+        total_records=total_records,
+        records=bundles,
+        failures=failures,
+    )
+
+
+def make_logs(
+    payload: dict[str, Any],
+    base_url: str = DEFAULT_BASE_URL,
+    retrieved_timestamp: str | None = None,
+) -> list[LogBundle]:
+    result = convert_logs(payload, base_url, retrieved_timestamp)
+    result.raise_if_incomplete()
+    return result.records
 
 
 def export_logs(bundles: list[LogBundle], output_dir: Path) -> list[Path]:
-    paths = []
-    for bundle in bundles:
-        paths.append(
-            save_evaluation_log(
-                bundle.log,
-                output_dir,
-                bundle.developer,
-                bundle.model,
-            )
+    return save_evaluation_logs(
+        EvaluationLogOutput(
+            eval_log=bundle.log,
+            base_dir=output_dir,
+            developer=bundle.developer,
+            model_name=bundle.model,
         )
-    return paths
+        for bundle in bundles
+    )
 
 
 def run(args: argparse.Namespace) -> int:
@@ -1327,10 +1399,17 @@ def run(args: argparse.Namespace) -> int:
         payload = fetch_payload(api_key, args.base_url)
 
     maybe_save_raw_json(payload, args.save_raw_json)
-    bundles = make_logs(payload, args.base_url)
-    paths = export_logs(bundles, args.output_dir)
+    result = convert_logs(payload, args.base_url)
+    paths = export_logs(result.records, args.output_dir)
     for path in paths:
         print(path)
+    if result.failures:
+        report_path = save_failure_report(
+            result,
+            args.failure_report or default_failure_report_path(args.output_dir),
+        )
+        print(f'Failure report: {report_path}')
+        result.raise_if_incomplete()
     return len(paths)
 
 

@@ -24,19 +24,27 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import json
 import re
 import time
-import uuid
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from html import unescape
 from pathlib import Path
 from typing import Optional
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
+from every_eval_ever.eval_types import EvaluationLog
 from every_eval_ever.helpers import SCHEMA_VERSION
-from every_eval_ever.helpers.io import generate_output_path
+from every_eval_ever.helpers.io import (
+    EvaluationLogOutput,
+    SourceConversionResult,
+    SourceRecordExclusion,
+    SourceRecordFailure,
+    default_failure_report_path,
+    require_identity,
+    save_evaluation_logs,
+    save_failure_report,
+)
 
 HAL_BASE_URL = "https://hal.cs.princeton.edu"
 
@@ -360,7 +368,9 @@ def get_model_id(raw_model: str) -> str:
     slug = re.sub(r'-+', '-', slug)
     if developer != "unknown":
         return f"{developer}/{slug}"
-    return f"unknown/{slug}"
+    raise ValueError(
+        f"Cannot determine HAL model developer from {raw_model!r}"
+    )
 
 
 def slugify(text: str) -> str:
@@ -422,7 +432,7 @@ class LeaderboardRow:
     accuracy_ci: Optional[str]
     cost_usd: Optional[float]
     cost_ci: Optional[str]
-    runs: int
+    runs: Optional[int]
     extra_scores: dict[str, Optional[float]] = field(default_factory=dict)
     notes: Optional[str] = None  # e.g. "(95.5% w/ manual validation)"
 
@@ -450,7 +460,9 @@ def _parse_agent_cell(raw: str) -> tuple[str, bool, bool, Optional[str]]:
     return name, is_pareto, bool(submitter), submitter
 
 
-def _parse_accuracy_cell(raw: str) -> tuple[float, Optional[str], Optional[str]]:
+def _parse_accuracy_cell(
+    raw: str,
+) -> tuple[Optional[float], Optional[str], Optional[str]]:
     """
     Parse accuracy cell, which may include notes like '(95.5% w/ manual validation)'.
     Returns: (accuracy_fraction, confidence_interval, notes_string)
@@ -464,11 +476,14 @@ def _parse_accuracy_cell(raw: str) -> tuple[float, Optional[str], Optional[str]]
     accuracy = _parse_percent(raw)
     ci_m = re.search(r'%\s*\(([+-][\d.]+/[+-][\d.]+)\)', raw)
     ci = ci_m.group(1) if ci_m else None
-    return accuracy or 0.0, ci, notes
+    return accuracy, ci, notes
 
 
-def parse_table(html: str, benchmark: BenchmarkDef) -> list[LeaderboardRow]:
-    """Parse the main leaderboard table from a HAL benchmark page."""
+def parse_table_result(
+    html: str,
+    benchmark: BenchmarkDef,
+) -> SourceConversionResult[LeaderboardRow]:
+    """Parse data rows and retain malformed/non-data row provenance."""
     m = re.search(r'<tbody[^>]*>(.*?)</tbody>', html, re.DOTALL)
     if not m:
         raise ValueError(f"No <tbody> found on {benchmark.slug} page")
@@ -476,24 +491,38 @@ def parse_table(html: str, benchmark: BenchmarkDef) -> list[LeaderboardRow]:
     tbody = m.group(1)
     raw_rows = re.findall(r'<tr[^>]*>(.*?)</tr>', tbody, re.DOTALL)
     results: list[LeaderboardRow] = []
+    failures: list[SourceRecordFailure] = []
+    exclusions: list[SourceRecordExclusion] = []
 
     is_gaia = bool(benchmark.extra_metrics)
     has_extra = len(benchmark.extra_metrics)
 
-    for raw_row in raw_rows:
+    for row_index, raw_row in enumerate(raw_rows):
+        row_ref = f"{benchmark.slug} HTML table row {row_index + 1}"
         raw_cells = re.findall(r'<td[^>]*>(.*?)</td>', raw_row, re.DOTALL)
         cells = [_clean_cell(c) for c in raw_cells]
 
-        # Skip empty or very short rows
         if len(cells) < 6:
+            exclusions.append(
+                SourceRecordExclusion(
+                    source_ref=row_ref,
+                    reason="not a leaderboard data row (fewer than 6 cells)",
+                    source_record={"cells": cells},
+                )
+            )
             continue
 
-        try:
-            rank = int(re.sub(r'\D', '', cells[0])) if cells[0].strip() else 0
-        except (ValueError, IndexError):
+        rank_text = re.sub(r'\D', '', cells[0])
+        if not rank_text:
+            exclusions.append(
+                SourceRecordExclusion(
+                    source_ref=row_ref,
+                    reason="not a ranked leaderboard row",
+                    source_record={"cells": cells},
+                )
+            )
             continue
-        if rank == 0:
-            continue
+        rank = int(rank_text)
 
         agent_name, is_pareto, _, submitter = _parse_agent_cell(cells[1])
         model_raw = cells[2]
@@ -501,6 +530,15 @@ def parse_table(html: str, benchmark: BenchmarkDef) -> list[LeaderboardRow]:
 
         accuracy_raw = cells[4]
         accuracy, accuracy_ci, notes = _parse_accuracy_cell(accuracy_raw)
+        if accuracy is None:
+            failures.append(
+                SourceRecordFailure(
+                    source_ref=f"{row_ref} accuracy",
+                    reason=f"could not parse percentage from {accuracy_raw!r}",
+                    source_record={"cells": cells},
+                )
+            )
+            continue
 
         # For GAIA: cells[5], [6], [7] are level scores; cost is cells[8]
         extra_scores: dict[str, Optional[float]] = {}
@@ -509,23 +547,62 @@ def parse_table(html: str, benchmark: BenchmarkDef) -> list[LeaderboardRow]:
             for i, em in enumerate(benchmark.extra_metrics):
                 cell_idx = 5 + i
                 if cell_idx < len(cells):
-                    extra_scores[em["key"]] = _parse_percent(cells[cell_idx])
+                    raw_extra = cells[cell_idx]
+                    parsed_extra = _parse_percent(raw_extra)
+                    extra_scores[em["key"]] = parsed_extra
+                    if raw_extra and parsed_extra is None:
+                        failures.append(
+                            SourceRecordFailure(
+                                source_ref=(
+                                    f"{row_ref} metric {em['key']!r}"
+                                ),
+                                reason=(
+                                    "could not parse percentage from "
+                                    f"{raw_extra!r}"
+                                ),
+                                source_record={
+                                    "cells": cells,
+                                    "metric": em["key"],
+                                    "value": raw_extra,
+                                },
+                            )
+                        )
             cost_idx = 5 + has_extra
 
         cost_raw = cells[cost_idx] if cost_idx < len(cells) else ""
         cost_usd = _parse_cost(cost_raw)
+        if (
+            cost_raw
+            and cost_raw.lower() not in {"n/a", "na", "-", "—"}
+            and cost_usd is None
+        ):
+            failures.append(
+                SourceRecordFailure(
+                    source_ref=f"{row_ref} cost",
+                    reason=f"could not parse cost from {cost_raw!r}",
+                    source_record={"cells": cells, "value": cost_raw},
+                )
+            )
         cost_ci = None
         ci_m = re.search(r'\(([+-][\d.]+/[+-][\d.]+)\)', cost_raw)
         if ci_m:
             cost_ci = ci_m.group(1)
 
         runs_idx = cost_idx + 1
-        runs = 1
+        runs = None
         if runs_idx < len(cells):
+            runs_raw = cells[runs_idx].strip()
             try:
-                runs = int(cells[runs_idx].strip())
-            except ValueError:
-                runs = 1
+                if runs_raw:
+                    runs = int(runs_raw)
+            except ValueError as exc:
+                failures.append(
+                    SourceRecordFailure(
+                        source_ref=f"{row_ref} runs",
+                        reason=f"invalid run count: {exc}",
+                        source_record={"cells": cells, "value": runs_raw},
+                    )
+                )
 
         results.append(LeaderboardRow(
             rank=rank,
@@ -542,7 +619,20 @@ def parse_table(html: str, benchmark: BenchmarkDef) -> list[LeaderboardRow]:
             notes=notes,
         ))
 
-    return results
+    return SourceConversionResult(
+        source_name=f"HAL {benchmark.name} HTML table",
+        total_records=len(raw_rows),
+        records=results,
+        failures=failures,
+        exclusions=exclusions,
+    )
+
+
+def parse_table(html: str, benchmark: BenchmarkDef) -> list[LeaderboardRow]:
+    """Strict parser for callers that require every data row to parse."""
+    result = parse_table_result(html, benchmark)
+    result.raise_if_incomplete()
+    return result.records
 
 
 # ---------------------------------------------------------------------------
@@ -571,6 +661,10 @@ def build_evaluation_result(
     row: LeaderboardRow,
     details: Optional[dict] = None,
 ) -> dict:
+    if not 0.0 <= score <= 1.0:
+        raise ValueError(
+            f"{evaluation_name} score must be between 0 and 1, got {score!r}"
+        )
     score_details: dict = {"score": round(score, 6)}
     if details:
         score_details["details"] = {k: str(v) for k, v in details.items() if v is not None}
@@ -579,6 +673,31 @@ def build_evaluation_result(
         {"name": t.name, **({"description": t.description} if t.description else {})}
         for t in benchmark.tools
     ]
+
+    generation_details = {
+        "agent_scaffold": row.agent_name,
+        "hal_rank": str(row.rank),
+        "verified": str(row.verified),
+        "is_pareto": str(row.is_pareto),
+        **(
+            {"total_cost_usd": str(row.cost_usd)}
+            if row.cost_usd is not None
+            else {}
+        ),
+        **(
+            {"cost_confidence_interval": row.cost_ci}
+            if row.cost_ci
+            else {}
+        ),
+        **(
+            {"accuracy_confidence_interval": row.accuracy_ci}
+            if row.accuracy_ci
+            else {}
+        ),
+        **({"notes": row.notes} if row.notes else {}),
+    }
+    if row.runs is not None:
+        generation_details["runs"] = str(row.runs)
 
     return {
         "evaluation_name": evaluation_name,
@@ -597,17 +716,7 @@ def build_evaluation_result(
                     "available_tools": available_tools,
                 },
             },
-            "additional_details": {
-                "agent_scaffold": row.agent_name,
-                "hal_rank": str(row.rank),
-                "runs": str(row.runs),
-                "verified": str(row.verified),
-                "is_pareto": str(row.is_pareto),
-                **({"total_cost_usd": str(row.cost_usd)} if row.cost_usd is not None else {}),
-                **({"cost_confidence_interval": row.cost_ci} if row.cost_ci else {}),
-                **({"accuracy_confidence_interval": row.accuracy_ci} if row.accuracy_ci else {}),
-                **({"notes": row.notes} if row.notes else {}),
-            },
+            "additional_details": generation_details,
         },
     }
 
@@ -623,8 +732,11 @@ def build_eee_record(
     Returns: (record_dict, developer_slug, model_slug)
     """
     model_id = get_model_id(row.model_raw)
-    developer = model_id.split("/")[0] if "/" in model_id else "unknown"
-    model_slug_clean = model_id.split("/", 1)[-1] if "/" in model_id else model_id
+    if "/" not in model_id:
+        raise ValueError(f"HAL model id must be developer/model: {model_id!r}")
+    developer, model_slug_clean = model_id.split("/", 1)
+    developer = require_identity(developer, "HAL model developer")
+    model_slug_clean = require_identity(model_slug_clean, "HAL model name")
 
     effort = _effort_level(row.model_raw)
     agent_slug = slugify(row.agent_name)
@@ -702,7 +814,7 @@ def build_eee_record(
         "model_info": {
             "name": row.model_raw,
             "id": model_id,
-            "developer": developer if developer != "unknown" else None,
+            "developer": developer,
             "additional_details": model_additional,
         },
         "evaluation_results": eval_results,
@@ -712,71 +824,112 @@ def build_eee_record(
 
 
 # ---------------------------------------------------------------------------
-# I/O
+# Collection and publication
 # ---------------------------------------------------------------------------
 
-def save_record(record: dict, out_root: Path, developer: str, model_slug: str) -> Path:
-    out_dir = generate_output_path(out_root, developer, model_slug)
-    out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / f"{uuid.uuid4()}.json"
-    out_path.write_text(
-        json.dumps(
-            record,
-            indent=2,
-            ensure_ascii=False,
-            allow_nan=False,
-        )
-        + "\n",
-        encoding="utf-8",
-    )
-    return out_path
-
-
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
-
-def process_benchmark(
+def collect_benchmark(
     benchmark: BenchmarkDef,
     out_root: Path,
     retrieved_timestamp: str,
-) -> tuple[int, int]:
-    """Fetch and process one benchmark. Returns (saved, errors)."""
+) -> SourceConversionResult[EvaluationLogOutput]:
+    """Fetch and convert one benchmark without discarding usable rows."""
     url = f"{HAL_BASE_URL}/{benchmark.slug}"
     print(f"\n{'=' * 60}")
     print(f"Fetching {benchmark.name} from {url} …")
 
     try:
         html = _fetch_page(url)
-    except URLError as e:
-        print(f"  ERROR fetching page: {e}")
-        return 0, 1
+    except (OSError, TimeoutError, URLError) as exc:
+        return SourceConversionResult(
+            source_name=f"HAL {benchmark.name}",
+            total_records=1,
+            records=[],
+            failures=[
+                SourceRecordFailure(
+                    source_ref=url,
+                    reason=f"failed to fetch leaderboard page: {exc}",
+                )
+            ],
+        )
 
     try:
-        rows = parse_table(html, benchmark)
-    except ValueError as e:
-        print(f"  ERROR parsing table: {e}")
-        return 0, 1
+        parsed = parse_table_result(html, benchmark)
+    except ValueError as exc:
+        return SourceConversionResult(
+            source_name=f"HAL {benchmark.name}",
+            total_records=1,
+            records=[],
+            failures=[
+                SourceRecordFailure(
+                    source_ref=url,
+                    reason=f"failed to parse leaderboard table: {exc}",
+                )
+            ],
+        )
 
-    print(f"  Found {len(rows)} leaderboard entries")
+    print(f"  Found {len(parsed.records)} leaderboard entries")
 
     benchmark_out_root = out_root / benchmark.output_name
-    saved = 0
-    errors = 0
-
-    for row in rows:
+    outputs = []
+    failures = list(parsed.failures)
+    for row in parsed.records:
         try:
-            record, developer, model_slug = build_eee_record(benchmark, row, retrieved_timestamp)
-            path = save_record(record, benchmark_out_root, developer, model_slug)
-            score_pct = f"{row.accuracy * 100:.2f}%"
-            cost_str = f"${row.cost_usd:.2f}" if row.cost_usd is not None else "N/A"
-            print(f"  [{row.rank:2d}] {row.model_raw:<45s}  {score_pct}  {cost_str}  → {path.relative_to(out_root)}")
-            saved += 1
-        except Exception as e:
-            print(f"  ERROR processing row {row.rank} ({row.model_raw!r}): {e}")
-            errors += 1
+            record, developer, model_slug = build_eee_record(
+                benchmark,
+                row,
+                retrieved_timestamp,
+            )
+            outputs.append(
+                EvaluationLogOutput(
+                    eval_log=EvaluationLog.model_validate(record),
+                    base_dir=benchmark_out_root,
+                    developer=developer,
+                    model_name=model_slug,
+                )
+            )
+        except Exception as exc:
+            failures.append(
+                SourceRecordFailure(
+                    source_ref=(
+                        f"{benchmark.slug} leaderboard rank {row.rank}"
+                    ),
+                    reason=str(exc),
+                    source_record=asdict(row),
+                )
+            )
 
-    return saved, errors
+    if not parsed.records and not failures:
+        failures.append(
+            SourceRecordFailure(
+                source_ref=url,
+                reason="leaderboard contained no data rows",
+            )
+        )
+
+    return SourceConversionResult(
+        source_name=f"HAL {benchmark.name}",
+        total_records=parsed.total_records,
+        records=outputs,
+        failures=failures,
+        exclusions=parsed.exclusions,
+    )
+
+
+def process_benchmark(
+    benchmark: BenchmarkDef,
+    out_root: Path,
+    retrieved_timestamp: str,
+) -> tuple[int, int]:
+    """Publish one benchmark, preserving successes and reporting failures."""
+    result = collect_benchmark(benchmark, out_root, retrieved_timestamp)
+    paths = save_evaluation_logs(result.records)
+    if result.failures or result.exclusions:
+        save_failure_report(
+            result,
+            default_failure_report_path(out_root / benchmark.output_name),
+        )
+    result.raise_if_incomplete()
+    return len(paths), len(result.failures)
 
 
 def main() -> None:
@@ -804,21 +957,44 @@ def main() -> None:
     )
 
     retrieved_timestamp = str(time.time())
-    total_saved = 0
-    total_errors = 0
+    results = [
+        collect_benchmark(
+            benchmark,
+            args.output_dir,
+            retrieved_timestamp,
+        )
+        for benchmark in benchmarks
+    ]
+    combined = SourceConversionResult(
+        source_name="HAL",
+        total_records=sum(result.total_records for result in results),
+        records=[
+            record for result in results for record in result.records
+        ],
+        failures=[
+            failure for result in results for failure in result.failures
+        ],
+        exclusions=[
+            exclusion for result in results for exclusion in result.exclusions
+        ],
+    )
 
-    for benchmark in benchmarks:
-        saved, errors = process_benchmark(benchmark, args.output_dir, retrieved_timestamp)
-        total_saved += saved
-        total_errors += errors
+    paths = save_evaluation_logs(combined.records)
+    for path in paths:
+        print(f"  Saved: {path.relative_to(args.output_dir)}")
+    if combined.failures or combined.exclusions:
+        report_path = save_failure_report(
+            combined,
+            default_failure_report_path(args.output_dir / "hal"),
+        )
+        print(f"Provenance report: {report_path}")
 
     print(f"\n{'=' * 60}")
-    print(f"Done. Saved {total_saved} files, {total_errors} errors → {args.output_dir}/")
-    if total_errors:
-        raise RuntimeError(
-            f"HAL: failed to convert {total_errors} source records; "
-            f"saved {total_saved}"
-        )
+    print(
+        f"Done. Saved {len(paths)} files, "
+        f"{len(combined.failures)} errors → {args.output_dir}/"
+    )
+    combined.raise_if_incomplete()
 
 
 if __name__ == "__main__":

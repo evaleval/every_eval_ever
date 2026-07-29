@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from every_eval_ever.eval_types import EvaluationLog
+from every_eval_ever.helpers.io import SourceRecordsError
 from every_eval_ever.validate import validate_file
 from utils.llm_stats import adapter
 
@@ -178,6 +179,43 @@ def test_raw_citation_and_provenance_are_preserved():
     assert other_details['raw_provenance_label'] == 'unknown'
 
 
+def test_fallback_fetch_failures_are_preserved_and_fail_conversion(
+    monkeypatch,
+):
+    payload = sample_payload()
+
+    def fake_fetch(url, *, headers):
+        del headers
+        if url.endswith('/v1/models'):
+            return payload['models']
+        if url.endswith('/leaderboard/benchmarks'):
+            return payload['benchmarks']
+        if url.endswith('/v1/scores'):
+            raise adapter.FetchError('scores endpoint unavailable')
+        raise adapter.FetchError(f'benchmark detail unavailable: {url}')
+
+    monkeypatch.setattr(adapter, 'fetch_json', fake_fetch)
+
+    fetched = adapter.fetch_payload('secret', 'https://example.test')
+
+    assert len(fetched['source_failures']) == 2
+    assert (
+        fetched['source_failures'][0]['source_record']
+        == (payload['benchmarks']['data'][0])
+    )
+    try:
+        adapter.make_logs(fetched, base_url='https://example.test')
+    except SourceRecordsError as exc:
+        assert exc.source_name == 'LLM Stats'
+        assert len(exc.failures) == 2
+        assert all(
+            failure.source_ref.startswith('https://example.test/')
+            for failure in exc.failures
+        )
+    else:
+        raise AssertionError('expected incomplete benchmark fetch to fail')
+
+
 def test_export_paths_follow_datastore_layout(tmp_path: Path):
     output_dir = tmp_path / 'data' / 'llm-stats'
     bundles = adapter.make_logs(
@@ -299,7 +337,7 @@ def test_missing_model_and_benchmark_identity_fails_with_count():
     try:
         adapter.make_logs(payload, retrieved_timestamp='1234567890.0')
     except ValueError as exc:
-        assert 'failed to convert 1 of 1 source records' in str(exc)
+        assert 'encountered 1 conversion issue(s) across 1 source record(s)' in str(exc)
         assert 'model identity is required' in str(exc)
     else:
         raise AssertionError('expected missing identities to fail')

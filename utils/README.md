@@ -63,13 +63,28 @@ PR.
   generated artifacts. Prefer temporary output paths for smoke runs unless a
   data refresh is intentionally part of the change.
 
+### Partial conversions and provenance
+
+An adapter may encounter a source row or metric that cannot be represented as
+a valid EEE record—for example, a missing model identity or a non-numeric
+score. It still writes every valid record. It also writes a strict JSON
+provenance report under `adapter_reports/`, outside `data/`, with the source
+reference, raw source fragment when available, and reason for each omission.
+The command then exits non-zero so automation can distinguish a complete
+refresh from a partial one.
+
+Intentional non-evaluation rows, such as a published random baseline, are
+recorded as exclusions in the same report but do not make the command fail.
+The report is not an `EvaluationLog` and must not be passed to the validator.
+
 ### Vals.ai
 
 Run a live smoke export from the repository root, writing generated output
 outside the repo:
 
 ```bash
-uv run python -m utils.vals_ai.adapter --output-dir /tmp/eee-vals-ai
+uv run python -m utils.vals_ai.adapter \
+  --output-dir /tmp/eee-vals-ai/data/vals-ai
 ```
 
 To intentionally prepare a data refresh, use `--output-dir data/vals-ai` and
@@ -80,7 +95,7 @@ For smaller smoke runs, fetch one benchmark:
 ```bash
 uv run python -m utils.vals_ai.adapter \
   --benchmark finance_agent \
-  --output-dir /tmp/eee-vals-ai-smoke \
+  --output-dir /tmp/eee-vals-ai-smoke/data/vals-ai \
   --save-raw-json /tmp/eee-vals-ai-raw.json
 ```
 
@@ -89,11 +104,12 @@ Replay a saved normalized payload without hitting the network:
 ```bash
 uv run python -m utils.vals_ai.adapter \
   --input-json /tmp/eee-vals-ai-raw.json \
-  --output-dir /tmp/eee-vals-ai-replay
+  --output-dir /tmp/eee-vals-ai-replay/data/vals-ai
 ```
 
 Validate generated records with:
 
 ```bash
-uv run python -m every_eval_ever validate /tmp/eee-vals-ai-smoke
+uv run python -m every_eval_ever validate \
+  '/tmp/eee-vals-ai-smoke/data/vals-ai/*/*/*.json*'
 ```

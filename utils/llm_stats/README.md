@@ -29,7 +29,8 @@ uv run python -m utils.llm_stats.adapter \
 Validate the generated EEE logs:
 
 ```bash
-uv run python -m every_eval_ever validate /tmp/eee-llm-stats/data/llm-stats
+uv run python -m every_eval_ever validate \
+  '/tmp/eee-llm-stats/data/llm-stats/*/*/*.json*'
 ```
 
 The default API base URL is `https://api.llm-stats.com`. Override it only when LLM Stats changes or provides a different API host:
@@ -54,5 +55,6 @@ uv run python -m utils.llm_stats.adapter \
 Then validate the replayed output:
 
 ```bash
-uv run python -m every_eval_ever validate /tmp/eee-llm-stats-replay/data/llm-stats
+uv run python -m every_eval_ever validate \
+  '/tmp/eee-llm-stats-replay/data/llm-stats/*/*/*.json*'
 ```

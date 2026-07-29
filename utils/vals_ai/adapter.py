@@ -5,7 +5,7 @@ import argparse
 import json
 import re
 import time
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from html import unescape
 from html.parser import HTMLParser
 from pathlib import Path
@@ -20,6 +20,7 @@ from every_eval_ever.eval_types import (
     EvaluatorRelationship,
     GenerationArgs,
     GenerationConfig,
+    InferenceEngine,
     MetricConfig,
     ModelInfo,
     ScoreDetails,
@@ -33,11 +34,17 @@ from every_eval_ever.eval_types import (
 )
 from every_eval_ever.helpers import (
     SCHEMA_VERSION,
+    EvaluationLogOutput,
+    SourceConversionResult,
+    SourceRecordFailure,
+    default_failure_report_path,
     get_developer,
     get_model_id,
     sanitize_filename,
-    save_evaluation_log,
+    save_evaluation_logs,
+    save_failure_report,
 )
+from every_eval_ever.helpers.io import require_identity
 
 SOURCE_NAME = 'Vals.ai'
 SOURCE_ORGANIZATION_URL = 'https://www.vals.ai'
@@ -48,6 +55,9 @@ ASTRO_UNDEFINED = object()
 NAMESPACE_DEVELOPER_ALIASES = {
     'grok': 'xai',
     'kimi': 'moonshotai',
+    'meta-llama': 'meta',
+    'qwen': 'alibaba',
+    'togethercomputer': 'together',
 }
 
 
@@ -78,6 +88,19 @@ class EvaluationBundle:
     log: EvaluationLog
     developer: str
     model_name: str
+
+
+@dataclass(frozen=True)
+class ValsModelIdentity:
+    """Schema fields resolved from one Vals.ai model route."""
+
+    raw_id: str
+    developer: str
+    model_name: str
+    model_id: str
+    inference_platform: str | None
+    inference_engine: str | None = None
+    route: str | None = None
 
 
 class AstroIslandParser(HTMLParser):
@@ -288,23 +311,75 @@ def iter_vals_metrics(payload: dict[str, Any]) -> list[ValsMetric]:
 def build_index(
     payload: dict[str, Any],
 ) -> dict[tuple[str, str], list[ValsMetric]]:
-    grouped: dict[tuple[str, str], list[ValsMetric]] = {}
+    result = _group_metrics(iter_vals_metrics(payload))
+    result.raise_if_incomplete()
+    return dict(result.records)
+
+
+def _group_metrics(
+    metrics: list[ValsMetric],
+) -> SourceConversionResult[tuple[tuple[str, str], list[ValsMetric]]]:
+    raw_groups: dict[tuple[str, str], list[ValsMetric]] = {}
+    for metric in metrics:
+        raw_groups.setdefault(
+            (metric.benchmark_slug, metric.model_id),
+            [],
+        ).append(metric)
+
+    grouped: list[tuple[tuple[str, str], list[ValsMetric]]] = []
     canonical_to_raw: dict[tuple[str, str], str] = {}
-    for metric in iter_vals_metrics(payload):
-        provider = _optional_str(metric.metrics.get('provider'))
-        developer = _developer_from_vals_id(metric.model_id, provider)
-        canonical_model_id = _canonical_model_id(metric.model_id, developer)
-        key = (metric.benchmark_slug, canonical_model_id)
-        existing_raw_id = canonical_to_raw.get(key)
-        if existing_raw_id is not None and existing_raw_id != metric.model_id:
-            raise ValueError(
-                'Vals.ai model IDs collide after canonicalization for '
-                f'{metric.benchmark_slug}: {existing_raw_id!r} and '
-                f'{metric.model_id!r} both map to {canonical_model_id!r}'
+    failures: list[SourceRecordFailure] = []
+    for (benchmark_slug, raw_id), rows in sorted(raw_groups.items()):
+        provider = _optional_str(rows[0].metrics.get('provider'))
+        try:
+            identity = resolve_model_identity(raw_id, provider)
+        except (TypeError, ValueError) as exc:
+            failures.append(
+                SourceRecordFailure(
+                    source_ref=f'{benchmark_slug}/{raw_id}',
+                    reason=str(exc),
+                    source_record=[asdict(row) for row in rows],
+                )
             )
-        canonical_to_raw[key] = metric.model_id
-        grouped.setdefault(key, []).append(metric)
-    return grouped
+            continue
+        canonical_key = (
+            benchmark_slug,
+            '|'.join(
+                (
+                    identity.model_id,
+                    (
+                        _slug(identity.inference_platform)
+                        if identity.inference_platform
+                        else ''
+                    ),
+                    identity.inference_engine or '',
+                )
+            ),
+        )
+        existing_raw_id = canonical_to_raw.get(canonical_key)
+        if existing_raw_id is not None and existing_raw_id != raw_id:
+            failures.append(
+                SourceRecordFailure(
+                    source_ref=f'{benchmark_slug}/{raw_id}',
+                    reason=(
+                        'Vals.ai model IDs collide after canonicalization: '
+                        f'{existing_raw_id!r} and {raw_id!r} both map to '
+                        f'{identity.model_id!r} on '
+                        f'{identity.inference_platform or "unknown platform"!r}'
+                    ),
+                    source_record=[asdict(row) for row in rows],
+                )
+            )
+            continue
+        canonical_to_raw[canonical_key] = raw_id
+        grouped.append(((benchmark_slug, raw_id), rows))
+
+    return SourceConversionResult(
+        source_name='Vals.ai model groups',
+        total_records=len(raw_groups),
+        records=grouped,
+        failures=failures,
+    )
 
 
 def build_score_scales(payload: dict[str, Any]) -> dict[str, ScoreScale]:
@@ -330,81 +405,127 @@ def validate_payload(payload: dict[str, Any]) -> None:
         )
 
 
+def _make_bundle(
+    benchmark_slug: str,
+    vals_model_id: str,
+    rows: list[ValsMetric],
+    score_scale: ScoreScale,
+    retrieved_timestamp: str,
+) -> EvaluationBundle:
+    first = rows[0]
+    provider = _optional_str(first.metrics.get('provider'))
+    identity = resolve_model_identity(vals_model_id, provider)
+    results = [
+        make_result(row, score_scale=score_scale)
+        for row in sorted(rows, key=lambda row: row.task_key)
+    ]
+
+    log = EvaluationLog(
+        schema_version=SCHEMA_VERSION,
+        evaluation_id=(
+            f'vals-ai/{benchmark_slug}/'
+            f'{sanitize_filename(vals_model_id)}/{retrieved_timestamp}'
+        ),
+        retrieved_timestamp=retrieved_timestamp,
+        source_metadata=SourceMetadata(
+            source_name=f'Vals.ai Leaderboard - {first.benchmark_name}',
+            source_type=SourceType.documentation,
+            source_organization_name=SOURCE_NAME,
+            source_organization_url=SOURCE_ORGANIZATION_URL,
+            evaluator_relationship=EvaluatorRelationship.third_party,
+            additional_details=_clean_details(
+                {
+                    'benchmark_slug': benchmark_slug,
+                    'benchmark_name': first.benchmark_name,
+                    'benchmark_updated': first.benchmark_updated,
+                    'dataset_type': first.dataset_type,
+                    'industry': first.industry,
+                    'leaderboard_page_url': first.source_url,
+                    'extraction_method': 'static_astro_benchmark_view_props',
+                }
+            ),
+        ),
+        eval_library=EvalLibrary(name=SOURCE_NAME, version='unknown'),
+        model_info=ModelInfo(
+            name=identity.model_name,
+            id=identity.model_id,
+            developer=identity.developer,
+            inference_platform=identity.inference_platform,
+            inference_engine=(
+                InferenceEngine(name=identity.inference_engine)
+                if identity.inference_engine
+                else None
+            ),
+            additional_details=_clean_details(
+                {
+                    'vals_model_id': vals_model_id,
+                    'vals_provider': provider,
+                    'vals_route': identity.route,
+                }
+            ),
+        ),
+        evaluation_results=results,
+    )
+    return EvaluationBundle(
+        log=log,
+        developer=identity.developer,
+        model_name=identity.model_name,
+    )
+
+
+def convert_logs(
+    payload: dict[str, Any],
+    *,
+    retrieved_timestamp: str | None = None,
+) -> SourceConversionResult[EvaluationBundle]:
+    validate_payload(payload)
+    timestamp = retrieved_timestamp or str(time.time())
+    score_scales = build_score_scales(payload)
+    group_result = _group_metrics(iter_vals_metrics(payload))
+    bundles = []
+    failures = list(group_result.failures)
+
+    for (benchmark_slug, vals_model_id), rows in group_result.records:
+        try:
+            bundles.append(
+                _make_bundle(
+                    benchmark_slug,
+                    vals_model_id,
+                    rows,
+                    score_scales[benchmark_slug],
+                    timestamp,
+                )
+            )
+        except (TypeError, ValueError) as exc:
+            failures.append(
+                SourceRecordFailure(
+                    source_ref=f'{benchmark_slug}/{vals_model_id}',
+                    reason=str(exc),
+                    source_record=[asdict(row) for row in rows],
+                )
+            )
+
+    if not bundles and not failures:
+        raise ValueError('Vals.ai: converted 0 source records')
+    return SourceConversionResult(
+        source_name='Vals.ai',
+        total_records=group_result.total_records,
+        records=bundles,
+        failures=failures,
+    )
+
+
 def make_logs(
     payload: dict[str, Any],
     *,
     retrieved_timestamp: str | None = None,
 ) -> list[EvaluationBundle]:
-    validate_payload(payload)
-    retrieved_timestamp = retrieved_timestamp or str(time.time())
-    bundles: list[EvaluationBundle] = []
-    score_scales = build_score_scales(payload)
-
-    for (benchmark_slug, model_id), rows in sorted(
-        build_index(payload).items()
-    ):
-        score_scale = score_scales[benchmark_slug]
-        first = rows[0]
-        provider = _optional_str(first.metrics.get('provider'))
-        developer = model_id.split('/', 1)[0]
-        vals_model_id = first.model_id
-        model_name = _model_name_from_id(model_id)
-
-        result_rows = sorted(rows, key=lambda row: row.task_key)
-        results = [
-            make_result(
-                row,
-                score_scale=score_scale,
-            )
-            for row in result_rows
-        ]
-
-        log = EvaluationLog(
-            schema_version=SCHEMA_VERSION,
-            evaluation_id=(
-                f'vals-ai/{benchmark_slug}/'
-                f'{sanitize_filename(model_id)}/{retrieved_timestamp}'
-            ),
-            retrieved_timestamp=retrieved_timestamp,
-            source_metadata=SourceMetadata(
-                source_name=f'Vals.ai Leaderboard - {first.benchmark_name}',
-                source_type=SourceType.documentation,
-                source_organization_name=SOURCE_NAME,
-                source_organization_url=SOURCE_ORGANIZATION_URL,
-                evaluator_relationship=EvaluatorRelationship.third_party,
-                additional_details=_clean_details(
-                    {
-                        'benchmark_slug': benchmark_slug,
-                        'benchmark_name': first.benchmark_name,
-                        'benchmark_updated': first.benchmark_updated,
-                        'dataset_type': first.dataset_type,
-                        'industry': first.industry,
-                        'leaderboard_page_url': first.source_url,
-                        'extraction_method': 'static_astro_benchmark_view_props',
-                    }
-                ),
-            ),
-            eval_library=EvalLibrary(name=SOURCE_NAME, version='unknown'),
-            model_info=ModelInfo(
-                name=model_name,
-                id=model_id,
-                developer=developer,
-                additional_details=_clean_details(
-                    {
-                        'vals_model_id': vals_model_id,
-                        'vals_provider': provider,
-                    }
-                ),
-            ),
-            evaluation_results=results,
-        )
-        bundles.append(
-            EvaluationBundle(
-                log=log, developer=developer, model_name=model_name
-            )
-        )
-
-    return bundles
+    result = convert_logs(
+        payload,
+        retrieved_timestamp=retrieved_timestamp,
+    )
+    result.raise_if_incomplete()
+    return result.records
 
 
 def make_result(
@@ -553,17 +674,15 @@ def export_logs(
     bundles: list[EvaluationBundle],
     output_dir: str | Path = OUTPUT_DIR,
 ) -> list[Path]:
-    paths = []
-    for bundle in bundles:
-        paths.append(
-            save_evaluation_log(
-                bundle.log,
-                output_dir,
-                bundle.developer,
-                bundle.model_name,
-            )
+    return save_evaluation_logs(
+        EvaluationLogOutput(
+            eval_log=bundle.log,
+            base_dir=output_dir,
+            developer=bundle.developer,
+            model_name=bundle.model_name,
         )
-    return paths
+        for bundle in bundles
+    )
 
 
 def save_raw_payload(payload: dict[str, Any], path: Path) -> None:
@@ -579,24 +698,76 @@ def save_raw_payload(payload: dict[str, Any], path: Path) -> None:
     )
 
 
-def _developer_from_vals_id(vals_model_id: str, provider: str | None) -> str:
-    if '/' in vals_model_id:
-        namespace = _slug(vals_model_id.split('/', 1)[0])
-        return NAMESPACE_DEVELOPER_ALIASES.get(namespace, namespace)
-    if provider:
-        return _slug(provider)
-    return get_developer(vals_model_id)
+def _canonical_developer(namespace: str) -> str:
+    slug = _slug(namespace)
+    return NAMESPACE_DEVELOPER_ALIASES.get(slug, slug)
 
 
-def _canonical_model_id(vals_model_id: str, developer: str) -> str:
-    model_name = _model_name_from_id(vals_model_id)
-    return get_model_id(model_name, developer)
+def resolve_model_identity(
+    vals_model_id: str,
+    provider: str | None,
+) -> ValsModelIdentity:
+    """Assign Vals route components to explicit model schema fields."""
+    raw_id = require_identity(vals_model_id, 'Vals.ai model id')
+    parts = raw_id.split('/')
+    if any(not part for part in parts):
+        raise ValueError(
+            f'Vals.ai model id contains an empty route: {raw_id!r}'
+        )
 
+    inference_platform = provider
+    inference_engine = None
+    route = None
 
-def _model_name_from_id(vals_model_id: str) -> str:
-    if '/' in vals_model_id:
-        return vals_model_id.split('/', 1)[1]
-    return vals_model_id
+    if (
+        len(parts) == 5
+        and _slug(parts[0]) == 'together'
+        and _slug(parts[1]) == 'langston'
+        and _slug(parts[2]) == 'nim'
+    ):
+        # Vals exposes this as a Together route through its Langston service
+        # and NVIDIA NIM. These are infrastructure, not model-name segments.
+        developer = _canonical_developer(parts[3])
+        model_name = parts[4]
+        inference_engine = 'NIM'
+        route = '/'.join(parts[:3])
+    elif len(parts) == 3 and _slug(parts[0]) == 'together':
+        developer = _canonical_developer(parts[1])
+        model_name = parts[2]
+        route = parts[0]
+    elif len(parts) == 2:
+        developer = _canonical_developer(parts[0])
+        model_name = parts[1]
+    elif len(parts) == 1:
+        developer = (
+            _canonical_developer(provider)
+            if provider
+            else get_developer(raw_id)
+        )
+        model_name = raw_id
+    else:
+        raise ValueError(
+            f'Unsupported Vals.ai model route structure: {raw_id!r}'
+        )
+
+    developer = require_identity(
+        developer,
+        f'Vals.ai developer for model {raw_id!r}',
+    )
+    model_name = require_identity(
+        model_name,
+        f'Vals.ai model name for {raw_id!r}',
+    )
+    model_id = get_model_id(model_name, developer)
+    return ValsModelIdentity(
+        raw_id=raw_id,
+        developer=developer,
+        model_name=model_name,
+        model_id=model_id,
+        inference_platform=inference_platform,
+        inference_engine=inference_engine,
+        route=route,
+    )
 
 
 def _slug(value: str) -> str:
@@ -700,6 +871,14 @@ def parse_args() -> argparse.Namespace:
         default=SOURCE_ORGANIZATION_URL,
         help=f'Vals.ai base URL (default: {SOURCE_ORGANIZATION_URL})',
     )
+    parser.add_argument(
+        '--failure-report',
+        type=Path,
+        help=(
+            'Write rejected source rows and reasons here. Defaults beside '
+            '--output-dir when any row fails.'
+        ),
+    )
     return parser.parse_args()
 
 
@@ -713,9 +892,16 @@ def main() -> None:
     if args.save_raw_json is not None:
         save_raw_payload(payload, args.save_raw_json)
 
-    bundles = make_logs(payload)
-    paths = export_logs(bundles, args.output_dir)
+    result = convert_logs(payload)
+    paths = export_logs(result.records, args.output_dir)
     print(f'Saved {len(paths)} Vals.ai evaluation logs to {args.output_dir}')
+    if result.failures:
+        report_path = save_failure_report(
+            result,
+            args.failure_report or default_failure_report_path(args.output_dir),
+        )
+        print(f'Failure report: {report_path}')
+        result.raise_if_incomplete()
 
 
 if __name__ == '__main__':

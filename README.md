@@ -219,6 +219,11 @@ When samples exist, both files must be in the same folder and use the same UUID.
 
 Local validation checks only the files present in the local checkout and their expected siblings. The PR bot remains responsible for checking every changed datastore path against the complete PR branch.
 
+For local smoke output outside the checkout, retain the same layout under a
+`data/` directory and pass an explicit glob, for example
+`'/tmp/run/data/benchmark/*/*/*.json*'`. The CLI maps that absolute path back
+to the canonical datastore path before applying the same checks.
+
 #### Output formats
 
 ```sh

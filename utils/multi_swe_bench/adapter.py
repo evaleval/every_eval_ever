@@ -42,10 +42,16 @@ from every_eval_ever.eval_types import (
 )
 from every_eval_ever.helpers import (
     SCHEMA_VERSION,
+    EvaluationLogOutput,
+    SourceConversionResult,
+    SourceRecordFailure,
+    default_failure_report_path,
     get_developer,
     get_model_id,
-    save_evaluation_log,
+    save_evaluation_logs,
+    save_failure_report,
 )
+from every_eval_ever.helpers.io import require_identity
 from utils.swe_helpers import parse_date_from_dir, parse_model_from_dir
 
 MULTI_SWE_REPO = "https://github.com/multi-swe-bench/experiments"
@@ -68,21 +74,38 @@ def convert_submission(
 
     dir_name = submission_dir.name
 
-    with open(submission_dir / "metadata.yaml") as f:
+    with open(submission_dir / "metadata.yaml", encoding="utf-8") as f:
         metadata = yaml.safe_load(f)
+    if not isinstance(metadata, dict):
+        raise ValueError(f"metadata.yaml is not an object for {dir_name}")
 
-    with open(submission_dir / "results" / "results.json") as f:
+    with open(
+        submission_dir / "results" / "results.json",
+        encoding="utf-8",
+    ) as f:
         results = json.load(f)
+    if not isinstance(results, dict):
+        raise ValueError(f"results.json is not an object for {dir_name}")
 
-    total_instances = results.get("total_instances", 0)
-    if total_instances == 0:
-        raise ValueError(f"total_instances is 0 for {dir_name}, skipping")
+    total_instances = int(results.get("total_instances", 0))
+    if total_instances <= 0:
+        raise ValueError(f"total_instances must be positive for {dir_name}")
 
     resolved = results.get("resolved", [])
+    if not isinstance(resolved, list):
+        raise ValueError(f"resolved must be a list for {dir_name}")
+    if len(resolved) > total_instances:
+        raise ValueError(
+            f"resolved count exceeds total_instances for {dir_name}"
+        )
     score = len(resolved) / total_instances
 
     agent, primary_model = parse_model_from_dir(dir_name)
-    developer = get_developer(primary_model)
+    primary_model = require_identity(primary_model, "Multi-SWE-bench model")
+    developer = require_identity(
+        get_developer(primary_model),
+        "Multi-SWE-bench model developer",
+    )
     model_id = get_model_id(primary_model, developer)
 
     sanitized_id = re.sub(r"[^a-zA-Z0-9_.-]", "_", model_id.replace("/", "_"))
@@ -157,17 +180,66 @@ def convert_submission(
         model_info=ModelInfo(
             name=primary_model,
             id=model_id,
-            developer=developer if developer != "unknown" else None,
+            developer=developer,
             additional_details=additional_details,
         ),
         evaluation_results=[eval_result],
     )
 
 
+def convert_submissions(
+    submissions: list[tuple[Path, str]],
+    retrieved_timestamp: str,
+    output_dir: str = OUTPUT_BASE,
+) -> SourceConversionResult[EvaluationLogOutput]:
+    """Convert all usable submissions and retain rejected source paths."""
+    outputs = []
+    failures = []
+    for submission_dir, lang in submissions:
+        try:
+            eval_log = convert_submission(
+                submission_dir,
+                lang,
+                retrieved_timestamp,
+            )
+            model_id = require_identity(
+                eval_log.model_info.id,
+                "Multi-SWE-bench model id",
+            )
+            if "/" not in model_id:
+                raise ValueError(
+                    f"model id must be developer/model: {model_id!r}"
+                )
+            developer, model_name = model_id.split("/", 1)
+            outputs.append(
+                EvaluationLogOutput(
+                    eval_log=eval_log,
+                    base_dir=output_dir,
+                    developer=developer,
+                    model_name=model_name,
+                )
+            )
+        except Exception as exc:
+            failures.append(
+                SourceRecordFailure(
+                    source_ref=str(submission_dir),
+                    reason=str(exc),
+                    source_record={
+                        "submission_dir": str(submission_dir),
+                        "language": lang,
+                    },
+                )
+            )
+    return SourceConversionResult(
+        source_name="Multi-SWE-bench",
+        total_records=len(submissions),
+        records=outputs,
+        failures=failures,
+    )
+
+
 def main():
     retrieved_timestamp = str(time.time())
-    count = 0
-    errors = 0
 
     with tempfile.TemporaryDirectory() as tmpdir:
         print(f"Cloning {MULTI_SWE_REPO} into {tmpdir} ...")
@@ -177,34 +249,53 @@ def main():
             check=True,
         )
 
+        source_submissions = []
+        source_failures = []
         for lang in LANGUAGES:
             verified_path = Path(tmpdir) / "evaluation" / lang / "verified"
             if not verified_path.exists():
-                print(f"  [SKIP] No verified/ dir for language: {lang}")
+                source_failures.append(
+                    SourceRecordFailure(
+                        source_ref=str(verified_path),
+                        reason="expected verified submission directory is missing",
+                        source_record={"language": lang},
+                    )
+                )
                 continue
 
             submissions = sorted(d for d in verified_path.iterdir() if d.is_dir())
             print(f"\n[{lang}] Found {len(submissions)} submissions")
+            source_submissions.extend(
+                (submission_dir, lang) for submission_dir in submissions
+            )
 
-            for submission_dir in submissions:
-                try:
-                    eval_log = convert_submission(submission_dir, lang, retrieved_timestamp)
-                    dev = eval_log.model_info.developer or "unknown"
-                    model_name = eval_log.model_info.name.split("/")[-1]
-                    filepath = save_evaluation_log(eval_log, OUTPUT_BASE, dev, model_name)
-                    score = eval_log.evaluation_results[0].score_details.score
-                    print(f"  [{score:.1%}] {submission_dir.name} → {filepath}")
-                    count += 1
-                except Exception as e:
-                    print(f"  ERROR {submission_dir.name}: {e}")
-                    errors += 1
-
-    print(f"\nGenerated {count} files, {errors} errors → {OUTPUT_BASE}/")
-    if errors:
-        raise RuntimeError(
-            f"Multi-SWE-bench: failed to convert {errors} submissions; "
-            f"saved {count}"
+        converted = convert_submissions(
+            source_submissions,
+            retrieved_timestamp,
         )
+        result = SourceConversionResult(
+            source_name="Multi-SWE-bench",
+            total_records=(
+                converted.total_records + len(source_failures)
+            ),
+            records=converted.records,
+            failures=[*source_failures, *converted.failures],
+        )
+        paths = save_evaluation_logs(result.records)
+        for path in paths:
+            print(f"  Saved: {path}")
+        if result.failures:
+            report_path = save_failure_report(
+                result,
+                default_failure_report_path(OUTPUT_BASE),
+            )
+            print(f"Failure report: {report_path}")
+
+    print(
+        f"\nGenerated {len(paths)} files, {len(result.failures)} errors "
+        f"→ {OUTPUT_BASE}/"
+    )
+    result.raise_if_incomplete()
 
 
 if __name__ == "__main__":

@@ -9,6 +9,7 @@ import pytest
 
 from every_eval_ever.validate import (
     expand_paths,
+    main,
     render_report_github,
     render_report_json,
 )
@@ -360,6 +361,35 @@ class TestFileDispatch:
     def test_directory_arguments_are_rejected(self, tmp_path: Path):
         with pytest.raises(ValueError, match='directory arguments'):
             expand_paths([str(tmp_path)])
+
+    def test_cli_accepts_absolute_local_datastore_path(
+        self, tmp_path: Path
+    ):
+        path = (
+            tmp_path
+            / 'local-output'
+            / 'data'
+            / 'benchmark'
+            / 'developer'
+            / 'model'
+            / 'f82b2807-fb31-4e42-a4a4-497d7d7a7e61.json'
+        )
+        path.parent.mkdir(parents=True)
+        payload = {
+            **VALID_AGGREGATE,
+            'model_info': {
+                'name': 'test-model',
+                'id': 'org/test-model',
+                'developer': 'org',
+                'additional_details': {
+                    'deployment_type': 'unknown',
+                    'model_availability': 'unknown',
+                },
+            },
+        }
+        path.write_text(json.dumps(payload), encoding='utf-8')
+
+        assert main([str(path), '--format', 'json']) == 0
 
     def test_explicit_recursive_glob_is_honored(self, tmp_path: Path):
         direct = _write_json(tmp_path, 'direct.json', VALID_AGGREGATE)

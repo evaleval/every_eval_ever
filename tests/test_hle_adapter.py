@@ -56,7 +56,7 @@ def test_missing_score_reports_failed_source_record_count():
     try:
         adapter.make_logs(rows, retrieved_timestamp='123.0')
     except ValueError as exc:
-        assert 'failed to convert 1 of 4 source records' in str(exc)
+        assert 'encountered 1 conversion issue(s) across 4 source record(s)' in str(exc)
         assert 'row 3: missing score' in str(exc)
     else:
         raise AssertionError('expected an incomplete HLE row to fail')

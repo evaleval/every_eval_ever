@@ -28,10 +28,7 @@ import sys
 import time
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from eval_types import (
+from every_eval_ever.eval_types import (
     AgenticEvalConfig,
     EvalLibrary,
     EvaluationLog,
@@ -47,12 +44,15 @@ from eval_types import (
     SourceMetadata,
     Uncertainty,
 )
-from helpers import sanitize_filename, save_evaluation_log
-
-from every_eval_ever.helpers.io import (
-    raise_for_failed_records,
-    require_identity,
+from every_eval_ever.helpers import (
+    EvaluationLogOutput,
+    SourceConversionResult,
+    SourceRecordFailure,
+    default_failure_report_path,
+    save_evaluation_logs,
+    save_failure_report,
 )
+from every_eval_ever.helpers.io import require_identity
 
 SCHEMA_VERSION = "0.2.2"
 OUTPUT_DIR = "data/exgentic"
@@ -210,35 +210,58 @@ def convert_result(result: dict, retrieved_timestamp: str) -> EvaluationLog:
     )
 
 
-def load_results_from_dir(results_dir: str) -> list[dict]:
-    """Recursively find and load all results.json files under a directory."""
+def collect_results_from_dir(
+    results_dir: str,
+) -> SourceConversionResult[dict]:
+    """Load usable result files and preserve every rejected source reference."""
     results = []
     base = Path(results_dir)
 
     config_paths = sorted(base.rglob("config.json"))
-    failures: list[tuple[int, str]] = []
-    for index, config_path in enumerate(config_paths):
+    failures: list[SourceRecordFailure] = []
+    for config_path in config_paths:
+        config = None
         try:
-            config = json.loads(config_path.read_text())
+            config = json.loads(config_path.read_text(encoding="utf-8"))
             run_id = config.get("run_id")
             if not run_id:
-                failures.append((index, f"{config_path}: missing run_id"))
-                continue
+                raise ValueError("missing run_id")
             results_path = config_path.parent / run_id / "results.json"
             if not results_path.is_file():
-                failures.append((index, f"{results_path}: file not found"))
-                continue
-            payload = json.loads(results_path.read_text())
+                raise FileNotFoundError(f"{results_path}: file not found")
+            payload = json.loads(results_path.read_text(encoding="utf-8"))
             if "benchmark_score" not in payload:
-                failures.append(
-                    (index, f"{results_path}: missing benchmark_score")
-                )
-                continue
+                raise ValueError(f"{results_path}: missing benchmark_score")
             results.append(payload)
         except (json.JSONDecodeError, OSError) as e:
-            failures.append((index, f"{config_path}: {e}"))
-    raise_for_failed_records("Exgentic", len(config_paths), failures)
-    return results
+            failures.append(
+                SourceRecordFailure(
+                    source_ref=str(config_path),
+                    reason=str(e),
+                    source_record=config,
+                )
+            )
+        except (TypeError, ValueError) as e:
+            failures.append(
+                SourceRecordFailure(
+                    source_ref=str(config_path),
+                    reason=str(e),
+                    source_record=config,
+                )
+            )
+    return SourceConversionResult(
+        source_name="Exgentic local results",
+        total_records=len(config_paths),
+        records=results,
+        failures=failures,
+    )
+
+
+def load_results_from_dir(results_dir: str) -> list[dict]:
+    """Strict API for callers that require every local result to load."""
+    result = collect_results_from_dir(results_dir)
+    result.raise_if_incomplete()
+    return result.records
 
 
 def load_results_from_hf() -> list[dict]:
@@ -251,6 +274,50 @@ def load_results_from_hf() -> list[dict]:
 
     ds = load_dataset(HF_DATASET, split="train")
     return list(ds)
+
+
+def convert_results(
+    results: list[dict],
+    retrieved_timestamp: str,
+    output_dir: str = OUTPUT_DIR,
+) -> SourceConversionResult[EvaluationLogOutput]:
+    """Convert usable results while retaining rejected source records."""
+    outputs = []
+    failures: list[SourceRecordFailure] = []
+    for index, result in enumerate(results):
+        try:
+            eval_log = convert_result(result, retrieved_timestamp)
+            model_id = require_identity(
+                eval_log.model_info.id,
+                "Exgentic model id",
+            )
+            if "/" not in model_id:
+                raise ValueError(
+                    f"Exgentic model id must be developer/model: {model_id!r}"
+                )
+            developer_slug, model_name = model_id.split("/", 1)
+            outputs.append(
+                EvaluationLogOutput(
+                    eval_log=eval_log,
+                    base_dir=output_dir,
+                    developer=developer_slug,
+                    model_name=model_name,
+                )
+            )
+        except Exception as exc:
+            failures.append(
+                SourceRecordFailure(
+                    source_ref=f"result row {index}",
+                    reason=str(exc),
+                    source_record=result,
+                )
+            )
+    return SourceConversionResult(
+        source_name="Exgentic",
+        total_records=len(results),
+        records=outputs,
+        failures=failures,
+    )
 
 
 def main():
@@ -277,44 +344,52 @@ def main():
         parser.error("Specify either --results-dir or --from-hf")
 
     if args.results_dir:
-        results = load_results_from_dir(args.results_dir)
+        loaded = collect_results_from_dir(args.results_dir)
+        results = loaded.records
     else:
         results = load_results_from_hf()
+        loaded = SourceConversionResult(
+            source_name="Exgentic Hugging Face results",
+            total_records=len(results),
+            records=results,
+            failures=[],
+        )
 
-    if not results:
-        print("No results found.")
-        sys.exit(1)
-
-    print(f"Loaded {len(results)} result(s)")
+    print(
+        f"Loaded {len(results)} of {loaded.total_records} source result(s)"
+    )
 
     retrieved_timestamp = str(time.time())
-    count = 0
-
-    failures: list[tuple[int, str]] = []
-    for index, result in enumerate(results):
-        try:
-            eval_log = convert_result(result, retrieved_timestamp)
-            model_info = eval_log.model_info
-            developer_slug = sanitize_filename(
-                require_identity(
-                    model_info.developer, "Exgentic model developer"
-                )
+    converted = convert_results(results, retrieved_timestamp, args.output_dir)
+    combined = SourceConversionResult(
+        source_name="Exgentic",
+        total_records=loaded.total_records,
+        records=converted.records,
+        failures=[*loaded.failures, *converted.failures],
+    )
+    if not combined.records and not combined.failures:
+        combined.failures.append(
+            SourceRecordFailure(
+                source_ref=(
+                    args.results_dir or "Hugging Face dataset"
+                ),
+                reason="no source results found",
             )
-            model_name = sanitize_filename(model_info.name)
-            filepath = save_evaluation_log(
-                eval_log, args.output_dir, developer_slug, model_name
-            )
-            print(f"  {filepath}")
-            count += 1
-        except Exception as e:
-            benchmark = result.get("benchmark", "?")
-            agent = result.get("agent", "?")
-            model = result.get("model_name", "?")
-            print(f"Error processing {benchmark}/{agent}/{model}: {e}")
-            failures.append((index, str(e)))
+        )
 
-    raise_for_failed_records("Exgentic", len(results), failures)
-    print(f"\nGenerated {count} file(s) in {args.output_dir}/")
+    paths = save_evaluation_logs(combined.records)
+    for path in paths:
+        print(f"  {path}")
+
+    if combined.failures:
+        report_path = save_failure_report(
+            combined,
+            default_failure_report_path(args.output_dir),
+        )
+        print(f"Failure report: {report_path}")
+        combined.raise_if_incomplete()
+
+    print(f"\nGenerated {len(paths)} file(s) in {args.output_dir}/")
 
 
 if __name__ == "__main__":

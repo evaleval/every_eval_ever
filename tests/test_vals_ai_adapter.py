@@ -157,6 +157,35 @@ def test_unknown_unprefixed_model_uses_provider_fallback():
     assert result.generation_config is None
 
 
+def test_routed_model_components_use_explicit_schema_fields():
+    payload = sample_payload()
+    raw_id = 'together/langston/nim/nvidia/llama-3.3-nemotron-super-49b-v1'
+    payload['benchmarks'][0]['tasks']['overall'][raw_id] = {
+        'accuracy': 55.0,
+        'provider': 'Together AI',
+    }
+
+    bundles = adapter.make_logs(
+        payload,
+        retrieved_timestamp='1234567890.0',
+    )
+    routed = next(
+        bundle.log
+        for bundle in bundles
+        if bundle.log.model_info.additional_details['vals_model_id'] == raw_id
+    )
+
+    assert routed.model_info.name == ('llama-3.3-nemotron-super-49b-v1')
+    assert routed.model_info.id == ('nvidia/llama-3.3-nemotron-super-49b-v1')
+    assert routed.model_info.developer == 'nvidia'
+    assert routed.model_info.inference_platform == 'Together AI'
+    assert routed.model_info.inference_engine.name == 'NIM'
+    assert (
+        routed.model_info.additional_details['vals_route']
+        == 'together/langston/nim'
+    )
+
+
 def test_preserves_source_fields_and_uncertainty():
     bundles = adapter.make_logs(
         sample_payload(), retrieved_timestamp='1234567890.0'

@@ -52,12 +52,16 @@ from every_eval_ever.eval_types import (
 )
 from every_eval_ever.helpers import (
     SCHEMA_VERSION,
+    EvaluationLogOutput,
+    SourceConversionResult,
+    SourceRecordFailure,
+    default_failure_report_path,
     get_developer,
     get_model_id,
     sanitize_filename,
-    save_evaluation_log,
+    save_evaluation_logs,
+    save_failure_report,
 )
-from every_eval_ever.helpers.io import raise_for_failed_records
 
 SOURCE_NAME = 'MT-Bench'
 SOURCE_ORGANIZATION = 'LMSYS'
@@ -192,6 +196,14 @@ def parse_args() -> argparse.Namespace:
         default=JUDGMENT_URL,
         help='Override the upstream JSONL URL.',
     )
+    parser.add_argument(
+        '--failure-report',
+        type=Path,
+        help=(
+            'Write rejected source rows and reasons here. Defaults beside '
+            '--output-dir when any row fails.'
+        ),
+    )
     return parser.parse_args()
 
 
@@ -215,21 +227,31 @@ def load_judgments_file(path: Path) -> Iterable[dict]:
             yield json.loads(line)
 
 
-def aggregate(rows: Iterable[dict]) -> dict[str, ModelScores]:
-    rows = list(rows)
+def _aggregate(
+    rows: list[dict],
+) -> tuple[
+    dict[str, ModelScores],
+    dict[str, list[dict]],
+    list[SourceRecordFailure],
+]:
     by_model: dict[str, ModelScores] = {}
-    failures: list[tuple[int, str]] = []
+    source_rows: dict[str, list[dict]] = {}
+    failures: list[SourceRecordFailure] = []
     for index, row in enumerate(rows):
         model = row.get('model')
         if not isinstance(model, str) or not model:
-            failures.append((index, 'missing model name'))
+            failures.append(
+                SourceRecordFailure(
+                    source_ref=f'JSONL row {index + 1}',
+                    reason='missing model name',
+                    source_record=row,
+                )
+            )
             continue
         scores = by_model.setdefault(model, ModelScores(model=model))
+        source_rows.setdefault(model, []).append(row)
         scores.add(row)
-    raise_for_failed_records('MT-Bench', len(rows), failures)
-    if not by_model:
-        raise ValueError('MT-Bench: converted 0 source records')
-    return by_model
+    return by_model, source_rows, failures
 
 
 def mean(values: list[float]) -> float:
@@ -459,29 +481,68 @@ def make_log(
     return log, developer, model_slug
 
 
+def convert_logs(
+    rows: Iterable[dict],
+    retrieved_timestamp: str | None = None,
+) -> SourceConversionResult[tuple[EvaluationLog, str, str]]:
+    rows = list(rows)
+    timestamp = retrieved_timestamp or str(time.time())
+    by_model, source_rows, failures = _aggregate(rows)
+    bundles = []
+    for model in sorted(by_model):
+        try:
+            result = make_log(by_model[model], timestamp)
+        except (TypeError, ValueError) as exc:
+            failures.append(
+                SourceRecordFailure(
+                    source_ref=f'model {model!r}',
+                    reason=str(exc),
+                    source_record=source_rows[model],
+                )
+            )
+            continue
+        if result is not None:
+            bundles.append(result)
+        else:
+            failures.append(
+                SourceRecordFailure(
+                    source_ref=f'model {model!r}',
+                    reason='no valid turn scores',
+                    source_record=source_rows[model],
+                )
+            )
+    if not bundles and not failures:
+        raise ValueError('MT-Bench: converted 0 source records')
+    return SourceConversionResult(
+        source_name='MT-Bench',
+        total_records=len(rows),
+        records=bundles,
+        failures=failures,
+    )
+
+
 def make_logs(
     rows: Iterable[dict],
     retrieved_timestamp: str | None = None,
 ) -> list[tuple[EvaluationLog, str, str]]:
-    timestamp = retrieved_timestamp or str(time.time())
-    by_model = aggregate(rows)
-    bundles = []
-    for model in sorted(by_model):
-        result = make_log(by_model[model], timestamp)
-        if result is not None:
-            bundles.append(result)
-    return bundles
+    result = convert_logs(rows, retrieved_timestamp)
+    result.raise_if_incomplete()
+    return result.records
 
 
 def export(
     bundles: list[tuple[EvaluationLog, str, str]],
     output_dir: Path,
 ) -> list[Path]:
-    paths = []
-    for log, developer, model_slug in bundles:
-        path = save_evaluation_log(log, output_dir, developer, model_slug)
-        paths.append(path)
-    return paths
+    return save_evaluation_logs(
+        EvaluationLogOutput(
+            eval_log=log,
+            base_dir=output_dir,
+            developer=developer,
+            model_name=model_slug,
+        )
+        for log, developer, model_slug in bundles
+    )
 
 
 def run(args: argparse.Namespace) -> int:
@@ -490,10 +551,17 @@ def run(args: argparse.Namespace) -> int:
     else:
         rows = list(fetch_judgments(args.source_url))
 
-    bundles = make_logs(rows)
-    paths = export(bundles, args.output_dir)
+    result = convert_logs(rows)
+    paths = export(result.records, args.output_dir)
     for path in paths:
         print(path)
+    if result.failures:
+        report_path = save_failure_report(
+            result,
+            args.failure_report or default_failure_report_path(args.output_dir),
+        )
+        print(f'Failure report: {report_path}')
+        result.raise_if_incomplete()
     return len(paths)
 
 

@@ -23,9 +23,14 @@ from every_eval_ever.eval_types import (
 )
 from every_eval_ever.helpers import (
     SCHEMA_VERSION,
+    EvaluationLogOutput,
+    SourceConversionResult,
+    SourceRecordFailure,
+    default_failure_report_path,
     fetch_json,
     sanitize_filename,
-    save_evaluation_log,
+    save_evaluation_logs,
+    save_failure_report,
 )
 from every_eval_ever.helpers.io import require_identity
 
@@ -434,12 +439,22 @@ def compute_observed_max_scores(
         values = [
             value
             for model in models
-            if (value := get_metric_value(model, spec)) is not None
+            if (value := _valid_metric_value(model, spec)) is not None
         ]
         if values:
             observed_max_scores[spec.evaluation_name] = max(values)
 
     return observed_max_scores
+
+
+def _valid_metric_value(
+    model: dict[str, Any], spec: MetricSpec
+) -> float | None:
+    """Return a numeric value for aggregate bounds; row conversion reports errors."""
+    try:
+        return get_metric_value(model, spec)
+    except (TypeError, ValueError):
+        return None
 
 
 def make_source_data() -> SourceDataUrl:
@@ -599,27 +614,50 @@ def make_evaluation_results(
     model: dict[str, Any],
     payload: dict[str, Any],
     observed_max_scores: dict[str, float],
+    *,
+    failures: list[SourceRecordFailure] | None = None,
+    source_ref: str | None = None,
 ) -> list[EvaluationResult]:
     prompt_options = payload.get("prompt_options", {})
     source_data = make_source_data()
     results: list[EvaluationResult] = []
 
     for spec in METRIC_SPECS:
-        score = get_metric_value(model, spec)
-        if score is None:
-            continue
-
-        results.append(
-            EvaluationResult(
-                evaluation_result_id=spec.evaluation_name,
-                evaluation_name=spec.evaluation_name,
-                source_data=source_data,
-                metric_config=make_metric_config(
-                    spec, observed_max_scores, prompt_options
-                ),
-                score_details=make_score_details(model, spec, score),
+        try:
+            score = get_metric_value(model, spec)
+            if score is None:
+                continue
+            results.append(
+                EvaluationResult(
+                    evaluation_result_id=spec.evaluation_name,
+                    evaluation_name=spec.evaluation_name,
+                    source_data=source_data,
+                    metric_config=make_metric_config(
+                        spec, observed_max_scores, prompt_options
+                    ),
+                    score_details=make_score_details(model, spec, score),
+                )
             )
-        )
+        except Exception as exc:
+            if failures is None:
+                raise
+            failures.append(
+                SourceRecordFailure(
+                    source_ref=(
+                        f'{source_ref or model.get("id", "model")} '
+                        f'metric {spec.source_section}.{spec.source_key}'
+                    ),
+                    reason=str(exc),
+                    source_record={
+                        'model': model,
+                        'metric_section': spec.source_section,
+                        'metric_key': spec.source_key,
+                    },
+                )
+            )
+
+    if not results:
+        raise ValueError('model has no usable evaluation metrics')
 
     return results
 
@@ -629,6 +667,9 @@ def make_log(
     payload: dict[str, Any],
     observed_max_scores: dict[str, float],
     retrieved_timestamp: str,
+    *,
+    failures: list[SourceRecordFailure] | None = None,
+    source_ref: str | None = None,
 ) -> tuple[EvaluationLog, str, str]:
     model_info, developer, model_path_name = make_model_info(model)
 
@@ -655,24 +696,65 @@ def make_log(
         ),
         model_info=model_info,
         evaluation_results=make_evaluation_results(
-            model, payload, observed_max_scores
+            model,
+            payload,
+            observed_max_scores,
+            failures=failures,
+            source_ref=source_ref,
         ),
     )
 
     return log, developer, model_path_name
 
 
-def export_model(
-    model: dict[str, Any],
+def convert_models(
+    models: list[dict[str, Any]],
     payload: dict[str, Any],
     output_dir: Path,
     observed_max_scores: dict[str, float],
     retrieved_timestamp: str,
-) -> Path:
-    log, developer, model_path_name = make_log(
-        model, payload, observed_max_scores, retrieved_timestamp
+) -> SourceConversionResult[EvaluationLogOutput]:
+    """Convert usable models while retaining model and metric failures."""
+    outputs = []
+    failures = []
+    for index, model in enumerate(models):
+        source_ref = f'Artificial Analysis model row {index}'
+        failure_count_before = len(failures)
+        try:
+            log, developer, model_path_name = make_log(
+                model,
+                payload,
+                observed_max_scores,
+                retrieved_timestamp,
+                failures=failures,
+                source_ref=source_ref,
+            )
+            outputs.append(
+                EvaluationLogOutput(
+                    eval_log=log,
+                    base_dir=output_dir,
+                    developer=developer,
+                    model_name=model_path_name,
+                )
+            )
+        except Exception as exc:
+            failures.append(
+                SourceRecordFailure(
+                    source_ref=source_ref,
+                    reason=(
+                        f'no output written: {exc}'
+                        if len(failures) > failure_count_before
+                        else str(exc)
+                    ),
+                    source_record=model,
+                )
+            )
+    return SourceConversionResult(
+        source_name='Artificial Analysis',
+        total_records=len(models),
+        records=outputs,
+        failures=failures,
     )
-    return save_evaluation_log(log, output_dir, developer, model_path_name)
 
 
 def run(args: argparse.Namespace) -> int:
@@ -700,32 +782,24 @@ def run(args: argparse.Namespace) -> int:
     observed_max_scores = compute_observed_max_scores(models)
     retrieved_timestamp = str(time.time())
 
-    count = 0
-    for model in sorted(
+    result = convert_models(
         models,
-        key=lambda row: (
-            normalize_slug(
-                (row.get("model_creator") or {}).get("slug"),
-                require_identity(
-                    (row.get("model_creator") or {}).get("name"),
-                    "Artificial Analysis model creator name",
-                ),
-            ),
-            make_model_path_name(row),
-            str(row["id"]),
-        ),
-    ):
-        output_path = export_model(
-            model,
-            payload,
-            args.output_dir,
-            observed_max_scores,
-            retrieved_timestamp,
-        )
+        payload,
+        args.output_dir,
+        observed_max_scores,
+        retrieved_timestamp,
+    )
+    paths = save_evaluation_logs(result.records)
+    for output_path in paths:
         print(output_path)
-        count += 1
-
-    return count
+    if result.failures:
+        report_path = save_failure_report(
+            result,
+            default_failure_report_path(args.output_dir),
+        )
+        print(f'Failure report: {report_path}')
+        result.raise_if_incomplete()
+    return len(paths)
 
 
 if __name__ == "__main__":

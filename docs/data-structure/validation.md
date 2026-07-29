@@ -33,6 +33,11 @@ Paths must be exactly `data/<collection>/<developer>/<model>/<uuid>.json` or the
 
 Local validation checks only the files present in the local checkout and their expected siblings. It does not claim that a partial checkout represents the complete datastore. The PR bot uses the PR diff and branch contents for that authoritative check.
 
+For local smoke output outside the checkout, retain the same layout under a
+`data/` directory and pass an explicit glob, for example
+`'/tmp/run/data/benchmark/*/*/*.json*'`. The CLI maps that absolute path back
+to the canonical datastore path before applying the same checks.
+
 ### Output formats
 
 ```sh

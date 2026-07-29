@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from every_eval_ever.eval_types import EvaluationLog
+from every_eval_ever.helpers.io import SourceRecordsError
 from utils.mmlu_pro import adapter
 
 
@@ -42,15 +43,16 @@ def sample_rows() -> list[dict]:
             'Model Size(B)': 'unk',
             'Overall': '0.780',
         },
-        # Exact duplicate — should be dropped.
+        # Exact duplicate — should be dropped. Use a model whose developer is
+        # known so this fixture does not bypass the required-identity rule.
         {
-            'Models': 'LLaDA',
+            'Models': 'GPT-4-Turbo',
             'Data Source': 'Self-Reported',
             'Model Size(B)': '8',
             'Overall': '0.370',
         },
         {
-            'Models': 'LLaDA',
+            'Models': 'GPT-4-Turbo',
             'Data Source': 'Self-Reported',
             'Model Size(B)': '8',
             'Overall': '0.370',
@@ -78,16 +80,54 @@ def test_missing_score_reports_failed_source_record_count():
     try:
         adapter.make_logs(rows, retrieved_timestamp='123.0')
     except ValueError as exc:
-        assert 'failed to convert 1 of 7 source records' in str(exc)
-        assert 'row 6: missing or invalid overall score' in str(exc)
+        assert 'encountered 1 conversion issue(s) across 7 source record(s)' in str(exc)
+        assert 'CSV row 8: missing or invalid overall score' in str(exc)
     else:
         raise AssertionError('expected an incomplete MMLU-Pro row to fail')
 
 
+def test_unknown_developer_retains_rejected_source_row():
+    row = {
+        'Models': 'not-a-known-model-family',
+        'Data Source': 'Self-Reported',
+        'Model Size(B)': 'unk',
+        'Overall': '0.5',
+    }
+
+    try:
+        adapter.make_logs([row], retrieved_timestamp='123.0')
+    except SourceRecordsError as exc:
+        assert exc.failures[0].source_ref == 'CSV row 2'
+        assert exc.failures[0].source_record == row
+        assert 'must be known' in exc.failures[0].reason
+    else:
+        raise AssertionError('expected unknown developer to fail')
+
+
+def test_partial_conversion_retains_valid_records_and_failures():
+    valid_row = sample_rows()[0]
+    invalid_row = {
+        'Models': 'not-a-known-model-family',
+        'Data Source': 'Self-Reported',
+        'Model Size(B)': 'unk',
+        'Overall': '0.5',
+    }
+
+    result = adapter.convert_logs(
+        [valid_row, invalid_row],
+        retrieved_timestamp='123.0',
+    )
+
+    assert len(result.records) == 1
+    assert result.records[0][0].model_info.id.startswith('openai/')
+    assert len(result.failures) == 1
+    assert result.failures[0].source_record == invalid_row
+
+
 def test_make_logs_validate_against_schema():
     bundles = adapter.make_logs(sample_rows(), retrieved_timestamp='123.0')
-    # GPT-4o + 2 Claude variants + LLaDA (deduped) + EXAONE = 5 logs;
-    # The exact duplicate LLaDA row is dropped.
+    # GPT-4o + 2 Claude variants + GPT-4-Turbo (deduped) + EXAONE = 5
+    # logs; the exact duplicate GPT-4-Turbo row is dropped.
     assert len(bundles) == 5
     for log, _, _ in bundles:
         validated = EvaluationLog.model_validate(log.model_dump())
@@ -174,16 +214,33 @@ def test_data_source_typos_are_normalized():
         )
         == 'Self-Reported'
     )
-    assert (
-        'raw_leaderboard_data_source'
-        not in (self_reported.source_metadata.additional_details or {})
+    assert 'raw_leaderboard_data_source' not in (
+        self_reported.source_metadata.additional_details or {}
     )
 
 
 def test_exact_duplicate_rows_are_dropped():
     bundles = adapter.make_logs(sample_rows(), retrieved_timestamp='123.0')
-    llada = [b for b in bundles if 'llada' in b[0].model_info.id.lower()]
-    assert len(llada) == 1
+    duplicated = [
+        b for b in bundles if 'gpt-4-turbo' in b[0].model_info.id.lower()
+    ]
+    assert len(duplicated) == 1
+
+
+def test_export_preflights_all_paths_before_writing(tmp_path):
+    bundles = adapter.make_logs(sample_rows(), retrieved_timestamp='123.0')
+    log, _, model_slug = bundles[-1]
+    invalid = [*bundles, (log, 'unknown', model_slug)]
+    output_dir = tmp_path / 'data' / 'MMLU-Pro'
+
+    try:
+        adapter.export(invalid, output_dir)
+    except ValueError as exc:
+        assert 'must be known' in str(exc)
+    else:
+        raise AssertionError('expected invalid output identity to fail')
+
+    assert list(output_dir.rglob('*.json')) == []
 
 
 def test_developer_override_for_exaone():

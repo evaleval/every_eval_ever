@@ -10,10 +10,8 @@ Usage:
     uv run python -m utils.rewardbench.adapter
 """
 
-import json
 import re
 import time
-import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -30,13 +28,19 @@ from every_eval_ever.eval_types import (
     SourceMetadata,
 )
 from every_eval_ever.helpers import (
+    EvaluationLogOutput,
+    SourceConversionResult,
+    SourceRecordExclusion,
+    SourceRecordFailure,
+    default_failure_report_path,
     fetch_csv,
     fetch_json,
     get_developer,
     get_model_id,
-    sanitize_filename,
+    save_evaluation_logs,
+    save_failure_report,
 )
-from every_eval_ever.helpers.io import generate_output_path, require_identity
+from every_eval_ever.helpers.io import require_identity
 
 # Schema version
 SCHEMA_VERSION = '0.2.1'
@@ -136,26 +140,6 @@ def _make_model_info(
     )
 
 
-def _save_eval_log(eval_log: EvaluationLog, developer: str, model: str) -> Path:
-    """Save an evaluation log to the standard directory structure."""
-    dir_path = generate_output_path(
-        OUTPUT_DIR,
-        sanitize_filename(developer),
-        sanitize_filename(model),
-    )
-    dir_path.mkdir(parents=True, exist_ok=True)
-
-    filepath = dir_path / f'{uuid.uuid4()}.json'
-    json_str = json.dumps(
-        eval_log.model_dump(mode='json', exclude_none=True),
-        indent=2,
-        ensure_ascii=False,
-        allow_nan=False,
-    )
-    filepath.write_text(json_str + '\n', encoding='utf-8')
-    return filepath
-
-
 def extract_model_name_from_html(html_string: str) -> str:
     """Extract the model name from an HTML anchor tag."""
     pattern = r'>([^<]+)<'
@@ -167,6 +151,22 @@ def extract_model_name_from_html(html_string: str) -> str:
     return re.sub(r'\s*[\*⚠️]+$', '', html_string).strip()
 
 
+def extract_hf_model_id_from_html(html_string: str) -> str | None:
+    """Return an explicit Hugging Face org/model reference when present."""
+    match = re.search(
+        r'href=["\'](?:https://huggingface\.co/)?'
+        r'(?:models/)?([^"\'?#]+)',
+        html_string,
+        flags=re.IGNORECASE,
+    )
+    if match is None:
+        return None
+    candidate = match.group(1).strip('/')
+    if candidate.startswith(('spaces/', 'datasets/')) or '/' not in candidate:
+        return None
+    return candidate
+
+
 def parse_score(value: str) -> Optional[float]:
     """Parse a score string, normalizing 0-100 scores to 0-1."""
     if not value or not value.strip():
@@ -176,85 +176,172 @@ def parse_score(value: str) -> Optional[float]:
         # RewardBench v1 scores are typically 0-100, normalize to 0-1
         if score > 1:
             score = score / 100.0
-        return score
-    except ValueError:
-        return None
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f'invalid RewardBench score: {value!r}') from exc
+    if not 0.0 <= score <= 1.0:
+        raise ValueError(
+            f'RewardBench score must be between 0 and 1, got {score!r}'
+        )
+    return score
+
+
+def _output_for_log(
+    eval_log: EvaluationLog,
+    output_dir: Path | str,
+) -> EvaluationLogOutput:
+    model_id = require_identity(eval_log.model_info.id, 'RewardBench model id')
+    if '/' not in model_id:
+        raise ValueError(
+            f'RewardBench model id must be developer/model: {model_id!r}'
+        )
+    developer, model = model_id.split('/', 1)
+    return EvaluationLogOutput(
+        eval_log=eval_log,
+        base_dir=output_dir,
+        developer=developer,
+        model_name=model,
+    )
+
+
+def convert_rewardbench_v1_rows(
+    rows: list[dict],
+    retrieved_timestamp: str,
+    output_dir: Path | str = OUTPUT_DIR,
+) -> SourceConversionResult[EvaluationLogOutput]:
+    """Convert valid v1 models and retain all rejected source fragments."""
+    outputs = []
+    failures: list[SourceRecordFailure] = []
+    exclusions: list[SourceRecordExclusion] = []
+
+    for row_index, row in enumerate(rows):
+        row_ref = f'RewardBench v1 CSV row {row_index + 2}'
+        failure_count_before = len(failures)
+        try:
+            model_html = row.get('Model', '')
+            display_name = extract_model_name_from_html(model_html)
+            if display_name.lower() == 'random':
+                exclusions.append(
+                    SourceRecordExclusion(
+                        source_ref=row_ref,
+                        reason=(
+                            'published random baseline is not a model '
+                            'evaluation'
+                        ),
+                        source_record=row,
+                    )
+                )
+                continue
+            require_identity(display_name, 'RewardBench model name')
+
+            hf_model_id = extract_hf_model_id_from_html(model_html)
+            if hf_model_id is not None:
+                developer, model_name = hf_model_id.split('/', 1)
+            else:
+                model_name = display_name
+                developer = require_identity(
+                    get_developer(model_name),
+                    'RewardBench model developer',
+                )
+
+            eval_results: List[EvaluationResult] = []
+            for metric_name, description in V1_METRICS.items():
+                raw_score = row.get(metric_name, '')
+                try:
+                    score = parse_score(raw_score)
+                    if score is not None:
+                        eval_results.append(
+                            _make_eval_result(
+                                name=metric_name,
+                                score=score,
+                                description=description,
+                                source_data=V1_SOURCE_DATA,
+                            )
+                        )
+                except ValueError as exc:
+                    failures.append(
+                        SourceRecordFailure(
+                            source_ref=f'{row_ref} metric {metric_name!r}',
+                            reason=str(exc),
+                            source_record={
+                                'model': model_html,
+                                'metric': metric_name,
+                                'value': raw_score,
+                            },
+                        )
+                    )
+
+            if not eval_results:
+                raise ValueError('model has no usable RewardBench metrics')
+
+            model_type = row.get('Model Type', '')
+            details = {}
+            if model_type:
+                details['model_type'] = model_type
+            if display_name != model_name:
+                details['display_name'] = display_name
+            model_info = _make_model_info(
+                model_name=model_name,
+                developer=developer,
+                additional_details=details or None,
+            )
+            evaluation_id = (
+                'reward-bench/'
+                f'{model_info.id.replace("/", "_")}/{retrieved_timestamp}'
+            )
+            eval_log = EvaluationLog(
+                schema_version=SCHEMA_VERSION,
+                evaluation_id=evaluation_id,
+                retrieved_timestamp=retrieved_timestamp,
+                source_metadata=V1_SOURCE_METADATA,
+                eval_library=EvalLibrary(name='unknown', version='unknown'),
+                model_info=model_info,
+                evaluation_results=eval_results,
+            )
+            outputs.append(_output_for_log(eval_log, output_dir))
+        except Exception as exc:
+            failures.append(
+                SourceRecordFailure(
+                    source_ref=row_ref,
+                    reason=(
+                        f'no output written: {exc}'
+                        if len(failures) > failure_count_before
+                        else str(exc)
+                    ),
+                    source_record=row,
+                )
+            )
+
+    return SourceConversionResult(
+        source_name='RewardBench v1',
+        total_records=len(rows),
+        records=outputs,
+        failures=failures,
+        exclusions=exclusions,
+    )
 
 
 def fetch_rewardbench_v1(retrieved_timestamp: str) -> int:
     """Fetch and process RewardBench v1 results from the CSV file."""
     print('Fetching RewardBench v1 CSV...')
 
-    rows = fetch_csv(REWARDBENCH_V1_CSV)
-    count = 0
-
-    for row in rows:
-        # Extract model name from HTML link
-        model_html = row.get('Model', '')
-        model_name = extract_model_name_from_html(model_html)
-        if not model_name or model_name == 'random':
-            continue
-
-        model_type = row.get('Model Type', '')
-        developer = get_developer(model_name)
-
-        # Create evaluation results for each metric
-        eval_results: List[EvaluationResult] = []
-        for metric_name, description in V1_METRICS.items():
-            score = parse_score(row.get(metric_name, ''))
-            if score is not None:
-                eval_results.append(
-                    _make_eval_result(
-                        name=metric_name,
-                        score=score,
-                        description=description,
-                        source_data=V1_SOURCE_DATA,
-                    )
-                )
-
-        if not eval_results:
-            continue
-
-        # Build model info
-        model_info = _make_model_info(
-            model_name=model_name,
-            developer=developer,
-            additional_details={'model_type': model_type}
-            if model_type
-            else None,
-        )
-
-        # Build evaluation log
-        evaluation_id = f'reward-bench/{model_info.id.replace("/", "_")}/{retrieved_timestamp}'
-        eval_log = EvaluationLog(
-            schema_version=SCHEMA_VERSION,
-            evaluation_id=evaluation_id,
-            retrieved_timestamp=retrieved_timestamp,
-            source_metadata=V1_SOURCE_METADATA,
-            eval_library=EvalLibrary(name='unknown', version='unknown'),
-            model_info=model_info,
-            evaluation_results=eval_results,
-        )
-
-        # Parse model path for saving
-        if '/' in model_info.id:
-            dev, model = model_info.id.split('/', 1)
-        else:
-            dev, model = 'unknown', model_info.id
-
-        filepath = _save_eval_log(eval_log, dev, model)
-        print(f'Saved: {filepath}')
-        count += 1
-
-    return count
+    result = convert_rewardbench_v1_rows(
+        fetch_csv(REWARDBENCH_V1_CSV),
+        retrieved_timestamp,
+    )
+    return _publish_result(result, OUTPUT_DIR)
 
 
-def fetch_rewardbench_v2(retrieved_timestamp: str) -> int:
-    """Fetch and process RewardBench v2 results from the HuggingFace dataset."""
+def collect_rewardbench_v2(
+    retrieved_timestamp: str,
+    output_dir: Path | str = OUTPUT_DIR,
+) -> SourceConversionResult[EvaluationLogOutput]:
+    """Fetch v2 source records, retaining fetch and conversion failures."""
     print('Fetching RewardBench v2 model list...')
 
     orgs = fetch_json(REWARDBENCH_V2_TREE_API)
-    count = 0
+    outputs = []
+    failures: list[SourceRecordFailure] = []
+    total_records = 0
 
     for org_item in orgs:
         if org_item['type'] != 'directory':
@@ -268,8 +355,15 @@ def fetch_rewardbench_v2(retrieved_timestamp: str) -> int:
         org_tree_url = f'https://huggingface.co/api/datasets/allenai/reward-bench-2-results/tree/main/{org_path}'
         try:
             model_files = fetch_json(org_tree_url)
-        except Exception as e:
-            print(f'    Error fetching org tree: {e}')
+        except Exception as exc:
+            total_records += 1
+            failures.append(
+                SourceRecordFailure(
+                    source_ref=f'RewardBench v2 organization {org_path!r}',
+                    reason=f'failed to fetch organization tree: {exc}',
+                    source_record=org_item,
+                )
+            )
             continue
 
         for model_file in model_files:
@@ -278,33 +372,53 @@ def fetch_rewardbench_v2(retrieved_timestamp: str) -> int:
             ):
                 continue
 
+            total_records += 1
             model_path = model_file['path']
             model_url = f'{REWARDBENCH_V2_FILE_BASE}/{"/".join(model_path.split("/")[1:])}'
 
             try:
                 model_data = fetch_json(model_url)
-            except Exception as e:
-                print(f'    Error fetching {model_path}: {e}')
+            except Exception as exc:
+                failures.append(
+                    SourceRecordFailure(
+                        source_ref=f'RewardBench v2 file {model_path!r}',
+                        reason=f'failed to fetch model result: {exc}',
+                        source_record=model_file,
+                    )
+                )
                 continue
 
-            model_name = require_identity(
-                model_data.get('model'),
-                'RewardBench model name',
-            )
-            model_type = model_data.get('model_type', '')
-            developer = get_developer(model_name)
+            source_ref = f'RewardBench v2 file {model_path!r}'
+            failure_count_before = len(failures)
+            try:
+                raw_model_name = require_identity(
+                    model_data.get('model'),
+                    'RewardBench model name',
+                )
+                if '/' in raw_model_name:
+                    developer, model_name = raw_model_name.split('/', 1)
+                else:
+                    developer = require_identity(
+                        org_name,
+                        'RewardBench model developer',
+                    )
+                    model_name = raw_model_name
+                model_type = model_data.get('model_type', '')
 
-            # Build evaluation results
-            eval_results: List[EvaluationResult] = []
-            scores_for_average = []
+                eval_results: List[EvaluationResult] = []
+                scores_for_average = []
 
-            for metric_name, description in V2_METRICS:
-                if (
-                    metric_name in model_data
-                    and model_data[metric_name] is not None
-                ):
+                for metric_name, description in V2_METRICS:
+                    raw_score = model_data.get(metric_name)
+                    if raw_score is None:
+                        continue
                     try:
-                        score = float(model_data[metric_name])
+                        score = float(raw_score)
+                        if not 0.0 <= score <= 1.0:
+                            raise ValueError(
+                                'score must be between 0 and 1, '
+                                f'got {score!r}'
+                            )
                         scores_for_average.append(score)
                         eval_results.append(
                             _make_eval_result(
@@ -314,57 +428,112 @@ def fetch_rewardbench_v2(retrieved_timestamp: str) -> int:
                                 source_data=V2_SOURCE_DATA,
                             )
                         )
-                    except (ValueError, TypeError):
-                        pass
+                    except (TypeError, ValueError) as exc:
+                        failures.append(
+                            SourceRecordFailure(
+                                source_ref=(
+                                    f'{source_ref} metric {metric_name!r}'
+                                ),
+                                reason=str(exc),
+                                source_record={
+                                    'model': raw_model_name,
+                                    'metric': metric_name,
+                                    'value': raw_score,
+                                },
+                            )
+                        )
 
-            if not eval_results:
-                continue
+                if not eval_results:
+                    raise ValueError(
+                        'model has no usable RewardBench 2 metrics'
+                    )
 
-            # Add mean score as the first result
-            if scores_for_average:
-                mean_score = sum(scores_for_average) / len(scores_for_average)
+                mean_score = sum(scores_for_average) / len(
+                    scores_for_average
+                )
                 eval_results.insert(
                     0,
                     _make_eval_result(
                         name='Score',
                         score=mean_score,
-                        description='Overall RewardBench 2 Score (mean of all metrics)',
+                        description=(
+                            'Overall RewardBench 2 Score '
+                            '(mean of all metrics)'
+                        ),
                         source_data=V2_SOURCE_DATA,
                     ),
                 )
 
-            # Build model info
-            model_info = _make_model_info(
-                model_name=model_name,
-                developer=developer,
-                additional_details={'model_type': model_type}
-                if model_type
-                else None,
-            )
+                model_info = _make_model_info(
+                    model_name=model_name,
+                    developer=developer,
+                    additional_details={'model_type': model_type}
+                    if model_type
+                    else None,
+                )
+                evaluation_id = (
+                    'reward-bench-2/'
+                    f'{model_info.id.replace("/", "_")}/'
+                    f'{retrieved_timestamp}'
+                )
+                eval_log = EvaluationLog(
+                    schema_version=SCHEMA_VERSION,
+                    evaluation_id=evaluation_id,
+                    retrieved_timestamp=retrieved_timestamp,
+                    source_metadata=V2_SOURCE_METADATA,
+                    eval_library=EvalLibrary(
+                        name='unknown',
+                        version='unknown',
+                    ),
+                    model_info=model_info,
+                    evaluation_results=eval_results,
+                )
+                outputs.append(_output_for_log(eval_log, output_dir))
+            except Exception as exc:
+                failures.append(
+                    SourceRecordFailure(
+                        source_ref=source_ref,
+                        reason=(
+                            f'no output written: {exc}'
+                            if len(failures) > failure_count_before
+                            else str(exc)
+                        ),
+                        source_record=model_data,
+                    )
+                )
 
-            # Build evaluation log
-            evaluation_id = f'reward-bench-2/{model_info.id.replace("/", "_")}/{retrieved_timestamp}'
-            eval_log = EvaluationLog(
-                schema_version=SCHEMA_VERSION,
-                evaluation_id=evaluation_id,
-                retrieved_timestamp=retrieved_timestamp,
-                source_metadata=V2_SOURCE_METADATA,
-                eval_library=EvalLibrary(name='unknown', version='unknown'),
-                model_info=model_info,
-                evaluation_results=eval_results,
-            )
+    return SourceConversionResult(
+        source_name='RewardBench v2',
+        total_records=total_records,
+        records=outputs,
+        failures=failures,
+    )
 
-            # Parse model path for saving
-            if '/' in model_info.id:
-                dev, model = model_info.id.split('/', 1)
-            else:
-                dev, model = 'unknown', model_info.id
 
-            filepath = _save_eval_log(eval_log, dev, model)
-            print(f'    Saved: {filepath}')
-            count += 1
+def _publish_result(
+    result: SourceConversionResult[EvaluationLogOutput],
+    output_dir: Path | str,
+) -> int:
+    """Publish valid outputs and a non-schema provenance report."""
+    paths = save_evaluation_logs(result.records)
+    for path in paths:
+        print(f'Saved: {path}')
+    if result.failures or result.exclusions:
+        report_path = save_failure_report(
+            result,
+            default_failure_report_path(output_dir),
+        )
+        print(f'Provenance report: {report_path}')
+    result.raise_if_incomplete()
+    return len(paths)
 
-    return count
+
+def fetch_rewardbench_v2(retrieved_timestamp: str) -> int:
+    """Fetch, process, and publish RewardBench v2 results."""
+    return _publish_result(
+        collect_rewardbench_v2(retrieved_timestamp),
+        OUTPUT_DIR,
+    )
 
 
 def main():
@@ -375,15 +544,32 @@ def main():
     print('Fetching RewardBench v1 results...')
     print('=' * 60)
 
-    v1_count = fetch_rewardbench_v1(retrieved_timestamp)
-    print(f'\nProcessed {v1_count} models from RewardBench v1')
+    v1 = convert_rewardbench_v1_rows(
+        fetch_csv(REWARDBENCH_V1_CSV),
+        retrieved_timestamp,
+    )
+    print(
+        f'\nConverted {len(v1.records)} models from RewardBench v1'
+    )
 
     print('\n' + '=' * 60)
     print('Fetching RewardBench v2 results...')
     print('=' * 60)
 
-    v2_count = fetch_rewardbench_v2(retrieved_timestamp)
-    print(f'\nProcessed {v2_count} models from RewardBench v2')
+    v2 = collect_rewardbench_v2(retrieved_timestamp)
+    print(
+        f'\nConverted {len(v2.records)} models from RewardBench v2'
+    )
+
+    combined = SourceConversionResult(
+        source_name='RewardBench v1 and v2',
+        total_records=v1.total_records + v2.total_records,
+        records=[*v1.records, *v2.records],
+        failures=[*v1.failures, *v2.failures],
+        exclusions=[*v1.exclusions, *v2.exclusions],
+    )
+    count = _publish_result(combined, OUTPUT_DIR)
+    print(f'\nPublished {count} RewardBench models')
 
     print('\n' + '=' * 60)
     print('Done!')

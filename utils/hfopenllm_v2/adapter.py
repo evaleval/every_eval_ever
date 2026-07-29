@@ -23,12 +23,16 @@ from every_eval_ever.eval_types import (
 )
 from every_eval_ever.helpers import (
     SCHEMA_VERSION,
+    EvaluationLogOutput,
+    SourceConversionResult,
+    SourceRecordFailure,
+    default_failure_report_path,
     fetch_json,
     make_model_info,
     make_source_metadata,
-    save_evaluation_log,
+    save_evaluation_logs,
+    save_failure_report,
 )
-from every_eval_ever.helpers.io import raise_for_failed_records
 
 # Source URL
 SOURCE_URL = 'https://open-llm-leaderboard-open-llm-leaderboard.hf.space/api/leaderboard/formatted'
@@ -91,9 +95,18 @@ SOURCE_DATA_MAPPING = {
 
 
 def convert_model(
-    model_data: Dict[str, Any], retrieved_timestamp: str
+    model_data: Dict[str, Any],
+    retrieved_timestamp: str,
+    *,
+    source_ref: str | None = None,
+    failures: list[SourceRecordFailure] | None = None,
 ) -> EvaluationLog:
-    """Convert a single model's data to EvaluationLog format."""
+    """Convert one model, optionally retaining unusable metric provenance.
+
+    The strict public behavior is unchanged when ``failures`` is omitted:
+    any unusable metric rejects the model. Batch conversion supplies a failure
+    list so valid metrics from the same model can still be published.
+    """
     model_id = model_data['model']['name']
     if '/' not in model_id:
         raise ValueError(f"Expected 'org/model' format, got: {model_id}")
@@ -102,34 +115,58 @@ def convert_model(
     # Build evaluation results
     eval_results: List[EvaluationResult] = []
     for eval_key, eval_data in model_data.get('evaluations', {}).items():
-        display_name = eval_data.get(
-            'name', EVALUATION_MAPPING.get(eval_key, eval_key)
-        )
-        description = EVALUATION_DESCRIPTIONS.get(
-            display_name, f'Accuracy on {display_name}'
-        )
-        source_data = SOURCE_DATA_MAPPING.get(eval_key)
-        if source_data is None:
-            raise ValueError(
-                f"Unknown eval_key '{eval_key}' — add it to SOURCE_DATA_MAPPING"
+        try:
+            if eval_data.get('value') is None:
+                raise ValueError('score is missing')
+            display_name = eval_data.get(
+                'name', EVALUATION_MAPPING.get(eval_key, eval_key)
             )
+            description = EVALUATION_DESCRIPTIONS.get(
+                display_name, f'Accuracy on {display_name}'
+            )
+            source_data = SOURCE_DATA_MAPPING.get(eval_key)
+            if source_data is None:
+                raise ValueError(
+                    f"unknown evaluation key; add '{eval_key}' to "
+                    'SOURCE_DATA_MAPPING'
+                )
 
-        eval_results.append(
-            EvaluationResult(
-                evaluation_name=display_name,
-                source_data=source_data,
-                metric_config=MetricConfig(
-                    evaluation_description=description,
-                    lower_is_better=False,
-                    score_type=ScoreType.continuous,
-                    min_score=0.0,
-                    max_score=1.0,
-                ),
-                score_details=ScoreDetails(
-                    score=round(eval_data.get('value', 0.0), 4),
-                ),
+            eval_results.append(
+                EvaluationResult(
+                    evaluation_name=display_name,
+                    source_data=source_data,
+                    metric_config=MetricConfig(
+                        evaluation_description=description,
+                        lower_is_better=False,
+                        score_type=ScoreType.continuous,
+                        min_score=0.0,
+                        max_score=1.0,
+                    ),
+                    score_details=ScoreDetails(
+                        score=round(float(eval_data['value']), 4),
+                    ),
+                )
             )
-        )
+        except Exception as exc:
+            if failures is None:
+                raise ValueError(
+                    f"Evaluation '{eval_key}' could not be converted: {exc}"
+                ) from exc
+            failures.append(
+                SourceRecordFailure(
+                    source_ref=(
+                        f'{source_ref or model_id} evaluation {eval_key!r}'
+                    ),
+                    reason=str(exc),
+                    source_record={
+                        'model': model_data.get('model'),
+                        'evaluation_key': eval_key,
+                        'evaluation': eval_data,
+                    },
+                )
+            )
+    if not eval_results:
+        raise ValueError('model has no usable evaluation results')
 
     # Build additional details
     additional_details = {}
@@ -178,15 +215,17 @@ def convert_model(
     )
 
 
-def process_models(
-    models_data: List[Dict[str, Any]], output_dir: str = OUTPUT_DIR
-):
-    """Process a list of model evaluation dicts and save them."""
-    retrieved_timestamp = str(time.time())
-    count = 0
-    failures: list[tuple[int, str]] = []
-
+def convert_models(
+    models_data: List[Dict[str, Any]],
+    retrieved_timestamp: str | None = None,
+) -> SourceConversionResult[EvaluationLogOutput]:
+    """Convert all usable models and preserve every rejected source row."""
+    timestamp = retrieved_timestamp or str(time.time())
+    outputs = []
+    failures: list[SourceRecordFailure] = []
     for index, model_data in enumerate(models_data):
+        source_ref = f'model row {index}'
+        failure_count_before = len(failures)
         try:
             model_id = model_data['model']['name']
             if '/' not in model_id:
@@ -194,24 +233,67 @@ def process_models(
                     f"Expected 'org/model' format, got: {model_id}"
                 )
             developer, model = model_id.split('/', 1)
-
-            # Convert to EvaluationLog
-            eval_log = convert_model(model_data, retrieved_timestamp)
-
-            # Save
-            filepath = save_evaluation_log(
-                eval_log, output_dir, developer, model
+            eval_log = convert_model(
+                model_data,
+                timestamp,
+                source_ref=source_ref,
+                failures=failures,
             )
-            print(f'Saved: {filepath}')
-            count += 1
+            outputs.append(
+                EvaluationLogOutput(
+                    eval_log=eval_log,
+                    base_dir=OUTPUT_DIR,
+                    developer=developer,
+                    model_name=model,
+                )
+            )
+        except Exception as exc:
+            # If every metric was already recorded as unusable, add one
+            # model-level entry explaining why no evaluation file was emitted.
+            if len(failures) > failure_count_before:
+                reason = f'no output written: {exc}'
+            else:
+                reason = str(exc)
+            failures.append(
+                SourceRecordFailure(
+                    source_ref=source_ref,
+                    reason=reason,
+                    source_record=model_data,
+                )
+            )
+    return SourceConversionResult(
+        source_name='HF Open LLM v2',
+        total_records=len(models_data),
+        records=outputs,
+        failures=failures,
+    )
 
-        except Exception as e:
-            model_name = model_data.get('model', {}).get('name', 'unknown')
-            print(f'Error processing {model_name}: {e}')
-            failures.append((index, str(e)))
 
-    raise_for_failed_records('HF Open LLM v2', len(models_data), failures)
-    return count
+def process_models(
+    models_data: List[Dict[str, Any]], output_dir: str = OUTPUT_DIR
+) -> int:
+    """Save valid models, report rejected rows, and signal incompleteness."""
+    result = convert_models(models_data)
+    outputs = [
+        EvaluationLogOutput(
+            eval_log=record.eval_log,
+            base_dir=output_dir,
+            developer=record.developer,
+            model_name=record.model_name,
+        )
+        for record in result.records
+    ]
+    paths = save_evaluation_logs(outputs)
+    for path in paths:
+        print(f'Saved: {path}')
+    if result.failures:
+        report_path = save_failure_report(
+            result,
+            default_failure_report_path(output_dir),
+        )
+        print(f'Failure report: {report_path}')
+        result.raise_if_incomplete()
+    return len(paths)
 
 
 if __name__ == '__main__':

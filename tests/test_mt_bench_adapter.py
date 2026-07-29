@@ -61,8 +61,8 @@ def test_missing_model_reports_failed_source_record_count():
     try:
         adapter.make_logs(rows, retrieved_timestamp='1234567890.0')
     except ValueError as exc:
-        assert 'failed to convert 1 of 6 source records' in str(exc)
-        assert 'row 5: missing model name' in str(exc)
+        assert 'encountered 1 conversion issue(s) across 6 source record(s)' in str(exc)
+        assert 'JSONL row 6: missing model name' in str(exc)
     else:
         raise AssertionError('expected an incomplete MT-Bench row to fail')
 

@@ -50,12 +50,17 @@ from every_eval_ever.eval_types import (
 )
 from every_eval_ever.helpers import (
     SCHEMA_VERSION,
+    EvaluationLogOutput,
+    SourceConversionResult,
+    SourceRecordFailure,
+    default_failure_report_path,
     get_developer,
     get_model_id,
     sanitize_filename,
-    save_evaluation_log,
+    save_evaluation_logs,
+    save_failure_report,
 )
-from every_eval_ever.helpers.io import raise_for_failed_records
+from every_eval_ever.helpers.io import require_identity
 
 SOURCE_NAME = 'MMLU-Pro Leaderboard'
 SOURCE_ORGANIZATION = 'TIGER-Lab'
@@ -134,6 +139,19 @@ def parse_args() -> argparse.Namespace:
         '--source-url',
         default=RESULTS_CSV_URL,
         help='Override the upstream results CSV URL.',
+    )
+    parser.add_argument(
+        '--save-raw-csv',
+        type=Path,
+        help='Save the exact fetched CSV for replay and failure provenance.',
+    )
+    parser.add_argument(
+        '--failure-report',
+        type=Path,
+        help=(
+            'Write rejected source rows and reasons here. Defaults beside '
+            '--output-dir when any row fails.'
+        ),
     )
     return parser.parse_args()
 
@@ -280,7 +298,10 @@ def make_log(
     if overall is None:
         return None
 
-    developer = normalize_developer(model_name)
+    developer = require_identity(
+        normalize_developer(model_name),
+        f'MMLU-Pro developer for model {model_name!r}',
+    )
     model_slug = slugify(model_name)
     model_id = get_model_id(model_slug, developer)
     raw_data_source = row.get('Data Source', '').strip()
@@ -356,10 +377,10 @@ def make_log(
     return log, developer, model_slug
 
 
-def make_logs(
+def convert_logs(
     rows: Iterable[dict[str, str]],
     retrieved_timestamp: str | None = None,
-) -> list[tuple[EvaluationLog, str, str]]:
+) -> SourceConversionResult[tuple[EvaluationLog, str, str]]:
     rows = list(rows)
     timestamp = retrieved_timestamp or str(time.time())
     bundles: list[tuple[EvaluationLog, str, str]] = []
@@ -370,19 +391,31 @@ def make_logs(
     # Dedup on (model_id, data_source, overall) so legitimate variants
     # survive and exact dupes are dropped.
     seen: set[tuple[str, str, str]] = set()
-    failures: list[tuple[int, str]] = []
+    failures: list[SourceRecordFailure] = []
     for index, row in enumerate(rows):
         try:
             result = make_log(row, timestamp)
         except (TypeError, ValueError) as exc:
-            failures.append((index, str(exc)))
+            failures.append(
+                SourceRecordFailure(
+                    source_ref=f'CSV row {index + 2}',
+                    reason=str(exc),
+                    source_record=row,
+                )
+            )
             continue
         if result is None:
             if not row.get('Models', '').strip():
                 reason = 'missing model name'
             else:
                 reason = 'missing or invalid overall score'
-            failures.append((index, reason))
+            failures.append(
+                SourceRecordFailure(
+                    source_ref=f'CSV row {index + 2}',
+                    reason=reason,
+                    source_record=row,
+                )
+            )
             continue
         log, developer, slug = result
         data_source = (log.source_metadata.additional_details or {}).get(
@@ -401,20 +434,37 @@ def make_logs(
             continue
         seen.add(key)
         bundles.append((log, developer, slug))
-    raise_for_failed_records('MMLU-Pro', len(rows), failures)
-    if not bundles:
+    if not bundles and not failures:
         raise ValueError('MMLU-Pro: converted 0 source records')
-    return bundles
+    return SourceConversionResult(
+        source_name='MMLU-Pro',
+        total_records=len(rows),
+        records=bundles,
+        failures=failures,
+    )
+
+
+def make_logs(
+    rows: Iterable[dict[str, str]],
+    retrieved_timestamp: str | None = None,
+) -> list[tuple[EvaluationLog, str, str]]:
+    result = convert_logs(rows, retrieved_timestamp)
+    result.raise_if_incomplete()
+    return result.records
 
 
 def export(
     bundles: list[tuple[EvaluationLog, str, str]], output_dir: Path
 ) -> list[Path]:
-    paths = []
-    for log, developer, model_slug in bundles:
-        path = save_evaluation_log(log, output_dir, developer, model_slug)
-        paths.append(path)
-    return paths
+    return save_evaluation_logs(
+        EvaluationLogOutput(
+            eval_log=log,
+            base_dir=output_dir,
+            developer=developer,
+            model_name=model_slug,
+        )
+        for log, developer, model_slug in bundles
+    )
 
 
 def run(args: argparse.Namespace) -> int:
@@ -422,11 +472,21 @@ def run(args: argparse.Namespace) -> int:
         text = load_csv_text(args.input_csv)
     else:
         text = fetch_csv(args.source_url)
+        if args.save_raw_csv is not None:
+            args.save_raw_csv.parent.mkdir(parents=True, exist_ok=True)
+            args.save_raw_csv.write_text(text, encoding='utf-8')
     rows = parse_rows(text)
-    bundles = make_logs(rows)
-    paths = export(bundles, args.output_dir)
+    result = convert_logs(rows)
+    paths = export(result.records, args.output_dir)
     for path in paths:
         print(path)
+    if result.failures:
+        report_path = save_failure_report(
+            result,
+            args.failure_report or default_failure_report_path(args.output_dir),
+        )
+        print(f'Failure report: {report_path}')
+        result.raise_if_incomplete()
     return len(paths)
 
 

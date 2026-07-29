@@ -54,19 +54,48 @@ __all__ = [
 
 
 class _LocalRepositoryFiles:
-    """Read repository-relative files from the current local checkout."""
+    """Read canonical datastore paths from one local checkout or data root."""
+
+    def __init__(self, root: Path = Path('.')) -> None:
+        self.root = root
 
     def __contains__(self, repo_path: object) -> bool:
         if not isinstance(repo_path, str):
             return False
         path = Path(repo_path)
-        return not path.is_absolute() and path.is_file()
+        return not path.is_absolute() and (self.root / path).is_file()
 
     def read_text(self, repo_path: str) -> str:
         path = Path(repo_path)
         if path.is_absolute():
             raise OSError(f'expected a repository-relative path: {repo_path}')
-        return path.read_text(encoding='utf-8')
+        return (self.root / path).read_text(encoding='utf-8')
+
+
+def _local_path_context(path: Path) -> tuple[str, _LocalRepositoryFiles]:
+    """Map a local file to its canonical datastore path and file reader.
+
+    Relative paths are read from the current checkout. For an absolute local
+    smoke-output path, find its enclosing ``data`` directory and use the
+    directory above it as the local repository root. This preserves the
+    canonical path rule without requiring users to copy generated data into
+    the repository just to validate it.
+    """
+    if not path.is_absolute():
+        return path.as_posix(), _LocalRepositoryFiles()
+
+    data_dir = next(
+        (ancestor for ancestor in path.parents if ancestor.name == 'data'),
+        None,
+    )
+    if data_dir is None:
+        # Let the standard path validator explain why an arbitrary absolute
+        # location cannot be treated as datastore data.
+        return path.as_posix(), _LocalRepositoryFiles()
+    return (
+        path.relative_to(data_dir.parent).as_posix(),
+        _LocalRepositoryFiles(data_dir.parent),
+    )
 
 
 def expand_paths(paths: list[str]) -> list[Path]:
@@ -238,17 +267,19 @@ def main(argv: list[str] | None = None) -> int:
         print('No files found to validate.', file=sys.stderr)
         return 1
 
-    local_repository = _LocalRepositoryFiles()
+    local_contexts = [
+        (path, *_local_path_context(path)) for path in file_paths
+    ]
     reports = [
         validate_file(
             path,
             max_errors=args.max_errors,
-            repo_path=path.as_posix(),
+            repo_path=repo_path,
             available_files=local_repository,
             read_repo_file=local_repository.read_text,
             run_semantic_checks=True,
         )
-        for path in file_paths
+        for path, repo_path, local_repository in local_contexts
     ]
 
     if args.output_format == 'json':
