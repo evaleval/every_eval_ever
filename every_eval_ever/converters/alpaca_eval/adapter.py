@@ -124,10 +124,12 @@ def _fetch_csv(url: str) -> List[Dict[str, str]]:
 def _model_name_from_row(row: Dict[str, str]) -> str:
     """Extract the model name from a CSV row (first/unnamed column)."""
     for key in ('', 'Unnamed: 0', 'model', 'Model'):
-        if key in row and row[key].strip():
-            return row[key].strip()
+        value = row.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
     # Fallback: first value
-    return next(iter(row.values()), '').strip()
+    fallback = next(iter(row.values()), '')
+    return fallback.strip() if isinstance(fallback, str) else ''
 
 
 def _build_evaluation_results(
@@ -274,24 +276,39 @@ class AlpacaEvalAdapter:
 
         benchmark_key = f'alpaca_eval_{version}'
         logs = []
+        failures = []
 
-        for row in rows:
+        for row_number, row in enumerate(rows, start=2):
             model_name = _model_name_from_row(row)
             if not model_name:
+                failures.append(f'CSV row {row_number}: missing model name')
                 continue
 
             # Skip NullModel placeholder
             if re.fullmatch(r'null.?model', model_name, re.IGNORECASE):
                 continue
 
-            win_rate = row.get('win_rate', '').strip()
+            raw_win_rate = row.get('win_rate')
+            win_rate = (
+                raw_win_rate.strip()
+                if isinstance(raw_win_rate, str)
+                else ''
+            )
             if not win_rate:
+                failures.append(
+                    f'CSV row {row_number} ({model_name!r}): '
+                    'missing win_rate'
+                )
                 continue
 
             developer = _infer_developer(model_name)
-            model_id = (
-                f'{developer}/{model_name}' if developer else model_name
-            )
+            if developer is None:
+                failures.append(
+                    f'CSV row {row_number} ({model_name!r}): '
+                    'cannot determine model developer'
+                )
+                continue
+            model_id = f'{developer}/{model_name}'
 
             evaluation_id = (
                 f'{benchmark_key}/{model_id}/{retrieved_ts}'
@@ -299,6 +316,10 @@ class AlpacaEvalAdapter:
 
             eval_results = _build_evaluation_results(row, cfg)
             if not eval_results:
+                failures.append(
+                    f'CSV row {row_number} ({model_name!r}): '
+                    'no usable evaluation metrics'
+                )
                 continue
 
             log = EvaluationLog(
@@ -333,5 +354,14 @@ class AlpacaEvalAdapter:
                 evaluation_results=eval_results,
             )
             logs.append(log)
+
+        if failures:
+            preview = '; '.join(failures[:10])
+            if len(failures) > 10:
+                preview += f'; and {len(failures) - 10} more'
+            raise ValueError(
+                f'AlpacaEval {version} could not convert '
+                f'{len(failures)} row(s): {preview}'
+            )
 
         return logs

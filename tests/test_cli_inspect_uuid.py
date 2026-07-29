@@ -63,11 +63,14 @@ def test_convert_inspect_file_mode_reuses_generated_uuid_for_aggregate_file(
 
     captured_eval_uuids: list[str | None] = []
 
-    def fake_write_log(_log, _base_output, eval_uuid=None):
-        captured_eval_uuids.append(eval_uuid)
-        return Path('/tmp/fake_aggregate.json')
+    def fake_publish(
+        logs, _base_output, eval_uuids, *, staged_output_dir=None
+    ):
+        _ = staged_output_dir
+        captured_eval_uuids.extend(eval_uuids)
+        return [Path('/tmp/fake_aggregate.json') for _ in logs]
 
-    monkeypatch.setattr(cli, '_write_log', fake_write_log)
+    monkeypatch.setattr(cli, 'publish_evaluation_logs', fake_publish)
 
     rc = cli._cmd_convert_inspect(_make_inspect_args(log_path, tmp_path))
 
@@ -113,11 +116,14 @@ def test_convert_inspect_directory_mode_reuses_generated_uuids_for_aggregate_fil
 
     captured_eval_uuids: list[str | None] = []
 
-    def fake_write_log(_log, _base_output, eval_uuid=None):
-        captured_eval_uuids.append(eval_uuid)
-        return Path('/tmp/fake_aggregate.json')
+    def fake_publish(
+        logs, _base_output, eval_uuids, *, staged_output_dir=None
+    ):
+        _ = staged_output_dir
+        captured_eval_uuids.extend(eval_uuids)
+        return [Path('/tmp/fake_aggregate.json') for _ in logs]
 
-    monkeypatch.setattr(cli, '_write_log', fake_write_log)
+    monkeypatch.setattr(cli, 'publish_evaluation_logs', fake_publish)
 
     rc = cli._cmd_convert_inspect(_make_inspect_args(tmp_path, tmp_path))
 
@@ -160,11 +166,14 @@ def test_convert_helm_single_run_reuses_generated_uuid_for_aggregate_file(
 
     captured_eval_uuids: list[str | None] = []
 
-    def fake_write_log(_log, _base_output, eval_uuid=None):
-        captured_eval_uuids.append(eval_uuid)
-        return Path('/tmp/fake_aggregate.json')
+    def fake_publish(
+        logs, _base_output, eval_uuids, *, staged_output_dir=None
+    ):
+        _ = staged_output_dir
+        captured_eval_uuids.extend(eval_uuids)
+        return [Path('/tmp/fake_aggregate.json') for _ in logs]
 
-    monkeypatch.setattr(cli, '_write_log', fake_write_log)
+    monkeypatch.setattr(cli, 'publish_evaluation_logs', fake_publish)
 
     rc = cli._cmd_convert_helm(_make_helm_args(tmp_path, tmp_path))
 
@@ -208,11 +217,14 @@ def test_convert_helm_directory_mode_reuses_generated_uuids_for_aggregate_file(
 
     captured_eval_uuids: list[str | None] = []
 
-    def fake_write_log(_log, _base_output, eval_uuid=None):
-        captured_eval_uuids.append(eval_uuid)
-        return Path('/tmp/fake_aggregate.json')
+    def fake_publish(
+        logs, _base_output, eval_uuids, *, staged_output_dir=None
+    ):
+        _ = staged_output_dir
+        captured_eval_uuids.extend(eval_uuids)
+        return [Path('/tmp/fake_aggregate.json') for _ in logs]
 
-    monkeypatch.setattr(cli, '_write_log', fake_write_log)
+    monkeypatch.setattr(cli, 'publish_evaluation_logs', fake_publish)
 
     rc = cli._cmd_convert_helm(_make_helm_args(tmp_path, tmp_path))
 

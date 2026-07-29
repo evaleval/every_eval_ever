@@ -221,6 +221,9 @@ options:
 
 The AlpacaEval converter fetches the public leaderboard CSV directly from GitHub
 and converts all model entries into the unified schema. No local log files are required.
+Semantically this is a source adapter rather than a local-log converter; it
+remains under `converters` to preserve the existing
+`every_eval_ever convert alpaca_eval` API.
 
 Both AlpacaEval 1.0 (GPT-4 judge, `text_davinci_003` baseline) and
 AlpacaEval 2.0 (weighted LC win rate, `gpt4_turbo` baseline) are supported.

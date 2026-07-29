@@ -2,26 +2,20 @@ from __future__ import annotations
 
 import json
 import logging
-import uuid
 from argparse import ArgumentParser
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Tuple, Union
 
 try:
-    from inspect_ai.log import list_eval_logs
-
     from every_eval_ever.converters.inspect.adapter import InspectAIAdapter
-    from every_eval_ever.converters.inspect.supplemental_eval_details import (
-        SupplementalEvalDetails,
-    )
 except ImportError as exc:
     raise SystemExit(
         "The 'inspect-ai' package is required to use the Inspect AI converter.\n"
         'Install it with: uv sync --extra inspect'
     ) from exc
 
-from every_eval_ever.eval_types import EvaluationLog, EvaluatorRelationship
+from every_eval_ever.eval_types import EvaluationLog
 from every_eval_ever.helpers.io import datastore_output_dir, require_uuid4
 from every_eval_ever.instance_level_types import InstanceLevelEvaluationLog
 
@@ -161,86 +155,13 @@ def save_evaluation_log(
     return inspect_converter.save_to_file(unified_output, filedir, filename)
 
 
-if __name__ == '__main__':
+def main() -> int:
     logging.basicConfig(level=logging.INFO)
     args = parse_args()
+    from every_eval_ever.cli import _cmd_convert_inspect
 
-    inspect_converter = InspectEvalLogConverter(
-        log_path=args.log_path, output_dir=args.output_dir
-    )
+    return _cmd_convert_inspect(args)
 
-    base_metadata_args = {
-        'source_organization_name': args.source_organization_name,
-        'source_organization_url': args.source_organization_url,
-        'source_organization_logo_url': args.source_organization_logo_url,
-        'evaluator_relationship': EvaluatorRelationship(
-            args.evaluator_relationship
-        ),
-        'parent_eval_output_dir': args.output_dir,
-        'eval_library_name': args.eval_library_name,
-        'eval_library_version': args.eval_library_version,
-    }
-    if args.supplemental_eval_details_path:
-        with open(
-            args.supplemental_eval_details_path, 'r', encoding='utf-8'
-        ) as f:
-            base_metadata_args['supplemental_eval_details'] = (
-                SupplementalEvalDetails.model_validate(json.load(f))
-            )
 
-    if inspect_converter.is_log_path_directory:
-        log_paths: List[Path] = sorted(
-            list_eval_logs(
-                inspect_converter.log_path.absolute().as_posix()
-            ),
-            key=lambda path: path.name,
-        )
-        if not log_paths:
-            raise ValueError(
-                f'No Inspect evaluation logs found in '
-                f'{inspect_converter.log_path}'
-            )
-        else:
-            file_uuids = [str(uuid.uuid4()) for _ in log_paths]
-            metadata_args = {
-                **base_metadata_args,
-                'file_uuids': file_uuids,
-            }
-            unified_output = inspect_converter.convert_to_unified_schema(
-                metadata_args
-            )
-            if unified_output and isinstance(unified_output, List):
-                if len(unified_output) != len(file_uuids):
-                    raise RuntimeError(
-                        'Inspect conversion produced a different number of '
-                        'logs than the generated UUID list.'
-                    )
-                for single_unified_output, file_uuid in zip(
-                    unified_output, file_uuids
-                ):
-                    save_evaluation_log(
-                        single_unified_output,
-                        inspect_converter,
-                        file_uuid,
-                    )
-            else:
-                raise ValueError('Inspect conversion produced no logs')
-    else:
-        file_uuid = str(uuid.uuid4())
-        metadata_args = {
-            **base_metadata_args,
-            'file_uuid': file_uuid,
-        }
-
-        unified_output = inspect_converter.convert_to_unified_schema(
-            metadata_args
-        )
-
-        if unified_output:
-            save_evaluation_log(
-                unified_output,
-                inspect_converter,
-                file_uuid,
-            )
-        else:
-            raise ValueError('Inspect conversion produced no log')
+if __name__ == '__main__':
+    raise SystemExit(main())

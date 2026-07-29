@@ -193,6 +193,19 @@ def test_null_model_is_skipped():
     assert logs == []
 
 
+def test_unmapped_developer_is_reported_instead_of_silently_skipped():
+    row = dict(_V1_ROW)
+    row[''] = 'mystery-model'
+    mock_resp = _make_csv_response([row])
+
+    with patch(
+        'every_eval_ever.converters.alpaca_eval.adapter.requests.get',
+        return_value=mock_resp,
+    ):
+        with pytest.raises(ValueError, match='cannot determine model developer'):
+            AlpacaEvalAdapter().fetch_leaderboard('v1')
+
+
 def test_unknown_version_raises():
     with pytest.raises(ValueError, match='Unknown version'):
         AlpacaEvalAdapter().fetch_leaderboard('v99')
