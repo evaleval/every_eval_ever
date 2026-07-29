@@ -1,8 +1,38 @@
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 import every_eval_ever.helpers.io as io
+
+
+def test_publication_replaces_colons_in_collection_directory(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    eval_log = SimpleNamespace(model_dump=lambda: {})
+    validated = SimpleNamespace(model_dump=lambda **_kwargs: {})
+    monkeypatch.setattr(
+        io.EvaluationLog,
+        'model_validate',
+        lambda _value: validated,
+    )
+
+    prepared = io._prepare_evaluation_logs(
+        [
+            io.EvaluationLogOutput(
+                eval_log=eval_log,  # type: ignore[arg-type]
+                base_dir=tmp_path / 'data' / 'benchmark::version',
+                developer='developer',
+                model_name='model',
+            )
+        ]
+    )
+
+    assert (
+        prepared[0].path.parent
+        == tmp_path / 'data' / 'benchmark__version' / 'developer' / 'model'
+    )
 
 
 def test_reserved_data_output_component_is_rejected(tmp_path: Path):

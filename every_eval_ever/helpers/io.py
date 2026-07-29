@@ -424,7 +424,8 @@ def _prepare_evaluation_logs(
     paths = set()
     for output in outputs:
         base_dir = Path(output.base_dir)
-        _required_path_component(base_dir.name, 'collection')
+        collection = _required_path_component(base_dir.name, 'collection')
+        base_dir = base_dir.with_name(collection)
         # Revalidate generated/dataclass-constructed values at the publication
         # boundary so all schema validators run before the first write.
         validated = EvaluationLog.model_validate(output.eval_log.model_dump())
