@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import uuid
 from pathlib import Path
 
 from every_eval_ever.eval_types import EvaluationLog
@@ -427,3 +428,54 @@ def test_non_binary_instance_scores_do_not_claim_correctness():
     assert instance.evaluation.score == 0.75
     assert instance.evaluation.is_correct is False
     assert instance.metadata['is_correct_applicable'] == 'false'
+
+
+def test_export_rollback_does_not_delete_competing_file(
+    tmp_path: Path, monkeypatch
+):
+    output_dir = tmp_path / 'data' / 'openeval'
+    bundles = adapter.make_logs(
+        sample_payload(), retrieved_timestamp='1234567890.0'
+    )
+    generated_ids = iter(
+        [
+            uuid.UUID('00000000-0000-0000-0000-000000000001'),
+            uuid.UUID('00000000-0000-0000-0000-000000000002'),
+        ]
+    )
+    monkeypatch.setattr(adapter.uuid, 'uuid4', lambda: next(generated_ids))
+
+    second = bundles[1]
+    competing_path = (
+        output_dir
+        / second.developer
+        / second.model
+        / '00000000-0000-0000-0000-000000000002.json'
+    )
+    original_open = Path.open
+
+    def racing_open(path: Path, mode='r', *args, **kwargs):
+        if path == competing_path and mode == 'x':
+            with original_open(path, 'x', encoding='utf-8') as handle:
+                handle.write('competing process')
+            raise FileExistsError(path)
+        return original_open(path, mode, *args, **kwargs)
+
+    monkeypatch.setattr(Path, 'open', racing_open)
+
+    try:
+        adapter.export_logs(bundles, output_dir)
+    except FileExistsError:
+        pass
+    else:
+        raise AssertionError('Expected simulated exclusive-create race')
+
+    first = bundles[0]
+    first_path = (
+        output_dir
+        / first.developer
+        / first.model
+        / '00000000-0000-0000-0000-000000000001.json'
+    )
+    assert not first_path.exists()
+    assert competing_path.read_text(encoding='utf-8') == 'competing process'

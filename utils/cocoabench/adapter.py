@@ -43,7 +43,15 @@ from every_eval_ever.eval_types import (
     SourceMetadata,
     Uncertainty,
 )
-from every_eval_ever.helpers import SCHEMA_VERSION, save_evaluation_log
+from every_eval_ever.helpers import (
+    SCHEMA_VERSION,
+    EvaluationLogOutput,
+    SourceConversionResult,
+    SourceRecordFailure,
+    default_failure_report_path,
+    save_evaluation_logs,
+    save_failure_report,
+)
 
 DEFAULT_OUTPUT_DIR = "data/cocoabench"
 DEFAULT_BENCHMARK_REFERENCE_URLS = [
@@ -205,6 +213,7 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_OUTPUT_DIR,
         help=f"Output directory (default: {DEFAULT_OUTPUT_DIR})",
     )
+    parser.add_argument("--failure-report", type=Path)
     parser.add_argument(
         "--benchmark-version",
         default="1.0",
@@ -291,9 +300,20 @@ def stringify_details(details: dict[str, object]) -> dict[str, str]:
 
 
 def compute_metric_bounds(rows: list[dict[str, str]]) -> dict[str, dict[str, float]]:
-    avg_times = [x for x in (parse_optional_float(r.get("AvgTime_s")) for r in rows) if x is not None]
-    avg_costs = [x for x in (parse_optional_float(r.get("AvgCost_USD")) for r in rows) if x is not None]
-    total_costs = [x for x in (parse_optional_float(r.get("TotalCost_USD")) for r in rows) if x is not None]
+    def usable_values(key: str) -> list[float]:
+        values = []
+        for row in rows:
+            try:
+                value = parse_optional_float(row.get(key))
+            except (TypeError, ValueError):
+                continue
+            if value is not None:
+                values.append(value)
+        return values
+
+    avg_times = usable_values("AvgTime_s")
+    avg_costs = usable_values("AvgCost_USD")
+    total_costs = usable_values("TotalCost_USD")
 
     bounds: dict[str, dict[str, float]] = {
         "accuracy_percent": {
@@ -659,12 +679,72 @@ def validate_row_meta(agent_label: str, row_meta: dict[str, str]) -> None:
         )
 
 
+def convert_rows(
+    rows: list[dict[str, str]],
+    row_map: dict[str, dict[str, str]],
+    *,
+    output_dir: Path,
+    bounds: dict[str, dict[str, float]],
+    benchmark_version: str,
+    eval_library_version: str,
+    public_source_urls: list[str],
+    benchmark_reference_urls: list[str],
+    source_metadata_details: dict[str, str],
+    retrieved_timestamp: str,
+    evaluation_timestamp: str | None,
+) -> SourceConversionResult[EvaluationLogOutput]:
+    outputs = []
+    failures = []
+    for index, row in enumerate(rows, start=2):
+        try:
+            agent_label = row["Agent"]
+            row_meta = row_map.get(agent_label)
+            if row_meta is None:
+                raise ValueError(
+                    f"row-map is missing entry for Agent {agent_label!r}"
+                )
+            validate_row_meta(agent_label, row_meta)
+            log, developer_slug, model_slug = make_log(
+                row=row,
+                row_meta=row_meta,
+                bounds=bounds,
+                benchmark_version=benchmark_version,
+                eval_library_version=eval_library_version,
+                public_source_urls=public_source_urls,
+                benchmark_reference_urls=benchmark_reference_urls,
+                source_metadata_details=source_metadata_details,
+                retrieved_timestamp=retrieved_timestamp,
+                evaluation_timestamp=evaluation_timestamp,
+            )
+            outputs.append(
+                EvaluationLogOutput(
+                    eval_log=log,
+                    base_dir=output_dir,
+                    developer=developer_slug,
+                    model_name=model_slug,
+                )
+            )
+        except Exception as exc:
+            failures.append(
+                SourceRecordFailure(
+                    source_ref=f'CocoaBench CSV row {index}',
+                    reason=str(exc),
+                    source_record=row,
+                )
+            )
+    return SourceConversionResult(
+        source_name='CocoaBench aggregate CSV',
+        total_records=len(rows),
+        records=outputs,
+        failures=failures,
+    )
+
+
 def main() -> None:
     args = parse_args()
 
     rows = load_rows(Path(args.csv))
     row_map = load_row_map(Path(args.row_map) if args.row_map else None)
-    ensure_row_map_complete(rows, row_map)
 
     public_source_urls = args.public_source_urls or []
     benchmark_reference_urls = (
@@ -677,28 +757,31 @@ def main() -> None:
 
     bounds = compute_metric_bounds(rows)
     retrieved_timestamp = str(time.time())
-    count = 0
-
-    for row in rows:
-        row_meta = row_map[row["Agent"]]
-        validate_row_meta(row["Agent"], row_meta)
-        log, developer_slug, model_slug = make_log(
-            row=row,
-            row_meta=row_meta,
-            bounds=bounds,
-            benchmark_version=args.benchmark_version,
-            eval_library_version=args.eval_library_version,
-            public_source_urls=public_source_urls,
-            benchmark_reference_urls=benchmark_reference_urls,
-            source_metadata_details=source_metadata_details,
-            retrieved_timestamp=retrieved_timestamp,
-            evaluation_timestamp=args.evaluation_timestamp,
+    result = convert_rows(
+        rows,
+        row_map,
+        output_dir=Path(args.output_dir),
+        bounds=bounds,
+        benchmark_version=args.benchmark_version,
+        eval_library_version=args.eval_library_version,
+        public_source_urls=public_source_urls,
+        benchmark_reference_urls=benchmark_reference_urls,
+        source_metadata_details=source_metadata_details,
+        retrieved_timestamp=retrieved_timestamp,
+        evaluation_timestamp=args.evaluation_timestamp,
+    )
+    paths = save_evaluation_logs(result.records)
+    for path in paths:
+        print(path)
+    print(f"\nGenerated {len(paths)} CocoaBench records in {args.output_dir}/")
+    if result.failures:
+        report_path = save_failure_report(
+            result,
+            args.failure_report
+            or default_failure_report_path(args.output_dir),
         )
-        filepath = save_evaluation_log(log, args.output_dir, developer_slug, model_slug)
-        print(filepath)
-        count += 1
-
-    print(f"\nGenerated {count} CocoaBench records in {args.output_dir}/")
+        print(f'Failure report: {report_path}')
+        result.raise_if_incomplete()
 
 
 if __name__ == "__main__":

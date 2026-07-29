@@ -28,6 +28,7 @@ import math
 import re
 import tempfile
 import time
+import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable, TextIO
@@ -53,10 +54,10 @@ from every_eval_ever.eval_types import (
 )
 from every_eval_ever.helpers import (
     SCHEMA_VERSION,
+    generate_output_path,
     get_developer,
     get_model_id,
     sanitize_filename,
-    save_evaluation_log,
 )
 from every_eval_ever.instance_level_types import (
     AnswerAttributionItem,
@@ -85,6 +86,14 @@ class LogBundle:
     instance_path: Path | None = None
     instance_count: int = 0
     binary_result_ids: set[str] = field(default_factory=set)
+
+
+@dataclass(frozen=True)
+class _PreparedOpenEvalOutput:
+    aggregate_path: Path
+    aggregate_text: str
+    sample_path: Path | None = None
+    sample_text: str | None = None
 
 
 @dataclass
@@ -1209,36 +1218,117 @@ def save_instance_logs(
 
 
 def export_logs(bundles: list[LogBundle], output_dir: Path) -> list[Path]:
-    paths = []
-    for bundle in bundles:
-        path = save_evaluation_log(
-            bundle.log,
-            output_dir,
-            bundle.developer,
-            bundle.model,
-        )
-        detailed = save_instance_logs(
-            bundle.instance_path,
-            bundle.instance_count,
-            path,
-            bundle.log.evaluation_id,
-            bundle.log.model_info.id,
-            bundle.binary_result_ids,
-        )
-        if detailed is not None:
-            bundle.log.detailed_evaluation_results = detailed
-            serialized = json.dumps(
-                bundle.log.model_dump(mode='json', exclude_none=True),
-                indent=2,
-                ensure_ascii=False,
-                allow_nan=False,
+    prepared = []
+    planned_paths: set[Path] = set()
+    try:
+        for bundle in bundles:
+            output_path = (
+                generate_output_path(
+                    output_dir,
+                    bundle.developer,
+                    bundle.model,
+                )
+                / f'{uuid.uuid4()}.json'
             )
-            path.write_text(
-                serialized + '\n',
-                encoding='utf-8',
+            sample_path = None
+            sample_text = None
+            log = bundle.log.model_copy(deep=True)
+            if bundle.instance_path is not None and bundle.instance_count:
+                sample_path = output_path.with_name(
+                    f'{output_path.stem}_samples.jsonl'
+                )
+                sample_rows = []
+                for line in bundle.instance_path.read_text(
+                    encoding='utf-8'
+                ).splitlines():
+                    if not line.strip():
+                        continue
+                    instance = pending_instance_from_json(line)
+                    sample_rows.append(
+                        make_instance_log(
+                            instance,
+                            log.evaluation_id,
+                            log.model_info.id,
+                            bundle.binary_result_ids,
+                        )
+                    )
+                if len(sample_rows) != bundle.instance_count:
+                    raise ValueError(
+                        'OpenEval instance spool row count changed before '
+                        'publication'
+                    )
+                sample_text = ''.join(
+                    json.dumps(
+                        InstanceLevelEvaluationLog.model_validate(
+                            row.model_dump()
+                        ).model_dump(mode='json', exclude_none=True),
+                        ensure_ascii=False,
+                        allow_nan=False,
+                    )
+                    + '\n'
+                    for row in sample_rows
+                )
+                log.detailed_evaluation_results = DetailedEvaluationResults(
+                    format=Format.jsonl,
+                    file_path=sample_path.name,
+                    hash_algorithm=HashAlgorithm.sha256,
+                    checksum=hashlib.sha256(
+                        sample_text.encode('utf-8')
+                    ).hexdigest(),
+                    total_rows=len(sample_rows),
+                )
+
+            validated = EvaluationLog.model_validate(log.model_dump())
+            aggregate_text = (
+                json.dumps(
+                    validated.model_dump(mode='json', exclude_none=True),
+                    indent=2,
+                    ensure_ascii=False,
+                    allow_nan=False,
+                )
+                + '\n'
             )
-        paths.append(path)
-    return paths
+            artifact_paths = [output_path]
+            if sample_path is not None:
+                artifact_paths.append(sample_path)
+            for artifact_path in artifact_paths:
+                if artifact_path in planned_paths or artifact_path.exists():
+                    raise FileExistsError(
+                        f'refusing to overwrite output file {artifact_path}'
+                    )
+                planned_paths.add(artifact_path)
+            prepared.append(
+                _PreparedOpenEvalOutput(
+                    aggregate_path=output_path,
+                    aggregate_text=aggregate_text,
+                    sample_path=sample_path,
+                    sample_text=sample_text,
+                )
+            )
+    finally:
+        for bundle in bundles:
+            if bundle.instance_path is not None:
+                bundle.instance_path.unlink(missing_ok=True)
+
+    created = []
+    try:
+        for output in prepared:
+            output.aggregate_path.parent.mkdir(parents=True, exist_ok=True)
+            if output.sample_path is not None and output.sample_text is not None:
+                with output.sample_path.open(
+                    'x', encoding='utf-8'
+                ) as sample_file:
+                    created.append(output.sample_path)
+                    sample_file.write(output.sample_text)
+            with output.aggregate_path.open('x', encoding='utf-8') as file:
+                created.append(output.aggregate_path)
+                file.write(output.aggregate_text)
+    except Exception:
+        for path in reversed(created):
+            path.unlink(missing_ok=True)
+        raise
+
+    return [output.aggregate_path for output in prepared]
 
 
 def run(args: argparse.Namespace) -> int:

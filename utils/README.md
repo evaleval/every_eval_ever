@@ -58,10 +58,17 @@ PR.
 - They require network access to fetch live leaderboard data.
 - Some adapters (e.g. `rewardbench`, `helm`) may take several minutes to complete due to the number of models.
 - Run `uv run python -m utils.<name>.adapter --help` for adapter-specific options.
-- The script for livecodebenchpro is out-dated and will be updated at a later date.
 - Generated adapter outputs under `data/<source>/` and saved raw payloads are
   generated artifacts. Prefer temporary output paths for smoke runs unless a
   data refresh is intentionally part of the change.
+
+### Legacy integrations
+
+`arc_agi`, `livecodebenchpro`, and `mercor_eval` are retained for historical
+and offline use, but their upstream sources are no longer usable for an active
+refresh (`mercor_eval` currently returns an empty response). They are excluded
+from active-adapter migration and compliance requirements. Deterministic
+offline tests for their existing behavior may remain in the test suite.
 
 ### Partial conversions and provenance
 

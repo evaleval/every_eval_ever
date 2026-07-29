@@ -4,11 +4,19 @@ from __future__ import annotations
 import argparse
 import json
 import time
-import uuid
 from pathlib import Path
 
-from every_eval_ever.helpers import SCHEMA_VERSION, sanitize_filename
-from every_eval_ever.helpers.io import generate_output_path
+from every_eval_ever.eval_types import EvaluationLog
+from every_eval_ever.helpers import (
+    SCHEMA_VERSION,
+    EvaluationLogOutput,
+    SourceConversionResult,
+    SourceRecordFailure,
+    default_failure_report_path,
+    sanitize_filename,
+    save_evaluation_logs,
+    save_failure_report,
+)
 
 # Conservative provider mapping.
 # Keep the source alias in raw_model_id and derive a simple lowercase model slug.
@@ -69,12 +77,21 @@ def load_rows(input_json: Path) -> list[dict]:
 
 
 def compute_metric_bounds(rows: list[dict]) -> dict[str, dict[str, float]]:
-    rating_values = [float(row["rating"]) for row in rows]
-    rank_values = [float(row["rank"]) for row in rows]
+    rating_values = []
+    rank_values = []
+    for row in rows:
+        try:
+            rating_values.append(float(row["rating"]))
+            rank_values.append(float(row["rank"]))
+        except (KeyError, TypeError, ValueError):
+            continue
+    if not rating_values or not rank_values:
+        raise ValueError('SciArena has no rows with usable rating and rank')
     cost_values = [
         float(row["cost_per_100_calls_usd"])
         for row in rows
         if row.get("cost_per_100_calls_usd") is not None
+        and _is_float(row["cost_per_100_calls_usd"])
     ]
 
     bounds = {
@@ -95,6 +112,14 @@ def compute_metric_bounds(rows: list[dict]) -> dict[str, dict[str, float]]:
         }
 
     return bounds
+
+
+def _is_float(value: object) -> bool:
+    try:
+        float(value)
+    except (TypeError, ValueError):
+        return False
+    return True
 
 
 def slugify_model_name(raw_model_id: str) -> str:
@@ -238,51 +263,73 @@ def make_log(
     return log, developer_name, model_name
 
 
-def write_log(log: dict, out_root: Path, developer: str, model: str) -> Path:
-    out_dir = generate_output_path(out_root / "sciarena", developer, model)
-    out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / f"{uuid.uuid4()}.json"
-    out_path.write_text(
-        json.dumps(log, indent=2, allow_nan=False) + "\n",
-        encoding="utf-8",
-    )
-    return out_path
-
-
-def export_one(
-    row: dict,
+def convert_rows(
+    rows: list[dict],
     out_root: Path,
     metric_bounds: dict[str, dict[str, float]],
     retrieved_timestamp: str,
-) -> Path:
-    log, developer, model = make_log(row, metric_bounds, retrieved_timestamp)
-    return write_log(log, out_root, developer, model)
+) -> SourceConversionResult[EvaluationLogOutput]:
+    outputs = []
+    failures = []
+    for index, row in enumerate(rows):
+        try:
+            raw_log, developer, model = make_log(
+                row, metric_bounds, retrieved_timestamp
+            )
+            log = EvaluationLog.model_validate(raw_log)
+            outputs.append(
+                EvaluationLogOutput(
+                    eval_log=log,
+                    base_dir=out_root / 'sciarena',
+                    developer=developer,
+                    model_name=model,
+                )
+            )
+        except Exception as exc:
+            failures.append(
+                SourceRecordFailure(
+                    source_ref=f'SciArena row {index}',
+                    reason=str(exc),
+                    source_record=row,
+                )
+            )
+    return SourceConversionResult(
+        source_name='SciArena leaderboard API',
+        total_records=len(rows),
+        records=outputs,
+        failures=failures,
+    )
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--input-json", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--failure-report", type=Path)
     args = parser.parse_args()
 
     rows = load_rows(args.input_json)
     retrieved_timestamp = str(time.time())
 
-    missing = [row["modelId"] for row in rows if row["modelId"] not in PROVIDER_MAP]
-    if missing:
-        raise SystemExit(f"Missing provider mappings for: {missing}")
-
     metric_bounds = compute_metric_bounds(rows)
-
-    exported = 0
-    for row in rows:
-        out_path = export_one(
-            row, args.output_dir, metric_bounds, retrieved_timestamp
+    result = convert_rows(
+        rows,
+        args.output_dir,
+        metric_bounds,
+        retrieved_timestamp,
+    )
+    paths = save_evaluation_logs(result.records)
+    for path in paths:
+        print(path)
+    print(f"Exported {len(paths)} model(s).")
+    if result.failures:
+        report_path = save_failure_report(
+            result,
+            args.failure_report
+            or default_failure_report_path(args.output_dir / 'sciarena'),
         )
-        print(out_path)
-        exported += 1
-
-    print(f"Exported {exported} model(s).")
+        print(f'Failure report: {report_path}')
+        result.raise_if_incomplete()
 
 
 if __name__ == "__main__":

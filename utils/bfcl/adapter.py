@@ -3,15 +3,21 @@ from __future__ import annotations
 
 import argparse
 import csv
-import json
 import re
 import time
-import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
-from every_eval_ever.helpers import SCHEMA_VERSION
-from every_eval_ever.helpers.io import generate_output_path
+from every_eval_ever.eval_types import EvaluationLog
+from every_eval_ever.helpers import (
+    SCHEMA_VERSION,
+    EvaluationLogOutput,
+    SourceConversionResult,
+    SourceRecordFailure,
+    default_failure_report_path,
+    save_evaluation_logs,
+    save_failure_report,
+)
 
 SOURCE_CSV_URL = "https://gorilla.cs.berkeley.edu/data_overall.csv"
 SOURCE_LEADERBOARD_URL = "https://gorilla.cs.berkeley.edu/leaderboard.html"
@@ -457,7 +463,10 @@ def compute_observed_max_scores(rows: list[dict]) -> dict[str, float]:
 
         values = []
         for row in rows:
-            value = parse_value(row.get(spec.column, ""))
+            try:
+                value = parse_value(row.get(spec.column, ""))
+            except (TypeError, ValueError):
+                continue
             if value is not None:
                 values.append(value)
 
@@ -571,33 +580,51 @@ def make_log(
     return log, developer, model
 
 
-def write_log(log: dict, out_root: Path, developer: str, model: str) -> Path:
-    out_dir = generate_output_path(out_root / "bfcl", developer, model)
-    out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / f"{uuid.uuid4()}.json"
-    out_path.write_text(
-        json.dumps(log, indent=2, allow_nan=False) + "\n",
-        encoding="utf-8",
-    )
-    return out_path
-
-
-def export_one(
-    row: dict,
+def convert_rows(
+    rows: list[dict],
     out_root: Path,
     observed_max_scores: dict[str, float],
     retrieved_timestamp: str,
-) -> Path:
-    log, developer, model = make_log(
-        row, observed_max_scores, retrieved_timestamp
+) -> SourceConversionResult[EvaluationLogOutput]:
+    outputs = []
+    failures = []
+    for index, row in enumerate(rows, start=2):
+        try:
+            raw_log, developer, model = make_log(
+                row, observed_max_scores, retrieved_timestamp
+            )
+            log = EvaluationLog.model_validate(raw_log)
+            if not log.evaluation_results:
+                raise ValueError('model has no usable BFCL metrics')
+            outputs.append(
+                EvaluationLogOutput(
+                    eval_log=log,
+                    base_dir=out_root / 'bfcl',
+                    developer=developer,
+                    model_name=model,
+                )
+            )
+        except Exception as exc:
+            failures.append(
+                SourceRecordFailure(
+                    source_ref=f'BFCL CSV row {index}',
+                    reason=str(exc),
+                    source_record=row,
+                )
+            )
+    return SourceConversionResult(
+        source_name='BFCL leaderboard CSV',
+        total_records=len(rows),
+        records=outputs,
+        failures=failures,
     )
-    return write_log(log, out_root, developer, model)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--input-csv", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--failure-report", type=Path)
     parser.add_argument(
         "--model",
         type=str,
@@ -614,25 +641,26 @@ def main() -> None:
         matches = [row for row in rows if row["Model"] == args.model]
         if not matches:
             raise SystemExit(f"Model {args.model!r} not found in {args.input_csv}")
-        print(
-            export_one(
-                matches[0],
-                args.output_dir,
-                observed_max_scores,
-                retrieved_timestamp,
-            )
-        )
-        return
+        rows = matches
 
-    exported = 0
-    for row in rows:
-        out_path = export_one(
-            row, args.output_dir, observed_max_scores, retrieved_timestamp
+    result = convert_rows(
+        rows,
+        args.output_dir,
+        observed_max_scores,
+        retrieved_timestamp,
+    )
+    paths = save_evaluation_logs(result.records)
+    for path in paths:
+        print(path)
+    print(f"Exported {len(paths)} model(s).")
+    if result.failures:
+        report_path = save_failure_report(
+            result,
+            args.failure_report
+            or default_failure_report_path(args.output_dir / 'bfcl'),
         )
-        print(out_path)
-        exported += 1
-
-    print(f"Exported {exported} model(s).")
+        print(f'Failure report: {report_path}')
+        result.raise_if_incomplete()
 
 
 if __name__ == "__main__":

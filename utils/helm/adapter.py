@@ -17,6 +17,7 @@ import math
 import time
 from argparse import ArgumentParser
 from collections import defaultdict
+from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
 from every_eval_ever.eval_types import (
@@ -32,13 +33,18 @@ from every_eval_ever.eval_types import (
     SourceDataUrl,
 )
 from every_eval_ever.helpers import (
+    EvaluationLogOutput,
+    SourceConversionResult,
+    SourceRecordFailure,
+    default_failure_report_path,
     fetch_json,
     get_developer,
     make_model_info,
     make_source_metadata,
-    save_evaluation_log,
+    save_evaluation_logs,
+    save_failure_report,
 )
-
+from every_eval_ever.helpers.io import require_identity
 
 HELM_PROJECT_METADATA_URL = "https://crfm.stanford.edu/helm/project_metadata.json"
 
@@ -79,6 +85,8 @@ def parse_args():
         default='unknown',
         help='Version of the evaluation library',
     )
+    parser.add_argument('--output-dir', default='data')
+    parser.add_argument('--failure-report')
     return parser.parse_args()
 
 
@@ -176,7 +184,8 @@ def convert(
     eval_library_name: str = 'helm',
     eval_library_version: str = 'unknown',
     source_data_url: str = 'unknown',
-):
+    output_dir: str = 'data',
+) -> SourceConversionResult[EvaluationLogOutput]:
     """Convert HELM leaderboard data into unified evaluation logs."""
     retrieved_timestamp = str(time.time())
 
@@ -321,52 +330,67 @@ def convert(
                         }
                     )
 
-    # Save evaluation logs
+    outputs = []
+    failures = []
     for model_name, results_by_metric in model_results.items():
-        model_info = model_infos[model_name]
-        model_id = model_ids[model_name]
+        try:
+            model_info = model_infos[model_name]
+            model_id = require_identity(
+                model_ids[model_name], 'HELM model id'
+            )
 
-        evaluation_id = (
-            f'{leaderboard_name}/'
-            f'{model_id.replace("/", "_")}/'
-            f'{retrieved_timestamp}'
-        )
+            evaluation_id = (
+                f'{leaderboard_name}/'
+                f'{model_id.replace("/", "_")}/'
+                f'{retrieved_timestamp}'
+            )
 
-        eval_log = EvaluationLog(
-            schema_version='0.2.2',
-            evaluation_id=evaluation_id,
-            retrieved_timestamp=retrieved_timestamp,
-            source_metadata=make_source_metadata(
-                source_name=leaderboard_name,
-                organization_name='crfm',
-                evaluator_relationship=EvaluatorRelationship.third_party,
-            ),
-            eval_library=EvalLibrary(
-                name=eval_library_name,
-                version=eval_library_version,
-            ),
-            model_info=model_info,
-            evaluation_results=list(results_by_metric.values()),
-        )
+            eval_log = EvaluationLog(
+                schema_version='0.2.2',
+                evaluation_id=evaluation_id,
+                retrieved_timestamp=retrieved_timestamp,
+                source_metadata=make_source_metadata(
+                    source_name=leaderboard_name,
+                    organization_name='crfm',
+                    evaluator_relationship=EvaluatorRelationship.third_party,
+                ),
+                eval_library=EvalLibrary(
+                    name=eval_library_name,
+                    version=eval_library_version,
+                ),
+                model_info=model_info,
+                evaluation_results=list(results_by_metric.values()),
+            )
 
-        # Determine output path
-        if model_info.developer == 'unknown':
-            developer = model_id
-            model = model_id
-        else:
             if '/' in model_id:
                 developer, model = model_id.split('/', 1)
             else:
-                developer = model_info.developer
+                developer = require_identity(
+                    model_info.developer, 'HELM model developer'
+                )
                 model = model_id
-
-        filepath = save_evaluation_log(
-            eval_log,
-            f'data/{leaderboard_name}',
-            developer,
-            model,
-        )
-        print(f'Saved: {filepath}')
+            outputs.append(
+                EvaluationLogOutput(
+                    eval_log=eval_log,
+                    base_dir=Path(output_dir) / leaderboard_name,
+                    developer=developer,
+                    model_name=model,
+                )
+            )
+        except Exception as exc:
+            failures.append(
+                SourceRecordFailure(
+                    source_ref=f'HELM model {model_name!r}',
+                    reason=str(exc),
+                    source_record={'model_name': model_name},
+                )
+            )
+    return SourceConversionResult(
+        source_name=f'HELM leaderboard {leaderboard_name}',
+        total_records=len(model_results),
+        records=outputs,
+        failures=failures,
+    )
 
 
 def get_leaderboard_versions(leaderboard_id: str) -> List[str]:
@@ -410,13 +434,27 @@ def main():
     print(f'Fetching {leaderboard_name} {args.leaderboard_version} data from {source_data_url}')
     leaderboard_data = fetch_json(source_data_url)
 
-    convert(
+    result = convert(
         leaderboard_name=leaderboard_name,
         leaderboard_data=leaderboard_data,
         eval_library_name=args.eval_library_name,
         eval_library_version=args.eval_library_version,
         source_data_url=source_data_url,
+        output_dir=args.output_dir,
     )
+    paths = save_evaluation_logs(result.records)
+    for path in paths:
+        print(f'Saved: {path}')
+    if result.failures:
+        report_path = save_failure_report(
+            result,
+            args.failure_report
+            or default_failure_report_path(
+                Path(args.output_dir) / leaderboard_name
+            ),
+        )
+        print(f'Failure report: {report_path}')
+        result.raise_if_incomplete()
 
     print('Done!')
 
