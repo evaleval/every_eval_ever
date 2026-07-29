@@ -267,7 +267,11 @@ def make_model_id(model_org: str, model_name: str) -> str:
     return f'{get_org_slug(model_org)}/{get_model_slug(model_name)}'
 
 
-def convert_entry(entry: dict, retrieved_timestamp: str) -> EvaluationLog:
+def convert_entry(
+    entry: dict,
+    retrieved_timestamp: str,
+    leaderboard_url: str = LEADERBOARD_URL,
+) -> EvaluationLog:
     """Convert a single leaderboard entry to an EvaluationLog."""
     agent = require_identity(
         entry.get('agent'),
@@ -321,7 +325,7 @@ def convert_entry(entry: dict, retrieved_timestamp: str) -> EvaluationLog:
         source_data=SourceDataUrl(
             dataset_name='terminal-bench-2.0',
             source_type='url',
-            url=[LEADERBOARD_URL],
+            url=[leaderboard_url],
         ),
         evaluation_timestamp=date,
         metric_config=MetricConfig(
@@ -390,13 +394,14 @@ def convert_entry(entry: dict, retrieved_timestamp: str) -> EvaluationLog:
 def convert_logs(
     entries: list[dict],
     retrieved_timestamp: str | None = None,
+    leaderboard_url: str = LEADERBOARD_URL,
 ) -> SourceConversionResult[tuple[EvaluationLog, str, str]]:
     timestamp = retrieved_timestamp or str(time.time())
     bundles = []
     failures: list[SourceRecordFailure] = []
     for index, entry in enumerate(entries):
         try:
-            eval_log = convert_entry(entry, timestamp)
+            eval_log = convert_entry(entry, timestamp, leaderboard_url)
             org_slug = get_org_slug(entry['model_org'])
             model_slug = get_model_slug(entry['model'])
         except Exception as e:
@@ -422,8 +427,9 @@ def convert_logs(
 def make_logs(
     entries: list[dict],
     retrieved_timestamp: str | None = None,
+    leaderboard_url: str = LEADERBOARD_URL,
 ) -> list[tuple[EvaluationLog, str, str]]:
-    result = convert_logs(entries, retrieved_timestamp)
+    result = convert_logs(entries, retrieved_timestamp, leaderboard_url)
     result.raise_if_incomplete()
     return result.records
 
@@ -502,7 +508,10 @@ def main() -> None:
         save_raw_html(html, args.save_raw_html)
         parsed = parse_leaderboard_html(html)
 
-    converted = convert_logs(parsed.records)
+    converted = convert_logs(
+        parsed.records,
+        leaderboard_url=args.leaderboard_url,
+    )
     result = SourceConversionResult(
         source_name='Terminal-Bench 2.0',
         total_records=parsed.total_records,

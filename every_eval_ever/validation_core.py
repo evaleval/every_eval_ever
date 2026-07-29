@@ -185,6 +185,15 @@ def check_path_structure(repo_path: str) -> list[str]:
     if parts[0] != 'data':
         return [f"Path does not start with 'data/': '{repo_path}'"]
 
+    reserved_components = [
+        component for component in parts[1:4] if component == 'data'
+    ]
+    if reserved_components:
+        return [
+            'Collection, developer, and model path components cannot use '
+            f"the reserved datastore name 'data': '{repo_path}'"
+        ]
+
     filename = parts[4]
     if not (
         _AGGREGATE_FILE_RE.fullmatch(filename)

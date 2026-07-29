@@ -31,6 +31,19 @@ def test_normalized_entries_convert_and_validate(tmp_path: Path):
         assert report.valid, report.errors
 
 
+def test_custom_leaderboard_url_is_recorded_as_source():
+    leaderboard_url = 'https://example.com/terminal-bench-2'
+
+    bundles = adapter.make_logs(
+        [_entry()],
+        retrieved_timestamp='1234567890.0',
+        leaderboard_url=leaderboard_url,
+    )
+
+    eval_log = bundles[0][0]
+    assert eval_log.evaluation_results[0].source_data.url == [leaderboard_url]
+
+
 def test_rejected_entry_retains_source_provenance():
     bad_entry = _entry(model='')
 

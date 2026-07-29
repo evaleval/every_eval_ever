@@ -178,6 +178,10 @@ def _required_path_component(value: str | None, field_name: str) -> str:
             f'{field_name} is not a safe single datastore path component: '
             f'{value!r}'
         )
+    if value == 'data':
+        raise ValueError(
+            f'{field_name} cannot use the reserved datastore name "data"'
+        )
     return value
 
 
@@ -419,11 +423,13 @@ def _prepare_evaluation_logs(
     prepared = []
     paths = set()
     for output in outputs:
+        base_dir = Path(output.base_dir)
+        _required_path_component(base_dir.name, 'collection')
         # Revalidate generated/dataclass-constructed values at the publication
         # boundary so all schema validators run before the first write.
         validated = EvaluationLog.model_validate(output.eval_log.model_dump())
         dir_path = generate_output_path(
-            output.base_dir,
+            base_dir,
             output.developer,
             output.model_name,
         )
@@ -458,8 +464,8 @@ def save_evaluation_logs(
     try:
         for output in prepared:
             output.path.parent.mkdir(parents=True, exist_ok=True)
-            created.append(output.path)
             with output.path.open('x', encoding='utf-8') as file:
+                created.append(output.path)
                 file.write(output.json_text)
     except Exception:
         for path in reversed(created):

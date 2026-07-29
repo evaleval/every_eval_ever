@@ -103,6 +103,17 @@ def write_samples(tmp_path: Path, rows: list[dict]) -> Path:
     return path
 
 
+def test_path_components_cannot_use_reserved_data_name():
+    for repo_path in (
+        f'data/data/dev/model/{UUID}.json',
+        f'data/bench/data/model/{UUID}.json',
+        f'data/bench/dev/data/{UUID}.json',
+    ):
+        errors = check_path_structure(repo_path)
+        assert len(errors) == 1
+        assert 'reserved datastore name' in errors[0]
+
+
 def validate_data(
     tmp_path: Path,
     data: dict,

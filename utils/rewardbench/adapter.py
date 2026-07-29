@@ -14,6 +14,7 @@ import re
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from urllib.parse import urlparse
 
 from every_eval_ever.eval_types import (
     EvalLibrary,
@@ -153,18 +154,27 @@ def extract_model_name_from_html(html_string: str) -> str:
 
 def extract_hf_model_id_from_html(html_string: str) -> str | None:
     """Return an explicit Hugging Face org/model reference when present."""
-    match = re.search(
-        r'href=["\'](?:https://huggingface\.co/)?'
-        r'(?:models/)?([^"\'?#]+)',
-        html_string,
-        flags=re.IGNORECASE,
-    )
+    match = re.search(r'href=["\']([^"\']+)["\']', html_string, re.IGNORECASE)
     if match is None:
         return None
-    candidate = match.group(1).strip('/')
-    if candidate.startswith(('spaces/', 'datasets/')) or '/' not in candidate:
+
+    href = match.group(1).strip()
+    parsed = urlparse(href)
+    if parsed.scheme or parsed.netloc:
+        if (
+            parsed.scheme not in {'http', 'https', ''}
+            or parsed.hostname is None
+            or parsed.hostname.lower()
+            not in {'huggingface.co', 'www.huggingface.co'}
+        ):
+            return None
+
+    parts = [part for part in parsed.path.split('/') if part]
+    if parts[:1] == ['models']:
+        parts = parts[1:]
+    if len(parts) != 2 or parts[0].lower() in {'spaces', 'datasets'}:
         return None
-    return candidate
+    return '/'.join(parts)
 
 
 def parse_score(value: str) -> Optional[float]:
