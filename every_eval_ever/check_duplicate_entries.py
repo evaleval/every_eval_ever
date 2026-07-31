@@ -2,22 +2,36 @@ import argparse
 import hashlib
 import json
 import os
+from pathlib import Path
 from typing import Any, Dict, List
+
+from every_eval_ever import io as eee_io
 
 IGNORE_KEYS = {'retrieved_timestamp', 'evaluation_id'}
 
 
 def expand_paths(paths: List[str]) -> List[str]:
-    """Expand folders to file paths."""
+    """Expand folders to aggregate-EEE file paths.
+
+    Recognizes both plain ``<uuid>.json`` and compressed forms
+    (``.gz``, ``.zst``, ``.bz2``, ``.xz``, ``.lz4``).
+    ``<uuid>_samples.jsonl`` files are intentionally excluded — duplicate
+    detection runs over aggregate metadata, not per-instance samples.
+    """
     file_paths: List[str] = []
     for path in paths:
-        if os.path.isfile(path) and path.endswith('.json'):
-            file_paths.append(path)
-        elif os.path.isdir(path):
-            for root, _, file_names in os.walk(path):
-                for file_name in file_names:
-                    if file_name.endswith('.json'):
-                        file_paths.append(os.path.join(root, file_name))
+        p = Path(path)
+        if p.is_file():
+            if eee_io.is_eee_result(p) == 'aggregate':
+                file_paths.append(str(p))
+            else:
+                # Preserve historical behaviour: be explicit when a
+                # passed file is not an aggregate JSON.
+                continue
+        elif p.is_dir():
+            for found in eee_io.iter_eee_results([p]):
+                if eee_io.is_eee_result(found) == 'aggregate':
+                    file_paths.append(str(found))
         else:
             raise Exception(f'Could not find file or directory at path: {path}')
     return file_paths
@@ -84,7 +98,7 @@ def main(argv: List[str] | None = None) -> int:
     groups: Dict[str, List[Dict[str, Any]]] = {}
     for file_path in file_paths:
         try:
-            with open(file_path, 'r') as f:
+            with eee_io.open_eee_text(file_path, 'r') as f:
                 payload = json.load(f)
         except json.JSONDecodeError as e:
             message = f'JSONDecodeError: {str(e)}'

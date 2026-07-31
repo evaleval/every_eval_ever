@@ -4,6 +4,10 @@ Pydantic-based validation for EEE schema files.
 Validates aggregate (.json) files against EvaluationLog and
 instance-level (_samples.jsonl) files against InstanceLevelEvaluationLog.
 
+Compressed forms (``.gz``, ``.zst``, ``.bz2``, ``.xz``, ``.lz4``) are
+accepted alongside the plain forms — see ``every_eval_ever.io`` for the
+single source of truth on suffix handling.
+
 Usage:
     uv run python -m every_eval_ever validate data/benchmark/dev/model/uuid.json
     uv run python -m every_eval_ever validate data/benchmark/dev/model/uuid_samples.jsonl
@@ -25,6 +29,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 
+from every_eval_ever import io as eee_io
 from every_eval_ever.eval_types import EvaluationLog
 from every_eval_ever.instance_level_types import InstanceLevelEvaluationLog
 
@@ -72,17 +77,27 @@ def _pydantic_errors_to_dicts(exc: ValidationError) -> list[dict]:
 
 
 def validate_aggregate(file_path: Path) -> ValidationReport:
-    """Validate a .json file as an EvaluationLog."""
+    """Validate a .json (or .json.gz/.zst/.bz2/.xz/.lz4) file as an EvaluationLog."""
     report = ValidationReport(
         file_path=file_path, valid=True, file_type='aggregate'
     )
 
     try:
-        raw = file_path.read_text(encoding='utf-8')
+        with eee_io.open_eee_text(file_path, 'r') as f:
+            raw = f.read()
     except OSError as e:
         report.valid = False
         report.errors.append(
             {'loc': '(file)', 'msg': str(e), 'type': 'io_error'}
+        )
+        return report
+    except ImportError as e:
+        # Missing optional codec dep — surface as a validation error rather
+        # than a hard crash, so that a single missing codec doesn't take down
+        # validation of an entire batch.
+        report.valid = False
+        report.errors.append(
+            {'loc': '(file)', 'msg': str(e), 'type': 'codec_unavailable'}
         )
         return report
 
@@ -135,17 +150,23 @@ def _validate_instance_line(line: str, line_num: int) -> list[dict]:
 def validate_instance_file(
     file_path: Path, max_errors: int = DEFAULT_MAX_ERRORS
 ) -> ValidationReport:
-    """Validate a .jsonl file as InstanceLevelEvaluationLog (line-by-line)."""
+    """Validate a _samples.jsonl (optionally compressed) file line-by-line."""
     report = ValidationReport(
         file_path=file_path, valid=True, file_type='instance'
     )
 
     try:
-        f = file_path.open(encoding='utf-8')
+        f = eee_io.open_eee_text(file_path, 'r')
     except OSError as e:
         report.valid = False
         report.errors.append(
             {'loc': '(file)', 'msg': str(e), 'type': 'io_error'}
+        )
+        return report
+    except ImportError as e:
+        report.valid = False
+        report.errors.append(
+            {'loc': '(file)', 'msg': str(e), 'type': 'codec_unavailable'}
         )
         return report
 
@@ -194,38 +215,73 @@ def validate_instance_file(
 def validate_file(
     file_path: Path, max_errors: int = DEFAULT_MAX_ERRORS
 ) -> ValidationReport:
-    """Dispatch validation by file extension."""
-    if file_path.suffix == '.json':
+    """Dispatch validation by EEE result kind, transparently across codecs."""
+    kind = eee_io.is_eee_result(file_path)
+    if kind == 'aggregate':
         return validate_aggregate(file_path)
-    elif file_path.suffix == '.jsonl':
+    if kind == 'samples':
         return validate_instance_file(file_path, max_errors)
-    else:
-        report = ValidationReport(
-            file_path=file_path, valid=False, file_type='unsupported'
-        )
-        report.errors.append(
-            {
-                'loc': '(file)',
-                'msg': f"Unsupported file extension '{file_path.suffix}'. Expected .json or .jsonl",
-                'type': 'unsupported_extension',
-            }
-        )
-        return report
+
+    report = ValidationReport(
+        file_path=file_path, valid=False, file_type='unsupported'
+    )
+    report.errors.append(
+        {
+            'loc': '(file)',
+            'msg': (
+                f"Unsupported filename {file_path.name!r}. Expected an EEE "
+                f'result file: ``<uuid>.json`` or ``<uuid>_samples.jsonl`` '
+                f'(optionally compressed with .gz/.zst/.bz2/.xz/.lz4).'
+            ),
+            'type': 'unsupported_extension',
+        }
+    )
+    return report
 
 
 def expand_paths(paths: list[str]) -> list[Path]:
-    """Expand directories to .json and .jsonl files recursively."""
+    """Expand inputs to a list of EEE result files (recursive on dirs).
+
+    Recognizes both plain and compressed forms (``.gz``, ``.zst``, ``.bz2``,
+    ``.xz``, ``.lz4``). Files passed explicitly are accepted regardless of
+    suffix — ``validate_file`` will surface an error for non-EEE inputs.
+    """
     result: list[Path] = []
     for p in paths:
         path = Path(p)
         if path.is_file():
             result.append(path)
         elif path.is_dir():
-            for ext in ('*.json', '*.jsonl'):
-                result.extend(sorted(path.rglob(ext)))
+            result.extend(eee_io.iter_eee_results([path]))
         else:
             result.append(path)  # let validate_file report the error
     return result
+
+
+def _duplicate_variant_reports(
+    paths: list[Path],
+) -> list[ValidationReport]:
+    """Produce one synthetic report per ``(folder, uuid, kind)`` collision."""
+    reports: list[ValidationReport] = []
+    for folder, stem, kind, variants in eee_io.find_duplicate_variants(paths):
+        rep = ValidationReport(
+            file_path=variants[0], valid=False, file_type=kind,
+        )
+        rep.errors.append(
+            {
+                'loc': f'(uuid={stem}, kind={kind})',
+                'msg': (
+                    f'Multiple physical variants of the same EEE result '
+                    f'present in {folder}: '
+                    f'{[v.name for v in variants]}. EEE allows at most one '
+                    f'variant per (uuid, kind); pick a single compressed or '
+                    f'uncompressed form and remove the others.'
+                ),
+                'type': 'duplicate_variant',
+            }
+        )
+        reports.append(rep)
+    return reports
 
 
 def _truncate(value: object, max_len: int = 80) -> str:
@@ -375,7 +431,12 @@ def main(argv: list[str] | None = None) -> int:
         print('No files found to validate.', file=sys.stderr)
         return 1
 
-    reports = [
+    # Detect duplicate variants up front. Producing a fail-closed
+    # report per collision means the CI/PR-bot path cannot silently
+    # green-light a folder containing both `abc.json` and `abc.json.gz`.
+    duplicate_reports = _duplicate_variant_reports(file_paths)
+
+    reports = duplicate_reports + [
         validate_file(fp, max_errors=args.max_errors) for fp in file_paths
     ]
 
