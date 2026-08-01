@@ -2,7 +2,7 @@
 
 > [EvalEval Coalition](https://evalevalai.com) — "We are a researcher community developing scientifically grounded research outputs and robust deployment infrastructure for broader impact evaluations."
 
-📖 **[Documentation](https://evalevalai.com/every_eval_ever/)**
+📖 **[Documentation](https://evalevalai.com/every_eval_ever/)** · 📄 **[Paper (arXiv:2606.14516)](https://arxiv.org/abs/2606.14516)**
 
 **Every Eval Ever** is a shared schema and crowdsourced eval database. It defines a standardized metadata format for storing AI evaluation results — from leaderboard scrapes and research papers to local evaluation runs — so that results from different frameworks can be compared, reproduced, and reused. The three components that make it work:
 
@@ -354,13 +354,16 @@ Qualifying contributors will be invited as co-authors on the shared task paper.
 
 ## 📎 Citation
 
+If Every Eval Ever informs your research, please cite the paper:
+
 ```bibtex
-@misc{everyevalever2026schema,
-  title   = {Every Eval Ever Metadata Schema v0.2},
-  author  = {EvalEval Coalition},
-  year    = {2026},
-  month   = {February},
-  url     = {https://github.com/evaleval/every_eval_ever},
-  note    = {Schema Release}
+@misc{batzner2026evaleverunifyingschema,
+      title={Every Eval Ever: A Unifying Schema and Community Repository for AI Evaluation Results}, 
+      author={Jan Batzner and Sree Harsha Nelaturu and Damian Stachura and Anastassia Kornilova and Jon Crall and Tommaso Cerruti and Yanan Long and Yifan Mai and Sanchit Ahuja and Asaf Yehudai and Marek Šuppa and John P. Lalor and Oluwagbemike Olowe and Jatin Ganhotra and Brian H. Hu and Eliya Habba and Andrew M. Bean and Chang Liu and Sander Land and Steven Dillmann and Aniketh Garikaparthi and Elron Bandel and Saki Imai and James Edgell and Wm. Matthew Kennedy and Jenny Chim and Patrick Meusling and Asteria Kaeberlein and Venkata Ramachandra Karthik Chundi and Manasi Patwardhan and Martin Ku and Austin Meek and Leon Knauer and Brian Wingenroth and Srishti Yadav and Usman Gohar and Felix Friedrich and Michelle Lin and Jennifer Mickel and Arman Cohan and Stella Biderman and Irene Solaiman and Zeerak Talat and Anka Reuel and Mubashara Akhtar and Gjergji Kasneci and Avijit Ghosh and Leshem Choshen},
+      year={2026},
+      eprint={2606.14516},
+      archivePrefix={arXiv},
+      primaryClass={cs.AI},
+      url={https://arxiv.org/abs/2606.14516}, 
 }
 ```

@@ -86,7 +86,6 @@ def sample_payload() -> dict:
                     'model_id': 'claude-4-opus',
                     'benchmark_id': 'gpqa-diamond',
                     'score': 88.5,
-                    'source_url': 'https://example.org/claude-gpqa',
                 },
             ]
         },
@@ -163,6 +162,10 @@ def test_raw_citation_and_provenance_are_preserved():
     first_details = first_result.score_details.details or {}
     assert first_details['raw_provenance_label'] == 'model_card'
     assert first_details['raw_verified'] == 'true'
+    assert first_details['raw_source_organization'] == 'openai'
+    assert first_details['relationship_inference_reason'] == (
+        'source_matches_model_developer'
+    )
     assert 'https://openai.com/index/gpt-5-system-card/' in json.loads(
         first_details['source_urls_json']
     )
@@ -176,6 +179,9 @@ def test_raw_citation_and_provenance_are_preserved():
     other_result = logs['other'].evaluation_results[0]
     other_details = other_result.score_details.details or {}
     assert other_details['raw_provenance_label'] == 'unknown'
+    assert other_details['relationship_inference_reason'] == (
+        'no_provenance_signal'
+    )
 
 
 def test_export_paths_follow_datastore_layout(tmp_path: Path):
@@ -229,6 +235,91 @@ def test_scores_from_live_benchmark_detail_shape():
         == 'https://openai.com/index/introducing-gpt-5-5/'
     )
     assert adapter.relationship_from_score(scores[0]) == 'first_party'
+
+
+def test_extracts_model_page_score_sources():
+    page_html = (
+        r'{\"benchmark_id\":\"arc-agi-v2\",\"name\":\"ARC-AGI v2\",'
+        r'\"score\":0.065,\"self_reported\":false,'
+        r'\"self_reported_source\":\"https://x.com/xai/status/1943158495588815072\"}'
+        r'{\"benchmark_id\":\"gpqa\",\"name\":\"GPQA\",'
+        r'\"score\":0.936,\"self_reported\":true,'
+        r'\"self_reported_source\":\"https://openai.com/index/introducing-gpt-5-5/\"}'
+    )
+
+    sources = adapter.extract_model_page_score_sources(page_html)
+
+    assert sources['arc-agi-v2']['self_reported'] is False
+    assert (
+        sources['arc-agi-v2']['self_reported_source']
+        == 'https://x.com/xai/status/1943158495588815072'
+    )
+    assert sources['arc-agi-v2']['source_organization'] == 'xai'
+    assert sources['gpqa']['self_reported'] is True
+    assert sources['gpqa']['source_organization'] == 'openai'
+
+
+def test_enrich_scores_with_model_page_sources(monkeypatch):
+    page_html = (
+        r'{\"benchmark_id\":\"arc-agi-v2\",\"name\":\"ARC-AGI v2\",'
+        r'\"score\":0.065,\"self_reported\":false,'
+        r'\"self_reported_source\":\"https://x.com/xai/status/1943158495588815072\"}'
+    )
+    monkeypatch.setattr(adapter, 'fetch_text', lambda _url: page_html)
+    scores = [
+        {
+            'model_id': 'o3-2025-04-16',
+            'benchmark_id': 'arc-agi-v2',
+            'score': 0.065,
+        }
+    ]
+
+    enriched = adapter.enrich_scores_with_model_page_sources(scores)
+
+    assert enriched[0]['self_reported'] is False
+    assert (
+        enriched[0]['source_url']
+        == 'https://x.com/xai/status/1943158495588815072'
+    )
+    assert enriched[0]['source_organization'] == 'xai'
+
+
+def test_relationship_uses_score_source_against_model_developer():
+    openai_model = {
+        'id': 'o3-2025-04-16',
+        'name': 'o3',
+        'organization_id': 'openai',
+        'organization_name': 'OpenAI',
+    }
+
+    assert (
+        adapter.relationship_from_score(
+            {'source_url': 'https://openai.com/index/o3/', 'score': 0.8},
+            openai_model,
+        )
+        == 'first_party'
+    )
+    assert (
+        adapter.relationship_from_score(
+            {
+                'source_url': 'https://x.com/xai/status/1943158495588815072',
+                'score': 0.065,
+            },
+            openai_model,
+        )
+        == 'third_party'
+    )
+    assert (
+        adapter.relationship_from_score(
+            {'self_reported': False, 'score': 0.065},
+            openai_model,
+        )
+        == 'third_party'
+    )
+    assert (
+        adapter.relationship_from_score({'score': 0.065}, openai_model)
+        == 'other'
+    )
 
 
 def test_scores_from_live_benchmark_detail_handles_empty_model_id():
