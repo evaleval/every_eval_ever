@@ -122,6 +122,10 @@ def _cmd_convert_lm_eval(args: argparse.Namespace) -> int:
                         _output_dir_for_log(staging_dir, log)
                     ),
                     file_uuid=eval_uuid,
+                    collection=log.evaluation_results[
+                        0
+                    ].source_data.dataset_name,
+                    developer=log.model_info.developer,
                 )
                 if detailed is None:
                     raise ValueError(

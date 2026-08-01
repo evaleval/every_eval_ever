@@ -53,7 +53,7 @@ def _load_instance_level_data(adapter, filepath, metadata_args):
         / converted_eval.evaluation_results[0].source_data.dataset_name
         / model_dev
         / model_name
-        / converted_eval.detailed_evaluation_results.file_path
+        / Path(converted_eval.detailed_evaluation_results.file_path).name
     )
     instance_logs = []
     with instance_level_path.open('r', encoding='utf-8') as f:

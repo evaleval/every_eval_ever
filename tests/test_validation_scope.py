@@ -164,11 +164,11 @@ def test_companion_check_uses_declared_path(tmp_path):
     )
 
 
-def test_companion_check_accepts_existing_declared_relative_path(tmp_path):
+def test_companion_check_accepts_existing_declared_repository_path(tmp_path):
     data = valid_aggregate()
     data['detailed_evaluation_results'] = {
         'format': 'jsonl',
-        'file_path': f'{UUID}_samples.jsonl',
+        'file_path': COMPANION_REPO_PATH,
     }
     report = validate_data(
         tmp_path,
@@ -192,12 +192,12 @@ def test_aggregate_requires_tag_when_samples_sibling_exists(tmp_path):
     )
 
 
-def test_companion_must_use_same_uuid_and_basename(tmp_path):
+def test_companion_must_use_full_path_same_folder_and_uuid(tmp_path):
     other_uuid = '550e8400-e29b-41d4-a716-446655440001'
     for reference in (
-        f'{other_uuid}_samples.jsonl',
-        COMPANION_REPO_PATH,
-        f'other/{UUID}_samples.jsonl',
+        f'{UUID}_samples.jsonl',
+        f'data/bench/dev/model/{other_uuid}_samples.jsonl',
+        f'data/bench/dev/other-model/{UUID}_samples.jsonl',
     ):
         data = valid_aggregate()
         data['detailed_evaluation_results'] = {
@@ -216,7 +216,7 @@ def test_pair_ids_and_total_rows_must_match(tmp_path):
     data = valid_aggregate()
     data['detailed_evaluation_results'] = {
         'format': 'jsonl',
-        'file_path': f'{UUID}_samples.jsonl',
+        'file_path': COMPANION_REPO_PATH,
         'total_rows': 2,
     }
     sample = valid_sample()
@@ -270,7 +270,7 @@ def test_samples_requires_aggregate_that_points_back(tmp_path):
 
     aggregate['detailed_evaluation_results'] = {
         'format': 'jsonl',
-        'file_path': f'{UUID}_samples.jsonl',
+        'file_path': COMPANION_REPO_PATH,
         'total_rows': 1,
     }
     report = validate_instance_file(
@@ -293,7 +293,7 @@ def test_companion_check_supports_bot_file_lookup(tmp_path):
     data = valid_aggregate()
     data['detailed_evaluation_results'] = {
         'format': 'jsonl',
-        'file_path': f'{UUID}_samples.jsonl',
+        'file_path': COMPANION_REPO_PATH,
     }
     report = validate_aggregate(
         write_aggregate(tmp_path, data),
@@ -400,6 +400,15 @@ def test_detailed_results_requires_jsonl_path():
         DetailedEvaluationResults()
     with pytest.raises(ValidationError):
         DetailedEvaluationResults(format='json', file_path='details.json')
+    with pytest.raises(ValidationError):
+        DetailedEvaluationResults(
+            format='jsonl', file_path=f'{UUID}_samples.jsonl'
+        )
+
+    detailed = DetailedEvaluationResults(
+        format='jsonl', file_path=COMPANION_REPO_PATH
+    )
+    assert detailed.file_path == COMPANION_REPO_PATH
 
 
 def test_strict_json_rejects_nonfinite_tokens_and_duplicate_keys(tmp_path):
@@ -437,7 +446,7 @@ def test_local_command_runs_the_same_repository_checks(
     data = valid_aggregate()
     data['detailed_evaluation_results'] = {
         'format': 'jsonl',
-        'file_path': f'{UUID}_samples.jsonl',
+        'file_path': COMPANION_REPO_PATH,
     }
     aggregate_path.write_text(json.dumps(data), encoding='utf-8')
     companion_path = aggregate_path.with_name(f'{UUID}_samples.jsonl')

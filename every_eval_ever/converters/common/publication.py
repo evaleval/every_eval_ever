@@ -9,7 +9,11 @@ from pathlib import Path
 from typing import Iterable
 
 from every_eval_ever.eval_types import EvaluationLog
-from every_eval_ever.helpers.io import datastore_output_dir, require_uuid4
+from every_eval_ever.helpers.io import (
+    datastore_output_dir,
+    datastore_repo_file_path,
+    require_uuid4,
+)
 from every_eval_ever.instance_level_types import InstanceLevelEvaluationLog
 
 
@@ -53,10 +57,28 @@ def _prepare_sample_artifact(
         )
 
     expected_name = f'{file_uuid}_samples.jsonl'
-    if detailed.file_path != expected_name:
+    if not log.evaluation_results:
+        raise ValueError(
+            'evaluation_results must contain at least one result so the '
+            'sample repository path can be determined'
+        )
+    source_data = log.evaluation_results[0].source_data
+    if source_data is None:
+        raise ValueError(
+            'evaluation_results[0].source_data is required for the sample '
+            'repository path'
+        )
+    expected_repo_path = datastore_repo_file_path(
+        source_data.dataset_name,
+        log.model_info.id,
+        log.model_info.developer,
+        expected_name,
+    )
+    if detailed.file_path != expected_repo_path:
         raise ValueError(
             'detailed_evaluation_results.file_path must match the aggregate '
-            f'UUID: expected {expected_name!r}, got {detailed.file_path!r}'
+            'repository path and UUID: expected '
+            f'{expected_repo_path!r}, got {detailed.file_path!r}'
         )
     source_path = _output_dir(staged_output_dir, log) / expected_name
     if not source_path.is_file():

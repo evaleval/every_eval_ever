@@ -75,6 +75,7 @@ from every_eval_ever.eval_types import (
 )
 from every_eval_ever.helpers.io import (
     datastore_output_dir,
+    datastore_repo_file_path,
     require_identity,
     require_uuid4,
 )
@@ -588,7 +589,12 @@ class HELMAdapter(BaseEvaluationAdapter):
 
             detailed_evaluation_results = DetailedEvaluationResults(
                 format=Format.jsonl,
-                file_path=Path(instance_level_log_path).name,
+                file_path=datastore_repo_file_path(
+                    source_data.dataset_name,
+                    model_info.id,
+                    model_info.developer,
+                    Path(instance_level_log_path).name,
+                ),
                 hash_algorithm=HashAlgorithm.sha256,
                 checksum=sha256_file(instance_level_log_path),
                 total_rows=instance_level_rows_number,

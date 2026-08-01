@@ -69,6 +69,8 @@ def test_sidecar_and_aggregate_rollback_preserves_competing_file(
         task_name='math_perturbed_full',
         output_dir=str(staged_model_dir),
         file_uuid=FILE_UUID,
+        collection=log.evaluation_results[0].source_data.dataset_name,
+        developer=log.model_info.developer,
     )
     assert detailed is not None
     log.detailed_evaluation_results = detailed
@@ -110,10 +112,12 @@ def test_publisher_rejects_tampered_staged_samples(tmp_path: Path):
         task_name='math_perturbed_full',
         output_dir=str(staged_model_dir),
         file_uuid=FILE_UUID,
+        collection=log.evaluation_results[0].source_data.dataset_name,
+        developer=log.model_info.developer,
     )
     assert detailed is not None
     log.detailed_evaluation_results = detailed
-    sample_path = staged_model_dir / detailed.file_path
+    sample_path = staged_model_dir / Path(detailed.file_path).name
     lines = sample_path.read_text(encoding='utf-8').splitlines()
     first_row = json.loads(lines[0])
     first_row['model_id'] = 'other/model'

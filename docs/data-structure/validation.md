@@ -29,7 +29,7 @@ uv run python -m every_eval_ever validate \
 
 Run the command from the repository root and use `data/...` paths. File type is determined by extension: `.json` validates against `EvaluationLog`, while `.jsonl` validates each line against `InstanceLevelEvaluationLog`.
 
-Paths must be exactly `data/<collection>/<developer>/<model>/<uuid>.json` or the matching `<uuid>_samples.jsonl`; subfolders below the model are rejected. When samples exist, both files must share a folder and UUID, the aggregate must declare the samples basename, and the samples must point back to that aggregate. Evaluation IDs, model IDs, and any declared `total_rows` must agree. Directory arguments are not accepted; use a glob to select local files.
+Paths must be exactly `data/<collection>/<developer>/<model>/<uuid>.json` or the matching `<uuid>_samples.jsonl`; subfolders below the model are rejected. When samples exist, both files must share a folder and UUID, the aggregate must declare the samples' full repository-relative `data/...` path, and the samples must point back to that aggregate. Evaluation IDs, model IDs, and any declared `total_rows` must agree. Directory arguments are not accepted; use a glob to select local files.
 
 Local validation checks only the files present in the local checkout and their expected siblings. It does not claim that a partial checkout represents the complete datastore. The PR bot uses the PR diff and branch contents for that authoritative check.
 

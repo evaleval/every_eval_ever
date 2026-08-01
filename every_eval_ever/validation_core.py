@@ -224,16 +224,18 @@ def resolve_companion_repo_path(
         )
 
     aggregate_path = PurePosixPath(repo_path)
-    expected_name = f'{aggregate_path.stem}_samples.jsonl'
+    expected_path = (
+        aggregate_path.parent / f'{aggregate_path.stem}_samples.jsonl'
+    ).as_posix()
     normalized_reference = reference.strip()
-    if normalized_reference != expected_name:
+    if normalized_reference != expected_path:
         raise ValueError(
             'detailed_evaluation_results.file_path: expected exactly '
-            f'{expected_name!r} so the aggregate and samples share one UUID '
+            f'{expected_path!r} so the aggregate and samples share one UUID '
             f'and folder, got {reference!r}'
         )
 
-    return (aggregate_path.parent / expected_name).as_posix()
+    return expected_path
 
 
 def _aggregate_repo_path_for_samples(repo_path: str) -> str | None:

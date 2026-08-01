@@ -14,6 +14,7 @@ from pydantic import (
     Field,
     confloat,
     conint,
+    constr,
     field_serializer,
     model_validator,
 )
@@ -262,8 +263,11 @@ class DetailedEvaluationResults(BaseModel):
     format: Format = Field(
         ..., description='Format of the detailed evaluation results'
     )
-    file_path: str = Field(
-        ..., description='Path to the detailed evaluation results file'
+    file_path: constr(
+        pattern=r'^data/[^/]+/[^/]+/[^/]+/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}_samples\.jsonl$'
+    ) = Field(
+        ...,
+        description='Canonical repository-relative path to the detailed evaluation results file, rooted at data/',
     )
     hash_algorithm: HashAlgorithm | None = Field(
         None,

@@ -570,7 +570,8 @@
                 },
                 "file_path": {
                     "type": "string",
-                    "description": "Path to the detailed evaluation results file"
+                    "description": "Canonical repository-relative path to the detailed evaluation results file, rooted at data/",
+                    "pattern": "^data/[^/]+/[^/]+/[^/]+/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}_samples\\.jsonl$"
                 },
                 "hash_algorithm": {
                     "type": "string",

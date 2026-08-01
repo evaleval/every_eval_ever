@@ -352,7 +352,10 @@ def test_include_instances_writes_valid_jsonl_sidecar(tmp_path: Path):
     assert aggregate.detailed_evaluation_results is not None
     assert aggregate.detailed_evaluation_results.total_rows == 2
     assert aggregate.detailed_evaluation_results.format.value == 'jsonl'
-    assert aggregate.detailed_evaluation_results.file_path == sample_path.name
+    assert aggregate.detailed_evaluation_results.file_path == (
+        f'data/openeval/{gemma_bundle.developer}/{gemma_bundle.model}/'
+        f'{sample_path.name}'
+    )
     assert aggregate.detailed_evaluation_results.checksum
 
     report = validate_file(sample_path)

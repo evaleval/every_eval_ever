@@ -5,7 +5,7 @@ import math
 import re
 import uuid
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Generic, Iterable, TypeVar, Union
 
 from every_eval_ever.eval_types import EvaluationLog
@@ -271,6 +271,28 @@ def datastore_output_dir(
         developer,
     )
     return Path(base_dir) / collection_name / developer_name / model_name
+
+
+def datastore_repo_file_path(
+    collection: str | None,
+    model_id: str | None,
+    developer: str | None,
+    filename: str | None,
+) -> str:
+    """Return a canonical repository-relative path for one datastore file."""
+    collection_name, developer_name, model_name = datastore_path_components(
+        collection,
+        model_id,
+        developer,
+    )
+    filename = _required_path_component(filename, 'datastore filename')
+    return PurePosixPath(
+        'data',
+        collection_name,
+        developer_name,
+        model_name,
+        filename,
+    ).as_posix()
 
 
 def require_uuid4(value: str | None, field_name: str = 'file UUID') -> str:

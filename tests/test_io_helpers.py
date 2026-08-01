@@ -7,6 +7,7 @@ from every_eval_ever.helpers.io import (
     SourceRecordFailure,
     SourceRecordsError,
     datastore_path_components,
+    datastore_repo_file_path,
     default_failure_report_path,
     generate_output_path,
     raise_for_failed_records,
@@ -22,6 +23,20 @@ def test_datastore_path_replaces_colons_for_windows():
         'benchmark__version',
         'developer',
         'model_revision',
+    )
+
+
+def test_datastore_repo_file_path_is_canonical_and_portable():
+    file_uuid = '123e4567-e89b-42d3-a456-426614174000'
+
+    assert datastore_repo_file_path(
+        'benchmark::version',
+        'developer/family/model:revision',
+        None,
+        f'{file_uuid}_samples.jsonl',
+    ) == (
+        'data/benchmark__version/developer/family_model_revision/'
+        f'{file_uuid}_samples.jsonl'
     )
 
 

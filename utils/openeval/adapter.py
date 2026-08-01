@@ -54,6 +54,7 @@ from every_eval_ever.eval_types import (
 )
 from every_eval_ever.helpers import (
     SCHEMA_VERSION,
+    datastore_repo_file_path,
     generate_output_path,
     get_developer,
     get_model_id,
@@ -1180,6 +1181,14 @@ def save_instance_logs(
     if pending_path is None or instance_count == 0:
         return None
 
+    try:
+        collection, developer, model = aggregate_path.parts[-4:-1]
+    except ValueError as exc:
+        raise ValueError(
+            'aggregate_path must end with '
+            '<collection>/<developer>/<model>/<uuid>.json'
+        ) from exc
+
     sample_path = aggregate_path.with_name(
         f'{aggregate_path.stem}_samples.jsonl'
     )
@@ -1210,7 +1219,12 @@ def save_instance_logs(
 
     return DetailedEvaluationResults(
         format=Format.jsonl,
-        file_path=sample_path.name,
+        file_path=datastore_repo_file_path(
+            collection,
+            f'{developer}/{model}',
+            developer,
+            sample_path.name,
+        ),
         hash_algorithm=HashAlgorithm.sha256,
         checksum=file_hash.hexdigest(),
         total_rows=instance_count,
@@ -1270,7 +1284,12 @@ def export_logs(bundles: list[LogBundle], output_dir: Path) -> list[Path]:
                 )
                 log.detailed_evaluation_results = DetailedEvaluationResults(
                     format=Format.jsonl,
-                    file_path=sample_path.name,
+                    file_path=datastore_repo_file_path(
+                        output_dir.name,
+                        f'{bundle.developer}/{bundle.model}',
+                        bundle.developer,
+                        sample_path.name,
+                    ),
                     hash_algorithm=HashAlgorithm.sha256,
                     checksum=hashlib.sha256(
                         sample_text.encode('utf-8')

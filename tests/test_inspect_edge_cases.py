@@ -56,7 +56,7 @@ def _load_eval_and_instances(filepath, metadata_args=None):
         if converted.detailed_evaluation_results:
             matches = list(
                 Path(tmpdir).rglob(
-                    converted.detailed_evaluation_results.file_path
+                    Path(converted.detailed_evaluation_results.file_path).name
                 )
             )
             if matches:
