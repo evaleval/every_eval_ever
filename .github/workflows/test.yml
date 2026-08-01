@@ -10,6 +10,10 @@ jobs:
     name: ${{ matrix.deps }} / ${{ matrix.resolution }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      # Keep installed dependencies outside the checkout. NLTK's import
+      # security intentionally blocks dependency imports resolved beneath CWD.
+      UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/eee-venv
     strategy:
       fail-fast: false
       matrix:
