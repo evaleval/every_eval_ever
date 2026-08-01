@@ -119,6 +119,13 @@ def test_helm_keeps_valid_models_when_identity_is_unknown(tmp_path: Path):
             'rows': [
                 [{'value': 'gpt-4o'}, {'value': 0.5}],
                 [{'value': 'unmapped-model'}, {'value': 0.4}],
+                [
+                    {
+                        'value': 'nested-model',
+                        'run_spec_names': ['run:model=org_family_model'],
+                    },
+                    {'value': 0.3},
+                ],
             ],
         }
     ]
@@ -130,7 +137,16 @@ def test_helm_keeps_valid_models_when_identity_is_unknown(tmp_path: Path):
         output_dir=str(tmp_path / 'data'),
     )
 
-    assert len(result.records) == 1
+    assert len(result.records) == 2
     assert len(result.failures) == 1
+    nested = next(
+        record
+        for record in result.records
+        if record.eval_log.model_info.id == 'org/family/model'
+    )
+    assert nested.developer == 'org'
+    assert nested.model_name == 'family_model'
     paths = assert_saved_records_are_valid(result.records)
-    assert paths[0].is_relative_to(tmp_path / 'data' / 'HELM_Lite')
+    assert all(
+        path.is_relative_to(tmp_path / 'data' / 'HELM_Lite') for path in paths
+    )

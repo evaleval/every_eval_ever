@@ -1,4 +1,7 @@
+import pytest
+
 from every_eval_ever.helpers.io import (
+    EvaluationLogOutput,
     SourceConversionResult,
     SourceRecordExclusion,
     SourceRecordFailure,
@@ -30,6 +33,31 @@ def test_basic_output_path_replaces_colons_for_windows(tmp_path):
     )
 
     assert path == tmp_path / 'developer' / 'model__revision'
+
+
+def test_evaluation_output_flattens_nested_model_path_and_colons():
+    log = object()
+
+    output = EvaluationLogOutput(
+        eval_log=log,  # type: ignore[arg-type]
+        base_dir='data/benchmark',
+        developer='developer:team',
+        model_name='family/model:revision',
+    )
+
+    assert output.developer == 'developer_team'
+    assert output.model_name == 'family_model_revision'
+    assert output.eval_log is log
+
+
+def test_evaluation_output_rejects_empty_nested_model_component():
+    with pytest.raises(ValueError, match='invalid model name'):
+        EvaluationLogOutput(
+            eval_log=object(),  # type: ignore[arg-type]
+            base_dir='data/benchmark',
+            developer='developer',
+            model_name='family//model',
+        )
 
 
 def test_failed_source_records_retain_raw_provenance():
@@ -64,6 +92,14 @@ def test_failure_report_is_outside_validated_data_tree(tmp_path):
 
     assert default_failure_report_path(output_dir) == (
         tmp_path / 'adapter_reports' / 'benchmark_failures.json'
+    )
+
+
+def test_failure_report_filename_replaces_colons_for_windows(tmp_path):
+    output_dir = tmp_path / 'data' / 'benchmark:version'
+
+    assert default_failure_report_path(output_dir) == (
+        tmp_path / 'adapter_reports' / 'benchmark_version_failures.json'
     )
 
 

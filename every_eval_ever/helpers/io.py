@@ -129,6 +129,27 @@ class EvaluationLogOutput:
     developer: str
     model_name: str
 
+    def __post_init__(self) -> None:
+        """Normalize explicit routing before an output enters a batch.
+
+        Model identities may contain additional slash-separated namespaces,
+        but the datastore permits exactly one model directory. Flatten those
+        namespaces for the filesystem while leaving ``eval_log.model_info``
+        unchanged. Doing this at construction time also keeps a bad route
+        inside an adapter's per-record error boundary instead of failing the
+        whole batch during publication.
+        """
+        object.__setattr__(
+            self,
+            'developer',
+            _required_path_component(self.developer, 'model developer'),
+        )
+        object.__setattr__(
+            self,
+            'model_name',
+            _flatten_path_components(self.model_name, 'model name'),
+        )
+
 
 @dataclass(frozen=True)
 class _PreparedEvaluationLog:
@@ -185,6 +206,17 @@ def _required_path_component(value: str | None, field_name: str) -> str:
     return value
 
 
+def _flatten_path_components(value: str | None, field_name: str) -> str:
+    """Flatten a slash-separated identity into one safe path component."""
+    value = require_identity(value, field_name)
+    parts = value.split('/')
+    if any(not part for part in parts):
+        raise ValueError(f'invalid {field_name}: {value!r}')
+    return '_'.join(
+        _required_path_component(part, field_name) for part in parts
+    )
+
+
 def datastore_path_components(
     collection: str | None,
     model_id: str | None,
@@ -202,10 +234,7 @@ def datastore_path_components(
     collection_parts = collection.strip().split('/')
     if not collection_parts or any(not part for part in collection_parts):
         raise ValueError(f'invalid collection identity: {collection!r}')
-    collection_name = '_'.join(
-        _required_path_component(part, 'collection')
-        for part in collection_parts
-    )
+    collection_name = _flatten_path_components(collection, 'collection')
 
     if not isinstance(model_id, str):
         raise ValueError('model_info.id is required for the datastore path')
@@ -217,9 +246,8 @@ def datastore_path_components(
         developer_name = _required_path_component(
             model_parts[0], 'model developer'
         )
-        model_name = '_'.join(
-            _required_path_component(part, 'model name')
-            for part in model_parts[1:]
+        model_name = _flatten_path_components(
+            '/'.join(model_parts[1:]), 'model name'
         )
     else:
         developer_name = _required_path_component(
@@ -295,10 +323,12 @@ def default_failure_report_path(
     )
     if data_root is not None:
         report_root = data_root.parent / 'adapter_reports'
-        report_stem = '__'.join(output_path.relative_to(data_root).parts)
+        report_stem = sanitize_filename(
+            '__'.join(output_path.relative_to(data_root).parts)
+        )
     else:
         report_root = output_path.parent / 'adapter_reports'
-        report_stem = output_path.name
+        report_stem = sanitize_filename(output_path.name)
     return report_root / f'{report_stem}_failures.json'
 
 
@@ -308,12 +338,15 @@ def save_failure_report(
 ) -> Path:
     """Persist rejected source records and reasons as strict JSON."""
     report_path = Path(path)
-    report_text = json.dumps(
-        _strict_provenance_value(result.failure_report()),
-        indent=2,
-        ensure_ascii=False,
-        allow_nan=False,
-    ) + '\n'
+    report_text = (
+        json.dumps(
+            _strict_provenance_value(result.failure_report()),
+            indent=2,
+            ensure_ascii=False,
+            allow_nan=False,
+        )
+        + '\n'
+    )
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(report_text, encoding='utf-8')
     return report_path
@@ -347,12 +380,10 @@ def _strict_provenance_value(value: Any) -> Any:
         if any(not isinstance(key, str) for key in value):
             raise TypeError('provenance object keys must be strings')
         return {
-            key: _strict_provenance_value(item)
-            for key, item in value.items()
+            key: _strict_provenance_value(item) for key, item in value.items()
         }
     raise TypeError(
-        'provenance values must be JSON-compatible; '
-        f'got {type(value).__name__}'
+        f'provenance values must be JSON-compatible; got {type(value).__name__}'
     )
 
 
