@@ -640,7 +640,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if args.command == 'validate':
-        from every_eval_ever.validate import main as validate_main
+        from every_eval_ever.validator.validate import main as validate_main
 
         validate_args = [
             '--max-errors',
@@ -652,7 +652,7 @@ def main(argv: list[str] | None = None) -> int:
         return validate_main(validate_args)
 
     if args.command == 'check-duplicates':
-        from every_eval_ever.check_duplicate_entries import (
+        from every_eval_ever.validator.check_duplicate_entries import (
             main as check_duplicates_main,
         )
 
