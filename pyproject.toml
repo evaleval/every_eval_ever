@@ -31,6 +31,16 @@ inspect = ["inspect-ai>=0.3.160,<0.4.0"]
 helm = [
     "crfm-helm>=0.5.14",
     "typer>=0.12,<1.0",
+    # crfm-helm pulls nltk transitively. nltk 3.10.1 added an import guard
+    # (nltk/inisec.py, a CWE-427 mitigation) that blocks nltk-initiated imports
+    # of any module resolving *under the current working directory*. uv places
+    # .venv/ inside the project, so site-packages is under the CWD and the guard
+    # false-positives on nltk's own `regex` dependency -> `import helm` fails at
+    # import time (breaks the HELM converter in CI's `loose` matrix, and for any
+    # default venv layout). Cap below the guarded release until nltk fixes the
+    # false positive (tracking: https://github.com/nltk/nltk/issues/3730); safe
+    # because crfm-helm is frozen.
+    "nltk<3.10.1",
 ]
 all = [
     "every-eval-ever[inspect]",
