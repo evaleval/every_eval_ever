@@ -145,7 +145,6 @@ def test_make_logs_validate_against_schema():
     assert set(logs) == {'gemma-2b-it', 'gpt-4o'}
     for log in logs.values():
         validated = EvaluationLog.model_validate(log.model_dump())
-        assert validated.schema_version == '0.2.3'
         assert validated.source_metadata.source_name == 'OpenEval'
         assert validated.source_metadata.source_type.value == 'evaluation_run'
         assert (

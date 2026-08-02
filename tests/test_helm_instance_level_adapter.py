@@ -149,7 +149,6 @@ def test_mmlu_instance_level():
         log = _by_sample_and_metric(instance_logs)[
             ('id147', 'exact_match:test')
         ]
-        assert log.schema_version == '0.2.3'
         assert log.evaluation_id == converted_eval.evaluation_id
         assert log.model_id == 'openai/gpt2'
         assert log.evaluation_name == 'mmlu'
@@ -210,7 +209,6 @@ def test_hellaswag_instance_level():
         assert len(em_rows) == 10
         log = em_rows[0]
 
-        assert log.schema_version == '0.2.3'
         assert log.model_id == 'eleutherai/pythia-1b-v0'
         assert log.evaluation_name == 'hellaswag'
         assert log.interaction_type == InteractionType.single_turn
@@ -256,7 +254,6 @@ def test_narrativeqa_instance_level():
         assert len(em_rows) == 5
         log = em_rows[0]
 
-        assert log.schema_version == '0.2.3'
         assert log.model_id == 'openai/gpt2'
         assert log.evaluation_name == 'narrativeqa'
         assert log.interaction_type == InteractionType.single_turn

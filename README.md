@@ -53,7 +53,7 @@ Leaderboard/evaluation data is split-up into files by individual model, and data
 
 ### TL;DR How to successfully submit
 
-1. Data must conform to [`eval.schema.json`](every_eval_ever/schemas/eval.schema.json) (current version: `0.2.3`)
+1. Data must conform to [`eval.schema.json`](every_eval_ever/schemas/eval.schema.json) (current version: `0.3.0`)
 2. The validation pipeline will automatically verify the data submitted in the pull request, but can also be manually triggered by typing ```/eee validate changed``` in a comment on the HF PR.
 3. An EvalEval member will review and merge your submission
 
@@ -173,7 +173,7 @@ Example `single_turn` instance:
 
 ```json
 {
-  "schema_version": "instance_level_eval_0.2.3",
+  "schema_version": "0.3.0",
   "evaluation_id": "math_eval/meta-llama/Llama-2-7b-chat/1706000000",
   "model_id": "meta-llama/Llama-2-7b-chat",
   "evaluation_name": "math_eval",

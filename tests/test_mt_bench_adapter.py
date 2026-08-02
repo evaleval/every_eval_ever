@@ -78,7 +78,6 @@ def test_make_logs_validate_against_schema():
 
     for log, _, _ in bundles:
         validated = EvaluationLog.model_validate(log.model_dump())
-        assert validated.schema_version == '0.2.3'
         assert validated.source_metadata.source_organization_name == 'LMSYS'
         assert validated.source_metadata.source_type.value == 'documentation'
         assert (

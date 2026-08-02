@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from every_eval_ever.schema import get_schema_version
 from every_eval_ever.validate import (
     expand_paths,
     main,
@@ -22,6 +23,8 @@ from every_eval_ever.validate import (
 from every_eval_ever.validate import (
     validate_instance_file as _validate_instance_file,
 )
+
+CURRENT_SCHEMA_VERSION = get_schema_version()
 
 # ---------------------------------------------------------------------------
 # Helpers — minimal valid data fixtures
@@ -45,7 +48,7 @@ def validate_file(file_path: Path, *args, **kwargs):
 
 
 VALID_AGGREGATE: dict = {
-    'schema_version': '0.2.3',
+    'schema_version': CURRENT_SCHEMA_VERSION,
     'evaluation_id': 'test/model/123',
     'retrieved_timestamp': '1234567890',
     'source_metadata': {
@@ -73,7 +76,7 @@ VALID_AGGREGATE: dict = {
 }
 
 VALID_SINGLE_TURN: dict = {
-    'schema_version': 'instance_level_eval_0.2.3',
+    'schema_version': CURRENT_SCHEMA_VERSION,
     'evaluation_id': 'test/model/123',
     'model_id': 'org/test-model',
     'evaluation_name': 'test_eval',
@@ -94,7 +97,7 @@ VALID_SINGLE_TURN: dict = {
 }
 
 VALID_MULTI_TURN: dict = {
-    'schema_version': 'instance_level_eval_0.2.3',
+    'schema_version': CURRENT_SCHEMA_VERSION,
     'evaluation_id': 'test/model/123',
     'model_id': 'org/test-model',
     'evaluation_name': 'test_eval',

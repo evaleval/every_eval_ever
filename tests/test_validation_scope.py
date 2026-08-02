@@ -9,10 +9,14 @@ import pytest
 from jsonschema import Draft7Validator
 from pydantic import ValidationError
 
+from every_eval_ever.converters import (
+    SCHEMA_VERSION as CONVERTER_SCHEMA_VERSION,
+)
 from every_eval_ever.eval_types import (
     DetailedEvaluationResults,
     ModelInfo,
 )
+from every_eval_ever.helpers import SCHEMA_VERSION as ADAPTER_SCHEMA_VERSION
 from every_eval_ever.schema import get_schema_version, schema_json
 from every_eval_ever.validate import (
     check_path_structure,
@@ -27,19 +31,21 @@ from every_eval_ever.validate import (
 UUID = '550e8400-e29b-41d4-a716-446655440000'
 AGGREGATE_REPO_PATH = f'data/bench/dev/model/{UUID}.json'
 COMPANION_REPO_PATH = f'data/bench/dev/model/{UUID}_samples.jsonl'
+CURRENT_SCHEMA_VERSION = get_schema_version()
 
 
-def test_current_schema_version_is_0_2_3():
-    assert get_schema_version() == '0.2.3'
+def test_schema_versions_are_consistent():
+    assert ADAPTER_SCHEMA_VERSION == CURRENT_SCHEMA_VERSION
+    assert CONVERTER_SCHEMA_VERSION == CURRENT_SCHEMA_VERSION
     assert (
         schema_json('instance_level_eval.schema.json')['version']
-        == 'instance_level_eval_0.2.3'
+        == f'instance_level_eval_{CURRENT_SCHEMA_VERSION}'
     )
 
 
 def valid_aggregate() -> dict:
     return {
-        'schema_version': '0.2.3',
+        'schema_version': CURRENT_SCHEMA_VERSION,
         'evaluation_id': 'bench/dev_model/123',
         'retrieved_timestamp': '123',
         'source_metadata': {
@@ -82,7 +88,7 @@ def write_aggregate(tmp_path: Path, data: dict) -> Path:
 
 def valid_sample() -> dict:
     return {
-        'schema_version': 'instance_level_eval_0.2.3',
+        'schema_version': CURRENT_SCHEMA_VERSION,
         'evaluation_id': valid_aggregate()['evaluation_id'],
         'model_id': valid_aggregate()['model_info']['id'],
         'evaluation_name': 'bench',

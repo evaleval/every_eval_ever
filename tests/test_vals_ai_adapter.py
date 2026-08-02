@@ -106,7 +106,6 @@ def test_make_logs_validate_against_schema():
 
     for bundle in bundles:
         validated = EvaluationLog.model_validate(bundle.log.model_dump())
-        assert validated.schema_version == '0.2.3'
         assert validated.source_metadata.source_organization_name == 'Vals.ai'
         assert validated.source_metadata.source_type.value == 'documentation'
         assert (

@@ -11,11 +11,13 @@ from rich.console import Console
 from rich.progress import Progress
 
 from every_eval_ever import cli
+from every_eval_ever.schema import get_schema_version
 from every_eval_ever.tools import (
     hf_community_evals as community_evals_converter,
 )
 
 FIXTURE_DIR = Path(__file__).parent / 'data' / 'community_evals_converter'
+CURRENT_SCHEMA_VERSION = get_schema_version()
 
 
 class FakeRepoInfo:
@@ -172,7 +174,7 @@ def _aggregate(
     score: float = 0.641,
 ) -> dict:
     return {
-        'schema_version': '0.2.3',
+        'schema_version': CURRENT_SCHEMA_VERSION,
         'evaluation_id': 'openeval/google_gemma-2b-it/123',
         'evaluation_timestamp': '2024-07-16T00:00:00Z',
         'retrieved_timestamp': '1234567890',
@@ -327,7 +329,7 @@ def _write_collection_rows(
             instance_data = (
                 json.dumps(
                     {
-                        'schema_version': 'instance_level_eval_0.2.3',
+                        'schema_version': CURRENT_SCHEMA_VERSION,
                         'evaluation_id': record['evaluation_id'],
                         'model_id': record['model_info']['id'],
                     }
