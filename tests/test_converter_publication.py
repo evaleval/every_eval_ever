@@ -14,7 +14,7 @@ from every_eval_ever.converters.lm_eval.adapter import LMEvalAdapter
 from every_eval_ever.converters.lm_eval.instance_level_adapter import (
     LMEvalInstanceLevelAdapter,
 )
-from every_eval_ever.helpers.io import datastore_output_dir
+from every_eval_ever.helpers.io import SourceRecordsError, datastore_output_dir
 from every_eval_ever.validate import validate_file
 
 LM_EVAL_DIR = Path('tests/data/lm_eval')
@@ -250,12 +250,12 @@ def test_lm_eval_cli_publishes_valid_batch(tmp_path: Path):
         assert report.valid, report.errors
 
 
-def test_lm_eval_cli_sample_failure_leaves_no_partial_output(
+def test_lm_eval_cli_sample_failure_publishes_other_valid_tasks(
     tmp_path: Path,
 ):
     output_dir = tmp_path / 'data'
 
-    with pytest.raises(FileNotFoundError, match='no upstream samples'):
+    with pytest.raises(SourceRecordsError, match='no upstream samples'):
         cli.main(
             [
                 'convert',
@@ -272,4 +272,26 @@ def test_lm_eval_cli_sample_failure_leaves_no_partial_output(
             ]
         )
 
-    assert not list(output_dir.rglob('*.json*'))
+    aggregate_paths = list(output_dir.rglob('*.json'))
+    sample_paths = list(output_dir.rglob('*.jsonl'))
+    assert len(aggregate_paths) == 2
+    assert len(sample_paths) == 1
+    for aggregate_path in aggregate_paths:
+        assert validate_file(aggregate_path).valid
+    assert validate_file(sample_paths[0]).valid
+
+    aggregates = [
+        json.loads(path.read_text(encoding='utf-8')) for path in aggregate_paths
+    ]
+    assert sum('detailed_evaluation_results' in log for log in aggregates) == 1
+
+    report_path = tmp_path / 'adapter_reports' / 'lm_eval_samples_failures.json'
+    report = json.loads(report_path.read_text(encoding='utf-8'))
+    assert report['converted_records'] == 1
+    assert report['failed_record_count'] == 1
+    failure_record = report['failed_records'][0]['source_record']
+    assert failure_record['task_name'] == 'math_rephrased_full'
+    assert failure_record['searched_directory'] == str(LM_EVAL_DIR)
+    assert failure_record['expected_samples_pattern'] == (
+        'samples_math_rephrased_full_*.jsonl'
+    )

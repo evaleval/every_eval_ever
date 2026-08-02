@@ -91,6 +91,8 @@ from every_eval_ever.eval_types import (
     Uncertainty,
 )
 from every_eval_ever.helpers.io import (
+    SourceConversionResult,
+    SourceRecordFailure,
     datastore_output_dir,
     datastore_repo_file_path,
     require_uuid4,
@@ -449,6 +451,14 @@ class InspectAIAdapter(BaseEvaluationAdapter):
     def transform_from_directory(
         self, dir_path: Union[str, Path], metadata_args: Dict[str, Any] = None
     ) -> List[EvaluationLog]:
+        result = self.transform_from_directory_result(dir_path, metadata_args)
+        result.raise_if_incomplete()
+        return [log for log, _ in result.records]
+
+    def transform_from_directory_result(
+        self, dir_path: Union[str, Path], metadata_args: Dict[str, Any] = None
+    ) -> SourceConversionResult[tuple[EvaluationLog, str | None]]:
+        """Convert every Inspect log while retaining per-file failures."""
         metadata_args = metadata_args or {}
 
         if isinstance(dir_path, str):
@@ -477,26 +487,42 @@ class InspectAIAdapter(BaseEvaluationAdapter):
                 'metadata_args["file_uuids"] must contain exactly one UUID '
                 f'for each Inspect log ({len(log_paths)} required)'
             )
-        try:
-            transformed_logs: List[EvaluationLog] = []
-            for idx, log_path in enumerate(log_paths):
-                per_log_metadata_args = dict(metadata_args)
+        transformed_logs: list[tuple[EvaluationLog, str | None]] = []
+        failures: list[SourceRecordFailure] = []
+        for idx, log_path in enumerate(log_paths):
+            per_log_metadata_args = dict(metadata_args)
+            file_uuid = None
+            try:
                 if writes_samples:
-                    per_log_metadata_args['file_uuid'] = require_uuid4(
+                    file_uuid = require_uuid4(
                         file_uuids[idx],
                         f'file_uuids[{idx}]',
                     )
+                    per_log_metadata_args['file_uuid'] = file_uuid
                 transformed_logs.append(
-                    self.transform_from_file(
-                        urlparse(log_path.name).path,
-                        per_log_metadata_args,
+                    (
+                        self.transform_from_file(
+                            urlparse(log_path.name).path,
+                            per_log_metadata_args,
+                        ),
+                        file_uuid,
                     )
                 )
-            return transformed_logs
-        except Exception as e:
-            raise AdapterError(
-                f'Failed to load file from directory {dir_path}: {str(e)} for InspectAIAdapter'
-            )
+            except Exception as exc:
+                failures.append(
+                    SourceRecordFailure(
+                        source_ref=str(log_path),
+                        reason=str(exc),
+                        source_record={'path': str(log_path)},
+                    )
+                )
+
+        return SourceConversionResult(
+            source_name=f'Inspect logs under {dir_path}',
+            total_records=len(log_paths),
+            records=transformed_logs,
+            failures=failures,
+        )
 
     def transform_from_file(
         self,

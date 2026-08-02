@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
 import time
 from dataclasses import asdict, dataclass
@@ -225,67 +226,146 @@ def extract_collection(
     index_html = fetch_text(f'{base_url.rstrip("/")}/benchmarks')
     slugs = benchmark_slugs or extract_benchmark_slugs(index_html)
     benchmarks = []
+    source_failures: list[SourceRecordFailure] = []
     for slug in slugs:
         source_url = f'{base_url.rstrip("/")}/benchmarks/{slug}'
-        page_html = fetch_text(source_url)
         try:
+            page_html = fetch_text(source_url)
             benchmarks.append(normalize_benchmark_page(page_html, source_url))
         except Exception as exc:
-            raise ValueError(
-                f'Failed to parse Vals.ai benchmark page {slug!r} '
-                f'at {source_url}'
-            ) from exc
+            source_failures.append(
+                SourceRecordFailure(
+                    source_ref=source_url,
+                    reason=(
+                        f'Failed to fetch or parse Vals.ai benchmark page '
+                        f'{slug!r}: {exc}'
+                    ),
+                    source_record={
+                        'benchmark_slug': slug,
+                        'source_url': source_url,
+                    },
+                )
+            )
 
     return {
         'source_url': f'{base_url.rstrip("/")}/benchmarks',
         'benchmarks': benchmarks,
+        'source_failures': [
+            failure.model_dump() for failure in source_failures
+        ],
     }
 
 
 def iter_vals_metrics(payload: dict[str, Any]) -> list[ValsMetric]:
+    result = iter_vals_metrics_result(payload)
+    result.raise_if_incomplete()
+    return result.records
+
+
+def iter_vals_metrics_result(
+    payload: dict[str, Any],
+) -> SourceConversionResult[ValsMetric]:
+    """Parse Vals.ai model/task rows without losing valid sibling rows."""
     metrics: list[ValsMetric] = []
-    for benchmark in payload.get('benchmarks', []):
+    failures: list[SourceRecordFailure] = []
+    total_records = 0
+    for benchmark_index, benchmark in enumerate(payload.get('benchmarks', [])):
+        if not isinstance(benchmark, dict):
+            failures.append(
+                SourceRecordFailure(
+                    source_ref=f'benchmark row {benchmark_index}',
+                    reason='Vals.ai benchmark must be an object',
+                    source_record=benchmark,
+                )
+            )
+            total_records += 1
+            continue
         metadata = benchmark.get('metadata') or {}
         tasks = benchmark.get('tasks') or {}
         source_url = str(benchmark.get('source_url') or BENCHMARKS_URL)
+        if not isinstance(metadata, dict):
+            failures.append(
+                SourceRecordFailure(
+                    source_ref=f'benchmark row {benchmark_index}',
+                    reason='Vals.ai benchmark metadata must be an object',
+                    source_record=benchmark,
+                )
+            )
+            total_records += 1
+            continue
         raw_benchmark_slug = metadata.get('slug') or metadata.get(
             'benchmark_id'
         )
         if not raw_benchmark_slug:
-            raise ValueError('Vals.ai benchmark payload is missing a slug')
+            failures.append(
+                SourceRecordFailure(
+                    source_ref=f'benchmark row {benchmark_index}',
+                    reason='Vals.ai benchmark payload is missing a slug',
+                    source_record=benchmark,
+                )
+            )
+            total_records += 1
+            continue
         benchmark_slug = str(raw_benchmark_slug)
         benchmark_name = str(metadata.get('benchmark') or benchmark_slug)
         task_names = metadata.get('tasks') or {}
         if not isinstance(tasks, dict):
+            failures.append(
+                SourceRecordFailure(
+                    source_ref=f'Vals.ai benchmark {benchmark_slug!r}',
+                    reason='benchmark tasks must be an object',
+                    source_record=benchmark,
+                )
+            )
+            total_records += 1
             continue
 
         for task_key, model_rows in tasks.items():
             if not isinstance(model_rows, dict):
-                raise ValueError(
-                    f'Vals.ai task payload is not an object for '
-                    f'{benchmark_slug}/{task_key}'
+                failures.append(
+                    SourceRecordFailure(
+                        source_ref=f'{benchmark_slug}/{task_key}',
+                        reason='Vals.ai task payload is not an object',
+                        source_record=model_rows,
+                    )
                 )
+                total_records += 1
+                continue
             task_name = (
                 task_names.get(task_key)
                 if isinstance(task_names, dict)
                 else None
             )
             for model_id, row in model_rows.items():
-                if not model_id or not isinstance(row, dict):
-                    raise ValueError(
-                        f'Vals.ai model row is invalid for '
-                        f'{benchmark_slug}/{task_key}/{model_id!r}'
-                    )
-                score = row.get('accuracy')
-                if score is None:
-                    continue
+                total_records += 1
+                source_ref = f'{benchmark_slug}/{task_key}/{model_id}'
                 try:
-                    float(score)
+                    if not model_id or not isinstance(row, dict):
+                        raise ValueError('Vals.ai model row must be an object')
+                    score = row.get('accuracy')
+                    if score is None:
+                        raise ValueError(
+                            'Vals.ai model row is missing accuracy'
+                        )
+                    try:
+                        parsed_score = float(score)
+                    except (TypeError, ValueError) as exc:
+                        raise ValueError(
+                            f'Non-numeric Vals.ai score: {score!r}'
+                        ) from exc
+                    if not math.isfinite(parsed_score):
+                        raise ValueError(
+                            f'Vals.ai score must be finite, got {score!r}'
+                        )
                 except (TypeError, ValueError) as exc:
-                    raise ValueError(
-                        'Non-numeric Vals.ai score for '
-                        f'{benchmark_slug}/{task_key}/{model_id}: {score!r}'
-                    ) from exc
+                    failures.append(
+                        SourceRecordFailure(
+                            source_ref=source_ref,
+                            reason=str(exc),
+                            source_record=row,
+                        )
+                    )
+                    continue
                 metrics.append(
                     ValsMetric(
                         benchmark_slug=benchmark_slug,
@@ -305,7 +385,12 @@ def iter_vals_metrics(payload: dict[str, Any]) -> list[ValsMetric]:
                     )
                 )
 
-    return metrics
+    return SourceConversionResult(
+        source_name='Vals.ai source model/task rows',
+        total_records=total_records,
+        records=metrics,
+        failures=failures,
+    )
 
 
 def build_index(
@@ -383,26 +468,28 @@ def _group_metrics(
 
 
 def build_score_scales(payload: dict[str, Any]) -> dict[str, ScoreScale]:
+    return {
+        benchmark_slug: _score_scale(scores)
+        for benchmark_slug, scores in _scores_by_benchmark(
+            iter_vals_metrics(payload)
+        ).items()
+    }
+
+
+def _scores_by_benchmark(
+    metrics: list[ValsMetric],
+) -> dict[str, list[float]]:
     by_benchmark: dict[str, list[float]] = {}
-    for metric in iter_vals_metrics(payload):
+    for metric in metrics:
         by_benchmark.setdefault(metric.benchmark_slug, []).append(
             float(metric.metrics['accuracy'])
         )
-
-    return {
-        benchmark_slug: _score_scale(scores)
-        for benchmark_slug, scores in by_benchmark.items()
-    }
+    return by_benchmark
 
 
 def validate_payload(payload: dict[str, Any]) -> None:
     if not isinstance(payload.get('benchmarks'), list):
         raise ValueError('Vals.ai payload must contain a benchmarks list')
-
-    if not iter_vals_metrics(payload):
-        raise ValueError(
-            'Vals.ai payload did not contain any scored model rows'
-        )
 
 
 def _make_bundle(
@@ -480,10 +567,37 @@ def convert_logs(
 ) -> SourceConversionResult[EvaluationBundle]:
     validate_payload(payload)
     timestamp = retrieved_timestamp or str(time.time())
-    score_scales = build_score_scales(payload)
-    group_result = _group_metrics(iter_vals_metrics(payload))
+    source_failures = [
+        SourceRecordFailure(
+            source_ref=str(failure.get('source_ref') or 'unknown source'),
+            reason=str(failure.get('reason') or 'unknown failure'),
+            source_record=failure.get('source_record'),
+        )
+        for failure in payload.get('source_failures', [])
+        if isinstance(failure, dict)
+    ]
+    metric_result = iter_vals_metrics_result(payload)
+    if (
+        not metric_result.records
+        and not metric_result.failures
+        and not source_failures
+    ):
+        raise ValueError(
+            'Vals.ai payload did not contain any scored model rows'
+        )
+    score_scales = {
+        benchmark_slug: _score_scale(scores)
+        for benchmark_slug, scores in _scores_by_benchmark(
+            metric_result.records
+        ).items()
+    }
+    group_result = _group_metrics(metric_result.records)
     bundles = []
-    failures = list(group_result.failures)
+    failures = [
+        *source_failures,
+        *metric_result.failures,
+        *group_result.failures,
+    ]
 
     for (benchmark_slug, vals_model_id), rows in group_result.records:
         try:
@@ -506,10 +620,15 @@ def convert_logs(
             )
 
     if not bundles and not failures:
-        raise ValueError('Vals.ai: converted 0 source records')
+        failures.append(
+            SourceRecordFailure(
+                source_ref='Vals.ai payload',
+                reason='converted 0 scored source records',
+            )
+        )
     return SourceConversionResult(
         source_name='Vals.ai',
-        total_records=group_result.total_records,
+        total_records=metric_result.total_records + len(source_failures),
         records=bundles,
         failures=failures,
     )
@@ -895,12 +1014,13 @@ def main() -> None:
     result = convert_logs(payload)
     paths = export_logs(result.records, args.output_dir)
     print(f'Saved {len(paths)} Vals.ai evaluation logs to {args.output_dir}')
-    if result.failures:
+    if result.failures or result.exclusions:
         report_path = save_failure_report(
             result,
             args.failure_report or default_failure_report_path(args.output_dir),
         )
         print(f'Failure report: {report_path}')
+    if result.failures:
         result.raise_if_incomplete()
 
 

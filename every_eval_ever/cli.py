@@ -14,6 +14,8 @@ from every_eval_ever.converters.common.publication import (
     publish_evaluation_logs,
 )
 from every_eval_ever.helpers.io import (
+    SourceConversionResult,
+    SourceRecordFailure,
     datastore_output_dir,
     default_failure_report_path,
     save_failure_report,
@@ -60,6 +62,20 @@ def _output_dir_for_log(base_output: Path, log: Any) -> Path:
     return out_dir
 
 
+def _save_partial_conversion_report(
+    result: SourceConversionResult[Any] | None,
+    output_dir: str | Path,
+    name: str,
+) -> None:
+    if result is None or not (result.failures or result.exclusions):
+        return
+    report_path = save_failure_report(
+        result,
+        default_failure_report_path(Path(output_dir) / name),
+    )
+    print(f'Provenance report: {report_path}')
+
+
 def _cmd_convert_lm_eval(args: argparse.Namespace) -> int:
     from every_eval_ever.converters.lm_eval.adapter import LMEvalAdapter
     from every_eval_ever.converters.lm_eval.instance_level_adapter import (
@@ -78,22 +94,36 @@ def _cmd_convert_lm_eval(args: argparse.Namespace) -> int:
     metadata['parent_eval_output_dir'] = str(
         log_path.parent if log_path.is_file() else log_path
     )
+    input_result: SourceConversionResult[Any] | None = None
     if log_path.is_file():
         logs = adapter.transform_from_file(log_path, metadata)
     elif log_path.is_dir():
-        logs = adapter.transform_from_directory(log_path, metadata)
+        input_result = adapter.transform_from_directory_result(
+            log_path, metadata
+        )
+        logs = input_result.records
     else:
         raise FileNotFoundError(f'Path is not a file or directory: {log_path}')
 
-    if not logs:
+    if not logs and input_result is None:
         raise ValueError(f'lm-eval conversion produced no logs from {log_path}')
 
     output_dir = Path(args.output_dir)
     eval_uuids = [str(uuid.uuid4()) for _ in logs]
+    sample_result: SourceConversionResult[Any] | None = None
     with tempfile.TemporaryDirectory(prefix='eee-lm-eval-') as staging:
         staging_dir = Path(staging)
-        for log, eval_uuid in zip(logs, eval_uuids):
-            if args.include_samples:
+        publish_logs = []
+        publish_uuids = []
+        sample_successes = []
+        sample_failures = []
+        for log, eval_uuid in zip(logs, eval_uuids, strict=True):
+            meta: dict[str, Any] = {}
+            try:
+                if not args.include_samples:
+                    publish_logs.append(log)
+                    publish_uuids.append(eval_uuid)
+                    continue
                 meta = adapter.get_eval_metadata(log.evaluation_id)
                 parent_dir = meta.get('parent_dir')
                 task_name = meta.get('task_name')
@@ -102,9 +132,7 @@ def _cmd_convert_lm_eval(args: argparse.Namespace) -> int:
                         'lm-eval converter lost the source location or task '
                         f'name for evaluation {log.evaluation_id!r}'
                     )
-                samples_file = find_samples_file(
-                    Path(parent_dir), task_name
-                )
+                samples_file = find_samples_file(Path(parent_dir), task_name)
                 if samples_file is None:
                     raise FileNotFoundError(
                         '--include-samples was requested, but no upstream '
@@ -116,9 +144,7 @@ def _cmd_convert_lm_eval(args: argparse.Namespace) -> int:
                     evaluation_id=log.evaluation_id,
                     model_id=log.model_info.id,
                     task_name=task_name,
-                    output_dir=str(
-                        _output_dir_for_log(staging_dir, log)
-                    ),
+                    output_dir=str(_output_dir_for_log(staging_dir, log)),
                     file_uuid=eval_uuid,
                     collection=log.evaluation_results[
                         0
@@ -132,16 +158,60 @@ def _cmd_convert_lm_eval(args: argparse.Namespace) -> int:
                         'usable rows'
                     )
                 log.detailed_evaluation_results = detailed
-        paths = publish_evaluation_logs(
-            logs,
-            output_dir,
-            eval_uuids,
-            staged_output_dir=staging_dir,
+                publish_logs.append(log)
+                publish_uuids.append(eval_uuid)
+                sample_successes.append(log)
+            except Exception as exc:
+                publish_logs.append(log)
+                publish_uuids.append(eval_uuid)
+                task_name = meta.get('task_name')
+                sample_failures.append(
+                    SourceRecordFailure(
+                        source_ref=(
+                            f'lm-eval evaluation {log.evaluation_id!r}'
+                        ),
+                        reason=str(exc),
+                        source_record={
+                            'evaluation_id': log.evaluation_id,
+                            'searched_directory': meta.get('parent_dir'),
+                            'task_name': task_name,
+                            'expected_samples_pattern': (
+                                f'samples_{task_name}_*.jsonl'
+                                if task_name
+                                else None
+                            ),
+                        },
+                    )
+                )
+        if args.include_samples:
+            sample_result = SourceConversionResult(
+                source_name='lm-eval requested sample conversions',
+                total_records=len(logs),
+                records=sample_successes,
+                failures=sample_failures,
+            )
+        paths = (
+            publish_evaluation_logs(
+                publish_logs,
+                output_dir,
+                publish_uuids,
+                staged_output_dir=staging_dir,
+            )
+            if publish_logs
+            else []
         )
     for path in paths:
         print(path)
 
-    print(f'Converted {len(logs)} evaluation log(s).')
+    _save_partial_conversion_report(input_result, output_dir, 'lm_eval_inputs')
+    _save_partial_conversion_report(
+        sample_result, output_dir, 'lm_eval_samples'
+    )
+    if input_result is not None:
+        input_result.raise_if_incomplete()
+    if sample_result is not None:
+        sample_result.raise_if_incomplete()
+    print(f'Converted {len(paths)} evaluation log(s).')
     return 0
 
 
@@ -156,9 +226,7 @@ def _cmd_convert_inspect(args: argparse.Namespace) -> int:
 
     adapter = InspectAIAdapter()
     metadata = _common_metadata(args)
-    supplemental_path = getattr(
-        args, 'supplemental_eval_details_path', None
-    )
+    supplemental_path = getattr(args, 'supplemental_eval_details_path', None)
     if supplemental_path:
         metadata['supplemental_eval_details'] = (
             SupplementalEvalDetails.model_validate_json(
@@ -170,6 +238,7 @@ def _cmd_convert_inspect(args: argparse.Namespace) -> int:
         staging_dir = Path(staging)
         metadata['parent_eval_output_dir'] = str(staging_dir)
         eval_uuids: list[str]
+        conversion_result: SourceConversionResult[Any] | None = None
         if log_path.is_file():
             eval_uuids = [str(uuid.uuid4())]
             metadata['file_uuid'] = eval_uuids[0]
@@ -181,18 +250,25 @@ def _cmd_convert_inspect(args: argparse.Namespace) -> int:
             )
             if not eval_paths:
                 raise ValueError(
-                    'Inspect conversion found no evaluation logs in '
-                    f'{log_path}'
+                    f'Inspect conversion found no evaluation logs in {log_path}'
                 )
             eval_uuids = [str(uuid.uuid4()) for _ in eval_paths]
             metadata['file_uuids'] = eval_uuids
-            logs = adapter.transform_from_directory(log_path, metadata)
+            conversion_result = adapter.transform_from_directory_result(
+                log_path, metadata
+            )
+            logs = [log for log, _ in conversion_result.records]
+            eval_uuids = [
+                file_uuid
+                for _, file_uuid in conversion_result.records
+                if file_uuid is not None
+            ]
         else:
             raise FileNotFoundError(
                 f'Path is not a file or directory: {log_path}'
             )
 
-        if not logs:
+        if not logs and conversion_result is None:
             raise ValueError(
                 f'Inspect conversion produced no logs from {log_path}'
             )
@@ -201,16 +277,25 @@ def _cmd_convert_inspect(args: argparse.Namespace) -> int:
                 'Inspect conversion produced a different number of logs than '
                 'the generated UUID list.'
             )
-        paths = publish_evaluation_logs(
-            logs,
-            args.output_dir,
-            eval_uuids,
-            staged_output_dir=staging_dir,
+        paths = (
+            publish_evaluation_logs(
+                logs,
+                args.output_dir,
+                eval_uuids,
+                staged_output_dir=staging_dir,
+            )
+            if logs
+            else []
         )
     for path in paths:
         print(path)
 
-    print(f'Converted {len(logs)} evaluation log(s).')
+    _save_partial_conversion_report(
+        conversion_result, args.output_dir, 'inspect'
+    )
+    if conversion_result is not None:
+        conversion_result.raise_if_incomplete()
+    print(f'Converted {len(paths)} evaluation log(s).')
     return 0
 
 
@@ -244,13 +329,19 @@ def _cmd_convert_helm(args: argparse.Namespace) -> int:
     with tempfile.TemporaryDirectory(prefix='eee-helm-') as staging:
         staging_dir = Path(staging)
         metadata['parent_eval_output_dir'] = str(staging_dir)
-        logs = adapter.transform_from_directory(
+        conversion_result = adapter.transform_from_directory_result(
             log_path,
             output_path=str(staging_dir),
             metadata_args=metadata,
         )
+        logs = [log for log, _ in conversion_result.records]
+        eval_uuids = [
+            file_uuid
+            for _, file_uuid in conversion_result.records
+            if file_uuid is not None
+        ]
 
-        if not logs:
+        if not logs and not conversion_result.failures:
             raise ValueError(
                 f'HELM conversion produced no logs from {log_path}'
             )
@@ -259,16 +350,22 @@ def _cmd_convert_helm(args: argparse.Namespace) -> int:
                 'HELM conversion produced a different number of logs than '
                 'the generated UUID list.'
             )
-        paths = publish_evaluation_logs(
-            logs,
-            args.output_dir,
-            eval_uuids,
-            staged_output_dir=staging_dir,
+        paths = (
+            publish_evaluation_logs(
+                logs,
+                args.output_dir,
+                eval_uuids,
+                staged_output_dir=staging_dir,
+            )
+            if logs
+            else []
         )
     for path in paths:
         print(path)
 
-    print(f'Converted {len(logs)} evaluation log(s).')
+    _save_partial_conversion_report(conversion_result, args.output_dir, 'helm')
+    conversion_result.raise_if_incomplete()
+    print(f'Converted {len(paths)} evaluation log(s).')
     return 0
 
 
@@ -318,9 +415,7 @@ def _cmd_convert_alpaca_eval(args: argparse.Namespace) -> int:
             logs_to_publish.append(log)
             eval_uuids.append(str(uuid.uuid4()))
 
-    paths = publish_evaluation_logs(
-        logs_to_publish, output_dir, eval_uuids
-    )
+    paths = publish_evaluation_logs(logs_to_publish, output_dir, eval_uuids)
     for path in paths:
         print(f'  {path}')
     for version, conversion_result in conversion_results:

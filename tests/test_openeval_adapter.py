@@ -3,8 +3,12 @@ from __future__ import annotations
 import json
 import uuid
 from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
 
 from every_eval_ever.eval_types import EvaluationLog
+from every_eval_ever.helpers.io import SourceRecordsError
 from every_eval_ever.instance_level_types import InstanceLevelEvaluationLog
 from every_eval_ever.validate import validate_file
 from utils.openeval import adapter
@@ -282,6 +286,118 @@ def test_unknown_benchmark_ids_raise_by_default():
         assert 'Could not match OpenEval response_id' in str(exc)
     else:
         raise AssertionError('Expected unmatched benchmark to raise')
+
+
+def test_malformed_metric_is_reported_without_dropping_valid_metric():
+    payload = sample_payload()
+    payload['response'][0]['scores'] = {
+        'metric': [
+            {'name': 'ifeval_strict_accuracy'},
+            {'name': 'broken_metric'},
+        ],
+        'value': [0.0, 'not-a-number'],
+    }
+
+    result = adapter.make_logs_result(
+        payload, retrieved_timestamp='1234567890.0'
+    )
+
+    assert len(result.records) == 2
+    assert len(result.failures) == 1
+    assert result.failures[0].source_record == {
+        'metric': {'name': 'broken_metric'},
+        'value': 'not-a-number',
+    }
+    gemma = next(
+        bundle
+        for bundle in result.records
+        if bundle.log.model_info.name == 'gemma-2b-it'
+    )
+    strict_result = next(
+        evaluation
+        for evaluation in gemma.log.evaluation_results
+        if evaluation.evaluation_name
+        == 'openeval.ifeval.ifeval-strict-accuracy'
+    )
+    assert strict_result.score_details.score == 0.5
+
+
+def test_non_object_response_is_reported_without_dropping_valid_responses():
+    payload = sample_payload()
+    payload['response'].append('broken response')
+
+    result = adapter.make_logs_result(
+        payload, retrieved_timestamp='1234567890.0'
+    )
+
+    assert len(result.records) == 2
+    assert len(result.failures) == 1
+    assert result.failures[0].source_ref == 'OpenEval response row 4'
+    assert result.failures[0].source_record == 'broken response'
+
+
+def test_run_publishes_valid_models_then_reports_malformed_response(tmp_path):
+    payload = sample_payload()
+    bad_response = {
+        'response_id': 'ifeval_20260305T211125Z_bad_broken-model_0',
+        'model': {'name': 'broken-model'},
+        'scores': {
+            'metric': [{'name': 'ifeval_strict_accuracy'}],
+            'value': ['not-a-number'],
+        },
+    }
+    payload['response'].append(bad_response)
+    input_path = tmp_path / 'openeval.json'
+    input_path.write_text(json.dumps(payload), encoding='utf-8')
+    output_dir = tmp_path / 'data' / 'openeval'
+    args = SimpleNamespace(
+        input_json=input_path,
+        max_response_shards=None,
+        revision='test-revision',
+        include_instances=False,
+        limit_responses=None,
+        allow_unknown_benchmark=False,
+        output_dir=output_dir,
+    )
+
+    with pytest.raises(SourceRecordsError, match='not-a-number'):
+        adapter.run(args)
+
+    assert len(list(output_dir.rglob('*.json'))) == 2
+    report = json.loads(
+        (tmp_path / 'adapter_reports' / 'openeval_failures.json').read_text(
+            encoding='utf-8'
+        )
+    )
+    assert report['failed_record_count'] == 1
+    assert report['failed_records'][0]['source_record'] == {
+        'metric': {'name': 'ifeval_strict_accuracy'},
+        'value': 'not-a-number',
+    }
+
+
+def test_model_group_failure_does_not_discard_other_model(monkeypatch):
+    original = adapter._make_log_bundle
+
+    def fail_gemma(name, *args, **kwargs):
+        if name == 'gemma-2b-it':
+            raise ValueError('broken model group')
+        return original(name, *args, **kwargs)
+
+    monkeypatch.setattr(adapter, '_make_log_bundle', fail_gemma)
+
+    result = adapter.make_logs_result(
+        sample_payload(), retrieved_timestamp='1234567890.0'
+    )
+
+    assert [bundle.log.model_info.name for bundle in result.records] == [
+        'gpt-4o'
+    ]
+    assert len(result.failures) == 1
+    assert result.failures[0].source_ref.startswith(
+        "OpenEval model group 'gemma-2b-it'/"
+    )
+    assert result.failures[0].reason == 'broken model group'
 
 
 def test_export_paths_follow_datastore_layout(tmp_path: Path):

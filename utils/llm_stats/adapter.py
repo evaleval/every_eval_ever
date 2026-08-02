@@ -383,7 +383,9 @@ def fetch_payload(api_key: str, base_url: str) -> dict[str, Any]:
             base_url,
             headers,
         )
-        scores = enrich_scores_with_model_page_sources(scores)
+        enrichment_result = enrich_scores_with_model_page_sources_result(scores)
+        scores = enrichment_result.records
+        source_failures.extend(enrichment_result.failures)
 
     return {
         'models': models,
@@ -434,7 +436,9 @@ def fetch_benchmark_score_payloads(
             )
             continue
 
-        scores.extend(scores_from_benchmark_detail(detail, benchmark))
+        detail_result = scores_from_benchmark_detail_result(detail, benchmark)
+        scores.extend(detail_result.records)
+        failures.extend(detail_result.failures)
 
     return scores, failures
 
@@ -452,7 +456,9 @@ def llm_stats_model_page_url(model_id: str) -> str:
     return f'https://llm-stats.com/models/{normalize_slug(model_id)}'
 
 
-def extract_model_page_score_sources(page_html: str) -> dict[str, dict[str, Any]]:
+def extract_model_page_score_sources(
+    page_html: str,
+) -> dict[str, dict[str, Any]]:
     text = html.unescape(page_html).replace('\\"', '"')
     matches = re.finditer(
         r'"benchmark_id":"(?P<benchmark_id>[^"]+)".*?'
@@ -504,8 +510,23 @@ def extract_model_page_score_sources(page_html: str) -> dict[str, dict[str, Any]
 def enrich_scores_with_model_page_sources(
     scores_payload: Any,
 ) -> list[dict[str, Any]]:
+    result = enrich_scores_with_model_page_sources_result(scores_payload)
+    result.raise_if_incomplete()
+    return result.records
+
+
+def enrich_scores_with_model_page_sources_result(
+    scores_payload: Any,
+) -> SourceConversionResult[dict[str, Any]]:
+    """Enrich scores while retaining failed provenance-page lookups."""
     scores = extract_collection(scores_payload, 'scores')
     sources_by_model: dict[str, dict[str, dict[str, Any]]] = {}
+    failures: list[SourceRecordFailure] = []
+    scores_by_model: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for score in scores:
+        model_id = score_model_ref(score)
+        if model_id:
+            scores_by_model[model_id].append(score)
 
     for score in scores:
         model_id = score_model_ref(score)
@@ -515,21 +536,25 @@ def enrich_scores_with_model_page_sources(
         try:
             page_html = fetch_text(llm_stats_model_page_url(model_id))
         except FetchError as exc:
-            print(f'Skipping LLM Stats model page {model_id!r}: {exc}')
+            failures.append(
+                SourceRecordFailure(
+                    source_ref=llm_stats_model_page_url(model_id),
+                    reason=str(exc),
+                    source_record=scores_by_model[model_id],
+                )
+            )
             sources_by_model[model_id] = {}
             continue
 
-        sources_by_model[model_id] = extract_model_page_score_sources(
-            page_html
-        )
+        sources_by_model[model_id] = extract_model_page_score_sources(page_html)
 
     enriched = []
     for score in scores:
         score_copy = dict(score)
         model_id = score_model_ref(score_copy)
         benchmark_id = score_benchmark_ref(score_copy)
-        page_source = (
-            sources_by_model.get(model_id or '', {}).get(benchmark_id or '')
+        page_source = sources_by_model.get(model_id or '', {}).get(
+            benchmark_id or ''
         )
         if page_source:
             for key, value in page_source.items():
@@ -537,13 +562,28 @@ def enrich_scores_with_model_page_sources(
                     score_copy[key] = value
         enriched.append(score_copy)
 
-    return enriched
+    return SourceConversionResult(
+        source_name='LLM Stats model provenance pages',
+        total_records=len(sources_by_model),
+        records=enriched,
+        failures=failures,
+    )
 
 
 def scores_from_benchmark_detail(
     detail: dict[str, Any],
     benchmark_summary: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
+    result = scores_from_benchmark_detail_result(detail, benchmark_summary)
+    result.raise_if_incomplete()
+    return result.records
+
+
+def scores_from_benchmark_detail_result(
+    detail: dict[str, Any],
+    benchmark_summary: dict[str, Any] | None = None,
+) -> SourceConversionResult[dict[str, Any]]:
+    """Normalize fallback scores while retaining malformed source entries."""
     summary = benchmark_summary or {}
     benchmark = {
         **summary,
@@ -569,16 +609,46 @@ def scores_from_benchmark_detail(
     if not isinstance(entries, list):
         entries = detail.get('models')
     if not isinstance(entries, list):
-        return []
+        return SourceConversionResult(
+            source_name='LLM Stats benchmark detail entries',
+            total_records=1,
+            records=[],
+            failures=[
+                SourceRecordFailure(
+                    source_ref=(
+                        f'benchmark {benchmark_source_id(benchmark)!r}'
+                    ),
+                    reason='benchmark detail has no entries/models list',
+                    source_record=detail,
+                )
+            ],
+        )
 
-    scores = []
-    for entry in entries:
+    scores: list[dict[str, Any]] = []
+    failures: list[SourceRecordFailure] = []
+    benchmark_id = benchmark_source_id(benchmark)
+    for index, entry in enumerate(entries):
+        source_ref = f'benchmark {benchmark_id!r} score row {index}'
         if not isinstance(entry, dict):
+            failures.append(
+                SourceRecordFailure(
+                    source_ref=source_ref,
+                    reason='score entry must be an object',
+                    source_record=entry,
+                )
+            )
             continue
         score_value = first_present(
             entry, ('score', 'benchmark_score', 'normalized_score')
         )
         if score_value in (None, ''):
+            failures.append(
+                SourceRecordFailure(
+                    source_ref=source_ref,
+                    reason='score entry is missing a score value',
+                    source_record=entry,
+                )
+            )
             continue
 
         score = dict(entry)
@@ -594,7 +664,12 @@ def scores_from_benchmark_detail(
             score['source_url'] = entry['self_reported_source']
         scores.append(score)
 
-    return scores
+    return SourceConversionResult(
+        source_name=f'LLM Stats benchmark {benchmark_id!r} score entries',
+        total_records=len(entries),
+        records=scores,
+        failures=failures,
+    )
 
 
 def maybe_save_raw_json(payload: dict[str, Any], path: Path | None) -> None:
@@ -1028,7 +1103,10 @@ def explicit_score_source_organization(score: dict[str, Any]) -> str | None:
         first_present(score, ('source_organization_inferred_from_url',))
     )
     for key in SOURCE_ORGANIZATION_KEYS:
-        if key in {'source_organization', 'sourceOrganization'} and inferred_from_url:
+        if (
+            key in {'source_organization', 'sourceOrganization'}
+            and inferred_from_url
+        ):
             continue
         value = first_present(score, (key,))
         if value not in (None, ''):

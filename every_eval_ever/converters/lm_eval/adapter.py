@@ -30,6 +30,10 @@ from every_eval_ever.eval_types import (
     StandardError,
     Uncertainty,
 )
+from every_eval_ever.helpers.io import (
+    SourceConversionResult,
+    SourceRecordFailure,
+)
 
 from .utils import (
     KNOWN_METRIC_BOUNDS,
@@ -359,9 +363,7 @@ class LMEvalAdapter(BaseEvaluationAdapter):
             ),
             evaluator_relationship=evaluator_relationship,
             additional_details=(
-                {
-                    'metrics_with_unknown_bounds': str(unknown_bounds_count)
-                }
+                {'metrics_with_unknown_bounds': str(unknown_bounds_count)}
                 if unknown_bounds_count
                 else None
             ),
@@ -413,16 +415,42 @@ class LMEvalAdapter(BaseEvaluationAdapter):
     def transform_from_directory(
         self, dir_path: Union[str, Path], metadata_args: Dict[str, Any]
     ) -> List[EvaluationLog]:
-        """Transform all lm-eval results files in a directory.
+        result = self.transform_from_directory_result(dir_path, metadata_args)
+        result.raise_if_incomplete()
+        return result.records
+
+    def transform_from_directory_result(
+        self, dir_path: Union[str, Path], metadata_args: Dict[str, Any]
+    ) -> SourceConversionResult[EvaluationLog]:
+        """Transform all lm-eval files while retaining per-file failures.
 
         Searches for results_*.json files recursively.
         """
         dir_path = Path(dir_path)
         results_files = sorted(dir_path.glob('**/results_*.json'))
+        if not results_files:
+            raise ValueError(
+                f'No lm-eval results_*.json files found under {dir_path}'
+            )
 
-        all_logs = []
+        all_logs: list[EvaluationLog] = []
+        failures: list[SourceRecordFailure] = []
         for results_file in results_files:
-            logs = self.transform_from_file(results_file, metadata_args)
-            all_logs.extend(logs)
+            try:
+                logs = self.transform_from_file(results_file, metadata_args)
+                all_logs.extend(logs)
+            except Exception as exc:
+                failures.append(
+                    SourceRecordFailure(
+                        source_ref=str(results_file),
+                        reason=str(exc),
+                        source_record={'path': str(results_file)},
+                    )
+                )
 
-        return all_logs
+        return SourceConversionResult(
+            source_name=f'lm-eval evaluations under {dir_path}',
+            total_records=len(all_logs) + len(failures),
+            records=all_logs,
+            failures=failures,
+        )

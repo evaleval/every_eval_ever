@@ -322,6 +322,28 @@ def test_enrich_scores_with_model_page_sources(monkeypatch):
     assert enriched[0]['source_organization'] == 'xai'
 
 
+def test_model_page_failure_keeps_scores_and_records_provenance(monkeypatch):
+    scores = [
+        {
+            'model_id': 'gpt-5.5',
+            'benchmark_id': 'gpqa',
+            'score': 0.936,
+        }
+    ]
+
+    def fail_fetch(_url):
+        raise adapter.FetchError('model page unavailable')
+
+    monkeypatch.setattr(adapter, 'fetch_text', fail_fetch)
+
+    result = adapter.enrich_scores_with_model_page_sources_result(scores)
+
+    assert result.records == scores
+    assert len(result.failures) == 1
+    assert result.failures[0].source_ref.endswith('/models/gpt-5.5')
+    assert result.failures[0].source_record == scores
+
+
 def test_relationship_uses_score_source_against_model_developer():
     openai_model = {
         'id': 'o3-2025-04-16',
@@ -377,6 +399,31 @@ def test_scores_from_live_benchmark_detail_handles_empty_model_id():
     assert scores[0]['id'] == 'gpqa::unknown'
 
 
+def test_benchmark_detail_result_keeps_valid_score_and_reports_bad_entry():
+    valid_entry = {
+        'model_id': 'gpt-5.5',
+        'model_name': 'GPT-5.5',
+        'score': 0.936,
+    }
+    bad_entry = {
+        'model_id': 'broken-model',
+        'model_name': 'Broken Model',
+    }
+    detail = {
+        'benchmark_id': 'gpqa',
+        'name': 'GPQA',
+        'models': [valid_entry, bad_entry],
+    }
+
+    result = adapter.scores_from_benchmark_detail_result(detail)
+
+    assert len(result.records) == 1
+    assert result.records[0]['model_id'] == 'gpt-5.5'
+    assert len(result.failures) == 1
+    assert result.failures[0].source_ref == "benchmark 'gpqa' score row 1"
+    assert result.failures[0].source_record == bad_entry
+
+
 def test_live_benchmark_scores_preserve_score_level_organization():
     detail = {
         'benchmark_id': 'gpqa',
@@ -428,7 +475,10 @@ def test_missing_model_and_benchmark_identity_fails_with_count():
     try:
         adapter.make_logs(payload, retrieved_timestamp='1234567890.0')
     except ValueError as exc:
-        assert 'encountered 1 conversion issue(s) across 1 source record(s)' in str(exc)
+        assert (
+            'encountered 1 conversion issue(s) across 1 source record(s)'
+            in str(exc)
+        )
         assert 'model identity is required' in str(exc)
     else:
         raise AssertionError('expected missing identities to fail')

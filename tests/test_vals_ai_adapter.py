@@ -49,10 +49,6 @@ def sample_payload() -> dict:
                             'compute_effort': None,
                             'provider': 'OpenAI',
                         },
-                        'unknown-model': {
-                            'accuracy': None,
-                            'provider': 'Mystery Lab',
-                        },
                     },
                     'numerical_reasoning': {
                         'openai/gpt-5.4': {
@@ -287,6 +283,45 @@ def test_non_numeric_score_fails_with_context():
         raise AssertionError('expected non-numeric score to fail')
 
 
+def test_null_score_is_a_failure_without_explicit_unevaluated_status():
+    payload = sample_payload()
+    null_row = {
+        'accuracy': None,
+        'provider': 'Mystery Lab',
+    }
+    payload['benchmarks'][0]['tasks']['overall']['unknown-model'] = null_row
+
+    result = adapter.convert_logs(payload, retrieved_timestamp='1234567890.0')
+
+    assert result.records
+    assert len(result.failures) == 1
+    assert result.failures[0].source_ref == (
+        'finance_agent/overall/unknown-model'
+    )
+    assert result.failures[0].reason == (
+        'Vals.ai model row is missing accuracy'
+    )
+    assert result.failures[0].source_record == null_row
+
+
+def test_non_numeric_score_keeps_valid_models_in_conversion_result():
+    payload = sample_payload()
+    bad_row = {
+        'accuracy': 'N/A',
+        'provider': 'OpenAI',
+    }
+    payload['benchmarks'][0]['tasks']['overall']['openai/bad-score'] = bad_row
+
+    result = adapter.convert_logs(payload, retrieved_timestamp='1234567890.0')
+
+    assert result.records
+    assert len(result.failures) == 1
+    assert result.failures[0].source_ref == (
+        'finance_agent/overall/openai/bad-score'
+    )
+    assert result.failures[0].source_record == bad_row
+
+
 def test_astro_payload_extraction():
     props = (
         '{&quot;benchmarkView&quot;:[0,{&quot;default&quot;:[0,{'
@@ -375,6 +410,46 @@ def test_extract_collection_fetches_index_and_benchmark_pages(monkeypatch):
         'https://example.test/benchmarks/aime',
     ]
     assert payload['benchmarks'][0]['metadata']['benchmark'] == 'AIME'
+
+
+def test_live_page_failure_keeps_other_benchmarks_and_records_provenance(
+    monkeypatch,
+):
+    page_props = (
+        '{&quot;benchmarkView&quot;:[0,{&quot;metadata&quot;:[0,'
+        '{&quot;benchmark&quot;:[0,&quot;AIME&quot;],&quot;slug&quot;:[0,&quot;aime&quot;]}],'
+        '&quot;tasks&quot;:[0,{&quot;overall&quot;:[0,{&quot;openai/gpt-5&quot;:'
+        '[0,{&quot;accuracy&quot;:[0,95.0]}]}]}]}]}'
+    )
+    page_html = (
+        '<astro-island component-url="/_astro/BenchmarkView.abc.js" '
+        f'props="{page_props}"></astro-island>'
+    )
+
+    def fake_fetch(url: str) -> str:
+        if url == 'https://example.test/benchmarks':
+            return '<html></html>'
+        if url.endswith('/aime'):
+            return page_html
+        raise RuntimeError('benchmark page unavailable')
+
+    monkeypatch.setattr(adapter, 'fetch_text', fake_fetch)
+
+    payload = adapter.extract_collection(
+        benchmark_slugs=['aime', 'broken'],
+        base_url='https://example.test',
+    )
+    result = adapter.convert_logs(payload, retrieved_timestamp='1234567890.0')
+
+    assert len(result.records) == 1
+    assert len(result.failures) == 1
+    assert result.failures[0].source_ref == (
+        'https://example.test/benchmarks/broken'
+    )
+    assert result.failures[0].source_record == {
+        'benchmark_slug': 'broken',
+        'source_url': 'https://example.test/benchmarks/broken',
+    }
 
 
 def test_real_normalized_fixture_converts_to_schema():

@@ -74,6 +74,8 @@ from every_eval_ever.eval_types import (
     Uncertainty,
 )
 from every_eval_ever.helpers.io import (
+    SourceConversionResult,
+    SourceRecordFailure,
     datastore_output_dir,
     datastore_repo_file_path,
     require_identity,
@@ -238,11 +240,25 @@ class HELMAdapter(BaseEvaluationAdapter):
         metadata_args: Dict[str, Any] | None = None,
         output_path: str | None = None,
     ) -> List[EvaluationLog]:
+        result = self.transform_from_directory_result(
+            dir_path,
+            metadata_args=metadata_args,
+            output_path=output_path,
+        )
+        result.raise_if_incomplete()
+        return [log for log, _ in result.records]
+
+    def transform_from_directory_result(
+        self,
+        dir_path: str | Path,
+        metadata_args: Dict[str, Any] | None = None,
+        output_path: str | None = None,
+    ) -> SourceConversionResult[tuple[EvaluationLog, str | None]]:
         """
-        Transforms HELM results into one aggregate EvaluationLog and one
-        instance-level JSONL file containing all samples.
+        Transform HELM runs while retaining failures for individual run dirs.
         """
-        aggregate_logs: List[EvaluationLog] = []
+        aggregate_logs: list[tuple[EvaluationLog, str | None]] = []
+        failures: list[SourceRecordFailure] = []
         metadata_args = metadata_args or {}
         if output_path and not metadata_args.get('parent_eval_output_dir'):
             metadata_args = {
@@ -255,24 +271,16 @@ class HELMAdapter(BaseEvaluationAdapter):
         writes_samples = bool(metadata_args.get('parent_eval_output_dir'))
 
         if self._directory_contains_required_files(dir_path):
-            data = self._load_evaluation_run_logfiles(dir_path)
-            per_log_metadata_args = dict(metadata_args)
+            run_paths = [dir_path]
             if file_uuids is not None:
                 if not isinstance(file_uuids, list) or len(file_uuids) != 1:
                     raise ValueError(
                         'metadata_args["file_uuids"] must contain exactly one '
                         'UUID for a single HELM run'
                     )
-                candidate_uuid = file_uuids[0]
+                run_uuids = file_uuids
             else:
-                candidate_uuid = metadata_args.get('file_uuid')
-            if writes_samples:
-                per_log_metadata_args['file_uuid'] = require_uuid4(
-                    candidate_uuid,
-                    "metadata_args['file_uuid']",
-                )
-            agg = self._transform_single(data, per_log_metadata_args)
-            aggregate_logs.append(agg)
+                run_uuids = [metadata_args.get('file_uuid')]
         else:
             run_entries = sorted(
                 (
@@ -295,18 +303,39 @@ class HELMAdapter(BaseEvaluationAdapter):
                     'metadata_args["file_uuids"] must contain exactly one UUID '
                     f'for each HELM run ({len(run_entries)} required)'
                 )
-            for converted_idx, entry in enumerate(run_entries):
-                data = self._load_evaluation_run_logfiles(entry.path)
-                per_log_metadata_args = dict(metadata_args)
+            run_paths = [entry.path for entry in run_entries]
+            run_uuids = (
+                file_uuids if writes_samples else [None] * len(run_paths)
+            )
+
+        for converted_idx, run_path in enumerate(run_paths):
+            per_log_metadata_args = dict(metadata_args)
+            file_uuid = None
+            try:
                 if writes_samples:
-                    per_log_metadata_args['file_uuid'] = require_uuid4(
-                        file_uuids[converted_idx],
+                    file_uuid = require_uuid4(
+                        run_uuids[converted_idx],
                         f'file_uuids[{converted_idx}]',
                     )
+                    per_log_metadata_args['file_uuid'] = file_uuid
+                data = self._load_evaluation_run_logfiles(run_path)
                 agg = self._transform_single(data, per_log_metadata_args)
-                aggregate_logs.append(agg)
+                aggregate_logs.append((agg, file_uuid))
+            except Exception as exc:
+                failures.append(
+                    SourceRecordFailure(
+                        source_ref=str(run_path),
+                        reason=str(exc),
+                        source_record={'path': str(run_path)},
+                    )
+                )
 
-        return aggregate_logs
+        return SourceConversionResult(
+            source_name=f'HELM runs under {dir_path}',
+            total_records=len(run_paths),
+            records=aggregate_logs,
+            failures=failures,
+        )
 
     def _extract_generation_args(
         self, adapter_spec: AdapterSpec, request_state: RequestState

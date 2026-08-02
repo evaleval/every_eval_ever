@@ -1,6 +1,8 @@
 import tempfile
 from pathlib import Path
 
+import pytest
+
 from every_eval_ever.converters.lm_eval.adapter import LMEvalAdapter
 from every_eval_ever.converters.lm_eval.instance_level_adapter import (
     LMEvalInstanceLevelAdapter,
@@ -15,6 +17,7 @@ from every_eval_ever.eval_types import (
     ScoreType,
     SourceDataHf,
 )
+from every_eval_ever.helpers.io import SourceRecordsError
 
 DATA_DIR = Path('tests/data/lm_eval')
 RESULTS_FILE = DATA_DIR / 'results_2026-01-21T03-44-18.458309.json'
@@ -355,3 +358,31 @@ def test_unknown_metric_count_is_recorded_on_the_log():
     assert log.source_metadata.additional_details == {
         'metrics_with_unknown_bounds': '2'
     }
+
+
+def test_directory_conversion_retains_good_files_and_reports_bad_files(
+    tmp_path, monkeypatch
+):
+    good_path = tmp_path / 'results_good.json'
+    bad_path = tmp_path / 'results_bad.json'
+    good_path.write_text('{}', encoding='utf-8')
+    bad_path.write_text('{}', encoding='utf-8')
+    adapter = LMEvalAdapter()
+    good_log = object()
+
+    def fake_transform(path, _metadata):
+        if Path(path).name == 'results_bad.json':
+            raise ValueError('broken lm-eval result')
+        return [good_log]
+
+    monkeypatch.setattr(adapter, 'transform_from_file', fake_transform)
+
+    result = adapter.transform_from_directory_result(tmp_path, {})
+
+    assert result.records == [good_log]
+    assert result.total_records == 2
+    assert len(result.failures) == 1
+    assert result.failures[0].source_ref == str(bad_path)
+    assert result.failures[0].source_record == {'path': str(bad_path)}
+    with pytest.raises(SourceRecordsError, match='broken lm-eval result'):
+        result.raise_if_incomplete()
