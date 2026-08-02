@@ -93,6 +93,21 @@ def test_expand_paths_returns_json_files(tmp_path):
         check_module.expand_paths([str(missing)])
 
 
+def test_annotate_error_emits_github_annotation(monkeypatch, capsys):
+    monkeypatch.setenv('GITHUB_ACTIONS', 'true')
+
+    check_module.annotate_error(
+        'data/example.json',
+        'invalid JSON',
+        title='JSONDecodeError',
+        line=4,
+    )
+
+    assert capsys.readouterr().out == (
+        '::error file=data/example.json,title=JSONDecodeError,line=4::invalid JSON\n'
+    )
+
+
 def test_main_reports_duplicates(sample_payloads, tmp_path, capsys):
     payload = sample_payloads[0]
     file_a = tmp_path / 'a.json'

@@ -25,7 +25,7 @@ def expand_paths(paths: List[str]) -> List[str]:
 
 def annotate_error(file_path: str, message: str, **kwargs) -> None:
     """If run in GitHub Actions, annotate errors."""
-    if os.environ.get('GITHUB_ACTION'):
+    if os.environ.get('GITHUB_ACTIONS'):
         joined_kwargs = ''.join(
             f',{key}={value}' for key, value in kwargs.items()
         )
