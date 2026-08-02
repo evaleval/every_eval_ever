@@ -1,15 +1,18 @@
 """Unit tests for the AlpacaEval adapter."""
 
+import json
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+from every_eval_ever import cli
 from every_eval_ever.converters.alpaca_eval.adapter import (
     LEADERBOARDS,
     AlpacaEvalAdapter,
     _fetch_csv,
     _model_name_from_row,
 )
+from every_eval_ever.helpers.io import SourceRecordsError
 
 # ---------------------------------------------------------------------------
 # Fixture CSV rows
@@ -204,6 +207,57 @@ def test_unmapped_developer_is_reported_instead_of_silently_skipped():
     ):
         with pytest.raises(ValueError, match='cannot determine model developer'):
             AlpacaEvalAdapter().fetch_leaderboard('v1')
+
+
+def test_partial_result_keeps_valid_rows_and_raw_failure_provenance():
+    bad_row = dict(_V1_ROW)
+    bad_row[''] = 'mystery-model'
+    mock_resp = _make_csv_response([_V1_ROW, bad_row])
+
+    with patch(
+        'every_eval_ever.converters.alpaca_eval.adapter.requests.get',
+        return_value=mock_resp,
+    ):
+        result = AlpacaEvalAdapter().fetch_leaderboard_result('v1')
+
+    assert len(result.records) == 1
+    assert len(result.failures) == 1
+    assert result.failures[0].source_ref == "CSV row 3 ('mystery-model')"
+    assert result.failures[0].source_record == bad_row
+    with pytest.raises(SourceRecordsError):
+        result.raise_if_incomplete()
+
+
+def test_cli_publishes_valid_rows_before_signaling_partial_failure(tmp_path):
+    bad_row = dict(_V1_ROW)
+    bad_row[''] = 'mystery-model'
+    mock_resp = _make_csv_response([_V1_ROW, bad_row])
+    output_dir = tmp_path / 'data'
+
+    with patch(
+        'every_eval_ever.converters.alpaca_eval.adapter.requests.get',
+        return_value=mock_resp,
+    ):
+        with pytest.raises(SourceRecordsError):
+            cli.main(
+                [
+                    'convert',
+                    'alpaca_eval',
+                    '--version',
+                    'v1',
+                    '--output-dir',
+                    str(output_dir),
+                ]
+            )
+
+    assert len(list(output_dir.rglob('*.json'))) == 1
+    report_path = (
+        tmp_path / 'adapter_reports' / 'alpaca_eval_v1_failures.json'
+    )
+    report = json.loads(report_path.read_text(encoding='utf-8'))
+    assert report['converted_records'] == 1
+    assert report['failed_record_count'] == 1
+    assert report['failed_records'][0]['source_record'] == bad_row
 
 
 def test_unknown_version_raises():

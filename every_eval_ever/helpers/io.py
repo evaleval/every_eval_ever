@@ -303,9 +303,38 @@ def require_uuid4(value: str | None, field_name: str = 'file UUID') -> str:
         parsed = uuid.UUID(value)
     except (AttributeError, TypeError, ValueError) as exc:
         raise ValueError(f'invalid {field_name}: {value!r}') from exc
-    if parsed.version != 4:
+    if parsed.version != 4 or parsed.variant != uuid.RFC_4122:
         raise ValueError(f'{field_name} must be UUIDv4: {value!r}')
     return str(parsed)
+
+
+def _create_parent_directories(parent: Path) -> list[Path]:
+    """Create missing parents individually and return only those we created."""
+    missing = []
+    current = parent
+    while not current.exists():
+        missing.append(current)
+        current = current.parent
+
+    created = []
+    for directory in reversed(missing):
+        try:
+            directory.mkdir()
+        except FileExistsError:
+            if not directory.is_dir():
+                raise
+        else:
+            created.append(directory)
+    return created
+
+
+def _remove_empty_directories(directories: Iterable[Path]) -> None:
+    """Remove directories created by a failed publication, if still empty."""
+    for directory in reversed(list(dict.fromkeys(directories))):
+        try:
+            directory.rmdir()
+        except OSError:
+            pass
 
 
 def raise_for_failed_records(
@@ -475,8 +504,10 @@ def _prepare_evaluation_logs(
     """Validate every output path and JSON body before writing any file."""
     prepared = []
     paths = set()
+    route_owners: dict[Path, tuple[str, str]] = {}
     for output in outputs:
         base_dir = Path(output.base_dir)
+        collection_identity = base_dir.name
         collection = _required_path_component(base_dir.name, 'collection')
         base_dir = base_dir.with_name(collection)
         # Revalidate generated/dataclass-constructed values at the publication
@@ -487,6 +518,15 @@ def _prepare_evaluation_logs(
             output.developer,
             output.model_name,
         )
+        route_owner = (collection_identity, validated.model_info.id)
+        existing_owner = route_owners.get(dir_path)
+        if existing_owner is not None and existing_owner != route_owner:
+            raise ValueError(
+                'distinct collection/model identities resolve to the same '
+                f'datastore directory {dir_path}: {existing_owner!r} and '
+                f'{route_owner!r}'
+            )
+        route_owners[dir_path] = route_owner
         path = dir_path / f'{uuid.uuid4()}.json'
         if path in paths or path.exists():
             raise FileExistsError(f'refusing to overwrite output file {path}')
@@ -515,14 +555,18 @@ def save_evaluation_logs(
     """
     prepared = _prepare_evaluation_logs(outputs)
     created: list[Path] = []
+    created_dirs: list[Path] = []
     try:
         for output in prepared:
-            output.path.parent.mkdir(parents=True, exist_ok=True)
+            created_dirs.extend(
+                _create_parent_directories(output.path.parent)
+            )
             with output.path.open('x', encoding='utf-8') as file:
                 created.append(output.path)
                 file.write(output.json_text)
     except Exception:
         for path in reversed(created):
             path.unlink(missing_ok=True)
+        _remove_empty_directories(created_dirs)
         raise
     return [output.path for output in prepared]

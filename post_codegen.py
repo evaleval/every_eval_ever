@@ -57,6 +57,7 @@ PATCHES = [
 
     @model_validator(mode="after")
     def default_model_metadata(self):
+        '''Emit compatibility placeholders for the new model metadata axes.'''
         details = dict(self.additional_details or {})
         details.setdefault("deployment_type", "unknown")
         details.setdefault("model_availability", "unknown")
@@ -70,7 +71,7 @@ PATCHES = [
         'class_name': 'MetricConfig',
         'marker': 'def validate_score_type_requirements',
         'validator': """
-    # --- validators / serializers (added by post_codegen.py) ---
+    # --- validators (added by post_codegen.py) ---
 
     @model_validator(mode="after")
     def validate_score_type_requirements(self):
@@ -84,22 +85,14 @@ PATCHES = [
                 raise ValueError("score_type 'continuous' requires min_score")
             if self.max_score is None:
                 raise ValueError("score_type 'continuous' requires max_score")
-        # A NaN bound is never meaningful (and NaN != NaN breaks comparisons).
-        # inf/-inf are allowed (unbounded); null is handled above per score_type.
-        for _name in ('min_score', 'max_score'):
-            _v = getattr(self, _name)
-            if _v is not None and _v != _v:
-                raise ValueError(f'{_name} must not be NaN')
+        for name in ('min_score', 'max_score'):
+            value = getattr(self, name)
+            if value is not None and value != value:
+                raise ValueError(f'{name} must not be NaN')
         return self
 
     @field_serializer('min_score', 'max_score', when_used='json')
     def _serialize_bound(self, value):
-        # An unbounded bound is +/-inf; emit it as the JSON string
-        # "Infinity"/"-Infinity" (valid JSON that reads back to a float) rather
-        # than pydantic's default null or the non-standard bare Infinity token.
-        # when_used='json' covers BOTH model_dump_json() and
-        # model_dump(mode='json'); mode='python' keeps the native float. null
-        # stays null (reserved for "not provided", never unbounded).
         if value == float('inf'):
             return 'Infinity'
         if value == float('-inf'):
@@ -108,6 +101,46 @@ PATCHES = [
 """,
     },
 ]
+
+GENERATED_FIELD_PATCHES = [
+    {
+        'file': 'every_eval_ever/eval_types.py',
+        'class_name': 'ModelInfo',
+        'field_name': 'additional_details',
+        'replacement': '''    additional_details: dict[str, str] | None = Field(
+        None,
+        description='Additional parameters (key-value pairs, all values must be strings)',
+    )''',
+    },
+    {
+        'file': 'every_eval_ever/eval_types.py',
+        'class_name': 'MetricConfig',
+        'field_name': 'min_score',
+        'replacement': '''    min_score: float | None = Field(
+        None,
+        description='Minimum possible score for a continuous metric. Use -inf if unbounded below; null means not provided.',
+    )''',
+    },
+    {
+        'file': 'every_eval_ever/eval_types.py',
+        'class_name': 'MetricConfig',
+        'field_name': 'max_score',
+        'replacement': '''    max_score: float | None = Field(
+        None,
+        description='Maximum possible score for a continuous metric. Use inf if unbounded above; null means not provided.',
+    )''',
+    },
+]
+
+REMOVED_GENERATED_CLASSES = {
+    'every_eval_ever/eval_types.py': [
+        'AdditionalDetails',
+        'DeploymentType',
+        'MaxScore',
+        'MinScore',
+        'ModelAvailability',
+    ]
+}
 
 # ---------------------------------------------------------------------------
 # Discriminator patch for source_data union in EvaluationResult
@@ -138,7 +171,7 @@ def add_import(content: str, symbol: str) -> str:
             return content
         imports.append(symbol)
         body = ''.join(
-            f'    {item},\n' for item in sorted(set(imports), key=str.casefold)
+            f'    {item},\n' for item in sorted(set(imports))
         ).rstrip()
         replacement = f'from pydantic import (\n{body}\n)'
         return (
@@ -155,7 +188,7 @@ def add_import(content: str, symbol: str) -> str:
         return content
     imports.append(symbol)
     replacement = 'from pydantic import ' + ', '.join(
-        sorted(set(imports), key=str.casefold)
+        sorted(set(imports))
     )
     return (
         content[: line_match.start()]
@@ -190,6 +223,71 @@ def append_to_last_class_field(
     after = content[insert_pos:]
 
     return before + '\n' + validator_code + after
+
+
+def replace_class_field(content: str, patch: dict) -> str:
+    """Replace one generated field without depending on its generated type."""
+    class_match = re.search(
+        rf'^class {patch["class_name"]}\(.*?\):',
+        content,
+        re.MULTILINE,
+    )
+    if class_match is None:
+        raise ValueError(f'class {patch["class_name"]} not found')
+    next_class = re.search(
+        r'^\nclass ', content[class_match.end() :], re.MULTILINE
+    )
+    class_end = (
+        class_match.end() + next_class.start()
+        if next_class is not None
+        else len(content)
+    )
+    class_body = content[class_match.end() : class_end]
+    field_pattern = re.compile(
+        rf'^    {patch["field_name"]}:.*?'
+        r'(?=^    (?:[A-Za-z_]\w*\s*:|@|#)|\Z)',
+        re.MULTILINE | re.DOTALL,
+    )
+    replaced, count = field_pattern.subn(
+        patch['replacement'] + '\n\n', class_body, count=1
+    )
+    if count != 1:
+        raise ValueError(
+            f'{patch["class_name"]}.{patch["field_name"]} field not found'
+        )
+    return content[: class_match.end()] + replaced + content[class_end:]
+
+
+def apply_generated_field_patch(patch: dict) -> None:
+    path = Path(__file__).parent / patch['file']
+    content = replace_class_field(path.read_text(), patch)
+    path.write_text(content)
+    print(
+        f'  {patch["file"]}: patched '
+        f'{patch["class_name"]}.{patch["field_name"]}'
+    )
+
+
+def remove_generated_classes(file: str, class_names: list[str]) -> None:
+    """Remove helper enums/models made obsolete by generated field patches."""
+    path = Path(__file__).parent / file
+    content = path.read_text()
+    for class_name in class_names:
+        class_pattern = re.compile(
+            rf'^class {class_name}\(.*?(?=^\nclass |\Z)',
+            flags=re.MULTILINE | re.DOTALL,
+        )
+        class_match = class_pattern.search(content)
+        if class_match is None:
+            continue
+        without_class = (
+            content[: class_match.start()] + content[class_match.end() :]
+        )
+        if re.search(rf'\b{class_name}\b', without_class):
+            continue
+        content = without_class
+    path.write_text(content)
+    print(f'  {file}: removed obsolete generated helper classes')
 
 
 def patch_file(patch: dict) -> None:
@@ -266,6 +364,10 @@ def apply_discriminator_patch(patch: dict) -> None:
 
 def main():
     print('Applying post-codegen patches...')
+    for patch in GENERATED_FIELD_PATCHES:
+        apply_generated_field_patch(patch)
+    for file, class_names in REMOVED_GENERATED_CLASSES.items():
+        remove_generated_classes(file, class_names)
     for patch in PATCHES:
         patch_file(patch)
     apply_discriminator_patch(DISCRIMINATOR_PATCH)

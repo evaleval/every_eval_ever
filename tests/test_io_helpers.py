@@ -11,6 +11,7 @@ from every_eval_ever.helpers.io import (
     default_failure_report_path,
     generate_output_path,
     raise_for_failed_records,
+    require_uuid4,
     save_failure_report,
 )
 
@@ -38,6 +39,11 @@ def test_datastore_repo_file_path_is_canonical_and_portable():
         'data/benchmark__version/developer/family_model_revision/'
         f'{file_uuid}_samples.jsonl'
     )
+
+
+def test_require_uuid4_rejects_non_rfc_variant():
+    with pytest.raises(ValueError, match='UUIDv4'):
+        require_uuid4('550e8400-e29b-41d4-0716-446655440000')
 
 
 def test_basic_output_path_replaces_colons_for_windows(tmp_path):

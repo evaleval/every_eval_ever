@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import json
 from argparse import ArgumentParser
-from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Union
 
@@ -15,7 +13,6 @@ except ImportError as exc:
     ) from exc
 
 from every_eval_ever.eval_types import EvaluationLog
-from every_eval_ever.helpers.io import datastore_output_dir, require_uuid4
 
 
 def parse_args():
@@ -61,13 +58,6 @@ def parse_args():
     return args
 
 
-class EnumEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, Enum):
-            return obj.value
-        return super().default(obj)
-
-
 class HELMEvalLogConverter:
     def __init__(
         self, log_path: str | Path, output_dir: str = 'unified_schema/helm'
@@ -88,47 +78,6 @@ class HELMEvalLogConverter:
             metadata_args=metadata_args,
             output_path=str(self.output_dir),
         )
-
-    def save_to_file(
-        self,
-        unified_eval_log: EvaluationLog,
-        output_filedir: str,
-        output_filepath: str,
-    ) -> bool:
-        json_str = json.dumps(
-            unified_eval_log.model_dump(mode='json', exclude_none=True),
-            indent=4,
-            ensure_ascii=False,
-            allow_nan=False,
-        )
-        unified_eval_log_dir = self.output_dir / output_filedir
-        unified_eval_log_dir.mkdir(parents=True, exist_ok=True)
-        unified_eval_path = unified_eval_log_dir / output_filepath
-        unified_eval_path.write_text(json_str + '\n', encoding='utf-8')
-        print(
-            f'Unified eval log was successfully saved to {output_filepath} file.'
-        )
-        return True
-
-
-def save_evaluation_log(
-    unified_output: EvaluationLog,
-    helm_converter: HELMEvalLogConverter,
-    file_uuid: str,
-) -> bool:
-    file_uuid = require_uuid4(file_uuid)
-    if not unified_output.evaluation_results:
-        raise ValueError('HELM output contains no evaluation results')
-    output_dir = datastore_output_dir(
-        helm_converter.output_dir,
-        unified_output.evaluation_results[0].source_data.dataset_name,
-        unified_output.model_info.id,
-        unified_output.model_info.developer,
-    )
-    filedir = output_dir.relative_to(helm_converter.output_dir).as_posix()
-    filename = f'{file_uuid}.json'
-    return helm_converter.save_to_file(unified_output, filedir, filename)
-
 
 def main() -> int:
     args = parse_args()

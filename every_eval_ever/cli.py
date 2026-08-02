@@ -13,7 +13,11 @@ from typing import Any
 from every_eval_ever.converters.common.publication import (
     publish_evaluation_logs,
 )
-from every_eval_ever.helpers.io import datastore_output_dir
+from every_eval_ever.helpers.io import (
+    datastore_output_dir,
+    default_failure_report_path,
+    save_failure_report,
+)
 
 EVALUATOR_RELATIONSHIP_CHOICES = [
     'first_party',
@@ -54,12 +58,6 @@ def _output_dir_for_log(base_output: Path, log: Any) -> Path:
     )
     out_dir.mkdir(parents=True, exist_ok=True)
     return out_dir
-
-
-def _write_log(log: Any, base_output: Path, eval_uuid: str) -> Path:
-    return publish_evaluation_logs(
-        [log], base_output, [eval_uuid]
-    )[0]
 
 
 def _cmd_convert_lm_eval(args: argparse.Namespace) -> int:
@@ -286,16 +284,18 @@ def _cmd_convert_alpaca_eval(args: argparse.Namespace) -> int:
 
     logs_to_publish = []
     eval_uuids = []
+    conversion_results = []
     for version in versions:
         cfg_name = LEADERBOARDS[version]['source_name']
         print(f'\n=== {cfg_name} ===')
-        logs = adapter.fetch_leaderboard(version)
-        if not logs:
+        conversion_result = adapter.fetch_leaderboard_result(version)
+        conversion_results.append((version, conversion_result))
+        if not conversion_result.records and not conversion_result.failures:
             raise ValueError(
                 f'AlpacaEval conversion produced no logs for {version}'
             )
 
-        for log in logs:
+        for log in conversion_result.records:
             if args.source_organization_name != 'unknown':
                 log.source_metadata.source_organization_name = (
                     args.source_organization_name
@@ -323,6 +323,17 @@ def _cmd_convert_alpaca_eval(args: argparse.Namespace) -> int:
     )
     for path in paths:
         print(f'  {path}')
+    for version, conversion_result in conversion_results:
+        if conversion_result.failures or conversion_result.exclusions:
+            report_path = save_failure_report(
+                conversion_result,
+                default_failure_report_path(
+                    output_dir / f'alpaca_eval_{version}'
+                ),
+            )
+            print(f'Provenance report: {report_path}')
+    for _, conversion_result in conversion_results:
+        conversion_result.raise_if_incomplete()
     print(f'\nConverted {len(paths)} model evaluation(s).')
     return 0
 

@@ -41,6 +41,12 @@ jobs:
             --input-file-type jsonschema \
             --formatters ruff-format ruff-check
           uv run --project .github/ci-types python post_codegen.py
+          uv run --project .github/ci-types ruff check --fix \
+            every_eval_ever/eval_types.py \
+            every_eval_ever/instance_level_types.py
+          uv run --project .github/ci-types ruff format \
+            every_eval_ever/eval_types.py \
+            every_eval_ever/instance_level_types.py
           PYTHONPATH="${{ github.workspace }}" uv run --project .github/ci-types pytest \
             tests/test_validate.py \
             tests/test_validation_scope.py \

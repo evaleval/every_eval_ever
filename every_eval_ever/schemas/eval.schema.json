@@ -631,7 +631,8 @@
             "description": "Complete model specification including basic information, technical configuration and inference settings",
             "required": [
                 "name",
-                "id"
+                "id",
+                "additional_details"
             ],
             "properties": {
                 "name": {
@@ -667,6 +668,26 @@
                 "additional_details": {
                     "type": "object",
                     "description": "Additional parameters (key-value pairs, all values must be strings)",
+                    "required": [
+                        "deployment_type",
+                        "model_availability"
+                    ],
+                    "properties": {
+                        "deployment_type": {
+                            "enum": [
+                                "self_deployed",
+                                "externally_managed",
+                                "unknown"
+                            ]
+                        },
+                        "model_availability": {
+                            "enum": [
+                                "open_weights",
+                                "closed_weights",
+                                "unknown"
+                            ]
+                        }
+                    },
                     "additionalProperties": {
                         "type": "string"
                     }

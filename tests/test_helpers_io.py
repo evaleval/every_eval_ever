@@ -11,7 +11,10 @@ def test_publication_replaces_colons_in_collection_directory(
     monkeypatch: pytest.MonkeyPatch,
 ):
     eval_log = SimpleNamespace(model_dump=lambda: {})
-    validated = SimpleNamespace(model_dump=lambda **_kwargs: {})
+    validated = SimpleNamespace(
+        model_info=SimpleNamespace(id='developer/model'),
+        model_dump=lambda **_kwargs: {},
+    )
     monkeypatch.setattr(
         io.EvaluationLog,
         'model_validate',
@@ -84,3 +87,68 @@ def test_rollback_does_not_remove_file_that_lost_creation_race(
 
     assert not first.exists()
     assert raced.read_text(encoding='utf-8') == 'created by another process\n'
+
+
+def test_batch_rejects_distinct_model_ids_with_colliding_routes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    def validate(value):
+        return SimpleNamespace(
+            model_info=SimpleNamespace(id=value['model_id']),
+            model_dump=lambda **_kwargs: value,
+        )
+
+    monkeypatch.setattr(io.EvaluationLog, 'model_validate', validate)
+    outputs = [
+        io.EvaluationLogOutput(
+            eval_log=SimpleNamespace(
+                model_dump=lambda: {'model_id': 'developer/family/model'}
+            ),
+            base_dir=tmp_path / 'data' / 'benchmark',
+            developer='developer',
+            model_name='family/model',
+        ),
+        io.EvaluationLogOutput(
+            eval_log=SimpleNamespace(
+                model_dump=lambda: {'model_id': 'developer/family_model'}
+            ),
+            base_dir=tmp_path / 'data' / 'benchmark',
+            developer='developer',
+            model_name='family_model',
+        ),
+    ]
+
+    with pytest.raises(ValueError, match='same datastore directory'):
+        io.save_evaluation_logs(outputs)  # type: ignore[arg-type]
+
+    assert not (tmp_path / 'data').exists()
+
+
+def test_batch_rollback_removes_new_empty_directories(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    first = tmp_path / 'data' / 'bench' / 'dev' / 'first' / 'first.json'
+    second = tmp_path / 'data' / 'bench' / 'dev' / 'second' / 'second.json'
+    monkeypatch.setattr(
+        io,
+        '_prepare_evaluation_logs',
+        lambda _outputs: [
+            io._PreparedEvaluationLog(first, '{"first": true}\n'),
+            io._PreparedEvaluationLog(second, '{"second": true}\n'),
+        ],
+    )
+    original_open = Path.open
+
+    def failing_open(path: Path, mode='r', *args, **kwargs):
+        if path == second and mode == 'x':
+            raise OSError('simulated write failure')
+        return original_open(path, mode, *args, **kwargs)
+
+    monkeypatch.setattr(Path, 'open', failing_open)
+
+    with pytest.raises(OSError, match='simulated write failure'):
+        io.save_evaluation_logs([])
+
+    assert not (tmp_path / 'data').exists()

@@ -135,6 +135,39 @@ def test_publisher_rejects_tampered_staged_samples(tmp_path: Path):
     assert not list((tmp_path / 'data').rglob('*.json*'))
 
 
+def test_publisher_rejects_valid_looking_sample_path_in_another_folder(
+    tmp_path: Path,
+):
+    log = make_lm_eval_log()
+    staging_dir = tmp_path / 'staging'
+    staged_model_dir = output_dir(staging_dir, log)
+    detailed = LMEvalInstanceLevelAdapter().transform_and_save(
+        samples_path=SAMPLES_FILE,
+        evaluation_id=log.evaluation_id,
+        model_id=log.model_info.id,
+        task_name='math_perturbed_full',
+        output_dir=str(staged_model_dir),
+        file_uuid=FILE_UUID,
+        collection=log.evaluation_results[0].source_data.dataset_name,
+        developer=log.model_info.developer,
+    )
+    assert detailed is not None
+    detailed.file_path = (
+        f'data/other-collection/developer/model/{FILE_UUID}_samples.jsonl'
+    )
+    log.detailed_evaluation_results = detailed
+
+    with pytest.raises(ValueError, match='repository path and UUID'):
+        publish_evaluation_logs(
+            [log],
+            tmp_path / 'data',
+            [FILE_UUID],
+            staged_output_dir=staging_dir,
+        )
+
+    assert not (tmp_path / 'data').exists()
+
+
 def test_publisher_rejects_non_uuid4_filename(tmp_path: Path):
     log = make_lm_eval_log()
 
@@ -144,6 +177,51 @@ def test_publisher_rejects_non_uuid4_filename(tmp_path: Path):
             tmp_path / 'data',
             [str(uuid.uuid1())],
         )
+
+
+def test_publisher_rejects_distinct_models_with_colliding_routes(
+    tmp_path: Path,
+):
+    first = make_lm_eval_log()
+    second = first.model_copy(deep=True)
+    first.model_info.id = 'developer/family/model'
+    second.model_info.id = 'developer/family_model'
+
+    with pytest.raises(ValueError, match='same datastore directory'):
+        publish_evaluation_logs(
+            [first, second],
+            tmp_path / 'data',
+            [FILE_UUID, '9e6e9282-51d0-49ef-9728-61f53c235c37'],
+        )
+
+    assert not (tmp_path / 'data').exists()
+
+
+def test_publisher_rollback_removes_only_its_empty_directories(
+    tmp_path: Path, monkeypatch
+):
+    first = make_lm_eval_log()
+    second = first.model_copy(deep=True)
+    second.model_info.id = 'other-developer/other-model'
+    second_uuid = '9e6e9282-51d0-49ef-9728-61f53c235c37'
+    second_path = output_dir(tmp_path / 'data', second) / f'{second_uuid}.json'
+    original_open = Path.open
+
+    def failing_open(path: Path, mode='r', *args, **kwargs):
+        if path == second_path and mode == 'xb':
+            raise OSError('simulated write failure')
+        return original_open(path, mode, *args, **kwargs)
+
+    monkeypatch.setattr(Path, 'open', failing_open)
+
+    with pytest.raises(OSError, match='simulated write failure'):
+        publish_evaluation_logs(
+            [first, second],
+            tmp_path / 'data',
+            [FILE_UUID, second_uuid],
+        )
+
+    assert not (tmp_path / 'data').exists()
 
 
 def test_lm_eval_cli_publishes_valid_batch(tmp_path: Path):

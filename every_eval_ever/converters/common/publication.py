@@ -10,6 +10,8 @@ from typing import Iterable
 
 from every_eval_ever.eval_types import EvaluationLog
 from every_eval_ever.helpers.io import (
+    _create_parent_directories,
+    _remove_empty_directories,
     datastore_output_dir,
     datastore_repo_file_path,
     require_uuid4,
@@ -158,10 +160,21 @@ def publish_evaluation_logs(
     prepared: list[_PreparedArtifact] = []
     aggregate_paths: list[Path] = []
     planned_paths: set[Path] = set()
+    route_owners: dict[Path, tuple[str, str]] = {}
 
     for raw_log, file_uuid in zip(logs, file_uuids):
         log = EvaluationLog.model_validate(raw_log.model_dump())
         output_dir = _output_dir(base_output_dir, log)
+        source_data = log.evaluation_results[0].source_data
+        route_owner = (source_data.dataset_name, log.model_info.id)
+        existing_owner = route_owners.get(output_dir)
+        if existing_owner is not None and existing_owner != route_owner:
+            raise ValueError(
+                'distinct collection/model identities resolve to the same '
+                f'datastore directory {output_dir}: {existing_owner!r} and '
+                f'{route_owner!r}'
+            )
+        route_owners[output_dir] = route_owner
         aggregate_path = output_dir / f'{file_uuid}.json'
         sample = _prepare_sample_artifact(
             log,
@@ -192,15 +205,19 @@ def publish_evaluation_logs(
         aggregate_paths.append(aggregate_path)
 
     created: list[Path] = []
+    created_dirs: list[Path] = []
     try:
         for artifact in prepared:
-            artifact.path.parent.mkdir(parents=True, exist_ok=True)
+            created_dirs.extend(
+                _create_parent_directories(artifact.path.parent)
+            )
             with artifact.path.open('xb') as handle:
                 created.append(artifact.path)
                 handle.write(artifact.content)
     except Exception:
         for path in reversed(created):
             path.unlink(missing_ok=True)
+        _remove_empty_directories(created_dirs)
         raise
 
     return aggregate_paths

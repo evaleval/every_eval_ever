@@ -262,6 +262,7 @@ class LMEvalAdapter(BaseEvaluationAdapter):
                 metric_config = MetricConfig(
                     evaluation_description=description,
                     lower_is_better=not is_higher_better,
+                    additional_details={'bounds_status': 'unknown'},
                 )
             else:
                 metric_config = MetricConfig(
@@ -338,6 +339,12 @@ class LMEvalAdapter(BaseEvaluationAdapter):
             or metadata_args.get('eval_library_version', 'unknown'),
         )
 
+        unknown_bounds_count = sum(
+            result.metric_config.additional_details is not None
+            and result.metric_config.additional_details.get('bounds_status')
+            == 'unknown'
+            for result in evaluation_results
+        )
         source_metadata = SourceMetadata(
             source_name='lm-evaluation-harness',
             source_type=SourceType.evaluation_run,
@@ -351,6 +358,13 @@ class LMEvalAdapter(BaseEvaluationAdapter):
                 'source_organization_logo_url'
             ),
             evaluator_relationship=evaluator_relationship,
+            additional_details=(
+                {
+                    'metrics_with_unknown_bounds': str(unknown_bounds_count)
+                }
+                if unknown_bounds_count
+                else None
+            ),
         )
 
         # Store metadata so callers can find sample files after transform

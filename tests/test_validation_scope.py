@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 import pytest
+from jsonschema import Draft7Validator
 from pydantic import ValidationError
 
 from every_eval_ever.eval_types import (
@@ -197,6 +198,8 @@ def test_companion_must_use_full_path_same_folder_and_uuid(tmp_path):
     for reference in (
         f'{UUID}_samples.jsonl',
         f'data/bench/dev/model/{other_uuid}_samples.jsonl',
+        f'data/other-bench/dev/model/{UUID}_samples.jsonl',
+        f'data/bench/other-dev/model/{UUID}_samples.jsonl',
         f'data/bench/dev/other-model/{UUID}_samples.jsonl',
     ):
         data = valid_aggregate()
@@ -283,6 +286,29 @@ def test_samples_requires_aggregate_that_points_back(tmp_path):
         run_semantic_checks=True,
     )
     assert report.valid is True, report.errors
+
+
+def test_samples_reject_aggregate_pointing_to_another_full_path(tmp_path):
+    sample_path = write_samples(tmp_path, [valid_sample()])
+    aggregate = valid_aggregate()
+    aggregate['detailed_evaluation_results'] = {
+        'format': 'jsonl',
+        'file_path': f'data/bench/dev/other-model/{UUID}_samples.jsonl',
+        'total_rows': 1,
+    }
+
+    report = validate_instance_file(
+        sample_path,
+        repo_path=COMPANION_REPO_PATH,
+        available_files={AGGREGATE_REPO_PATH, COMPANION_REPO_PATH},
+        read_repo_file={
+            AGGREGATE_REPO_PATH: json.dumps(aggregate),
+        }.__getitem__,
+        run_semantic_checks=True,
+    )
+
+    assert report.valid is False
+    assert any('expected exactly' in error['msg'] for error in report.errors)
 
 
 def test_companion_check_supports_bot_file_lookup(tmp_path):
@@ -393,6 +419,40 @@ def test_model_info_objects_default_new_fields_to_unknown():
         'deployment_type': 'unknown',
         'model_availability': 'unknown',
     }
+
+
+def test_json_schema_requires_and_constrains_model_metadata():
+    schema = json.loads(
+        Path('every_eval_ever/schemas/eval.schema.json').read_text(
+            encoding='utf-8'
+        )
+    )
+    validator = Draft7Validator(schema)
+
+    assert list(validator.iter_errors(valid_aggregate())) == []
+
+    missing = valid_aggregate()
+    missing['model_info'].pop('additional_details')
+    messages = [error.message for error in validator.iter_errors(missing)]
+    assert any('additional_details' in message for message in messages)
+
+    invalid = valid_aggregate()
+    invalid['model_info']['additional_details']['deployment_type'] = 'banana'
+    messages = [error.message for error in validator.iter_errors(invalid)]
+    assert any('banana' in message for message in messages)
+
+
+def test_json_schema_accepts_metric_with_unknown_bounds():
+    schema = json.loads(
+        Path('every_eval_ever/schemas/eval.schema.json').read_text(
+            encoding='utf-8'
+        )
+    )
+    data = valid_aggregate()
+    metric = data['evaluation_results'][0]['metric_config']
+    metric.pop('score_type')
+
+    assert list(Draft7Validator(schema).iter_errors(data)) == []
 
 
 def test_detailed_results_requires_jsonl_path():

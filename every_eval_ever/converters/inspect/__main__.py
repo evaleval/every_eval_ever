@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-import json
 import logging
 from argparse import ArgumentParser
-from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Tuple, Union
 
@@ -16,7 +14,6 @@ except ImportError as exc:
     ) from exc
 
 from every_eval_ever.eval_types import EvaluationLog
-from every_eval_ever.helpers.io import datastore_output_dir, require_uuid4
 from every_eval_ever.instance_level_types import InstanceLevelEvaluationLog
 
 logger = logging.getLogger(__name__)
@@ -75,13 +72,6 @@ def parse_args():
     return args
 
 
-class EnumEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, Enum):
-            return obj.value
-        return super().default(obj)
-
-
 class InspectEvalLogConverter:
     def __init__(
         self,
@@ -112,48 +102,6 @@ class InspectEvalLogConverter:
             return InspectAIAdapter().transform_from_file(
                 self.log_path, metadata_args=metadata_args
             )
-
-    def save_to_file(
-        self,
-        unified_eval_log: EvaluationLog,
-        output_filedir: str,
-        output_filepath: str,
-    ) -> bool:
-        json_str = json.dumps(
-            unified_eval_log.model_dump(mode='json', exclude_none=True),
-            indent=4,
-            ensure_ascii=False,
-            allow_nan=False,
-        )
-        unified_eval_log_dir = self.output_dir / output_filedir
-        unified_eval_log_dir.mkdir(parents=True, exist_ok=True)
-        unified_eval_path = unified_eval_log_dir / output_filepath
-        unified_eval_path.write_text(json_str + '\n', encoding='utf-8')
-        logger.info(
-            'Unified eval log was successfully saved to %s path.',
-            unified_eval_path,
-        )
-        return True
-
-
-def save_evaluation_log(
-    unified_output: EvaluationLog,
-    inspect_converter: InspectEvalLogConverter,
-    file_uuid: str,
-) -> bool:
-    file_uuid = require_uuid4(file_uuid)
-    if not unified_output.evaluation_results:
-        raise ValueError('Inspect output contains no evaluation results')
-    output_dir = datastore_output_dir(
-        inspect_converter.output_dir,
-        unified_output.evaluation_results[0].source_data.dataset_name,
-        unified_output.model_info.id,
-        unified_output.model_info.developer,
-    )
-    filedir = output_dir.relative_to(inspect_converter.output_dir).as_posix()
-    filename = f'{file_uuid}.json'
-    return inspect_converter.save_to_file(unified_output, filedir, filename)
-
 
 def main() -> int:
     logging.basicConfig(level=logging.INFO)

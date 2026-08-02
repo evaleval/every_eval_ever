@@ -326,3 +326,32 @@ def test_unknown_metric_is_preserved_without_invented_bounds():
     assert result.metric_config.score_type is None
     assert result.metric_config.min_score is None
     assert result.metric_config.max_score is None
+    assert result.metric_config.additional_details == {
+        'bounds_status': 'unknown'
+    }
+
+
+def test_unknown_metric_count_is_recorded_on_the_log():
+    adapter = LMEvalAdapter()
+    raw_data = {
+        'results': {
+            'mytask': {
+                'custom_metric,none': 2.0,
+                'another_custom_metric,none': 3.0,
+            }
+        },
+        'configs': {'mytask': {'task': 'mytask'}},
+    }
+
+    log = adapter._transform_single(
+        raw_data,
+        {
+            'task_name': 'mytask',
+            'source_organization_name': 'TestOrg',
+            'evaluator_relationship': 'first_party',
+        },
+    )
+
+    assert log.source_metadata.additional_details == {
+        'metrics_with_unknown_bounds': '2'
+    }
