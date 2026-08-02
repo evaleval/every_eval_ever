@@ -33,6 +33,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable, TextIO
 
+from every_eval_ever.converters.common.publication import (
+    publish_evaluation_logs,
+)
 from every_eval_ever.eval_types import (
     DetailedEvaluationResults,
     EvalLibrary,
@@ -55,15 +58,16 @@ from every_eval_ever.eval_types import (
 from every_eval_ever.helpers import (
     SCHEMA_VERSION,
     datastore_repo_file_path,
-    generate_output_path,
     get_developer,
     get_model_id,
+    require_identity,
     sanitize_filename,
 )
 from every_eval_ever.helpers.io import (
     SourceConversionResult,
     SourceRecordExclusion,
     SourceRecordFailure,
+    datastore_output_dir,
     default_failure_report_path,
     save_failure_report,
 )
@@ -94,14 +98,6 @@ class LogBundle:
     instance_path: Path | None = None
     instance_count: int = 0
     binary_result_ids: set[str] = field(default_factory=set)
-
-
-@dataclass(frozen=True)
-class _PreparedOpenEvalOutput:
-    aggregate_path: Path
-    aggregate_text: str
-    sample_path: Path | None = None
-    sample_text: str | None = None
 
 
 @dataclass
@@ -654,9 +650,17 @@ def make_generation_config(params: dict[str, Any]) -> GenerationConfig | None:
 def normalize_model_info(
     name: str, size: str | None
 ) -> tuple[ModelInfo, str, str]:
-    developer = get_developer(name)
-    model_id = get_model_id(name, developer)
-    model_slug = normalize_slug(model_id.split('/', 1)[-1], name)
+    name = require_identity(name, 'OpenEval model name')
+    developer = require_identity(
+        get_developer(name), 'OpenEval model developer'
+    )
+    model_id = require_identity(
+        get_model_id(name, developer), 'OpenEval model id'
+    )
+    model_slug = require_identity(
+        normalize_slug(model_id.split('/', 1)[-1], name),
+        'OpenEval model path name',
+    )
     details = stringify_details({'raw_model_name': name, 'model_size': size})
     return (
         ModelInfo(
@@ -668,36 +672,6 @@ def normalize_model_info(
         normalize_slug(developer),
         model_slug,
     )
-
-
-def aggregate_scores(
-    benches: list[dict[str, Any]],
-    responses: Iterable[Any],
-    limit_responses: int | None = None,
-    allow_unknown_benchmark: bool = False,
-    items: list[dict[str, Any]] | None = None,
-    include_instances: bool = False,
-) -> dict[tuple[str, str, str], ModelGroup]:
-    result = aggregate_scores_result(
-        benches,
-        responses,
-        limit_responses,
-        allow_unknown_benchmark=allow_unknown_benchmark,
-        items=items,
-        include_instances=include_instances,
-    )
-    if result.failures:
-        for group in result.groups.values():
-            if group.instance_path is not None:
-                group.instance_path.unlink(missing_ok=True)
-        SourceConversionResult(
-            source_name='OpenEval responses',
-            total_records=result.total_responses,
-            records=[],
-            failures=result.failures,
-            exclusions=result.exclusions,
-        ).raise_if_incomplete()
-    return result.groups
 
 
 def aggregate_scores_result(
@@ -1255,6 +1229,9 @@ def _make_log_bundle(
     metadata: SourceMetadata,
     timestamp: str,
 ) -> LogBundle | None:
+    results = [metric for metric in group.metrics.values() if metric.values]
+    if not results:
+        return None
     model_info, developer, model_slug = normalize_model_info(name, size or None)
     generation_config = make_generation_config(group.generation_params)
     if generation_config is not None:
@@ -1264,12 +1241,8 @@ def _make_log_bundle(
             'generation_config_hash': gen_key,
         }
     results = [
-        make_evaluation_result(metric, generation_config)
-        for metric in group.metrics.values()
-        if metric.values
+        make_evaluation_result(metric, generation_config) for metric in results
     ]
-    if not results:
-        return None
 
     sanitized_model_id = model_info.id.replace('/', '_')
     log = EvaluationLog(
@@ -1410,187 +1383,84 @@ def make_logs_result(
     )
 
 
-def save_instance_logs(
-    pending_path: Path | None,
-    instance_count: int,
-    aggregate_path: Path,
-    evaluation_id: str,
-    model_id: str,
-    binary_result_ids: set[str] | None = None,
-) -> DetailedEvaluationResults | None:
-    if pending_path is None or instance_count == 0:
-        return None
-
-    try:
-        collection, developer, model = aggregate_path.parts[-4:-1]
-    except ValueError as exc:
-        raise ValueError(
-            'aggregate_path must end with '
-            '<collection>/<developer>/<model>/<uuid>.json'
-        ) from exc
-
-    sample_path = aggregate_path.with_name(
-        f'{aggregate_path.stem}_samples.jsonl'
-    )
-    file_hash = hashlib.sha256()
-    with (
-        pending_path.open('r', encoding='utf-8') as pending_handle,
-        sample_path.open('w', encoding='utf-8') as handle,
-    ):
-        for line in pending_handle:
-            if not line.strip():
-                continue
-            instance = pending_instance_from_json(line)
-            instance_log = make_instance_log(
-                instance, evaluation_id, model_id, binary_result_ids
-            )
-            output_line = (
-                json.dumps(
-                    instance_log.model_dump(mode='json', exclude_none=True),
-                    ensure_ascii=False,
-                    allow_nan=False,
-                )
-                + '\n'
-            )
-            file_hash.update(output_line.encode('utf-8'))
-            handle.write(output_line)
-
-    pending_path.unlink(missing_ok=True)
-
-    return DetailedEvaluationResults(
-        format=Format.jsonl,
-        file_path=datastore_repo_file_path(
-            collection,
-            f'{developer}/{model}',
-            developer,
-            sample_path.name,
-        ),
-        hash_algorithm=HashAlgorithm.sha256,
-        checksum=file_hash.hexdigest(),
-        total_rows=instance_count,
-    )
-
-
 def export_logs(bundles: list[LogBundle], output_dir: Path) -> list[Path]:
-    prepared = []
-    planned_paths: set[Path] = set()
+    output_dir = Path(output_dir)
+    collection = output_dir.name
+    logs: list[EvaluationLog] = []
+    file_uuids = [str(uuid.uuid4()) for _ in bundles]
     try:
-        for bundle in bundles:
-            output_path = (
-                generate_output_path(
-                    output_dir,
-                    bundle.developer,
-                    bundle.model,
-                )
-                / f'{uuid.uuid4()}.json'
-            )
-            sample_path = None
-            sample_text = None
-            log = bundle.log.model_copy(deep=True)
-            if bundle.instance_path is not None and bundle.instance_count:
-                sample_path = output_path.with_name(
-                    f'{output_path.stem}_samples.jsonl'
-                )
-                sample_rows = []
-                for line in bundle.instance_path.read_text(
-                    encoding='utf-8'
-                ).splitlines():
-                    if not line.strip():
-                        continue
-                    instance = pending_instance_from_json(line)
-                    sample_rows.append(
-                        make_instance_log(
-                            instance,
-                            log.evaluation_id,
-                            log.model_info.id,
-                            bundle.binary_result_ids,
+        with tempfile.TemporaryDirectory(
+            prefix='eee-openeval-publication-'
+        ) as staging:
+            staging_root = Path(staging)
+            for bundle, file_uuid in zip(bundles, file_uuids, strict=True):
+                log = bundle.log.model_copy(deep=True)
+                if bundle.instance_path is not None and bundle.instance_count:
+                    sample_rows = []
+                    for line in bundle.instance_path.read_text(
+                        encoding='utf-8'
+                    ).splitlines():
+                        if not line.strip():
+                            continue
+                        instance = pending_instance_from_json(line)
+                        sample_rows.append(
+                            make_instance_log(
+                                instance,
+                                log.evaluation_id,
+                                log.model_info.id,
+                                bundle.binary_result_ids,
+                            )
                         )
+                    if len(sample_rows) != bundle.instance_count:
+                        raise ValueError(
+                            'OpenEval instance spool row count changed before '
+                            'publication'
+                        )
+                    sample_content = ''.join(
+                        json.dumps(
+                            InstanceLevelEvaluationLog.model_validate(
+                                row.model_dump()
+                            ).model_dump(mode='json', exclude_none=True),
+                            ensure_ascii=False,
+                            allow_nan=False,
+                        )
+                        + '\n'
+                        for row in sample_rows
+                    ).encode('utf-8')
+                    sample_name = f'{file_uuid}_samples.jsonl'
+                    staged_dir = datastore_output_dir(
+                        staging_root,
+                        collection,
+                        log.model_info.id,
+                        log.model_info.developer,
                     )
-                if len(sample_rows) != bundle.instance_count:
-                    raise ValueError(
-                        'OpenEval instance spool row count changed before '
-                        'publication'
+                    staged_dir.mkdir(parents=True, exist_ok=True)
+                    (staged_dir / sample_name).write_bytes(sample_content)
+                    log.detailed_evaluation_results = DetailedEvaluationResults(
+                        format=Format.jsonl,
+                        file_path=datastore_repo_file_path(
+                            collection,
+                            log.model_info.id,
+                            log.model_info.developer,
+                            sample_name,
+                        ),
+                        hash_algorithm=HashAlgorithm.sha256,
+                        checksum=hashlib.sha256(sample_content).hexdigest(),
+                        total_rows=len(sample_rows),
                     )
-                sample_text = ''.join(
-                    json.dumps(
-                        InstanceLevelEvaluationLog.model_validate(
-                            row.model_dump()
-                        ).model_dump(mode='json', exclude_none=True),
-                        ensure_ascii=False,
-                        allow_nan=False,
-                    )
-                    + '\n'
-                    for row in sample_rows
-                )
-                log.detailed_evaluation_results = DetailedEvaluationResults(
-                    format=Format.jsonl,
-                    file_path=datastore_repo_file_path(
-                        output_dir.name,
-                        f'{bundle.developer}/{bundle.model}',
-                        bundle.developer,
-                        sample_path.name,
-                    ),
-                    hash_algorithm=HashAlgorithm.sha256,
-                    checksum=hashlib.sha256(
-                        sample_text.encode('utf-8')
-                    ).hexdigest(),
-                    total_rows=len(sample_rows),
-                )
+                logs.append(log)
 
-            validated = EvaluationLog.model_validate(log.model_dump())
-            aggregate_text = (
-                json.dumps(
-                    validated.model_dump(mode='json', exclude_none=True),
-                    indent=2,
-                    ensure_ascii=False,
-                    allow_nan=False,
-                )
-                + '\n'
-            )
-            artifact_paths = [output_path]
-            if sample_path is not None:
-                artifact_paths.append(sample_path)
-            for artifact_path in artifact_paths:
-                if artifact_path in planned_paths or artifact_path.exists():
-                    raise FileExistsError(
-                        f'refusing to overwrite output file {artifact_path}'
-                    )
-                planned_paths.add(artifact_path)
-            prepared.append(
-                _PreparedOpenEvalOutput(
-                    aggregate_path=output_path,
-                    aggregate_text=aggregate_text,
-                    sample_path=sample_path,
-                    sample_text=sample_text,
-                )
+            return publish_evaluation_logs(
+                logs,
+                output_dir.parent,
+                file_uuids,
+                staged_output_dir=staging_root,
+                collection_override=collection,
             )
     finally:
         for bundle in bundles:
             if bundle.instance_path is not None:
                 bundle.instance_path.unlink(missing_ok=True)
-
-    created = []
-    try:
-        for output in prepared:
-            output.aggregate_path.parent.mkdir(parents=True, exist_ok=True)
-            if (
-                output.sample_path is not None
-                and output.sample_text is not None
-            ):
-                with output.sample_path.open(
-                    'x', encoding='utf-8'
-                ) as sample_file:
-                    created.append(output.sample_path)
-                    sample_file.write(output.sample_text)
-            with output.aggregate_path.open('x', encoding='utf-8') as file:
-                created.append(output.aggregate_path)
-                file.write(output.aggregate_text)
-    except Exception:
-        for path in reversed(created):
-            path.unlink(missing_ok=True)
-        raise
-
-    return [output.aggregate_path for output in prepared]
 
 
 def run(args: argparse.Namespace) -> int:

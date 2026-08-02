@@ -34,7 +34,7 @@ def test_bfcl_keeps_valid_rows_when_another_row_is_malformed(
     for spec in bfcl.METRIC_SPECS:
         if spec.use_observed_max:
             valid[spec.column] = '1'
-    invalid = valid | {'Overall Acc': 'not-a-number'}
+    invalid = valid | {'Overall Acc': 'nan'}
 
     bounds = bfcl.compute_observed_max_scores([valid, invalid])
     result = bfcl.convert_rows(
@@ -150,3 +150,46 @@ def test_helm_keeps_valid_models_when_identity_is_unknown(tmp_path: Path):
     assert all(
         path.is_relative_to(tmp_path / 'data' / 'HELM_Lite') for path in paths
     )
+
+
+def test_helm_records_bad_headers_and_missing_cells_without_fake_scores(
+    tmp_path: Path,
+):
+    leaderboard = [
+        {
+            'title': 'accuracy',
+            'header': [
+                {'value': 'Model'},
+                {'value': 'MMLU - EM', 'lower_is_better': False},
+                {'value': 'MalformedHeader', 'lower_is_better': False},
+            ],
+            'rows': [
+                [
+                    {'value': 'gpt-4o'},
+                    {'value': 0.5},
+                    {'value': 0.4},
+                ],
+                [{'value': 'claude-3-opus'}, {'value': 0.6}],
+            ],
+        }
+    ]
+
+    result = helm.convert(
+        'HELM_Lite',
+        leaderboard,
+        source_data_url='https://example.com/results.json',
+        output_dir=str(tmp_path / 'data'),
+    )
+
+    assert len(result.records) == 2
+    assert len(result.failures) == 2
+    assert any('metric header' in failure.reason for failure in result.failures)
+    assert any(
+        'missing the metric cell' in failure.reason
+        for failure in result.failures
+    )
+    for output in result.records:
+        assert all(
+            result.score_details.score != -1
+            for result in output.eval_log.evaluation_results
+        )

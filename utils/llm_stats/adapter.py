@@ -48,6 +48,7 @@ from every_eval_ever.helpers import (
     default_failure_report_path,
     fetch_json,
     get_developer,
+    require_finite_number,
     sanitize_filename,
     save_evaluation_logs,
     save_failure_report,
@@ -319,9 +320,10 @@ def parse_float(value: Any) -> float | None:
     if isinstance(value, str):
         value = value.strip().removesuffix('%').replace(',', '')
     try:
-        return float(value)
+        number = float(value)
     except (TypeError, ValueError):
         return None
+    return require_finite_number(number, 'LLM Stats numeric value')
 
 
 def extract_collection(payload: Any, name: str) -> list[dict[str, Any]]:

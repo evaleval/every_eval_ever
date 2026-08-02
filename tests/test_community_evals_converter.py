@@ -51,7 +51,8 @@ class FakeHfApi:
         datastore_sha: str = 'abc123',
         missing_models: set[str] | None = None,
         repo_files_by_revision: dict[tuple[str, str], list[str]] | None = None,
-        dataset_files_by_revision: dict[tuple[str, str], list[str]] | None = None,
+        dataset_files_by_revision: dict[tuple[str, str], list[str]]
+        | None = None,
         discussions: dict[str, list[FakeDiscussion]] | None = None,
     ) -> None:
         self.datastore_sha = datastore_sha
@@ -87,7 +88,9 @@ class FakeHfApi:
                 (repo_id, revision or 'main'), []
             )
         assert repo_type == 'model'
-        return self.repo_files_by_revision.get((repo_id, revision or 'main'), [])
+        return self.repo_files_by_revision.get(
+            (repo_id, revision or 'main'), []
+        )
 
     def list_repo_tree(
         self,
@@ -105,7 +108,9 @@ class FakeHfApi:
         assert expand is False
         assert repo_type == 'model'
         assert token is True
-        for path in self.repo_files_by_revision.get((repo_id, revision or 'main'), []):
+        for path in self.repo_files_by_revision.get(
+            (repo_id, revision or 'main'), []
+        ):
             yield FakeRepoFile(path=path, blob_id=f'{revision}:{path}')
 
     def get_repo_discussions(self, repo_id: str, **_kwargs):
@@ -188,7 +193,7 @@ def _aggregate(
     score: float = 0.641,
 ) -> dict:
     return {
-        'schema_version': '0.2.2',
+        'schema_version': '0.2.3',
         'evaluation_id': 'openeval/google_gemma-2b-it/123',
         'evaluation_timestamp': '2024-07-16T00:00:00Z',
         'retrieved_timestamp': '1234567890',
@@ -337,11 +342,13 @@ def _write_collection_rows(
             'instance_level_available': False,
         }
         if include_instance_level:
-            instance_path = object_path.with_name(f'{object_uuid}_samples.jsonl')
+            instance_path = object_path.with_name(
+                f'{object_uuid}_samples.jsonl'
+            )
             instance_data = (
                 json.dumps(
                     {
-                        'schema_version': 'instance_level_eval_0.2.2',
+                        'schema_version': 'instance_level_eval_0.2.3',
                         'evaluation_id': record['evaluation_id'],
                         'model_id': record['model_info']['id'],
                     }
@@ -397,12 +404,16 @@ def _fake_download_with_model_files(
 
 
 def test_parse_benchmarks_aliases_and_rejects_unknown() -> None:
-    assert community_evals_converter.parse_benchmarks('gpqa-diamond,mmlu_pro') == [
+    assert community_evals_converter.parse_benchmarks(
+        'gpqa-diamond,mmlu_pro'
+    ) == [
         'gpqa',
         'mmlu_pro',
     ]
 
-    with pytest.raises(community_evals_converter.HFEvalsError, match='Unsupported benchmark'):
+    with pytest.raises(
+        community_evals_converter.HFEvalsError, match='Unsupported benchmark'
+    ):
         community_evals_converter.parse_benchmarks('alphaxiv')
 
 
@@ -410,13 +421,16 @@ def test_parse_datastore_locator_accepts_optional_revision() -> None:
     assert community_evals_converter.parse_datastore_locator(
         'evaleval/EEE_datastore@abc123'
     ) == ('evaleval/EEE_datastore', 'abc123')
-    assert community_evals_converter.parse_datastore_locator('evaleval/EEE_datastore') == (
+    assert community_evals_converter.parse_datastore_locator(
+        'evaleval/EEE_datastore'
+    ) == (
         'evaleval/EEE_datastore',
         None,
     )
 
     with pytest.raises(
-        community_evals_converter.HFEvalsError, match='<hf_dataset_repo>\\[@<revision>\\]'
+        community_evals_converter.HFEvalsError,
+        match='<hf_dataset_repo>\\[@<revision>\\]',
     ):
         community_evals_converter.parse_datastore_locator('bad@repo@abc123')
 
@@ -485,7 +499,10 @@ def test_build_collection_manifest_downloads_collection_jsonl_and_scans_results(
         '.eval_results/mmlu_pro.yaml',
         '.eval_results/gsm8k.yaml',
     }
-    assert all(entry['instance_level_available'] is True for entry in manifest['entries'])
+    assert all(
+        entry['instance_level_available'] is True
+        for entry in manifest['entries']
+    )
     assert all('instance_sha' in entry for entry in manifest['entries'])
 
 
@@ -557,7 +574,9 @@ def test_build_collection_manifest_rejects_malformed_instance_provenance(
     row.pop('instance_sha')
     collection_jsonl.write_text(json.dumps(row) + '\n', encoding='utf-8')
 
-    with pytest.raises(community_evals_converter.HFEvalsError, match='missing instance_sha'):
+    with pytest.raises(
+        community_evals_converter.HFEvalsError, match='missing instance_sha'
+    ):
         community_evals_converter.build_collection_manifest(
             collection_name='MMLU-Pro',
             datastore='evaleval/EEE_datastore@abc123',
@@ -569,9 +588,13 @@ def test_build_collection_manifest_rejects_malformed_instance_provenance(
 def test_build_collection_manifest_rejects_path_like_collection_name(
     tmp_path: Path,
 ) -> None:
-    datastore, _collection_jsonl = _write_collection_rows(tmp_path, [_aggregate()])
+    datastore, _collection_jsonl = _write_collection_rows(
+        tmp_path, [_aggregate()]
+    )
 
-    with pytest.raises(community_evals_converter.HFEvalsError, match='without the \\.jsonl'):
+    with pytest.raises(
+        community_evals_converter.HFEvalsError, match='without the \\.jsonl'
+    ):
         community_evals_converter.build_collection_manifest(
             collection_name='MMLU-Pro.jsonl',
             datastore='evaleval/EEE_datastore@abc123',
@@ -579,7 +602,9 @@ def test_build_collection_manifest_rejects_path_like_collection_name(
             download_file=_fake_download(datastore),
         )
 
-    with pytest.raises(community_evals_converter.HFEvalsError, match='single by_collection'):
+    with pytest.raises(
+        community_evals_converter.HFEvalsError, match='single by_collection'
+    ):
         community_evals_converter.build_collection_manifest(
             collection_name='MMLU-Pro/records',
             datastore='evaleval/EEE_datastore@abc123',
@@ -630,7 +655,9 @@ def test_build_index_manifest_downloads_online_record_and_links_source(
     assert manifest['datastore'] == 'evaleval/EEE_datastore@abc123'
     assert manifest['datastore_input'] == 'evaleval/EEE_datastore'
     assert api.repo_info_calls
-    assert manifest['entries'][0]['target_path'] == '.eval_results/mmlu_pro.yaml'
+    assert (
+        manifest['entries'][0]['target_path'] == '.eval_results/mmlu_pro.yaml'
+    )
     assert manifest['entries'][0]['yaml_entry']['value'] == 64.1
     assert manifest['entries'][0]['yaml_entry']['source']['url'].startswith(
         'https://huggingface.co/datasets/evaleval/EEE_datastore/blob/abc123/flat/objects/'
@@ -667,7 +694,8 @@ def test_build_index_manifest_rejects_index_directory_without_aggregate_jsonl(
     index_dir.mkdir(parents=True)
 
     with pytest.raises(
-        community_evals_converter.HFEvalsError, match='must contain aggregate\\.jsonl'
+        community_evals_converter.HFEvalsError,
+        match='must contain aggregate\\.jsonl',
     ):
         community_evals_converter.build_index_manifest(
             index_jsonl=index_dir,
@@ -687,7 +715,9 @@ def test_build_index_manifest_rejects_direct_url_row(tmp_path: Path) -> None:
         },
     )
 
-    with pytest.raises(community_evals_converter.HFEvalsError, match='unsupported.*url'):
+    with pytest.raises(
+        community_evals_converter.HFEvalsError, match='unsupported.*url'
+    ):
         community_evals_converter.build_index_manifest(
             index_jsonl=index_jsonl,
             datastore='evaleval/EEE_datastore@abc123',
@@ -708,7 +738,9 @@ def test_build_index_manifest_rejects_local_path_row(tmp_path: Path) -> None:
     row['local_path'] = aggregate_path.relative_to(tmp_path).as_posix()
     index_jsonl.write_text(json.dumps(row) + '\n', encoding='utf-8')
 
-    with pytest.raises(community_evals_converter.HFEvalsError, match='unsupported.*local_path'):
+    with pytest.raises(
+        community_evals_converter.HFEvalsError, match='unsupported.*local_path'
+    ):
         community_evals_converter.build_index_manifest(
             index_jsonl=index_jsonl,
             datastore='evaleval/EEE_datastore@abc123',
@@ -729,7 +761,9 @@ def test_build_index_manifest_rejects_url_even_with_object_path(
         },
     )
 
-    with pytest.raises(community_evals_converter.HFEvalsError, match='unsupported.*url'):
+    with pytest.raises(
+        community_evals_converter.HFEvalsError, match='unsupported.*url'
+    ):
         community_evals_converter.build_index_manifest(
             index_jsonl=index_jsonl,
             datastore='evaleval/EEE_datastore@abc123',
@@ -831,7 +865,9 @@ def test_build_index_manifest_fails_on_hash_mismatch(tmp_path: Path) -> None:
     row['sha256'] = '0' * 64
     index_jsonl.write_text(json.dumps(row) + '\n', encoding='utf-8')
 
-    with pytest.raises(community_evals_converter.HFEvalsError, match='sha256 mismatch'):
+    with pytest.raises(
+        community_evals_converter.HFEvalsError, match='sha256 mismatch'
+    ):
         community_evals_converter.build_index_manifest(
             index_jsonl=index_jsonl,
             datastore='evaleval/EEE_datastore@abc123',
@@ -863,7 +899,9 @@ def test_review_index_writes_yaml_and_review(tmp_path: Path) -> None:
         / 'mmlu_pro.yaml'
     )
     loaded_yaml = yaml.safe_load(yaml_path.read_text(encoding='utf-8'))
-    loaded_review = json.loads((tmp_path / 'review.json').read_text(encoding='utf-8'))
+    loaded_review = json.loads(
+        (tmp_path / 'review.json').read_text(encoding='utf-8')
+    )
 
     assert review['can_open_prs'] is True
     assert loaded_review['can_open_prs'] is True
@@ -882,7 +920,9 @@ def test_review_index_writes_yaml_without_reloading_manifest(
     def fail_load_manifest(_path: Path) -> dict:
         raise AssertionError('review flow should use the in-memory manifest')
 
-    monkeypatch.setattr(community_evals_converter, 'load_manifest', fail_load_manifest)
+    monkeypatch.setattr(
+        community_evals_converter, 'load_manifest', fail_load_manifest
+    )
 
     review = community_evals_converter.review_index_for_hf_evals(
         index_jsonl=index_jsonl,
@@ -900,7 +940,9 @@ def test_review_index_writes_yaml_without_reloading_manifest(
     assert (tmp_path / 'review.json').exists()
 
 
-def test_review_index_reports_missing_model_without_aliasing(tmp_path: Path) -> None:
+def test_review_index_reports_missing_model_without_aliasing(
+    tmp_path: Path,
+) -> None:
     record = _aggregate(model_id='local/missing-model')
     datastore, index_jsonl = _write_index_row(tmp_path, record)
 
@@ -974,7 +1016,9 @@ def test_review_collection_suppresses_existing_same_score_from_any_yaml_name(
     assert review['can_open_prs'] is False
     assert review['yaml_count'] == 0
     assert review['manifest']['entries'][0]['status'] == 'already_present'
-    assert review['duplicate_audit']['findings'][0]['status'] == 'already_present'
+    assert (
+        review['duplicate_audit']['findings'][0]['status'] == 'already_present'
+    )
 
 
 def test_review_collection_reports_progress_phases(tmp_path: Path) -> None:
@@ -1011,12 +1055,24 @@ def test_rich_review_progress_uses_one_visible_task() -> None:
     review_progress = community_evals_converter.RichReviewProgress(progress)
 
     with progress:
-        setup_task = review_progress.add_task('Resolving datastore revision', total=4)
-        review_progress.update(setup_task, advance=4, description='Built manifest')
-        row_task = review_progress.add_task('Processing 2 aggregate rows', total=2)
-        review_progress.update(row_task, advance=2, description='Processed 2 rows')
-        audit_task = review_progress.add_task('Auditing 1 ready candidates', total=1)
-        review_progress.update(audit_task, advance=1, description='Audit complete')
+        setup_task = review_progress.add_task(
+            'Resolving datastore revision', total=4
+        )
+        review_progress.update(
+            setup_task, advance=4, description='Built manifest'
+        )
+        row_task = review_progress.add_task(
+            'Processing 2 aggregate rows', total=2
+        )
+        review_progress.update(
+            row_task, advance=2, description='Processed 2 rows'
+        )
+        audit_task = review_progress.add_task(
+            'Auditing 1 ready candidates', total=1
+        )
+        review_progress.update(
+            audit_task, advance=1, description='Audit complete'
+        )
 
     assert len(progress.tasks) == 1
     task = progress.tasks[0]
@@ -1173,7 +1229,9 @@ def test_review_collection_resumes_cached_manifest_without_datastore_downloads(
     assert api.model_info_calls == []
 
 
-def test_review_details_use_clear_headers_and_aggregate_existing_scores() -> None:
+def test_review_details_use_clear_headers_and_aggregate_existing_scores() -> (
+    None
+):
     console = Console(record=True, width=200)
     review = {
         'duplicate_audit': {
@@ -1278,9 +1336,7 @@ def test_review_collection_submits_clean_records_despite_open_pr_conflict(
     )
     api = FakeHfApi(
         repo_files_by_revision={
-            ('google/gemma-2b-it', 'refs/pr/7'): [
-                '.eval_results/random.yaml'
-            ],
+            ('google/gemma-2b-it', 'refs/pr/7'): ['.eval_results/random.yaml'],
         },
         discussions={
             'google/gemma-2b-it': [
@@ -1318,7 +1374,9 @@ def test_review_collection_submits_clean_records_despite_open_pr_conflict(
         'google/gemma-2b-it': 'score_conflict',
         'google/gemma-clean': 'ready',
     }
-    assert review['duplicate_audit']['findings'][0]['status'] == 'score_conflict'
+    assert (
+        review['duplicate_audit']['findings'][0]['status'] == 'score_conflict'
+    )
 
 
 def test_review_collection_blocks_only_candidate_with_audit_error(
@@ -1444,9 +1502,14 @@ def test_tui_approval_requires_exact_phrase(monkeypatch) -> None:
         }
     }
 
-    monkeypatch.setattr(community_evals_converter.Prompt, 'ask', lambda *_args, **_kwargs: 'yes')
+    monkeypatch.setattr(
+        community_evals_converter.Prompt, 'ask', lambda *_args, **_kwargs: 'yes'
+    )
 
-    assert community_evals_converter._approve_pr_submission(console, review) is False
+    assert (
+        community_evals_converter._approve_pr_submission(console, review)
+        is False
+    )
 
 
 def test_tui_approval_accepts_open_prs(monkeypatch) -> None:
@@ -1469,13 +1532,18 @@ def test_tui_approval_accepts_open_prs(monkeypatch) -> None:
         lambda *_args, **_kwargs: community_evals_converter.APPROVAL_PHRASE,
     )
 
-    assert community_evals_converter._approve_pr_submission(console, review) is True
+    assert (
+        community_evals_converter._approve_pr_submission(console, review)
+        is True
+    )
 
 
 def test_prompt_commit_message_requires_non_empty(monkeypatch) -> None:
     console = Console(record=True)
 
-    monkeypatch.setattr(community_evals_converter.Prompt, 'ask', lambda *_args, **_kwargs: ' ')
+    monkeypatch.setattr(
+        community_evals_converter.Prompt, 'ask', lambda *_args, **_kwargs: ' '
+    )
 
     assert community_evals_converter._prompt_commit_message(console) is None
 

@@ -32,10 +32,6 @@ def find_samples_file(output_dir: Path, task_name: str) -> Optional[Path]:
     matches = sorted(output_dir.glob(pattern))
     if matches:
         return matches[-1]  # Most recent
-    # Also check subdirectories (lm-eval nests under model_name_sanitized/)
-    matches = sorted(output_dir.glob(f'**/{pattern}'))
-    if matches:
-        return matches[-1]
     return None
 
 

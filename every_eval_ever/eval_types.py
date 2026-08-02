@@ -16,6 +16,7 @@ from pydantic import (
     conint,
     constr,
     field_serializer,
+    field_validator,
     model_validator,
 )
 
@@ -324,6 +325,24 @@ class ModelInfo(BaseModel):
         details = dict(self.additional_details or {})
         details.setdefault('deployment_type', 'unknown')
         details.setdefault('model_availability', 'unknown')
+        allowed = {
+            'deployment_type': {
+                'self_deployed',
+                'externally_managed',
+                'unknown',
+            },
+            'model_availability': {
+                'open_weights',
+                'closed_weights',
+                'unknown',
+            },
+        }
+        for name, values in allowed.items():
+            if details[name] not in values:
+                raise ValueError(
+                    f'{name} must be one of {sorted(values)}, '
+                    f'got {details[name]!r}'
+                )
         self.additional_details = details
         return self
 
@@ -446,10 +465,12 @@ class MetricConfig(BaseModel):
         None,
         description='Minimum possible score for a continuous metric. Use -inf if unbounded below; null means not provided.',
     )
+
     max_score: float | None = Field(
         None,
         description='Maximum possible score for a continuous metric. Use inf if unbounded above; null means not provided.',
     )
+
     llm_scoring: LlmScoring | None = Field(
         None, description='Configuration when LLM is used as scorer/judge'
     )
@@ -459,6 +480,22 @@ class MetricConfig(BaseModel):
     )
 
     # --- validators (added by post_codegen.py) ---
+
+    @field_validator('min_score', 'max_score', mode='before')
+    @classmethod
+    def validate_bound_wire_type(cls, value):
+        if value == 'Infinity':
+            return float('inf')
+        if value == '-Infinity':
+            return float('-inf')
+        if value is None:
+            return None
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise ValueError(
+                'metric bounds must be JSON numbers or the exact strings '
+                "'Infinity'/'-Infinity'"
+            )
+        return value
 
     @model_validator(mode='after')
     def validate_score_type_requirements(self):

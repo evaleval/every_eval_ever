@@ -58,6 +58,7 @@ from every_eval_ever.helpers import (
     default_failure_report_path,
     get_developer,
     get_model_id,
+    require_identity,
     sanitize_filename,
     save_evaluation_logs,
     save_failure_report,
@@ -271,7 +272,10 @@ def normalize_developer_and_slug(model: str) -> tuple[str, str]:
         developer = override
     else:
         developer = get_developer(model)
-    slug = sanitize_filename(model)
+    developer = require_identity(developer, 'MT-Bench model developer')
+    slug = require_identity(
+        sanitize_filename(model), 'MT-Bench model path name'
+    )
     return developer, slug
 
 

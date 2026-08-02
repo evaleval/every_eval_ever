@@ -39,7 +39,7 @@ Leaderboard/evaluation data is split-up into files by individual model, and data
 
 ### TL;DR How to successfully submit
 
-1. Data must conform to [`eval.schema.json`](eval.schema.json) (current version: `0.2.2`)
+1. Data must conform to [`eval.schema.json`](eval.schema.json) (current version: `0.2.3`)
 2. The validation pipeline will automatically verify the data submitted in the pull request, but can also be manually triggered by typing ```/eee validate changed``` in a comment on the HF PR.
 3. An EvalEval member will review and merge your submission
 
@@ -159,7 +159,7 @@ Example `single_turn` instance:
 
 ```json
 {
-  "schema_version": "instance_level_eval_0.2.2",
+  "schema_version": "instance_level_eval_0.2.3",
   "evaluation_id": "math_eval/meta-llama/Llama-2-7b-chat/1706000000",
   "model_id": "meta-llama/Llama-2-7b-chat",
   "evaluation_name": "math_eval",
@@ -218,6 +218,11 @@ Run the command from the repository root and use `data/...` paths. File type is 
 When samples exist, both files must be in the same folder and use the same UUID. The aggregate must provide the samples' full repository-relative path (for example, `data/<collection>/<developer>/<model>/<uuid>_samples.jsonl`) in `detailed_evaluation_results.file_path`, and the JSONL must point back to that aggregate. Their evaluation IDs, model IDs, and declared row count must agree.
 
 Local validation checks only the files present in the local checkout and their expected siblings. The PR bot remains responsible for checking every changed datastore path against the complete PR branch.
+
+Collision checks cover the files selected in one validation or publication
+operation and files already present at their destination. Validation does not
+walk the entire datastore looking for historical route or case-only
+collisions; repository-wide checks belong in the PR bot or a separate audit.
 
 For local smoke output outside the checkout, retain the same layout under a
 `data/` directory and pass an explicit glob, for example

@@ -101,6 +101,16 @@ def test_field_stays_float_and_reads_back():
                 'max_score': 'banana',
             }
         )
+    with pytest.raises(ValidationError):
+        ET.MetricConfig.model_validate(
+            {
+                'metric_name': 'x',
+                'lower_is_better': False,
+                'score_type': 'continuous',
+                'min_score': '0.5',
+                'max_score': 1.0,
+            }
+        )
 
 
 def test_finite_bounds_stay_numbers():

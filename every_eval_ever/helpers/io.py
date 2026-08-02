@@ -10,7 +10,15 @@ from typing import Any, Generic, Iterable, TypeVar, Union
 
 from every_eval_ever.eval_types import EvaluationLog
 
-_INVALID_PATH_CHARS = re.compile(r'[<>:"\\|?*]')
+_INVALID_PATH_CHARS = re.compile(r'[<>:"\\|?*\x00-\x1f]')
+_WINDOWS_RESERVED_NAMES = {
+    'CON',
+    'PRN',
+    'AUX',
+    'NUL',
+    *(f'COM{index}' for index in range(1, 10)),
+    *(f'LPT{index}' for index in range(1, 10)),
+}
 _RecordT = TypeVar('_RecordT')
 
 
@@ -183,6 +191,21 @@ def require_identity(value: str | None, field_name: str) -> str:
     return value
 
 
+def require_finite_number(value: Any, field_name: str) -> float:
+    """Parse one required numeric source value and reject NaN/infinity."""
+    if isinstance(value, bool):
+        raise ValueError(f'{field_name} must be numeric; got {value!r}')
+    try:
+        number = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            f'{field_name} must be numeric; got {value!r}'
+        ) from exc
+    if not math.isfinite(number):
+        raise ValueError(f'{field_name} must be finite; got {value!r}')
+    return number
+
+
 def _required_path_component(value: str | None, field_name: str) -> str:
     """Validate one explicit datastore path component."""
     value = require_identity(value, field_name)
@@ -194,6 +217,8 @@ def _required_path_component(value: str | None, field_name: str) -> str:
         value in {'.', '..'}
         or '/' in value
         or _INVALID_PATH_CHARS.search(value)
+        or value.endswith(('.', ' '))
+        or value.split('.', 1)[0].upper() in _WINDOWS_RESERVED_NAMES
     ):
         raise ValueError(
             f'{field_name} is not a safe single datastore path component: '
@@ -558,9 +583,7 @@ def save_evaluation_logs(
     created_dirs: list[Path] = []
     try:
         for output in prepared:
-            created_dirs.extend(
-                _create_parent_directories(output.path.parent)
-            )
+            created_dirs.extend(_create_parent_directories(output.path.parent))
             with output.path.open('x', encoding='utf-8') as file:
                 created.append(output.path)
                 file.write(output.json_text)

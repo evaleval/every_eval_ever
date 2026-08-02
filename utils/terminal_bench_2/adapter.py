@@ -181,11 +181,7 @@ def parse_leaderboard_html(
     candidate_rows = 0
     for row_index, cells in enumerate(parser.rows):
         rank_position = next(
-            (
-                index
-                for index, value in enumerate(cells)
-                if value.isdigit()
-            ),
+            (index for index, value in enumerate(cells) if value.isdigit()),
             None,
         )
         if rank_position is None:
@@ -297,9 +293,7 @@ def convert_entry(
         )
     stderr_value = entry.get('stderr')
     stderr = None if stderr_value is None else float(stderr_value)
-    if stderr is not None and (
-        not math.isfinite(stderr) or stderr < 0.0
-    ):
+    if stderr is not None and (not math.isfinite(stderr) or stderr < 0.0):
         raise ValueError(
             'Terminal-Bench standard error must be a finite non-negative '
             f'number, got {stderr_value!r}'
@@ -415,7 +409,12 @@ def convert_logs(
             continue
         bundles.append((eval_log, org_slug, model_slug))
     if not bundles and not failures:
-        raise ValueError('Terminal-Bench 2.0: converted 0 source records')
+        failures.append(
+            SourceRecordFailure(
+                source_ref='Terminal-Bench 2.0 input',
+                reason='converted 0 source records',
+            )
+        )
     return SourceConversionResult(
         source_name='Terminal-Bench 2.0',
         total_records=len(entries),

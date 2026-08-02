@@ -29,6 +29,7 @@ from every_eval_ever.eval_types import (
     SourceMetadata,
 )
 from every_eval_ever.helpers import (
+    SCHEMA_VERSION,
     EvaluationLogOutput,
     SourceConversionResult,
     SourceRecordExclusion,
@@ -42,9 +43,6 @@ from every_eval_ever.helpers import (
     save_failure_report,
 )
 from every_eval_ever.helpers.io import require_identity
-
-# Schema version
-SCHEMA_VERSION = '0.2.1'
 
 # Data source URLs
 REWARDBENCH_V1_CSV = 'https://huggingface.co/spaces/allenai/reward-bench/resolve/main/leaderboard/final-rbv1-data.csv'
@@ -222,6 +220,14 @@ def convert_rewardbench_v1_rows(
     outputs = []
     failures: list[SourceRecordFailure] = []
     exclusions: list[SourceRecordExclusion] = []
+
+    if not rows:
+        failures.append(
+            SourceRecordFailure(
+                source_ref='RewardBench v1 leaderboard',
+                reason='source contained zero model rows',
+            )
+        )
 
     for row_index, row in enumerate(rows):
         row_ref = f'RewardBench v1 CSV row {row_index + 2}'
@@ -426,8 +432,7 @@ def collect_rewardbench_v2(
                         score = float(raw_score)
                         if not 0.0 <= score <= 1.0:
                             raise ValueError(
-                                'score must be between 0 and 1, '
-                                f'got {score!r}'
+                                f'score must be between 0 and 1, got {score!r}'
                             )
                         scores_for_average.append(score)
                         eval_results.append(
@@ -458,17 +463,14 @@ def collect_rewardbench_v2(
                         'model has no usable RewardBench 2 metrics'
                     )
 
-                mean_score = sum(scores_for_average) / len(
-                    scores_for_average
-                )
+                mean_score = sum(scores_for_average) / len(scores_for_average)
                 eval_results.insert(
                     0,
                     _make_eval_result(
                         name='Score',
                         score=mean_score,
                         description=(
-                            'Overall RewardBench 2 Score '
-                            '(mean of all metrics)'
+                            'Overall RewardBench 2 Score (mean of all metrics)'
                         ),
                         source_data=V2_SOURCE_DATA,
                     ),
@@ -512,6 +514,13 @@ def collect_rewardbench_v2(
                     )
                 )
 
+    if total_records == 0 and not failures:
+        failures.append(
+            SourceRecordFailure(
+                source_ref='RewardBench v2 leaderboard',
+                reason='source contained zero model result files',
+            )
+        )
     return SourceConversionResult(
         source_name='RewardBench v2',
         total_records=total_records,
@@ -558,18 +567,14 @@ def main():
         fetch_csv(REWARDBENCH_V1_CSV),
         retrieved_timestamp,
     )
-    print(
-        f'\nConverted {len(v1.records)} models from RewardBench v1'
-    )
+    print(f'\nConverted {len(v1.records)} models from RewardBench v1')
 
     print('\n' + '=' * 60)
     print('Fetching RewardBench v2 results...')
     print('=' * 60)
 
     v2 = collect_rewardbench_v2(retrieved_timestamp)
-    print(
-        f'\nConverted {len(v2.records)} models from RewardBench v2'
-    )
+    print(f'\nConverted {len(v2.records)} models from RewardBench v2')
 
     combined = SourceConversionResult(
         source_name='RewardBench v1 and v2',

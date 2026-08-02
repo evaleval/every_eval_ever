@@ -13,6 +13,7 @@ from every_eval_ever.eval_types import (
     DetailedEvaluationResults,
     ModelInfo,
 )
+from every_eval_ever.schema import get_schema_version, schema_json
 from every_eval_ever.validate import (
     check_path_structure,
     check_score_metadata,
@@ -28,9 +29,17 @@ AGGREGATE_REPO_PATH = f'data/bench/dev/model/{UUID}.json'
 COMPANION_REPO_PATH = f'data/bench/dev/model/{UUID}_samples.jsonl'
 
 
+def test_current_schema_version_is_0_2_3():
+    assert get_schema_version() == '0.2.3'
+    assert (
+        schema_json('instance_level_eval.schema.json')['version']
+        == 'instance_level_eval_0.2.3'
+    )
+
+
 def valid_aggregate() -> dict:
     return {
-        'schema_version': '0.2.2',
+        'schema_version': '0.2.3',
         'evaluation_id': 'bench/dev_model/123',
         'retrieved_timestamp': '123',
         'source_metadata': {
@@ -73,7 +82,7 @@ def write_aggregate(tmp_path: Path, data: dict) -> Path:
 
 def valid_sample() -> dict:
     return {
-        'schema_version': 'instance_level_eval_0.2.2',
+        'schema_version': 'instance_level_eval_0.2.3',
         'evaluation_id': valid_aggregate()['evaluation_id'],
         'model_id': valid_aggregate()['model_info']['id'],
         'evaluation_name': 'bench',
@@ -115,6 +124,14 @@ def test_path_components_cannot_use_reserved_data_name():
         assert 'reserved datastore name' in errors[0]
 
 
+def test_path_components_reject_nonportable_windows_names():
+    for component in ('bad:name', 'CON', 'model.', 'bad\x01name'):
+        repo_path = f'data/bench/dev/{component}/{UUID}.json'
+        errors = check_path_structure(repo_path)
+        assert len(errors) == 1
+        assert 'portable filesystem names' in errors[0]
+
+
 def validate_data(
     tmp_path: Path,
     data: dict,
@@ -146,6 +163,7 @@ def test_path_structure_accepts_only_datastore_file_conventions():
     assert check_path_structure(f'data/bench/sub/dev/model/{UUID}.json')
     assert check_path_structure(f'/data/bench/dev/model/{UUID}.json')
     assert check_path_structure(f'data/bench/../model/{UUID}.json')
+    assert check_path_structure(f'data/bench/dev/model/{UUID}_Samples.jsonl')
 
 
 def test_companion_check_uses_declared_path(tmp_path):
@@ -158,6 +176,7 @@ def test_companion_check_uses_declared_path(tmp_path):
         tmp_path,
         data,
         available_files={AGGREGATE_REPO_PATH, COMPANION_REPO_PATH},
+        repo_files={COMPANION_REPO_PATH: json.dumps(valid_sample()) + '\n'},
     )
     assert report.valid is False
     assert any(
@@ -175,6 +194,7 @@ def test_companion_check_accepts_existing_declared_repository_path(tmp_path):
         tmp_path,
         data,
         available_files={AGGREGATE_REPO_PATH, COMPANION_REPO_PATH},
+        repo_files={COMPANION_REPO_PATH: json.dumps(valid_sample()) + '\n'},
     )
     assert report.valid is True, report.errors
 
@@ -325,7 +345,7 @@ def test_companion_check_supports_bot_file_lookup(tmp_path):
         write_aggregate(tmp_path, data),
         repo_path=AGGREGATE_REPO_PATH,
         available_files=BotFileLookup(),
-        read_repo_file=lambda path: '',
+        read_repo_file=lambda path: json.dumps(valid_sample()) + '\n',
         run_semantic_checks=True,
     )
 
@@ -419,6 +439,38 @@ def test_model_info_objects_default_new_fields_to_unknown():
         'deployment_type': 'unknown',
         'model_availability': 'unknown',
     }
+    with pytest.raises(ValidationError, match='deployment_type'):
+        ModelInfo(
+            name='model',
+            id='dev/model',
+            additional_details={
+                'deployment_type': 'banana',
+                'model_availability': 'unknown',
+            },
+        )
+
+
+def test_judge_models_require_raw_deployment_metadata(tmp_path):
+    data = valid_aggregate()
+    data['evaluation_results'][0]['metric_config']['llm_scoring'] = {
+        'judges': [
+            {
+                'model_info': {
+                    'name': 'judge',
+                    'id': 'dev/judge',
+                    'developer': 'dev',
+                }
+            }
+        ]
+    }
+
+    report = validate_data(tmp_path, data)
+
+    assert report.valid is False
+    assert any(
+        'judges[0].model_info.additional_details' in error['loc']
+        for error in report.errors
+    )
 
 
 def test_json_schema_requires_and_constrains_model_metadata():
@@ -478,10 +530,49 @@ def test_strict_json_rejects_nonfinite_tokens_and_duplicate_keys(tmp_path):
     assert report.valid is False
     assert 'non-finite JSON number' in report.errors[0]['msg']
 
+    path.write_text('{"score": 1e999}', encoding='utf-8')
+    report = validate_aggregate(path, repo_path=AGGREGATE_REPO_PATH)
+    assert report.valid is False
+    assert 'non-finite JSON number' in report.errors[0]['msg']
+
     path.write_text('{"x": 1, "x": 2}', encoding='utf-8')
     report = validate_aggregate(path, repo_path=AGGREGATE_REPO_PATH)
     assert report.valid is False
     assert 'duplicate JSON object key' in report.errors[0]['msg']
+
+
+def test_uncertainty_values_must_be_raw_finite_numbers():
+    data = valid_aggregate()
+    data['evaluation_results'][0]['score_details']['uncertainty'] = {
+        'standard_deviation': 'Infinity',
+        'standard_error': {'value': '0.1'},
+        'confidence_interval': {'lower': 0.1, 'upper': 'inf'},
+    }
+
+    findings = check_score_metadata(data)
+
+    assert len(findings) == 3
+    assert all('expected a finite number' in finding for finding in findings)
+
+
+def test_empty_samples_companion_is_rejected(tmp_path):
+    data = valid_aggregate()
+    data['detailed_evaluation_results'] = {
+        'format': 'jsonl',
+        'file_path': COMPANION_REPO_PATH,
+    }
+
+    report = validate_data(
+        tmp_path,
+        data,
+        available_files={AGGREGATE_REPO_PATH, COMPANION_REPO_PATH},
+        repo_files={COMPANION_REPO_PATH: ''},
+    )
+
+    assert report.valid is False
+    assert any(
+        'at least one JSONL row' in error['msg'] for error in report.errors
+    )
 
 
 def test_repository_checks_require_a_repository_path(tmp_path):
@@ -510,7 +601,9 @@ def test_local_command_runs_the_same_repository_checks(
     }
     aggregate_path.write_text(json.dumps(data), encoding='utf-8')
     companion_path = aggregate_path.with_name(f'{UUID}_samples.jsonl')
-    companion_path.write_text('', encoding='utf-8')
+    companion_path.write_text(
+        json.dumps(valid_sample()) + '\n', encoding='utf-8'
+    )
     monkeypatch.chdir(tmp_path)
 
     exit_code = validate_main(

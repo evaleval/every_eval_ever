@@ -25,7 +25,11 @@ class _PreparedArtifact:
     content: bytes
 
 
-def _output_dir(base_dir: Path, log: EvaluationLog) -> Path:
+def _output_dir(
+    base_dir: Path,
+    log: EvaluationLog,
+    collection_override: str | None = None,
+) -> Path:
     if not log.evaluation_results:
         raise ValueError(
             'evaluation_results must contain at least one result so the '
@@ -38,7 +42,7 @@ def _output_dir(base_dir: Path, log: EvaluationLog) -> Path:
         )
     return datastore_output_dir(
         base_dir,
-        source_data.dataset_name,
+        collection_override or source_data.dataset_name,
         log.model_info.id,
         log.model_info.developer,
     )
@@ -49,6 +53,7 @@ def _prepare_sample_artifact(
     file_uuid: str,
     output_dir: Path,
     staged_output_dir: Path | None,
+    collection_override: str | None,
 ) -> _PreparedArtifact | None:
     detailed = log.detailed_evaluation_results
     if detailed is None:
@@ -71,7 +76,7 @@ def _prepare_sample_artifact(
             'repository path'
         )
     expected_repo_path = datastore_repo_file_path(
-        source_data.dataset_name,
+        collection_override or source_data.dataset_name,
         log.model_info.id,
         log.model_info.developer,
         expected_name,
@@ -82,7 +87,9 @@ def _prepare_sample_artifact(
             'repository path and UUID: expected '
             f'{expected_repo_path!r}, got {detailed.file_path!r}'
         )
-    source_path = _output_dir(staged_output_dir, log) / expected_name
+    source_path = (
+        _output_dir(staged_output_dir, log, collection_override) / expected_name
+    )
     if not source_path.is_file():
         raise FileNotFoundError(
             f'converter sample artifact was not staged at {source_path}'
@@ -138,6 +145,7 @@ def publish_evaluation_logs(
     file_uuids: Iterable[str],
     *,
     staged_output_dir: str | Path | None = None,
+    collection_override: str | None = None,
 ) -> list[Path]:
     """Validate and atomically publish a converter batch.
 
@@ -164,9 +172,12 @@ def publish_evaluation_logs(
 
     for raw_log, file_uuid in zip(logs, file_uuids):
         log = EvaluationLog.model_validate(raw_log.model_dump())
-        output_dir = _output_dir(base_output_dir, log)
+        output_dir = _output_dir(base_output_dir, log, collection_override)
         source_data = log.evaluation_results[0].source_data
-        route_owner = (source_data.dataset_name, log.model_info.id)
+        route_owner = (
+            collection_override or source_data.dataset_name,
+            log.model_info.id,
+        )
         existing_owner = route_owners.get(output_dir)
         if existing_owner is not None and existing_owner != route_owner:
             raise ValueError(
@@ -181,6 +192,7 @@ def publish_evaluation_logs(
             file_uuid,
             output_dir,
             staged_root,
+            collection_override,
         )
         aggregate = _PreparedArtifact(
             path=aggregate_path,

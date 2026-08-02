@@ -45,7 +45,7 @@ def validate_file(file_path: Path, *args, **kwargs):
 
 
 VALID_AGGREGATE: dict = {
-    'schema_version': '0.2.2',
+    'schema_version': '0.2.3',
     'evaluation_id': 'test/model/123',
     'retrieved_timestamp': '1234567890',
     'source_metadata': {
@@ -73,7 +73,7 @@ VALID_AGGREGATE: dict = {
 }
 
 VALID_SINGLE_TURN: dict = {
-    'schema_version': 'instance_level_eval_0.2.2',
+    'schema_version': 'instance_level_eval_0.2.3',
     'evaluation_id': 'test/model/123',
     'model_id': 'org/test-model',
     'evaluation_name': 'test_eval',
@@ -94,7 +94,7 @@ VALID_SINGLE_TURN: dict = {
 }
 
 VALID_MULTI_TURN: dict = {
-    'schema_version': 'instance_level_eval_0.2.2',
+    'schema_version': 'instance_level_eval_0.2.3',
     'evaluation_id': 'test/model/123',
     'model_id': 'org/test-model',
     'evaluation_name': 'test_eval',
@@ -362,9 +362,7 @@ class TestFileDispatch:
         with pytest.raises(ValueError, match='directory arguments'):
             expand_paths([str(tmp_path)])
 
-    def test_cli_accepts_absolute_local_datastore_path(
-        self, tmp_path: Path
-    ):
+    def test_cli_accepts_absolute_local_datastore_path(self, tmp_path: Path):
         path = (
             tmp_path
             / 'local-output'

@@ -385,12 +385,45 @@ def _cmd_convert_alpaca_eval(args: argparse.Namespace) -> int:
     for version in versions:
         cfg_name = LEADERBOARDS[version]['source_name']
         print(f'\n=== {cfg_name} ===')
-        conversion_result = adapter.fetch_leaderboard_result(version)
+        try:
+            conversion_result = adapter.fetch_leaderboard_result(version)
+        except Exception as exc:
+            conversion_result = SourceConversionResult(
+                source_name=f'AlpacaEval {version}',
+                total_records=1,
+                records=[],
+                failures=[
+                    SourceRecordFailure(
+                        source_ref=f'AlpacaEval leaderboard {version!r}',
+                        reason=str(exc),
+                        source_record={
+                            'version': version,
+                            'source_name': cfg_name,
+                            'url': LEADERBOARDS[version]['url'],
+                        },
+                    )
+                ],
+            )
         conversion_results.append((version, conversion_result))
         if not conversion_result.records and not conversion_result.failures:
-            raise ValueError(
-                f'AlpacaEval conversion produced no logs for {version}'
+            conversion_result = SourceConversionResult(
+                source_name=conversion_result.source_name,
+                total_records=conversion_result.total_records,
+                records=[],
+                failures=[
+                    SourceRecordFailure(
+                        source_ref=f'AlpacaEval leaderboard {version!r}',
+                        reason='conversion produced no logs',
+                        source_record={
+                            'version': version,
+                            'source_name': cfg_name,
+                            'url': LEADERBOARDS[version]['url'],
+                        },
+                    )
+                ],
+                exclusions=conversion_result.exclusions,
             )
+            conversion_results[-1] = (version, conversion_result)
 
         for log in conversion_result.records:
             if args.source_organization_name != 'unknown':

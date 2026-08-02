@@ -68,6 +68,8 @@ from every_eval_ever.helpers import (
     SourceRecordFailure,
     default_failure_report_path,
     get_model_id,
+    require_finite_number,
+    require_identity,
     sanitize_filename,
     save_evaluation_logs,
     save_failure_report,
@@ -118,27 +120,21 @@ class LeaderboardRow:
 
     @property
     def score(self) -> float:
-        return float(self.raw['score'])
+        return require_finite_number(self.raw['score'], 'HLE score')
 
     @property
     def confidence_half_width(self) -> float | None:
         value = self.raw.get('confidenceInterval_upper')
         if value is None:
             return None
-        try:
-            return float(value)
-        except (TypeError, ValueError):
-            return None
+        return require_finite_number(value, 'HLE confidence interval')
 
     @property
     def calibration_error(self) -> float | None:
         value = self.raw.get('calibrationError')
         if value is None:
             return None
-        try:
-            return float(value)
-        except (TypeError, ValueError):
-            return None
+        return require_finite_number(value, 'HLE calibration error')
 
     @property
     def created_at(self) -> str | None:
@@ -286,7 +282,7 @@ def load_payload_file(path: Path) -> list[dict[str, Any]]:
 def slugify_model(raw: str) -> str:
     base = re.sub(r'[^\w.\-]+', '-', raw.strip().lower())
     base = re.sub(r'-{2,}', '-', base).strip('-')
-    return sanitize_filename(base) or 'unknown'
+    return require_identity(sanitize_filename(base), 'HLE model path name')
 
 
 def normalize_developer(company: str) -> str:
@@ -414,7 +410,7 @@ def make_calibration_result(
                 input_prompt=JUDGE_PROMPT_DESCRIPTION,
             ),
         ),
-        score_details=ScoreDetails(score=float(row.calibration_error)),
+        score_details=ScoreDetails(score=row.calibration_error),
         generation_config=make_generation_config(),
     )
 

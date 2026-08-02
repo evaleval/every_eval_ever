@@ -26,11 +26,20 @@ _EXPECTED_PATH_PARTS = 5  # data / benchmark / developer / model / filename
 _UUID_RE = (
     r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}'
 )
-_AGGREGATE_FILE_RE = re.compile(rf'{_UUID_RE}\.json$', re.IGNORECASE)
-_INSTANCE_FILE_RE = re.compile(rf'{_UUID_RE}_samples\.jsonl$', re.IGNORECASE)
+_AGGREGATE_FILE_RE = re.compile(rf'{_UUID_RE}\.json$')
+_INSTANCE_FILE_RE = re.compile(rf'{_UUID_RE}_samples\.jsonl$')
 
 _DEPLOYMENT_TYPES = ('self_deployed', 'externally_managed', 'unknown')
 _MODEL_AVAILABILITY_TYPES = ('open_weights', 'closed_weights', 'unknown')
+_INVALID_PATH_COMPONENT_CHARS = re.compile(r'[<>:"\\|?*\x00-\x1f]')
+_WINDOWS_RESERVED_NAMES = {
+    'CON',
+    'PRN',
+    'AUX',
+    'NUL',
+    *(f'COM{index}' for index in range(1, 10)),
+    *(f'LPT{index}' for index in range(1, 10)),
+}
 
 
 @dataclass
@@ -194,6 +203,18 @@ def check_path_structure(repo_path: str) -> list[str]:
             f"the reserved datastore name 'data': '{repo_path}'"
         ]
 
+    for component in parts[1:4]:
+        if (
+            _INVALID_PATH_COMPONENT_CHARS.search(component)
+            or component.endswith(('.', ' '))
+            or component.split('.', 1)[0].upper() in _WINDOWS_RESERVED_NAMES
+        ):
+            return [
+                'Collection, developer, and model path components must be '
+                'portable filesystem names; got '
+                f'{component!r} in {repo_path!r}'
+            ]
+
     filename = parts[4]
     if not (
         _AGGREGATE_FILE_RE.fullmatch(filename)
@@ -288,6 +309,8 @@ def _compare_aggregate_and_samples(
         return []
 
     errors: list[str] = []
+    if samples.line_count == 0:
+        errors.append('samples companion must contain at least one JSONL row')
     expected_evaluation_id = aggregate_data.get('evaluation_id')
     unexpected_evaluation_ids = samples.evaluation_ids - {
         _summary_identifier(expected_evaluation_id)
@@ -490,6 +513,30 @@ def check_score_metadata(data: dict[str, Any]) -> list[str]:
                 f'finite number, got {score!r}'
             )
             continue
+        uncertainty = score_details.get('uncertainty')
+        if isinstance(uncertainty, dict):
+            finite_uncertainty_fields = {
+                'standard_deviation': uncertainty.get('standard_deviation'),
+            }
+            standard_error = uncertainty.get('standard_error')
+            if isinstance(standard_error, dict):
+                finite_uncertainty_fields['standard_error.value'] = (
+                    standard_error.get('value')
+                )
+            confidence_interval = uncertainty.get('confidence_interval')
+            if isinstance(confidence_interval, dict):
+                for name in ('lower', 'upper', 'confidence_level'):
+                    if name in confidence_interval:
+                        finite_uncertainty_fields[
+                            f'confidence_interval.{name}'
+                        ] = confidence_interval.get(name)
+            for field_name, value in finite_uncertainty_fields.items():
+                if value is not None and not _is_finite_number(value):
+                    warnings.append(
+                        f'evaluation_results[{index}].score_details.'
+                        f'uncertainty.{field_name}: expected a finite number, '
+                        f'got {value!r}'
+                    )
         if lo is not None and hi is not None and lo > hi:
             warnings.append(
                 f'evaluation_results[{index}].metric_config: min_score '
@@ -536,37 +583,65 @@ def check_model_deployment(data: dict[str, Any]) -> list[str]:
     provider-specific existence check.
     """
     warnings: list[str] = []
-    model_info = data.get('model_info')
-    if not isinstance(model_info, dict):
-        return warnings
 
-    details = model_info.get('additional_details')
-    if not isinstance(details, dict):
-        details = {}
+    def check_one(model_info: Any, location: str) -> None:
+        if not isinstance(model_info, dict):
+            return
+        details = model_info.get('additional_details')
+        if not isinstance(details, dict):
+            details = {}
 
-    deployment_type = details.get('deployment_type')
-    if deployment_type is None:
-        warnings.append(
-            "model_info.additional_details: missing 'deployment_type' "
-            f'(expected {"|".join(_DEPLOYMENT_TYPES)})'
-        )
-    elif deployment_type not in _DEPLOYMENT_TYPES:
-        warnings.append(
-            'model_info.additional_details.deployment_type: expected one of '
-            f'{list(_DEPLOYMENT_TYPES)}, got {deployment_type!r}'
-        )
+        deployment_type = details.get('deployment_type')
+        if deployment_type is None:
+            warnings.append(
+                f"{location}.additional_details: missing 'deployment_type' "
+                f'(expected {"|".join(_DEPLOYMENT_TYPES)})'
+            )
+        elif deployment_type not in _DEPLOYMENT_TYPES:
+            warnings.append(
+                f'{location}.additional_details.deployment_type: expected '
+                f'one of {list(_DEPLOYMENT_TYPES)}, got '
+                f'{deployment_type!r}'
+            )
 
-    availability = details.get('model_availability')
-    if availability is None:
-        warnings.append(
-            "model_info.additional_details: missing 'model_availability' "
-            f'(expected {"|".join(_MODEL_AVAILABILITY_TYPES)})'
-        )
-    elif availability not in _MODEL_AVAILABILITY_TYPES:
-        warnings.append(
-            'model_info.additional_details.model_availability: expected one '
-            f'of {list(_MODEL_AVAILABILITY_TYPES)}, got {availability!r}'
-        )
+        availability = details.get('model_availability')
+        if availability is None:
+            warnings.append(
+                f'{location}.additional_details: missing '
+                f"'model_availability' (expected "
+                f'{"|".join(_MODEL_AVAILABILITY_TYPES)})'
+            )
+        elif availability not in _MODEL_AVAILABILITY_TYPES:
+            warnings.append(
+                f'{location}.additional_details.model_availability: '
+                f'expected one of {list(_MODEL_AVAILABILITY_TYPES)}, got '
+                f'{availability!r}'
+            )
+
+    check_one(data.get('model_info'), 'model_info')
+    results = data.get('evaluation_results')
+    if isinstance(results, list):
+        for result_index, result in enumerate(results):
+            if not isinstance(result, dict):
+                continue
+            metric = result.get('metric_config')
+            scoring = (
+                metric.get('llm_scoring') if isinstance(metric, dict) else None
+            )
+            judges = (
+                scoring.get('judges') if isinstance(scoring, dict) else None
+            )
+            if not isinstance(judges, list):
+                continue
+            for judge_index, judge in enumerate(judges):
+                if not isinstance(judge, dict):
+                    continue
+                check_one(
+                    judge.get('model_info'),
+                    'evaluation_results'
+                    f'[{result_index}].metric_config.llm_scoring.judges'
+                    f'[{judge_index}].model_info',
+                )
     return warnings
 
 

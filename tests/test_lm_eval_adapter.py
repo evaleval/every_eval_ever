@@ -1,3 +1,4 @@
+import json
 import tempfile
 from pathlib import Path
 
@@ -70,6 +71,16 @@ def test_find_samples_file():
 
 def test_find_samples_file_missing():
     assert find_samples_file(DATA_DIR, 'nonexistent_task') is None
+
+
+def test_find_samples_file_does_not_cross_model_directories(tmp_path):
+    nested = tmp_path / 'another-model'
+    nested.mkdir()
+    (nested / 'samples_shared_task_2026.jsonl').write_text(
+        '{}\n', encoding='utf-8'
+    )
+
+    assert find_samples_file(tmp_path, 'shared_task') is None
 
 
 # ── Adapter: transform_from_file ───────────────────────────────────────
@@ -386,3 +397,28 @@ def test_directory_conversion_retains_good_files_and_reports_bad_files(
     assert result.failures[0].source_record == {'path': str(bad_path)}
     with pytest.raises(SourceRecordsError, match='broken lm-eval result'):
         result.raise_if_incomplete()
+
+
+def test_directory_conversion_tracks_each_results_file_parent(tmp_path):
+    adapter = LMEvalAdapter()
+    source = json.loads(RESULTS_FILE.read_text(encoding='utf-8'))
+    model_a = tmp_path / 'model-a'
+    model_b = tmp_path / 'model-b'
+    model_a.mkdir()
+    model_b.mkdir()
+    first = model_a / 'results_first.json'
+    second = model_b / 'results_second.json'
+    first.write_text(json.dumps(source), encoding='utf-8')
+    second_source = json.loads(json.dumps(source))
+    second_source['config']['model_args'] = 'pretrained=test/model-b'
+    second.write_text(json.dumps(second_source), encoding='utf-8')
+
+    result = adapter.transform_from_directory_result(
+        tmp_path, {'parent_eval_output_dir': str(tmp_path)}
+    )
+
+    parents = {
+        adapter.get_eval_metadata(log.evaluation_id)['parent_dir']
+        for log in result.records
+    }
+    assert parents == {str(model_a), str(model_b)}

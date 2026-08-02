@@ -397,12 +397,13 @@ class LMEvalAdapter(BaseEvaluationAdapter):
         raw_data = self._load_file(file_path)
         tasks = self._get_tasks(raw_data)
 
-        # Pass the parent directory so instance-level adapter can find samples files
-        if 'parent_eval_output_dir' not in metadata_args:
-            metadata_args = {
-                **metadata_args,
-                'parent_eval_output_dir': str(file_path.parent),
-            }
+        # Samples belong to this results file, not to the directory originally
+        # passed to the CLI. This matters when one invocation contains several
+        # model directories with identically named tasks.
+        metadata_args = {
+            **metadata_args,
+            'parent_eval_output_dir': str(file_path.parent),
+        }
 
         results = []
         for task_name in tasks:

@@ -61,7 +61,10 @@ def test_missing_model_reports_failed_source_record_count():
     try:
         adapter.make_logs(rows, retrieved_timestamp='1234567890.0')
     except ValueError as exc:
-        assert 'encountered 1 conversion issue(s) across 6 source record(s)' in str(exc)
+        assert (
+            'encountered 1 conversion issue(s) across 6 source record(s)'
+            in str(exc)
+        )
         assert 'JSONL row 6: missing model name' in str(exc)
     else:
         raise AssertionError('expected an incomplete MT-Bench row to fail')
@@ -75,7 +78,7 @@ def test_make_logs_validate_against_schema():
 
     for log, _, _ in bundles:
         validated = EvaluationLog.model_validate(log.model_dump())
-        assert validated.schema_version == '0.2.2'
+        assert validated.schema_version == '0.2.3'
         assert validated.source_metadata.source_organization_name == 'LMSYS'
         assert validated.source_metadata.source_type.value == 'documentation'
         assert (

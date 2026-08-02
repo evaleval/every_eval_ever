@@ -61,17 +61,51 @@ PATCHES = [
         details = dict(self.additional_details or {})
         details.setdefault("deployment_type", "unknown")
         details.setdefault("model_availability", "unknown")
+        allowed = {
+            "deployment_type": {
+                "self_deployed", "externally_managed", "unknown"
+            },
+            "model_availability": {
+                "open_weights", "closed_weights", "unknown"
+            },
+        }
+        for name, values in allowed.items():
+            if details[name] not in values:
+                raise ValueError(
+                    f"{name} must be one of {sorted(values)}, "
+                    f"got {details[name]!r}"
+                )
         self.additional_details = details
         return self
 """,
     },
     {
         'file': 'every_eval_ever/eval_types.py',
-        'import_add': ['model_validator', 'field_serializer'],
+        'import_add': [
+            'model_validator',
+            'field_serializer',
+            'field_validator',
+        ],
         'class_name': 'MetricConfig',
         'marker': 'def validate_score_type_requirements',
         'validator': """
     # --- validators (added by post_codegen.py) ---
+
+    @field_validator("min_score", "max_score", mode="before")
+    @classmethod
+    def validate_bound_wire_type(cls, value):
+        if value == "Infinity":
+            return float("inf")
+        if value == "-Infinity":
+            return float("-inf")
+        if value is None:
+            return None
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise ValueError(
+                "metric bounds must be JSON numbers or the exact strings "
+                "'Infinity'/'-Infinity'"
+            )
+        return value
 
     @model_validator(mode="after")
     def validate_score_type_requirements(self):
@@ -107,28 +141,28 @@ GENERATED_FIELD_PATCHES = [
         'file': 'every_eval_ever/eval_types.py',
         'class_name': 'ModelInfo',
         'field_name': 'additional_details',
-        'replacement': '''    additional_details: dict[str, str] | None = Field(
+        'replacement': """    additional_details: dict[str, str] | None = Field(
         None,
         description='Additional parameters (key-value pairs, all values must be strings)',
-    )''',
+    )""",
     },
     {
         'file': 'every_eval_ever/eval_types.py',
         'class_name': 'MetricConfig',
         'field_name': 'min_score',
-        'replacement': '''    min_score: float | None = Field(
+        'replacement': """    min_score: float | None = Field(
         None,
         description='Minimum possible score for a continuous metric. Use -inf if unbounded below; null means not provided.',
-    )''',
+    )""",
     },
     {
         'file': 'every_eval_ever/eval_types.py',
         'class_name': 'MetricConfig',
         'field_name': 'max_score',
-        'replacement': '''    max_score: float | None = Field(
+        'replacement': """    max_score: float | None = Field(
         None,
         description='Maximum possible score for a continuous metric. Use inf if unbounded above; null means not provided.',
-    )''',
+    )""",
     },
 ]
 
@@ -187,9 +221,7 @@ def add_import(content: str, symbol: str) -> str:
     if symbol in imports:
         return content
     imports.append(symbol)
-    replacement = 'from pydantic import ' + ', '.join(
-        sorted(set(imports))
-    )
+    replacement = 'from pydantic import ' + ', '.join(sorted(set(imports)))
     return (
         content[: line_match.start()]
         + replacement

@@ -11,6 +11,8 @@ from .io import (
     datastore_repo_file_path,
     default_failure_report_path,
     generate_output_path,
+    require_finite_number,
+    require_identity,
     sanitize_filename,
     save_evaluation_log,
     save_evaluation_logs,
@@ -45,6 +47,8 @@ __all__ = [
     'datastore_repo_file_path',
     'save_failure_report',
     'generate_output_path',
+    'require_finite_number',
+    'require_identity',
     'sanitize_filename',
     # schema.py
     'SCHEMA_VERSION',

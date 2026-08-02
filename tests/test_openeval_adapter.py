@@ -145,7 +145,7 @@ def test_make_logs_validate_against_schema():
     assert set(logs) == {'gemma-2b-it', 'gpt-4o'}
     for log in logs.values():
         validated = EvaluationLog.model_validate(log.model_dump())
-        assert validated.schema_version == '0.2.2'
+        assert validated.schema_version == '0.2.3'
         assert validated.source_metadata.source_name == 'OpenEval'
         assert validated.source_metadata.source_type.value == 'evaluation_run'
         assert (
@@ -558,8 +558,8 @@ def test_export_rollback_does_not_delete_competing_file(
     )
     generated_ids = iter(
         [
-            uuid.UUID('00000000-0000-0000-0000-000000000001'),
-            uuid.UUID('00000000-0000-0000-0000-000000000002'),
+            uuid.UUID('00000000-0000-4000-8000-000000000001'),
+            uuid.UUID('00000000-0000-4000-8000-000000000002'),
         ]
     )
     monkeypatch.setattr(adapter.uuid, 'uuid4', lambda: next(generated_ids))
@@ -569,14 +569,14 @@ def test_export_rollback_does_not_delete_competing_file(
         output_dir
         / second.developer
         / second.model
-        / '00000000-0000-0000-0000-000000000002.json'
+        / '00000000-0000-4000-8000-000000000002.json'
     )
     original_open = Path.open
 
     def racing_open(path: Path, mode='r', *args, **kwargs):
-        if path == competing_path and mode == 'x':
-            with original_open(path, 'x', encoding='utf-8') as handle:
-                handle.write('competing process')
+        if path == competing_path and mode == 'xb':
+            with original_open(path, 'xb') as handle:
+                handle.write(b'competing process')
             raise FileExistsError(path)
         return original_open(path, mode, *args, **kwargs)
 
@@ -594,7 +594,7 @@ def test_export_rollback_does_not_delete_competing_file(
         output_dir
         / first.developer
         / first.model
-        / '00000000-0000-0000-0000-000000000001.json'
+        / '00000000-0000-4000-8000-000000000001.json'
     )
     assert not first_path.exists()
     assert competing_path.read_text(encoding='utf-8') == 'competing process'
