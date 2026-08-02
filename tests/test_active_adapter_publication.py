@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from every_eval_ever.adapters.bfcl import adapter as bfcl
+from every_eval_ever.adapters.cocoabench import adapter as cocoabench
+from every_eval_ever.adapters.helm import adapter as helm
+from every_eval_ever.adapters.sciarena import adapter as sciarena
 from every_eval_ever.helpers import save_evaluation_logs
 from every_eval_ever.validate import validate_file
-from utils.bfcl import adapter as bfcl
-from utils.cocoabench import adapter as cocoabench
-from utils.helm import adapter as helm
-from utils.sciarena import adapter as sciarena
 
 
 def assert_saved_records_are_valid(records) -> list[Path]:

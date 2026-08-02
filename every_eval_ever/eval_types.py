@@ -317,7 +317,7 @@ class ModelInfo(BaseModel):
         description='Additional parameters (key-value pairs, all values must be strings)',
     )
 
-    # --- validator (added by post_codegen.py) ---
+    # --- validator (added by every_eval_ever.post_codegen) ---
 
     @model_validator(mode='after')
     def default_model_metadata(self):
@@ -479,7 +479,7 @@ class MetricConfig(BaseModel):
         description='Additional parameters (key-value pairs, all values must be strings)',
     )
 
-    # --- validators (added by post_codegen.py) ---
+    # --- validators (added by every_eval_ever.post_codegen) ---
 
     @field_validator('min_score', 'max_score', mode='before')
     @classmethod

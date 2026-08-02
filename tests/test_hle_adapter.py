@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from every_eval_ever.adapters.hle import adapter
 from every_eval_ever.eval_types import EvaluationLog
-from utils.hle import adapter
 
 
 def sample_rows() -> list[dict]:

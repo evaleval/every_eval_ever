@@ -1,12 +1,12 @@
 import json
 
-from every_eval_ever.helpers.io import SourceRecordsError
-from every_eval_ever.validate import validate_file
-from utils.hfopenllm_v2.adapter import (
+from every_eval_ever.adapters.hfopenllm_v2.adapter import (
     convert_model,
     convert_models,
     process_models,
 )
+from every_eval_ever.helpers.io import SourceRecordsError
+from every_eval_ever.validate import validate_file
 
 
 def _model(evaluations):

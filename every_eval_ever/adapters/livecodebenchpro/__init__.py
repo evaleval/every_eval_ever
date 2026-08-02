@@ -1,0 +1,1 @@
+"""Legacy LiveCodeBench Pro adapter."""

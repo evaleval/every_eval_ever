@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from every_eval_ever.adapters.mmlu_pro import adapter
 from every_eval_ever.eval_types import EvaluationLog
 from every_eval_ever.helpers.io import SourceRecordsError
-from utils.mmlu_pro import adapter
 
 
 def sample_rows() -> list[dict]:

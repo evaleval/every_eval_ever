@@ -1,6 +1,8 @@
 from importlib import import_module
 
-convert_rows = import_module("utils.global-mmlu-lite.adapter").convert_rows
+convert_rows = import_module(
+    'every_eval_ever.adapters.global_mmlu_lite.adapter'
+).convert_rows
 
 
 def _task(name, value):

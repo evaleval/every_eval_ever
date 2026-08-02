@@ -2,8 +2,8 @@ import json
 
 import yaml
 
-from utils.multi_swe_bench import adapter
-from utils.multi_swe_bench.adapter import convert_submissions
+from every_eval_ever.adapters.multi_swe_bench import adapter
+from every_eval_ever.adapters.multi_swe_bench.adapter import convert_submissions
 
 
 def _submission(root, name, total_instances):

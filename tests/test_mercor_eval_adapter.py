@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 
+from every_eval_ever.adapters.mercor_eval import adapter
 from every_eval_ever.eval_types import EvaluationLog
 from every_eval_ever.validate import validate_file
-from utils.mercor_eval import adapter
 
 FIXTURE_PATH = (
     Path(__file__).parent / 'data' / 'mercor_eval' / 'api_payload.json'

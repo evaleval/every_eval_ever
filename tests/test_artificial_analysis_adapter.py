@@ -1,4 +1,4 @@
-from utils.artificial_analysis.adapter import (
+from every_eval_ever.adapters.artificial_analysis.adapter import (
     compute_observed_max_scores,
     convert_models,
 )

@@ -3,10 +3,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from every_eval_ever.adapters.llm_stats import adapter
 from every_eval_ever.eval_types import EvaluationLog
 from every_eval_ever.helpers.io import SourceRecordsError
 from every_eval_ever.validate import validate_file
-from utils.llm_stats import adapter
 
 
 def sample_payload() -> dict:

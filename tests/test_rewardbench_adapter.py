@@ -1,4 +1,4 @@
-from utils.rewardbench.adapter import (
+from every_eval_ever.adapters.rewardbench.adapter import (
     convert_rewardbench_v1_rows,
     extract_hf_model_id_from_html,
 )

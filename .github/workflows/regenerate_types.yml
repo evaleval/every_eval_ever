@@ -40,7 +40,7 @@ jobs:
             --output-model-type pydantic_v2.BaseModel \
             --input-file-type jsonschema \
             --formatters ruff-format ruff-check
-          uv run --project .github/ci-types python post_codegen.py
+          uv run --project .github/ci-types python -m every_eval_ever.post_codegen
           uv run --project .github/ci-types ruff check --fix \
             every_eval_ever/eval_types.py \
             every_eval_ever/instance_level_types.py

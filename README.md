@@ -72,7 +72,7 @@ Note: Each file can contain multiple individual results related to one model. Se
 1. Add a new folder under [`data/`](https://huggingface.co/datasets/evaleval/EEE_datastore/tree/main/data) on the Hugging Face datastore with a codename for your eval.
 2. For each model, use the Hugging Face (`developer_name/model_name`) naming convention to create a 2-tier folder structure.
 3. Add a JSON file with results for each model and name it `{uuid}.json`.
-4. [Optional] Include a [`utils/`](utils/) folder in your benchmark name folder with any scripts used to generate the data (see e.g. [`utils/global-mmlu-lite/adapter.py`](utils/global-mmlu-lite/adapter.py)).
+4. [Optional] Include a [`every_eval_ever/adapters/`](every_eval_ever/adapters/) folder in your benchmark name folder with any scripts used to generate the data (see e.g. [`every_eval_ever/adapters/global_mmlu_lite/adapter.py`](every_eval_ever/adapters/global_mmlu_lite/adapter.py)).
 5. [Submit] Two ways to submit your evaluation data:
    - **Option A: Drag & drop via Hugging Face** — Go to [evaleval/EEE_datastore](https://huggingface.co/datasets/evaleval/EEE_datastore) → click "Files and versions" → "Contribute" → "Upload files" → drag and drop your data → select "Open as a pull request to the main branch". See [step-by-step screenshots](https://docs.google.com/document/d/1dxTQF8ncGCzaAOIj0RX7E9Hg4THmUBzezDOYUp_XdCY/edit?usp=sharing).
    - **Option B: Upload via `huggingface_hub`** — Useful for larger submissions or many files.
@@ -338,7 +338,7 @@ Run the following commands to generate the package-local Pydantic classes from t
 ```bash
 uv run datamodel-codegen --input every_eval_ever/schemas/eval.schema.json --output every_eval_ever/eval_types.py --class-name EvaluationLog --output-model-type pydantic_v2.BaseModel --input-file-type jsonschema --formatters ruff-format ruff-check
 uv run datamodel-codegen --input every_eval_ever/schemas/instance_level_eval.schema.json --output every_eval_ever/instance_level_types.py --class-name InstanceLevelEvaluationLog --output-model-type pydantic_v2.BaseModel --input-file-type jsonschema --formatters ruff-format ruff-check
-uv run python post_codegen.py
+uv run python -m every_eval_ever.post_codegen
 ```
 
 ## 🔌 Eval Converters

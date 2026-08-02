@@ -1,8 +1,8 @@
 from pathlib import Path
 
+from every_eval_ever.adapters.terminal_bench_2 import adapter
 from every_eval_ever.helpers.io import SourceRecordsError
 from every_eval_ever.validate import validate_file
-from utils.terminal_bench_2 import adapter
 
 
 def _entry(**overrides):

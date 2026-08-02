@@ -2,7 +2,9 @@ import json
 
 import yaml
 
-from utils.swe_bench_verified.adapter import convert_submissions
+from every_eval_ever.adapters.swe_bench_verified.adapter import (
+    convert_submissions,
+)
 
 
 def _submission(root, name, model):

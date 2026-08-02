@@ -218,7 +218,7 @@ class InstanceLevelEvaluationLog(BaseModel):
         description='Optional metadata about the sample (e.g. subject, difficulty, tags)',
     )
 
-    # --- validators (added by post_codegen.py) ---
+    # --- validators (added by every_eval_ever.post_codegen) ---
 
     @model_validator(mode='after')
     def validate_interaction_type_consistency(self):

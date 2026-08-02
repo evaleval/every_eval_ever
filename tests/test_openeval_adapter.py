@@ -7,11 +7,11 @@ from types import SimpleNamespace
 
 import pytest
 
+from every_eval_ever.adapters.openeval import adapter
 from every_eval_ever.eval_types import EvaluationLog
 from every_eval_ever.helpers.io import SourceRecordsError
 from every_eval_ever.instance_level_types import InstanceLevelEvaluationLog
 from every_eval_ever.validate import validate_file
-from utils.openeval import adapter
 
 
 def sample_payload() -> dict:

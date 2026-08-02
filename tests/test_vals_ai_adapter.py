@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from every_eval_ever.adapters.vals_ai import adapter
 from every_eval_ever.eval_types import EvaluationLog
 from every_eval_ever.validate import validate_file
-from utils.vals_ai import adapter
 
 FIXTURE_PATH = (
     Path(__file__).parent / 'data' / 'vals_ai' / 'finance_agent_payload.json'

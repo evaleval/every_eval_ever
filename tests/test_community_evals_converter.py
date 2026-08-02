@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 import hashlib
-import importlib.util
 import io
 import json
-import sys
 from pathlib import Path
 
 import pytest
@@ -13,28 +11,9 @@ from rich.console import Console
 from rich.progress import Progress
 
 from every_eval_ever import cli
-
-
-def _load_community_evals_converter():
-    source = (
-        Path(__file__).resolve().parents[1]
-        / 'tools'
-        / 'hf-community-evals'
-        / 'community_evals_converter.py'
-    )
-    spec = importlib.util.spec_from_file_location(
-        'community_evals_converter_under_test',
-        source,
-    )
-    if spec is None or spec.loader is None:
-        raise ImportError(f'Unable to load {source}')
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
-
-
-community_evals_converter = _load_community_evals_converter()
+from every_eval_ever.tools import (
+    hf_community_evals as community_evals_converter,
+)
 
 FIXTURE_DIR = Path(__file__).parent / 'data' / 'community_evals_converter'
 

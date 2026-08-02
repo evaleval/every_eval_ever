@@ -3,7 +3,9 @@ from collections import Counter
 
 import yaml
 
-from utils.swe_polybench.adapter import process_submission_result
+from every_eval_ever.adapters.swe_polybench.adapter import (
+    process_submission_result,
+)
 
 
 def test_unknown_instance_is_reported_without_discarding_known_language(

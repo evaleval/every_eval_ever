@@ -1,4 +1,4 @@
-from utils.hal.adapter import (
+from every_eval_ever.adapters.hal.adapter import (
     BENCHMARK_BY_SLUG,
     _parse_cost,
     _parse_percent,
