@@ -24,6 +24,20 @@ pip install 'every-eval-ever[helm]'
 pip install 'every-eval-ever[all]'
 ```
 
+> [!NOTE]
+> **`helm` extra + nltk's import guard.** The `helm` extra pulls in `nltk`, and
+> nltk ≥ 3.10.1 ships an import guard (`nltk/inisec.py`, a CWE-427 mitigation)
+> that blocks nltk-initiated imports of any module whose file resolves *under the
+> current working directory*. With the common in-project virtualenv layout
+> (`uv`'s `.venv/`, or any venv inside the repo), site-packages sits under the
+> CWD, so the guard trips on nltk's own dependencies and importing the HELM
+> converter fails. The extra currently caps `nltk<3.10.1`, so this does not bite
+> by default. If you move to a newer nltk, keep the environment **outside** the
+> checkout — the same thing CI does via `UV_PROJECT_ENVIRONMENT` — e.g.
+> `UV_PROJECT_ENVIRONMENT=/tmp/eee-venv uv sync --extra helm`, or create your
+> venv outside the repository. Upstream tracker:
+> [nltk#3730](https://github.com/nltk/nltk/issues/3730).
+
 ### Terminology
 
 | Term | Our Definition | Example |
