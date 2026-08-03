@@ -12,7 +12,7 @@ import json
 from pathlib import Path
 
 BASE_URL = 'https://webhook.cp-bench.orzzh.com/leaderboard/llm/difficulty'
-DATA_DIR = Path('data') / 'livecodebenchpro'
+DATA_DIR = Path(__file__).resolve().parents[3] / 'data' / 'livecodebenchpro'
 
 # Map evaluation_name -> difficulty for URL matching
 DIFFICULTY_FOR_EVAL = {

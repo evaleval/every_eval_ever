@@ -39,7 +39,7 @@ def test_schema_versions_are_consistent():
     assert CONVERTER_SCHEMA_VERSION == CURRENT_SCHEMA_VERSION
     assert (
         schema_json('instance_level_eval.schema.json')['version']
-        == f'instance_level_eval_{CURRENT_SCHEMA_VERSION}'
+        == CURRENT_SCHEMA_VERSION
     )
 
 
