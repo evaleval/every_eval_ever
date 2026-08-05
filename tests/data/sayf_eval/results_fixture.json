@@ -1,0 +1,94 @@
+{
+  "model": {
+    "name": "openai/gpt-4o",
+    "provider": "openai",
+    "base_url": null
+  },
+  "judge": {
+    "name": "anthropic/claude-sonnet-4-20250514",
+    "provider": "anthropic",
+    "base_url": null
+  },
+  "pipeline": {
+    "temperature": 0.0,
+    "top_p": 1.0,
+    "seed": 42,
+    "max_tokens": "per-task-calibrated",
+    "max_tokens_override": null,
+    "answer_stop": null,
+    "think_handling": "strip <think>...</think> before judging, then apply stop sequence to the answer only",
+    "scoring": "llm-as-judge: single call performs extraction + CORRECT/INCORRECT verdict",
+    "denominator_policy": "accuracy = correct / total over all attempted items; unparseable/empty answers count as incorrect; only judge-API failures are excluded (skipped) from both numerator and denominator"
+  },
+  "results": {
+    "mcq": {
+      "accuracy": 0.6667,
+      "correct": 2,
+      "total": 3,
+      "skipped": 0
+    },
+    "athena_vsp": {
+      "accuracy": 0.5,
+      "correct": 1,
+      "total": 2,
+      "skipped": 0,
+      "mad": 1.3,
+      "extraction_success": 2
+    },
+    "ate": {
+      "accuracy": 0.4,
+      "correct": 2,
+      "total": 5,
+      "skipped": 0,
+      "precision": 0.5,
+      "recall": 0.4,
+      "f1": 0.4444,
+      "exact_matches": 2,
+      "tp_total": 2,
+      "fp_total": 2,
+      "fn_total": 3
+    },
+    "cissp": {
+      "accuracy": 0.8,
+      "correct": 4,
+      "total": 5,
+      "skipped": 1
+    }
+  },
+  "tasks": [
+    "ate",
+    "athena_vsp",
+    "cissp",
+    "mcq"
+  ],
+  "task_sources": {
+    "mcq": {
+      "type": "hf_dataset",
+      "dataset_name": "CTI-Bench MCQ",
+      "hf_repo": "RISys-Lab/Benchmarks_CyberSec_CTI-Bench",
+      "subset": "cti-mcq",
+      "split": "test"
+    },
+    "athena_vsp": {
+      "type": "url",
+      "dataset_name": "AthenaBench VSP",
+      "url": [
+        "https://github.com/Athena-Software-Group/athenabench/raw/main/benchmark/athena-cti-vsp.jsonl"
+      ]
+    },
+    "ate": {
+      "type": "hf_dataset",
+      "dataset_name": "CTI-Bench ATE (ATT&CK)",
+      "hf_repo": "RISys-Lab/Benchmarks_CyberSec_CTI-Bench",
+      "subset": "cti-ate",
+      "split": "test"
+    },
+    "cissp": {
+      "type": "other",
+      "dataset_name": "CISSP (private; SAYF_EVAL_CISSP_PATH)"
+    }
+  },
+  "sayf_eval_version": "0.1.0",
+  "schema_version": "1.0",
+  "created_at": "2026-08-05T10:19:43.041994+00:00"
+}
