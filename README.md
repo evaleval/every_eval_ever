@@ -46,120 +46,13 @@ pip install 'every-eval-ever[all]'
 | **Composite Benchmark** | A collection of simple benchmarks aggregated into one overall score, testing multiple capabilities at once | BIG-Bench bundles >200 tasks with a single aggregate score |
 | **Metric** | Any numerical or categorical value used to score performance on a benchmark (accuracy, F1, precision, recall, …) | A model scores 92% accuracy on MMLU |
 
-## 🚀 Contributor Guide
-New data can be contributed to the [Hugging Face Dataset](https://huggingface.co/datasets/evaleval/EEE_datastore) using the following process:
+## 🚀 Contributing
 
-Leaderboard/evaluation data is split-up into files by individual model, and data for each model is stored using [`eval.schema.json`](every_eval_ever/schemas/eval.schema.json). The repository is structured into folders as `data/{benchmark_name}/{developer_name}/{model_name}/`.
+Contributing data, writing an adapter, or changing the schema? **[CONTRIBUTING.md](CONTRIBUTING.md)** is the guide: how your PR gets reviewed, how to submit data to the datastore, the naming conventions, and the conventions for filling in each field.
 
-### TL;DR How to successfully submit
+The rest of this README is for *reading* EEE — what the schema says, how to validate a record, and what the converters do.
 
-1. Data must conform to [`eval.schema.json`](every_eval_ever/schemas/eval.schema.json) (current version: `0.3.0`)
-2. The validation pipeline will automatically verify the data submitted in the pull request, but can also be manually triggered by typing ```/eee validate changed``` in a comment on the HF PR.
-3. An EvalEval member will review and merge your submission
-
-### PR Naming Convention
-
-Use these prefixes in your pull request titles:
-
-- `[Submission]` - New evaluation data
-- `[Issue #N]` - Fix for a specific GitHub issue
-- `[Feature]` - New functionality not tied to an issue
-- `[Docs]` - Documentation changes
-- `[ACL Shared Task]` - Shared task submissions (priority review)
-
-### UUID Naming Convention
-
-Each JSON file is named with a **UUID (Universally Unique Identifier)** in the format `{uuid}.json`. The UUID is automatically generated (using standard UUID v4) when creating a new evaluation result file. This ensures that:
-- **Multiple evaluations** of the same model can exist without conflicts (each gets a unique UUID)
-- **Different timestamps** are stored as separate files with different UUIDs (not as separate folders)
-- A model may have multiple result files, with each file representing different iterations or runs of the leaderboard/evaluation
-- UUID's can be generated using Python's `uuid.uuid4()` function.
-
-**Example**: The model `openai/gpt-4o-2024-11-20` might have multiple files like:
-- `e70acf51-30ef-4c20-b7cc-51704d114d70.json` (evaluation run #1)
-- `a1b2c3d4-5678-90ab-cdef-1234567890ab.json` (evaluation run #2)
-
-Note: Each file can contain multiple individual results related to one model. See [examples in the datastore](https://huggingface.co/datasets/evaleval/EEE_datastore/tree/main/data).
-
-### How to add new eval:
-
-1. Add a new folder under [`data/`](https://huggingface.co/datasets/evaleval/EEE_datastore/tree/main/data) on the Hugging Face datastore with a codename for your eval.
-2. For each model, use the Hugging Face (`developer_name/model_name`) naming convention to create a 2-tier folder structure.
-3. Add a JSON file with results for each model and name it `{uuid}.json`.
-4. [Optional] Add scripts used to generate the data under [`every_eval_ever/adapters/`](every_eval_ever/adapters/) in this repository (see e.g. [`every_eval_ever/adapters/global_mmlu_lite/adapter.py`](every_eval_ever/adapters/global_mmlu_lite/adapter.py)).
-5. [Submit] Two ways to submit your evaluation data:
-   - **Option A: Drag & drop via Hugging Face** — Go to [evaleval/EEE_datastore](https://huggingface.co/datasets/evaleval/EEE_datastore) → click "Files and versions" → "Contribute" → "Upload files" → drag and drop your data → select "Open as a pull request to the main branch". See [step-by-step screenshots](https://docs.google.com/document/d/1dxTQF8ncGCzaAOIj0RX7E9Hg4THmUBzezDOYUp_XdCY/edit?usp=sharing).
-   - **Option B: Upload via `huggingface_hub`** — Useful for larger submissions or many files.
-
-     ```python
-     from huggingface_hub import HfApi
-
-     api = HfApi()
-
-     pr_url = api.upload_folder(
-         folder_path="data/my-eval",
-         path_in_repo="data/my-eval",
-         repo_id="evaleval/EEE_datastore",
-         repo_type="dataset",
-         commit_message="[Submission] Add my eval",
-         commit_description="Adds evaluation data for my eval.",
-         create_pr=True,  # opens a PR instead of committing directly
-     )
-
-     print(pr_url)
-     ```
-
-     To add more files to the same PR, use the PR ref returned by Hugging Face (for example, `refs/pr/XX`):
-
-     ```python
-     from huggingface_hub import HfApi
-
-     api = HfApi()
-
-     api.upload_file(
-         path_or_fileobj="data/my-eval/developer/model/uuid_samples.jsonl",
-         path_in_repo="data/my-eval/developer/model/uuid_samples.jsonl",
-         repo_id="evaleval/EEE_datastore",
-         repo_type="dataset",
-         revision="refs/pr/XX",  # upload to an existing PR
-         commit_message="[Submission] Add instance-level samples",
-     )
-     ```
-### Schema Instructions
-
-1. **`model_info`**: Use Hugging Face formatting (`developer_name/model_name`). If a model does not come from Hugging Face, use the exact API reference. Check [examples in data/livecodebenchpro](https://huggingface.co/datasets/evaleval/EEE_datastore/tree/main/data/livecodebenchpro). Notably, some do have a **date included in the model name**, but others **do not**. For example:
-- OpenAI: `gpt-4o-2024-11-20`, `gpt-5-2025-08-07`, `o3-2025-04-16`
-- Anthropic: `claude-3-7-sonnet-20250219`, `claude-3-sonnet-20240229`
-- Google: `gemini-2.5-pro`, `gemini-2.5-flash`
-- xAI (Grok): `grok-2-2024-08-13`, `grok-3-2025-01-15`
-
-2. **`evaluation_id`**: Use `{benchmark_name/model_id/retrieved_timestamp}` format (e.g. `livecodebenchpro/qwen3-235b-a22b-thinking-2507/1760492095.8105888`).
-
-3. **`inference_platform`** vs **`inference_engine`**: Where possible specify where the evaluation was run using one of these two fields.
-- `inference_platform`: Use this field when the evaluation was run through a remote API (e.g., `openai`, `huggingface`, `openrouter`, `anthropic`, `xai`).
-- `inference_engine`: Use this field when the evaluation was run locally. This is now an object with `name` and `version` (e.g. `{"name": "vllm", "version": "0.6.0"}`).
-
-4. The `source_type` on `source_metadata` has two options: `documentation` and `evaluation_run`. Use `documentation` when results are scraped from a leaderboard or paper. Use `evaluation_run` when the evaluation was run locally (e.g. via an eval converter).
-
-5. **`source_data`** is specified per evaluation result (inside `evaluation_results`), with three variants:
-- `source_type: "url"` — link to a web source (e.g. leaderboard API)
-- `source_type: "hf_dataset"` — reference to a Hugging Face dataset (e.g. `{"hf_repo": "google/IFEval"}`)
-- `source_type: "other"` — for private or proprietary datasets
-
-6. The schema is designed to accommodate both numeric and level-based (e.g. Low, Medium, High) metrics. For level-based metrics, the actual 'value' should be converted to an integer (e.g. Low = 1, Medium = 2, High = 3), and the `level_names` property should be used to specify the mapping of levels to integers.
-
-7. **Timestamps**: The schema has three timestamp fields — use them as follows:
-- `retrieved_timestamp` (required) — when this record was created, in Unix epoch format (e.g. `1760492095.8105888`)
-- `evaluation_timestamp` (top-level, optional) — when the evaluation was run
-- `evaluation_results[].evaluation_timestamp` (per-result, optional) — when a specific evaluation result was produced, if different results were run at different times
-
-8. Additional details can be provided in several places in the schema. They are not required, but can be useful for detailed analysis.
-- `model_info.additional_details`: Use this field to provide any additional information about the model itself (e.g. number of parameters)
-- `evaluation_results.generation_config.generation_args`: Specify additional arguments used to generate outputs from the model
-- `evaluation_results.generation_config.additional_details`: Use this field to provide any additional information about the evaluation process that is not captured elsewhere
-
-
-### Instance-Level Data
+## 🧩 Instance-Level Data
 
 For evaluations that include per-sample results, the individual results should be stored in a companion `{uuid}_samples.jsonl` file in the same folder (one JSONL per JSON, sharing the same UUID). The aggregate JSON file refers to its JSONL via the `detailed_evaluation_results` field. The instance-level schema ([`instance_level_eval.schema.json`](every_eval_ever/schemas/instance_level_eval.schema.json)) supports three interaction types:
 
@@ -188,7 +81,7 @@ Example `single_turn` instance:
 }
 ```
 
-### Agentic Evaluations
+## 🤖 Agentic Evaluations
 
 For agentic evaluations (e.g., SWE-Bench, GAIA), the aggregate schema captures configuration under `generation_config.generation_args`:
 

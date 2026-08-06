@@ -48,7 +48,6 @@ convert external eval sources into it.
   exit account for every source row you could not convert.
 - A dataset contribution is usually three PRs (adapter here · ids in `eval-card-registry`
   · data in `EEE_datastore`) — cross-link them. See the skill's "three PRs" section.
-
 ## Changing the schema, the validator, or the publisher
 These change what a *contribution* must look like, so the contributor-facing guidance is
 part of the change — not a follow-up.
@@ -62,5 +61,6 @@ part of the change — not a follow-up.
   duplicates it is what went stale last time.
 
 ## Human docs
-`README.md` and `every_eval_ever/adapters/README.md` are for people. Keep agent
+`README.md` (understand & use), `CONTRIBUTING.md` (author & submit) and
+`every_eval_ever/adapters/README.md` (adapter authors) are for people. Keep agent
 instructions here and in `.claude/skills/`.
