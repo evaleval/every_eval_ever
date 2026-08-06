@@ -2,9 +2,21 @@
 
 Thanks for contributing! This repo defines the **Every Eval Ever (EEE)** schema and hosts the tooling around it — validation, converters, and adapters. The evaluation data itself lives in the [Hugging Face datastore](https://huggingface.co/datasets/evaleval/EEE_datastore), split into files by individual model and stored using [`eval.schema.json`](every_eval_ever/schemas/eval.schema.json) under `data/{benchmark_name}/{developer_name}/{model_name}/`.
 
-For what the schema *is* and how to read a record, start with the [README](README.md) — [The Schema in Practice](README.md#-the-schema-in-practice), [Instance-Level Data](README.md#-instance-level-data), and [`eval.schema.json`](every_eval_ever/schemas/eval.schema.json) itself. This guide covers authoring and submitting: how to submit data, and what to do when you change the schema or the tooling.
+For what the schema *is* and how to read a record, start with the [README](README.md) — [The Schema in Practice](README.md#-the-schema-in-practice), [Instance-Level Data](README.md#-instance-level-data), and [`eval.schema.json`](every_eval_ever/schemas/eval.schema.json) itself. This guide covers authoring and submitting: how your PR gets reviewed, how to submit data, and what to do when you change the schema or the tooling.
 
 > **Using an AI coding agent?** This repo ships an `eee-dataset-conversion` skill ([`.claude/skills/eee-dataset-conversion/`](.claude/skills/eee-dataset-conversion/), indexed from [AGENTS.md](AGENTS.md)) that walks an agent through a conversion — schema field traps, aggregate + instance records, verification, and a decision log to paste into the PR. The rules below apply to agent-authored PRs too, and the agent is expected to follow them.
+
+## 🔍 How your PR gets reviewed
+
+Which lane you land in depends on the change, not on who wrote it.
+
+**Fast — reviewed and merged quickly, sometimes by an agent.** No conflicts with `main`; scoped to one adapter, one file, or the tests; understood and verified by you; under ~1000 hand-written lines. A new adapter, a small validator behaviour change, a workflow fix. A maintainer can also put any PR in this lane with the **`auto-review`** label — ask in your description if you think yours belongs here.
+
+**Needs a human** — either of the PR or of an agent's review of it — if any of the above doesn't hold, or for: a design change · a change spanning packages · a large refactor · more than ~1000 hand-written lines · a material change in outcome, where the same input now produces different data · a large agent-authored change. In practice: schema changes, edits to base adapters, changing or dropping a validator rule, restructuring.
+
+**Planning something structural? Agree the approach before opening a PR.** Open an issue or raise it with a maintainer. We don't have the capacity to review a large structural PR that arrives cold, so one opened ahead of that agreement will sit — which wastes your work, not ours.
+
+*Hand-written lines* excludes the generated types (`every_eval_ever/eval_types.py`, `instance_level_types.py`) and fixtures under `tests/data/`. Generated files anywhere else count in full: bulk output landing in the package is itself a thing to review, not a line-count technicality. And the threshold triages — don't split one coherent change into three to duck under it.
 
 ## 📥 Submitting evaluation data
 
@@ -70,22 +82,9 @@ Note: each file can contain multiple individual results related to one model. Se
      print(pr_url)
      ```
 
-     To add more files to the same PR, use the PR ref returned by Hugging Face (for example, `refs/pr/XX`):
-
-     ```python
-     from huggingface_hub import HfApi
-
-     api = HfApi()
-
-     api.upload_file(
-         path_or_fileobj="data/my-eval/developer/model/uuid_samples.jsonl",
-         path_in_repo="data/my-eval/developer/model/uuid_samples.jsonl",
-         repo_id="evaleval/EEE_datastore",
-         repo_type="dataset",
-         revision="refs/pr/XX",  # upload to an existing PR
-         commit_message="[Submission] Add instance-level samples",
-     )
-     ```
+     To add files to that PR rather than opening another, pass the PR ref Hugging Face
+     returned as `revision` (e.g. `revision="refs/pr/XX"`) to `upload_file` or a further
+     `upload_folder`.
 
 Before opening the PR, validate locally — see [Data Validation](README.md#-data-validation).
 
@@ -131,7 +130,7 @@ Conventions for authoring records. For what each field *means*, see [The Schema 
 
 ## 🔧 Changing the schema, the validator, or the publisher
 
-These change what a *contribution* has to look like, so the contributor-facing guidance is part of the change rather than a follow-up.
+These change what a *contribution* has to look like, so they are slow-lane by default, and the contributor-facing guidance is part of the change rather than a follow-up.
 
 1. **Regenerate the Pydantic types** and commit the result — the commands are in [Auto-generation of Pydantic Classes](README.md#-auto-generation-of-pydantic-classes-for-schema).
 

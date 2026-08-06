@@ -3,6 +3,15 @@
 ## What / source
 <!-- What does this change do? For an adapter: what source does it convert, and to what grain? -->
 
+## Review lane
+<!-- See CONTRIBUTING.md § "How your PR gets reviewed". Pick one; a maintainer may disagree. -->
+- [ ] **Fast** — no conflicts, scoped (tests / one adapter / one file), verified by me, under ~1000 hand-written lines
+- [ ] **Needs a human** — design change, cross-package, large, refactor, material change in outcome, or large agent-authored change
+
+<!-- If this is a large or structural change: link the issue or discussion where the design was
+     agreed. Structural PRs opened without prior agreement will sit — we can't review them cold. -->
+Design agreed in:
+
 ## Checklist
 - [ ] `python -m every_eval_ever validate <files>` is clean — **no warnings either** —
       run at the final `data/<collection>/<dev>/<model>/` path, where the semantic
@@ -32,4 +41,3 @@
 
 **Operator asked about policy calls?** <!-- new canonical id / big data drop /
 ambiguous or unbounded metric / re-hosting large data — which, and what was decided -->
-

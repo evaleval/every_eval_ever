@@ -87,8 +87,12 @@ dataset, a harness dump) and you must emit EEE records. Two artifacts:
 7. **Ask, then log your decisions.** Two channels, don't confuse them:
    - **Ask the operator (live)** when a choice *sets policy*: creating a new
      canonical id · dropping a non-trivial share of the data · an ambiguous metric
-     choice · bounding an unbounded metric · re-hosting large data. Don't decide
-     these silently — the person running you is there to answer.
+     choice · bounding an unbounded metric · re-hosting large data · **the source
+     won't fit without a structural change** (a schema field, an edit to a base
+     adapter or a shared converter, relaxing a validator rule). Don't decide these
+     silently — the person running you is there to answer. The structural one is not
+     yours to fold into this PR: its design gets agreed before a PR exists, and
+     carrying it here would hold the adapter behind that discussion.
    - **Log (in the PR)** every *non-obvious* choice — not just where it was hard. A
      confident wrong choice produces no "friction," so log decisions, not pain.
    Finish with a ready-to-merge PR carrying the decision log below. General gaps

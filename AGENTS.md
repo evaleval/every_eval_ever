@@ -48,6 +48,13 @@ convert external eval sources into it.
   exit account for every source row you could not convert.
 - A dataset contribution is usually three PRs (adapter here · ids in `eval-card-registry`
   · data in `EEE_datastore`) — cross-link them. See the skill's "three PRs" section.
+- **Get agreement before building something structural.** A scoped change — one adapter,
+  one file, tests — can go straight to a PR. A design change, a cross-package change, a
+  large refactor, or anything that changes what existing data comes out as needs its
+  approach agreed *first*, in an issue or with a maintainer — opening the PR is not how you
+  start that conversation, and a structural PR that arrives cold will sit.
+  Full policy: `CONTRIBUTING.md` § "How your PR gets reviewed".
+
 ## Changing the schema, the validator, or the publisher
 These change what a *contribution* must look like, so the contributor-facing guidance is
 part of the change — not a follow-up.
