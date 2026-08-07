@@ -415,6 +415,11 @@ class LightevalAdapter(BaseEvaluationAdapter):
             source_details['lighteval_derived_rows_not_converted'] = ','.join(
                 derived_rows
             )
+        skipped_tasks = metadata_args.get('tasks_without_finite_scores') or []
+        if skipped_tasks:
+            source_details['tasks_without_finite_scores'] = ','.join(
+                skipped_tasks
+            )
         elapsed = config_general.get('total_evaluation_time_secondes')
         if elapsed is not None:
             source_details['total_evaluation_time_seconds'] = str(elapsed)
@@ -466,15 +471,19 @@ class LightevalAdapter(BaseEvaluationAdapter):
         raw_data = self._load_file(file_path)
         tasks = self._get_tasks(raw_data)
 
-        derived_keys = sorted(
-            key
-            for key in (raw_data.get('results') or {})
-            if is_derived_aggregate_key(key)
-        )
+        derived_keys = []
+        skipped_keys = []
+        for key in raw_data.get('results') or {}:
+            if is_derived_aggregate_key(key):
+                derived_keys.append(key)
+            elif key not in tasks:
+                skipped_keys.append(key)
+
         metadata_args = {
             **metadata_args,
             'parent_eval_output_dir': str(file_path.parent),
-            'derived_aggregate_keys': derived_keys,
+            'derived_aggregate_keys': sorted(derived_keys),
+            'tasks_without_finite_scores': sorted(skipped_keys),
             # The results filename holds the only wall-clock time in the run.
             'evaluation_timestamp': parse_results_file_timestamp(file_path),
         }

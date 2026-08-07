@@ -336,17 +336,38 @@ def test_bootstrap_stderr_and_unknown_bounds():
     )
 
 
-def test_task_with_no_finite_scores_is_reported_as_a_failure(tmp_path):
+def test_task_with_no_finite_scores_is_named_on_the_remaining_logs(tmp_path):
+    source = json.loads(RESULTS_FILE.read_text(encoding='utf-8'))
+    source['results']['glue:cola|0'] = {'mcc': float('nan')}
+    partial = tmp_path / 'results_2026-01-21T03-44-18.458309.json'
+    partial.write_text(json.dumps(source), encoding='utf-8')
+
+    adapter = LightevalAdapter()
+    logs = adapter.transform_from_file(partial, _make_metadata_args())
+
+    assert set(_logs_by_task(logs)) == {
+        'mmlu:abstract_algebra|5',
+        'mmlu:anatomy|5',
+    }
+    assert (
+        logs[0].source_metadata.additional_details[
+            'tasks_without_finite_scores'
+        ]
+        == 'glue:cola|0'
+    )
+
+
+def test_file_with_no_measured_task_yields_nothing(tmp_path):
     source = json.loads(RESULTS_FILE.read_text(encoding='utf-8'))
     source['results'] = {'glue:cola|0': {'mcc': float('nan')}}
-    broken = tmp_path / 'results_2026-01-21T03-44-18.458309.json'
-    broken.write_text(json.dumps(source), encoding='utf-8')
+    empty = tmp_path / 'results_2026-01-21T03-44-18.458309.json'
+    empty.write_text(json.dumps(source), encoding='utf-8')
 
     adapter = LightevalAdapter()
     result = adapter.transform_from_directory_result(tmp_path, {})
 
     assert result.records == []
-    assert len(result.failures) == 0  # no measured task, so nothing to convert
+    assert result.failures == []
 
 
 # ── Adapter: transform_from_directory ──────────────────────────────────
