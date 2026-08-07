@@ -215,6 +215,54 @@ def _cmd_convert_lm_eval(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_convert_lighteval(args: argparse.Namespace) -> int:
+    from every_eval_ever.converters.lighteval.adapter import LightevalAdapter
+
+    adapter = LightevalAdapter()
+    metadata = _common_metadata(args)
+    for name in (
+        'inference_platform',
+        'inference_engine',
+        'inference_engine_version',
+    ):
+        value = getattr(args, name, None)
+        if value:
+            metadata[name] = value
+
+    log_path = Path(args.log_path)
+    input_result: SourceConversionResult[Any] | None = None
+    if log_path.is_file():
+        logs = adapter.transform_from_file(log_path, metadata)
+    elif log_path.is_dir():
+        input_result = adapter.transform_from_directory_result(
+            log_path, metadata
+        )
+        logs = input_result.records
+    else:
+        raise FileNotFoundError(f'Path is not a file or directory: {log_path}')
+
+    if not logs and input_result is None:
+        raise ValueError(
+            f'lighteval conversion produced no logs from {log_path}'
+        )
+
+    output_dir = Path(args.output_dir)
+    eval_uuids = [str(uuid.uuid4()) for _ in logs]
+    paths = (
+        publish_evaluation_logs(logs, output_dir, eval_uuids) if logs else []
+    )
+    for path in paths:
+        print(path)
+
+    _save_partial_conversion_report(
+        input_result, output_dir, 'lighteval_inputs'
+    )
+    if input_result is not None:
+        input_result.raise_if_incomplete()
+    print(f'Converted {len(paths)} evaluation log(s).')
+    return 0
+
+
 def _cmd_convert_inspect(args: argparse.Namespace) -> int:
     from every_eval_ever.converters.inspect.adapter import (
         InspectAIAdapter,
@@ -535,7 +583,7 @@ def build_parser() -> argparse.ArgumentParser:
         dest='source', required=True
     )
 
-    for source in ['lm_eval', 'inspect', 'helm', 'alpaca_eval']:
+    for source in ['lm_eval', 'inspect', 'helm', 'alpaca_eval', 'lighteval']:
         source_parser = convert_subparsers.add_parser(
             source,
             help=f'Convert {source} logs',
@@ -621,6 +669,28 @@ def build_parser() -> argparse.ArgumentParser:
                 default=None,
                 help='Inference engine version to record in model_info.inference_engine.version.',
             )
+        if source == 'lighteval':
+            source_parser.add_argument(
+                '--inference_platform',
+                '--inference-platform',
+                default=None,
+                help='Inference platform to record when the model config does '
+                'not name one (e.g. together, openai).',
+            )
+            source_parser.add_argument(
+                '--inference_engine',
+                '--inference-engine',
+                default=None,
+                help='Inference engine to record. lighteval dumps its model '
+                'config without a backend discriminator, so this cannot be '
+                'read from the logs.',
+            )
+            source_parser.add_argument(
+                '--inference_engine_version',
+                '--inference-engine-version',
+                default=None,
+                help='Inference engine version to record in model_info.inference_engine.version.',
+            )
         if source == 'inspect':
             source_parser.add_argument(
                 '--supplemental_eval_details_path',
@@ -667,6 +737,8 @@ def main(argv: list[str] | None = None) -> int:
             return _cmd_convert_helm(args)
         if args.source == 'alpaca_eval':
             return _cmd_convert_alpaca_eval(args)
+        if args.source == 'lighteval':
+            return _cmd_convert_lighteval(args)
 
     parser.print_help()
     return 1

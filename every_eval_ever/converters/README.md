@@ -217,6 +217,79 @@ options:
                         Version of the evaluation library
 ```
 
+## lighteval
+
+The conversion script from `lighteval` evaluation logs to the unified schema can be run using `every_eval_ever/converters/lighteval/__main__.py`.
+
+lighteval writes one results file per run, at
+`{output_dir}/results/{model_name}/results_{date_id}.json`. Point `--log_path` at
+a single file, or at a directory to pick up every `results_*.json` beneath it.
+
+```bash
+uv run every_eval_ever convert lighteval --log_path tests/data/lighteval
+```
+
+Two things about lighteval's `results` mapping are worth knowing before you read
+the output:
+
+- It holds a `{metric}_stderr` entry beside the metric it belongs to. The
+  converter attaches that as `score_details.uncertainty`, never as a metric of
+  its own, and omits it when lighteval wrote `NaN`.
+- Alongside the tasks it measured, it holds rows lighteval averaged itself: a
+  per-parent mean under `<parent>:_average|<fewshot>` and a mean over everything
+  under `all`. Those are not converted; the keys that were skipped are recorded
+  in `source_metadata.additional_details.lighteval_derived_rows_not_converted`.
+
+Full manual for conversion of your own lighteval evaluation log into unified is available below:
+
+```bash
+usage: __main__.py [-h] --log_path LOG_PATH [--output_dir OUTPUT_DIR]
+                   [--source_organization_name SOURCE_ORGANIZATION_NAME]
+                   [--evaluator_relationship {first_party,third_party,collaborative,other}]
+                   [--source_organization_url SOURCE_ORGANIZATION_URL]
+                   [--source_organization_logo_url SOURCE_ORGANIZATION_LOGO_URL]
+                   [--inference_platform INFERENCE_PLATFORM]
+                   [--inference_engine INFERENCE_ENGINE]
+                   [--inference_engine_version INFERENCE_ENGINE_VERSION]
+                   [--eval_library_name EVAL_LIBRARY_NAME]
+                   [--eval_library_version EVAL_LIBRARY_VERSION]
+
+Convert lighteval output to every_eval_ever format
+
+options:
+  -h, --help            show this help message and exit
+  --log_path LOG_PATH   Path to a results JSON file or a directory containing
+                        results files
+  --output_dir OUTPUT_DIR
+                        Output directory for converted files
+  --source_organization_name SOURCE_ORGANIZATION_NAME
+                        Name of the organization that ran the evaluation
+  --evaluator_relationship {first_party,third_party,collaborative,other}
+                        Relationship of the evaluator to the model
+  --source_organization_url SOURCE_ORGANIZATION_URL
+                        URL of the source organization
+  --source_organization_logo_url SOURCE_ORGANIZATION_LOGO_URL
+                        Logo of the source organization
+  --inference_platform INFERENCE_PLATFORM
+                        Inference platform (e.g. 'together', 'openai'). Read
+                        from the model config for LiteLLM and inference-
+                        provider runs; must be provided manually otherwise.
+  --inference_engine INFERENCE_ENGINE
+                        Inference engine name (e.g. 'vllm', 'transformers').
+                        lighteval dumps its model config without a backend
+                        discriminator, so this cannot be read from the logs.
+  --inference_engine_version INFERENCE_ENGINE_VERSION
+                        Inference engine version (e.g. '0.6.0'). Not available
+                        from lighteval logs, so must be provided manually.
+  --eval_library_name EVAL_LIBRARY_NAME
+                        Name of the evaluation library (e.g. inspect_ai,
+                        lm_eval, helm)
+  --eval_library_version EVAL_LIBRARY_VERSION
+                        Version of the evaluation library. lighteval records a
+                        git SHA rather than a version, and writes '?' outside
+                        a git checkout.
+```
+
 ## AlpacaEval
 
 The AlpacaEval converter fetches the public leaderboard CSV directly from GitHub
