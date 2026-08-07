@@ -160,6 +160,38 @@ uv run python -m every_eval_ever validate --format github 'data/*/*/*/*.json*'
 
 Exit code is `0` if all files pass and `1` if any fail.
 
+### Validate local folders with the standalone script
+
+Use the standalone script when generated files are not yet arranged as a
+datastore checkout. It accepts files, glob patterns, and directories at any
+depth without accessing a pull request or changing the package CLI:
+
+```sh
+# Human-readable terminal report
+uv run python scripts/local_validate.py /path/to/output
+
+# Structured diagnostics for an agent or another program
+uv run python scripts/local_validate.py --format json /path/to/output
+```
+
+Directories are searched recursively for every `.json` and `.jsonl` file.
+Hidden descendants and directory symlinks are not traversed. Every matching
+file is validated; unrelated JSON is reported as invalid rather than silently
+skipped.
+
+The script uses the current bundled schemas and registered semantic checks.
+Datastore placement and naming problems are warnings locally, so a record may
+be valid but **not merge-ready**. Aggregate/sample content and relationship
+problems remain errors. A warning-only run exits `0`; a run containing an error
+exits `1`. Fix every warning before submitting the files for merge. Checks that
+require PR history or repository-wide remote state remain the responsibility
+of the validator bot.
+
+JSON output includes the schema version and fingerprint, a summary, and one
+report per file with its status, field or line location, message, offending
+input when available, errors, and warnings. Operational directory notices are
+written to stderr so stdout remains parseable JSON.
+
 ## 🗂️ Data Structure
 
 Evaluation data is hosted on the [Hugging Face datastore](https://huggingface.co/datasets/evaleval/EEE_datastore). The folder structure is:
