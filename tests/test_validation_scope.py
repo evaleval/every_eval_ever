@@ -19,6 +19,7 @@ from every_eval_ever.eval_types import (
 from every_eval_ever.helpers import SCHEMA_VERSION as ADAPTER_SCHEMA_VERSION
 from every_eval_ever.schema import get_schema_version, schema_json
 from every_eval_ever.validate import (
+    check_metric_identity,
     check_path_structure,
     check_score_metadata,
     validate_aggregate,
@@ -70,6 +71,7 @@ def valid_aggregate() -> dict:
                     'source_type': 'other',
                 },
                 'metric_config': {
+                    'metric_id': 'accuracy',
                     'lower_is_better': False,
                     'score_type': 'binary',
                 },
@@ -426,6 +428,170 @@ def test_score_bounds_accept_infinity_and_reject_reversed_ranges():
         'greater than max_score' in finding
         for finding in check_score_metadata(data)
     )
+
+
+def test_metric_id_must_name_a_quantity():
+    data = valid_aggregate()
+    metric = data['evaluation_results'][0]['metric_config']
+
+    # Missing entirely: the join key does not exist.
+    metric.pop('metric_id')
+    assert any(
+        "missing 'metric_id'" in finding
+        for finding in check_metric_identity(data)
+    )
+
+    # A non-string id is a schema error; 'missing' would name the wrong fix for
+    # a field that is populated.
+    metric['metric_id'] = 12
+    assert check_metric_identity(data) == []
+
+    # A word any other leaderboard could also pick for its headline number,
+    # in either separator spelling and either case.
+    for colliding in (
+        'score',
+        'Score',
+        'rank',
+        'elo',
+        'mean_score',
+        'mean-score',
+        'overall',
+        'total-score',
+        'value',
+        'cost',
+    ):
+        metric['metric_id'] = colliding
+        findings = check_metric_identity(data)
+        assert any('collides' in finding for finding in findings), colliding
+
+    # Qualifying the same word resolves the collision.
+    for accepted in ('sciarena.elo', 'lmarena/elo', 'mteb-score'):
+        metric['metric_id'] = accepted
+        assert check_metric_identity(data) == [], accepted
+
+
+def test_a_specific_metric_id_is_accepted_whoever_spelled_it():
+    """The check must not gate on a whitelist of known metrics.
+
+    The eval-card-registry is the vocabulary that exists, and it spells its ids
+    with dashes and qualifies a benchmark-specific metric with a prefix rather
+    than a dot. Requiring a dot, or membership in an in-repo list, flagged 1820
+    of its 1842 metric ids — including dash spellings of the list's own entries,
+    and every specific quantity no list would enumerate. Both are cases where
+    the check would talk a contributor out of a perfectly joinable id.
+    """
+    data = valid_aggregate()
+    metric = data['evaluation_results'][0]['metric_config']
+
+    for accepted in (
+        # Registry spellings of metrics an in-repo whitelist would also hold.
+        'exact-match',
+        'rouge-l',
+        'pass-at-1',
+        'win-rate',
+        'Exact_Match',
+        'pass_at_k',
+        # Registry-style benchmark-qualified slugs.
+        'mmau-pro-open-ended-judge-score',
+        'lexam-open-question-judge-score',
+        # Specific quantities no whitelist would ever enumerate. The first four
+        # are published today; the rest are other fields' standard metrics.
+        'latency_mean',
+        'standard_error',
+        'cost_per_task',
+        'average_refusal_rate',
+        'psnr',
+        'cider',
+        'iou',
+        'stoi',
+    ):
+        metric['metric_id'] = accepted
+        assert check_metric_identity(data) == [], accepted
+
+
+def test_metric_id_repeating_the_task_name_is_flagged():
+    data = valid_aggregate()
+    result = data['evaluation_results'][0]
+    # Either spelling of the same name, since neither side is canonical.
+    for repeated in ('bench', ' Bench ', 'bench '):
+        result['metric_config']['metric_id'] = repeated
+        assert any(
+            'repeats evaluation_name' in finding
+            for finding in check_metric_identity(data)
+        ), repeated
+
+
+def test_a_generic_word_behind_a_namespace_is_not_a_collision():
+    """Qualifying is the fix the warning asks for, so it has to work.
+
+    ``.`` is the separator the schema documents and ``/`` is the one several
+    published sources chose — ``mmlu_pro/overall`` and ``mt_bench/turn_1`` are
+    in the datastore, and ``every_eval_ever/tools/hf_community_evals.py`` accepts
+    ``hle.accuracy`` and ``hle/accuracy`` interchangeably. ``mmlu_pro/overall``
+    ends in a generic word and must still pass: the collision is in the bare
+    form, and normalization must not reach past a namespace separator to find
+    it.
+    """
+    data = valid_aggregate()
+    metric = data['evaluation_results'][0]['metric_config']
+    for namespaced in (
+        'mmlu_pro/overall',
+        'mt_bench/turn_1',
+        'hle/accuracy',
+        'rewardbench.overall',
+        'lmarena.elo',
+    ):
+        metric['metric_id'] = namespaced
+        assert check_metric_identity(data) == [], namespaced
+
+
+def test_one_warning_per_finding_carries_the_count_and_first_location():
+    """A leaderboard file repeats its adapter's mistake once per task.
+
+    The largest published record has 374 results built by the same code, so a
+    per-result warning would bury every other finding under one sentence
+    repeated 374 times.
+    """
+    data = valid_aggregate()
+    template = data['evaluation_results'][0]
+    template['metric_config'].pop('metric_id')
+    data['evaluation_results'] = [
+        {**template, 'evaluation_name': f'task_{index}'} for index in range(5)
+    ]
+
+    findings = check_metric_identity(data)
+    assert len(findings) == 1
+    assert findings[0].startswith('evaluation_results[0].metric_config')
+    assert 'and 4 more results' in findings[0]
+
+    # Two kinds of finding stay two warnings, and one extra reads singular.
+    data['evaluation_results'] = [
+        template,
+        template,
+        {
+            **template,
+            'evaluation_name': 'sciarena.elo',
+            'metric_config': {
+                **template['metric_config'],
+                'metric_id': 'sciarena.elo',
+            },
+        },
+    ]
+    findings = check_metric_identity(data)
+    assert len(findings) == 2
+    assert "missing 'metric_id'" in findings[0]
+    assert 'and 1 more result)' in findings[0]
+    assert 'repeats evaluation_name' in findings[1]
+    assert 'more result' not in findings[1]
+
+
+def test_metric_identity_warns_without_failing_validation(tmp_path):
+    """The rule must not reject records that predate it."""
+    data = valid_aggregate()
+    data['evaluation_results'][0]['metric_config'].pop('metric_id')
+    report = validate_data(tmp_path, data)
+    assert report.valid is True
+    assert any('metric_id' in warning['msg'] for warning in report.warnings)
 
 
 def test_model_unknown_placeholders_pass_but_missing_raw_fields_fail(tmp_path):
