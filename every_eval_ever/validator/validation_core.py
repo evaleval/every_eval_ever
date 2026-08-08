@@ -13,6 +13,7 @@ from typing import Any, Literal
 from pydantic import ValidationError
 
 from every_eval_ever.eval_types import EvaluationLog
+from every_eval_ever.helpers.eval_card_registry import second_name_of
 from every_eval_ever.instance_level_types import InstanceLevelEvaluationLog
 from every_eval_ever.schema import (
     get_schema_fingerprint as get_schema_fingerprint,
@@ -577,6 +578,76 @@ def _metric_bound(value: Any) -> float | None:
     return None
 
 
+def _developer_prefix(model_id: Any) -> str | None:
+    """Return the namespace segment of a slash-bearing model identity."""
+    if not isinstance(model_id, str) or '/' not in model_id:
+        return None
+    return model_id.split('/', 1)[0]
+
+
+def check_developer_slug(data: dict[str, Any]) -> list[str]:
+    """Warn when two names for one publisher split its datastore directory.
+
+    The datastore takes the publisher directory from ``model_info.id``'s
+    namespace, or from ``model_info.developer`` for an id without one (see
+    ``helpers.io.datastore_path_components``), so one publisher under two names
+    is two directories and neither listing is complete. Both fields are checked
+    and only the one deciding the directory is told that it splits it.
+
+    Flagged: a *second name* — a confirmed eval-card-registry alias that is a
+    genuinely different name, model families included (``mistral`` for
+    ``mistralai``, ``glm`` for ``zai``). Not flagged: a canonical id, a
+    HuggingFace namespace the registry records for one (``meta-llama`` is
+    Meta), a case or punctuation variant of either, and any name the registry
+    has never seen.
+
+    The message names every spelling in play but no destination: which name is
+    primary is one editorial choice for the whole datastore, not per collection.
+    """
+    model_info = data.get('model_info')
+    if not isinstance(model_info, dict):
+        return []
+
+    # Keyed by the organization, not the spelling: one publisher needs one
+    # rename, and a per-spelling key warns again next run for the field the
+    # first message did not name ('zhipu' and 'zhipu-ai' are both zai).
+    prefix = _developer_prefix(model_info.get('id'))
+    declared: dict[str, tuple[list[str], set[str]]] = {}
+    for location, value in (
+        ('model_info.id', prefix),
+        ('model_info.developer', model_info.get('developer')),
+    ):
+        if not isinstance(value, str) or not value.strip():
+            continue
+        canonical = second_name_of(value)
+        if canonical is None:
+            continue
+        locations, spellings = declared.setdefault(canonical, ([], set()))
+        locations.append(location)
+        spellings.add(value.strip())
+
+    # The prefix decides the directory when the id has one, developer when it is
+    # flat. The other field still names the publisher, so it is reported too.
+    directory_field = 'model_info.id' if prefix else 'model_info.developer'
+    warnings: list[str] = []
+    for canonical, (locations, spellings) in declared.items():
+        consequence = (
+            'filing under both puts one publisher in two datastore '
+            'directories, neither listing complete'
+            if directory_field in locations
+            else 'the id prefix picks the directory here, so this field '
+            'splits none, but it disagrees with that directory and groups '
+            'this record apart from any spelled the other way'
+        )
+        found = '/'.join(repr(spelling) for spelling in sorted(spellings))
+        warnings.append(
+            f'{" and ".join(locations)}: {found} and {canonical!r} are one '
+            f'organization in the eval-card-registry — {consequence}. Match '
+            'how it is already filed datastore-wide'
+        )
+    return warnings
+
+
 def check_model_deployment(data: dict[str, Any]) -> list[str]:
     """Require independent deployment-control and weight-availability axes.
 
@@ -696,6 +767,14 @@ def _aggregate_check_model_deployment(
     return check_model_deployment(data)
 
 
+def _aggregate_check_developer_slug(
+    context: ValidationContext, data: ValidationPayload
+) -> list[str]:
+    if not isinstance(data, dict):
+        return []
+    return check_developer_slug(data)
+
+
 REGISTERED_CHECKS: tuple[ValidationCheck, ...] = (
     ValidationCheck('path structure', 'file', 'error', _file_check_path),
     ValidationCheck(
@@ -712,6 +791,12 @@ REGISTERED_CHECKS: tuple[ValidationCheck, ...] = (
         'aggregate',
         'error',
         _aggregate_check_model_deployment,
+    ),
+    ValidationCheck(
+        'developer slug',
+        'aggregate',
+        'warning',
+        _aggregate_check_developer_slug,
     ),
 )
 
