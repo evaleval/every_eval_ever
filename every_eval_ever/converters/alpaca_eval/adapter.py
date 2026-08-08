@@ -333,6 +333,11 @@ def _metric_cell_failure(
     cell that is not a finite number inside its declared bounds is, and the row
     loop drops that row with a reason rather than publishing the headline metric
     silently missing (``'n/a'`` parses as nothing).
+
+    The cells that qualify a score answer to the same rule, because parsing them
+    leniently makes a populated one look absent: an unreadable standard error
+    publishes as no uncertainty at all, and an unreadable or non-positive
+    ``n_total`` as the dataset's 805 — a denominator the row never claimed.
     """
     primary = metrics[0]
     if not _cell(row, primary.spec.column):
@@ -351,6 +356,22 @@ def _metric_cell_failure(
                 f'[{metric.min_score}, {metric.max_score}] the registry '
                 f'declares for {metric.metric_id}'
             )
+        # Checked with its metric: a standard error whose score is absent never
+        # reaches a record, so it cannot be a reason to drop the row.
+        error_raw = (
+            _cell(row, metric.spec.se_column) if metric.spec.se_column else ''
+        )
+        if error_raw:
+            error = _to_float(error_raw)
+            if error is None or error < 0:
+                return (
+                    f'{metric.spec.se_column} is not a usable standard error: '
+                    f'{error_raw!r}'
+                )
+    denominator = _cell(row, 'n_total')
+    samples = _to_int(denominator)
+    if denominator and (samples is None or samples <= 0):
+        return f'n_total is not a positive count: {denominator!r}'
     return None
 
 
@@ -553,8 +574,10 @@ def _score_details(
         )
     details = {f'source_{spec.column}': value}
     if spec.judge_scored:
+        # Verbatim: these are provenance and are stringified either way, so
+        # parsing them could only drop a value it failed to read.
         details.update(
-            {column: _to_int(_cell(row, column)) for column in _COUNT_COLUMNS}
+            {column: _cell(row, column) for column in _COUNT_COLUMNS}
         )
     return ScoreDetails(
         score=score, uncertainty=uncertainty, details=_stringify(details)
@@ -596,6 +619,8 @@ def _evaluation_results(
     """
     llm_scoring = _llm_scoring(board, cfg, ref)
     source_data = _source_data(cfg, ref)
+    # Only an absent n_total falls back: a populated one that is not a positive
+    # count fails the row above, so 805 is never put in place of a real value.
     samples = _to_int(_cell(row, 'n_total')) or HF_DATASET_SAMPLES
     results = []
     for metric in metrics:

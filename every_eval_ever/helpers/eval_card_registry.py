@@ -240,9 +240,11 @@ class Registry:
     def _keyed(self, section: str, entity_type: str, name: str) -> Resolution:
         """Look up a value the snapshot stores under its query spelling.
 
-        A ``None`` entry is a known gap the refresh already recorded; a missing
-        key means the snapshot has never been asked. Only the latter tries the
-        network.
+        A missing key was never asked about. A ``None`` entry is a gap the
+        refresh did ask about and record — but that answer is only as current as
+        the snapshot, so live mode asks again rather than making a canonical
+        added since the refresh wait for the next one. Offline, both are the
+        same ``no_canonical``.
         """
         if not self.enabled:
             return _unresolved(name, entity_type, 'registry_disabled')
@@ -251,7 +253,7 @@ class Registry:
             return self._live(entity_type, name)
         entry = entries[name]
         if entry is None:
-            return _unresolved(name, entity_type, 'no_canonical')
+            return self._live(entity_type, name)
         return Resolution(
             raw_value=name,
             entity_type=entity_type,

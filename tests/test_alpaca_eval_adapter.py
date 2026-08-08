@@ -12,6 +12,9 @@ import pytest
 
 from every_eval_ever import cli
 from every_eval_ever.converters.alpaca_eval import identity as identity_mod
+from every_eval_ever.converters.alpaca_eval import (
+    refresh_hf_canonical_ids as refresh_mod,
+)
 from every_eval_ever.converters.alpaca_eval import upstream as upstream_mod
 from every_eval_ever.converters.alpaca_eval.adapter import (
     LEADERBOARDS,
@@ -752,6 +755,83 @@ def test_an_absent_secondary_column_is_not_a_failure():
     assert len(result.records) == 1
 
 
+@pytest.mark.parametrize('cell', ['n/a', 'nan', '-0.4'])
+def test_an_unusable_standard_error_is_a_failure_not_a_missing_one(cell):
+    """Parsing it leniently would publish the score with no uncertainty at all.
+
+    A record that simply omits ``uncertainty`` is indistinguishable from one
+    whose source never reported it.
+    """
+    result = _adapter(
+        v2_rows=[dict(_V2_ROW, lc_standard_error=cell)]
+    ).fetch_leaderboard_result('v2')
+
+    assert result.records == []
+    assert result.failures[0].reason == (
+        f'lc_standard_error is not a usable standard error: {cell!r}'
+    )
+
+
+def test_a_standard_error_of_zero_is_kept():
+    """The v2 baseline ties with itself on every instruction: SE is really 0."""
+    result = _adapter(v2_rows=[_V2_ROW]).fetch_leaderboard_result('v2')
+    uncertainty = _by_metric(result.records[0])['win_rate'].score_details
+
+    assert result.failures == []
+    assert uncertainty.uncertainty.standard_error.value == 0.0
+
+
+def test_a_standard_error_without_its_score_does_not_drop_the_row():
+    """It is never published, so it cannot be a reason to reject the row."""
+    row = dict(_V1_ROW, discrete_win_rate='', standard_error='')
+    result = _adapter(
+        v1_rows=[dict(row, lc_standard_error='n/a')]
+    ).fetch_leaderboard_result('v1')
+
+    assert result.failures == []
+    assert 'length_controlled_win_rate' not in _by_metric(result.records[0])
+
+
+@pytest.mark.parametrize('cell', ['n/a', '0', '-805', '805.5'])
+def test_an_unusable_n_total_is_a_failure_not_a_silent_805(cell):
+    """It is the denominator the descriptions quote, not an optional extra."""
+    result = _adapter(
+        v1_rows=[dict(_V1_ROW, n_total=cell)]
+    ).fetch_leaderboard_result('v1')
+
+    assert result.records == []
+    assert result.failures[0].reason == (
+        f'n_total is not a positive count: {cell!r}'
+    )
+
+
+def test_805_is_only_used_where_a_leaderboard_has_no_n_total_column():
+    rows = [{key: value for key, value in _V1_ROW.items() if key != 'n_total'}]
+    result = _adapter(v1_rows=rows).fetch_leaderboard_result('v1')
+    win_rate = _by_metric(result.records[0])['win_rate']
+
+    assert result.failures == []
+    assert '805 AlpacaEval instructions' in (
+        win_rate.metric_config.evaluation_description
+    )
+    assert win_rate.score_details.uncertainty.num_samples is None
+
+
+def test_a_count_that_cannot_be_parsed_keeps_its_source_text():
+    """Counts are provenance: reproducing them beats reading them.
+
+    ``_to_int`` would turn ``'767 (est.)'`` into ``None``, and a details mapping
+    drops ``None``, so the value would disappear with nothing recorded.
+    """
+    result = _adapter(
+        v1_rows=[dict(_V1_ROW, n_wins='767 (est.)')]
+    ).fetch_leaderboard_result('v1')
+    details = _by_metric(result.records[0])['win_rate'].score_details.details
+
+    assert result.failures == []
+    assert details['n_wins'] == '767 (est.)'
+
+
 # ---------------------------------------------------------------------------
 # Identity ladder
 # ---------------------------------------------------------------------------
@@ -1222,6 +1302,69 @@ def test_cli_converts_from_a_snapshot_without_network(snapshot_file, tmp_path):
     assert (output_dir / 'alpaca_eval_v1' / 'openai' / 'gpt-4').is_dir()
 
 
+def test_cli_reports_what_the_live_registry_actually_did(
+    snapshot_file, tmp_path, capsys
+):
+    """The status line printed before conversion can only ever report zeros.
+
+    It announces the configuration before a multi-minute fetch, so the lookups it
+    counts have not happened yet.
+    """
+
+    def _post(url, json=None, timeout=None):
+        raise OSError('registry unreachable')
+
+    requests = pytest.importorskip('requests')
+    original = requests.post
+    requests.post = _post
+    try:
+        cli.main(
+            [
+                'convert',
+                'alpaca_eval',
+                '--version',
+                'v1',
+                '--input-json',
+                str(snapshot_file(v1_rows=[_V1_ROW])),
+                '--output-dir',
+                str(tmp_path / 'data'),
+                '--registry-live',
+            ]
+        )
+    finally:
+        requests.post = original
+
+    reported = [
+        line
+        for line in capsys.readouterr().out.splitlines()
+        if line.startswith('eval-card-registry live lookups')
+    ]
+    assert len(reported) == 1
+    assert '0 queries' not in reported[0]
+    assert '0 resolved' in reported[0]
+    assert 'registry unreachable' in reported[0]
+
+
+def test_the_live_lookup_summary_is_only_printed_for_a_live_run(
+    snapshot_file, tmp_path, capsys
+):
+    """Off by default, so the line would be three zeros about nothing."""
+    cli.main(
+        [
+            'convert',
+            'alpaca_eval',
+            '--version',
+            'v1',
+            '--input-json',
+            str(snapshot_file(v1_rows=[_V1_ROW])),
+            '--output-dir',
+            str(tmp_path / 'data'),
+        ]
+    )
+
+    assert 'live lookups' not in capsys.readouterr().out
+
+
 def test_module_entry_point_accepts_every_option_the_handler_reads(
     snapshot_file, tmp_path
 ):
@@ -1418,3 +1561,95 @@ def test_disabled_registry_still_declares_usable_bounds():
         assert config.min_score == 0.0
         assert config.min_score <= result.score_details.score
         assert result.score_details.score <= config.max_score
+
+
+# ---------------------------------------------------------------------------
+# Canonical-id refresh
+# ---------------------------------------------------------------------------
+
+_WIZARDLM_REPO = 'WizardLM/WizardLM-13B-V1.2'
+_VICUNA_REPO = 'lmsys/vicuna-7b-delta-v1.1'
+_RENAMED_MAP = {_WIZARDLM_REPO: 'WizardLMTeam/WizardLM-13B-V1.2'}
+
+
+def _refresh_run(snapshot_file, tmp_path, answers, argv=()):
+    """Run the refresh against a canned ``{repo_id: (status, id)}`` sweep."""
+    snapshot_path = snapshot_file(
+        v1_rows=[
+            dict(_V1_ROW, **{'': 'wizardlm-13b-v1.2'}),
+            dict(_V1_ROW, **{'': 'vicuna-7b'}),
+        ]
+    )
+    output = tmp_path / identity_mod.HF_CANONICAL_NAME
+    with pytest.MonkeyPatch.context() as patcher:
+        patcher.setattr(
+            refresh_mod, 'hf_canonical_id', lambda repo_id: answers[repo_id]
+        )
+        exit_code = refresh_mod.main(
+            [
+                '--upstream-snapshot',
+                str(snapshot_path),
+                '--output',
+                str(output),
+                *argv,
+            ]
+        )
+    return exit_code, output
+
+
+def test_a_transient_failure_leaves_the_committed_map_untouched(
+    snapshot_file, tmp_path, capsys
+):
+    """The map is rebuilt from scratch, so writing an incomplete sweep deletes.
+
+    A 429 or a 5xx for the WizardLM id would drop its confirmed rename, and the
+    adapter would go back to publishing the stale id with nothing to show why.
+    """
+    exit_code, output = _refresh_run(
+        snapshot_file,
+        tmp_path,
+        {_WIZARDLM_REPO: (503, None), _VICUNA_REPO: (200, _VICUNA_REPO)},
+    )
+
+    assert exit_code == 1
+    assert not output.exists()
+    assert f'{_WIZARDLM_REPO} (503)' in capsys.readouterr().err
+
+
+def test_check_does_not_report_a_stale_map_from_an_incomplete_sweep(
+    snapshot_file, tmp_path, capsys
+):
+    """Otherwise ``--check`` advises the refresh that does the deleting."""
+    committed = json.dumps({'renamed_repos': _RENAMED_MAP}) + '\n'
+    (tmp_path / identity_mod.HF_CANONICAL_NAME).write_text(
+        committed, encoding='utf-8'
+    )
+    exit_code, output = _refresh_run(
+        snapshot_file,
+        tmp_path,
+        {_WIZARDLM_REPO: (429, None), _VICUNA_REPO: (200, _VICUNA_REPO)},
+        argv=('--check',),
+    )
+
+    assert exit_code == 1
+    assert output.read_text(encoding='utf-8') == committed
+    stderr = capsys.readouterr().err
+    assert 'did not answer' in stderr
+    assert 'differs from HuggingFace' not in stderr
+
+
+def test_a_gated_repo_is_still_a_complete_sweep(snapshot_file, tmp_path):
+    """401 is HuggingFace's answer, not a missing one — it must not block."""
+    exit_code, output = _refresh_run(
+        snapshot_file,
+        tmp_path,
+        {
+            _WIZARDLM_REPO: (200, _RENAMED_MAP[_WIZARDLM_REPO]),
+            _VICUNA_REPO: (401, None),
+        },
+    )
+    written = json.loads(output.read_text(encoding='utf-8'))
+
+    assert exit_code == 0
+    assert written['renamed_repos'] == _RENAMED_MAP
+    assert written['_meta']['unverifiable_repo_ids'] == [_VICUNA_REPO]

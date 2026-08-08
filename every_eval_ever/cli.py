@@ -484,6 +484,15 @@ def _cmd_convert_alpaca_eval(args: argparse.Namespace) -> int:
             logs_to_publish.append(log)
             eval_uuids.append(str(uuid.uuid4()))
 
+    if registry.live:
+        # The line printed before conversion cannot carry these: no lookup has
+        # happened yet. `live_error` is sticky, so it reports the run, not a call.
+        print(
+            f'\neval-card-registry live lookups: {registry.live_queries} '
+            f'queries, {registry.live_hits} resolved'
+            + (f', error: {registry.live_error}' if registry.live_error else '')
+        )
+
     if args.save_raw_json:
         raw_path = Path(args.save_raw_json)
         raw_path.parent.mkdir(parents=True, exist_ok=True)
@@ -679,7 +688,8 @@ def build_parser() -> argparse.ArgumentParser:
                 default=None,
                 help=(
                     'Convert from a --save_raw_json snapshot instead of '
-                    'fetching from GitHub. No network access is performed.'
+                    'fetching from GitHub. Nothing is fetched unless '
+                    '--registry_live is also given.'
                 ),
             )
             source_parser.add_argument(

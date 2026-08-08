@@ -18,18 +18,23 @@ writes the differences to :data:`~identity.HF_CANONICAL_PATH`, which
 /api/models/<id>`` is used — reading is not authenticated, so the map records
 public metadata and nothing else.
 
-Three response classes, handled differently:
+Response classes, handled differently:
 
 * **200** — the returned ``id`` is authoritative. Recorded when it differs from
   the id we asked about.
 * **3xx** — ``requests`` follows the redirect, so a rename lands as a 200 under
-  the new id. An unfollowable 3xx yields no id and counts as unverifiable.
+  the new id.
 * **401** — HuggingFace conflates *gated* with *nonexistent* here
   (``databricks/dbrx-instruct`` is real but gated; ``meta/llama-2-70b-chat-hf``
   never existed). Neither yields a canonical id, so both are counted as
   unverifiable and left untouched rather than guessed at. Resolving them would
   need a token, which would make this script's output depend on whose token ran
   it.
+* **anything else** — a ``429``, a ``5xx`` or an unfollowable redirect is not an
+  answer. The map is rebuilt from scratch on every run, so writing one from an
+  incomplete sweep would delete renames this file already records, silently
+  returning the adapter to stale ids. Such a sweep leaves the file untouched and
+  exits non-zero instead.
 
 ``--check`` compares against the committed map without writing, so a rename that
 happened after the last refresh surfaces in review instead of silently ageing.
@@ -65,6 +70,11 @@ from every_eval_ever.converters.alpaca_eval.upstream import (
 
 HF_API_URL = 'https://huggingface.co/api/models/{repo_id}'
 REQUEST_TIMEOUT = 60
+
+#: Statuses that answer the question this script asks. ``200`` carries the
+#: canonical id; ``401`` is HuggingFace's answer for a gated or nonexistent
+#: repo. Any other status means the sweep never got an answer for that id.
+ANSWERED_STATUSES = frozenset({200, 401})
 
 
 def published_repo_ids(snapshot: UpstreamSnapshot) -> List[str]:
@@ -108,15 +118,27 @@ def hf_canonical_id(repo_id: str) -> Tuple[int, Optional[str]]:
     return response.status_code, current if isinstance(current, str) else None
 
 
-def build_map(snapshot: UpstreamSnapshot) -> Dict[str, Any]:
-    """Sweep every published repo id and return the vendorable payload."""
+def build_map(
+    snapshot: UpstreamSnapshot,
+) -> Tuple[Dict[str, Any], List[Tuple[str, int]]]:
+    """Sweep every published repo id: the vendorable payload, and what failed.
+
+    The second element pairs each id HuggingFace did not answer for with the
+    status it returned instead. A caller with a non-empty list holds a payload
+    built from an incomplete sweep and must not publish it over the committed
+    map.
+    """
     repo_ids = published_repo_ids(snapshot)
     renames: Dict[str, str] = {}
     statuses: Counter = Counter()
     unverifiable: List[str] = []
+    unanswered: List[Tuple[str, int]] = []
     for repo_id in repo_ids:
         status, current = hf_canonical_id(repo_id)
         statuses[status] += 1
+        if status not in ANSWERED_STATUSES:
+            unanswered.append((repo_id, status))
+            continue
         if current is None:
             unverifiable.append(repo_id)
             continue
@@ -143,7 +165,7 @@ def build_map(snapshot: UpstreamSnapshot) -> Dict[str, Any]:
             'unverifiable_repo_ids': unverifiable,
         },
         'renamed_repos': dict(sorted(renames.items())),
-    }
+    }, unanswered
 
 
 def _serialize(payload: Dict[str, Any]) -> str:
@@ -195,7 +217,22 @@ def main(argv: Optional[List[str]] = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    payload = build_map(_load_snapshot(args.upstream_snapshot))
+    payload, unanswered = build_map(_load_snapshot(args.upstream_snapshot))
+    if unanswered:
+        listed = ', '.join(
+            f'{repo_id} ({status})' for repo_id, status in unanswered[:10]
+        )
+        if len(unanswered) > 10:
+            listed += f', ... {len(unanswered) - 10} more'
+        # Neither writing nor comparing: a sweep with holes in it cannot say
+        # whether a rename is gone or was simply never asked about.
+        print(
+            f'HuggingFace did not answer for {len(unanswered)} repo id(s): '
+            f'{listed}. Leaving {args.output.name} as it is; rerun when '
+            'HuggingFace answers.',
+            file=sys.stderr,
+        )
+        return 1
     if args.check:
         if not args.output.exists():
             print(f'{args.output} does not exist', file=sys.stderr)

@@ -364,3 +364,48 @@ def test_one_outage_does_not_relabel_every_later_miss():
     assert second.strategy == 'no_canonical'
     # The outage is still reported once, for the run as a whole.
     assert 'registry unreachable' in registry.live_error
+
+
+def test_live_mode_asks_again_about_a_gap_the_snapshot_recorded():
+    """A recorded gap is an answer with a date on it, not a permanent one.
+
+    Minting the canonical is a PR to the registry; the snapshot only learns about
+    it at the next refresh, and live mode is what a maintainer turns on to not
+    wait for that.
+    """
+    metric_gaps = [
+        query.split(':', 1)[1]
+        for query in gaps()
+        if query.startswith('metric:')
+    ]
+    if not metric_gaps:
+        pytest.skip('the snapshot currently records no metric gaps')
+    asked = []
+
+    class _Response:
+        status_code = 200
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {'canonical_id': 'metric:win_rate', 'created_new': False}
+
+    def _post(url, json=None, timeout=None):
+        asked.append(json['raw_value'])
+        return _Response()
+
+    module = pytest.importorskip('requests')
+    original = module.post
+    module.post = _post
+    try:
+        live = Registry(live=True).metric(metric_gaps[0])
+        offline = Registry().metric(metric_gaps[0])
+    finally:
+        module.post = original
+
+    assert asked == [metric_gaps[0]]
+    assert live.canonical_id == 'metric:win_rate'
+    assert live.strategy == 'live_exact'
+    # Offline, a recorded gap stays one and nothing is contacted.
+    assert (offline.canonical_id, offline.strategy) == (None, 'no_canonical')
