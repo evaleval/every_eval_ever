@@ -361,9 +361,115 @@ class TestFileDispatch:
         assert nested_json not in paths
         assert all(path.parent == sub for path in paths)
 
-    def test_directory_arguments_are_rejected(self, tmp_path: Path):
-        with pytest.raises(ValueError, match='directory arguments'):
+    def test_directory_expands_recursively_to_data_files(self, tmp_path: Path):
+        top_json = _write_json(tmp_path, 'top.json', VALID_AGGREGATE)
+        (tmp_path / 'notes.txt').write_text('ignored', encoding='utf-8')
+        nested = tmp_path / 'collection' / 'developer' / 'model'
+        nested.mkdir(parents=True)
+        nested_json = _write_json(nested, 'a.json', VALID_AGGREGATE)
+        nested_jsonl = _write_jsonl(nested, 'a_samples.jsonl', [])
+        reported: list[tuple[Path, int]] = []
+
+        paths = expand_paths(
+            [str(tmp_path)],
+            on_directory=lambda directory, count: reported.append(
+                (directory, count)
+            ),
+        )
+
+        assert set(paths) == {top_json, nested_json, nested_jsonl}
+        assert reported == [(Path(tmp_path), 3)]
+
+    def test_directory_expansion_skips_dot_directories(self, tmp_path: Path):
+        """`validate .` must not walk .venv, .git and every tool cache."""
+        wanted = _write_json(tmp_path, 'wanted.json', VALID_AGGREGATE)
+        for hidden in ('.venv/lib/pkg', '.git', '.pytest_cache'):
+            directory = tmp_path / hidden
+            directory.mkdir(parents=True)
+            _write_json(directory, 'unrelated.json', VALID_AGGREGATE)
+
+        assert expand_paths([str(tmp_path)]) == [wanted]
+
+        # Pointed at explicitly, a dot-directory is still validated: only names
+        # *below* the argument are filtered.
+        inside = tmp_path / '.venv' / 'lib' / 'pkg' / 'unrelated.json'
+        assert expand_paths([str(tmp_path / '.venv')]) == [inside]
+
+    def test_directory_expansion_does_not_follow_symlinks(self, tmp_path: Path):
+        """A link back into the tree must not be walked.
+
+        Following one duplicates every file under it, and a link pointing at an
+        ancestor makes the walk run until the OS stops it.
+        """
+        real = tmp_path / 'real'
+        real.mkdir()
+        wanted = _write_json(real, 'a.json', VALID_AGGREGATE)
+        (tmp_path / 'linked').symlink_to(real, target_is_directory=True)
+
+        assert expand_paths([str(tmp_path)]) == [wanted]
+
+    def test_directory_and_file_arguments_are_deduplicated(
+        self, tmp_path: Path
+    ):
+        only = _write_json(tmp_path, 'only.json', VALID_AGGREGATE)
+
+        assert expand_paths([str(tmp_path), str(only)]) == [only]
+
+    def test_directory_without_data_files_is_an_error(self, tmp_path: Path):
+        (tmp_path / 'notes.txt').write_text('ignored', encoding='utf-8')
+
+        with pytest.raises(ValueError, match='contains no .json or .jsonl'):
             expand_paths([str(tmp_path)])
+
+    def test_an_unreadable_subdirectory_is_reported_not_skipped(
+        self, tmp_path: Path
+    ):
+        """A partial scan must not read as a clean one.
+
+        ``os.walk`` skips a directory it cannot list without a word, so every
+        record under it would go unvalidated and the report would still say
+        every file passed.
+        """
+        blocked = tmp_path / 'blocked'
+        blocked.mkdir()
+        _write_json(blocked, 'inner.json', VALID_AGGREGATE)
+        blocked.chmod(0o000)
+        try:
+            with pytest.raises(PermissionError):
+                expand_paths([str(blocked)])
+        finally:
+            blocked.chmod(0o755)
+
+    def test_cli_accepts_a_directory(self, tmp_path: Path, capsys):
+        """The notice about what a directory expanded to stays off stdout.
+
+        ``--format json`` is consumed by scripts, so a line about the expansion
+        printed there would break every one of them.
+        """
+        nested = tmp_path / 'data' / 'benchmark' / 'developer' / 'model'
+        nested.mkdir(parents=True)
+        _write_json(
+            nested,
+            'f82b2807-fb31-4e42-a4a4-497d7d7a7e61.json',
+            {
+                **VALID_AGGREGATE,
+                'model_info': {
+                    'name': 'test-model',
+                    'id': 'developer/test-model',
+                    'additional_details': {
+                        'deployment_type': 'unknown',
+                        'model_availability': 'unknown',
+                    },
+                },
+            },
+        )
+
+        assert main([str(tmp_path), '--format', 'json']) == 0
+
+        captured = capsys.readouterr()
+        reports = json.loads(captured.out)
+        assert [report['valid'] for report in reports] == [True]
+        assert 'validating 1 file' in captured.err
 
     def test_cli_accepts_absolute_local_datastore_path(self, tmp_path: Path):
         path = (

@@ -5,7 +5,9 @@ from __future__ import annotations
 import argparse
 import glob
 import json
+import os
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 from rich.console import Console
@@ -30,12 +32,14 @@ from every_eval_ever.validator.validation_core import (
 )
 
 __all__ = [
+    'DATA_SUFFIXES',
     'DEFAULT_MAX_ERRORS',
     'ValidationReport',
     'check_companion_exists',
     'check_model_deployment',
     'check_path_structure',
     'check_score_metadata',
+    'expand_directory',
     'expand_paths',
     'format_error',
     'format_warning',
@@ -51,6 +55,10 @@ __all__ = [
     'validate_file',
     'validate_instance_file',
 ]
+
+# The extensions the datastore uses: aggregates are .json, their instance-level
+# companions .jsonl. Anything else under a directory is not EEE data.
+DATA_SUFFIXES = ('.json', '.jsonl')
 
 
 class _LocalRepositoryFiles:
@@ -98,8 +106,60 @@ def _local_path_context(path: Path) -> tuple[str, _LocalRepositoryFiles]:
     )
 
 
-def expand_paths(paths: list[str]) -> list[Path]:
-    """Expand explicit glob arguments without accepting directories."""
+def expand_directory(directory: Path) -> list[Path]:
+    """List the EEE data files under one directory, at any depth.
+
+    Dot-prefixed entries *below* the given directory are pruned, so validating
+    ``.`` from a checkout does not descend into ``.venv``, ``.git`` or a tool
+    cache and report on the JSON an installed package happens to ship. Only
+    names below the argument are filtered, so pointing at ``.hidden/`` itself
+    still validates what the caller asked for.
+
+    Directory symlinks are not followed (``os.walk`` default), so a link back up
+    the tree cannot make this loop.
+
+    Raises:
+        OSError: If any directory in the tree cannot be listed. ``os.walk``
+            skips those silently, which would report a partial scan as a clean
+            one.
+        ValueError: If the tree holds no data files.
+    """
+
+    def _raise(error: OSError) -> None:
+        raise error
+
+    files: list[Path] = []
+    for parent, directories, names in os.walk(directory, onerror=_raise):
+        directories[:] = [
+            name for name in directories if not name.startswith('.')
+        ]
+        files.extend(
+            Path(parent) / name
+            for name in names
+            if name.endswith(DATA_SUFFIXES) and not name.startswith('.')
+        )
+    files.sort()
+    if not files:
+        raise ValueError(
+            f'directory contains no {" or ".join(DATA_SUFFIXES)} files: '
+            f'{directory.as_posix()!r}'
+        )
+    return files
+
+
+def expand_paths(
+    paths: list[str],
+    *,
+    on_directory: Callable[[Path, int], None] | None = None,
+) -> list[Path]:
+    """Expand directory and glob arguments into the files to validate.
+
+    A directory expands recursively to the ``.json`` and ``.jsonl`` files under
+    it, so ``python -m every_eval_ever validate data/my-source/`` works without
+    the caller knowing how deep the datastore layout is. ``on_directory`` is
+    called with each directory and the number of files it expanded to, so the
+    caller can say what is about to be validated.
+    """
     result: list[Path] = []
     seen: set[Path] = set()
     for value in paths:
@@ -113,13 +173,15 @@ def expand_paths(paths: list[str]) -> list[Path]:
         for match in matches:
             path = Path(match)
             if path.is_dir():
-                raise ValueError(
-                    f'directory arguments are not supported: {match!r}; '
-                    'pass files or a fixed-depth glob'
-                )
-            if path not in seen:
-                result.append(path)
-                seen.add(path)
+                expanded = expand_directory(path)
+                if on_directory is not None:
+                    on_directory(path, len(expanded))
+            else:
+                expanded = [path]
+            for file_path in expanded:
+                if file_path not in seen:
+                    result.append(file_path)
+                    seen.add(file_path)
     return result
 
 
@@ -232,15 +294,15 @@ def render_report_github(reports: list[ValidationReport]) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        prog='eee-validate',
+        prog='python -m every_eval_ever validate',
         description='Validate EEE files using strict JSON and bundled schemas',
     )
     parser.add_argument(
         'paths',
         nargs='+',
         help=(
-            'Files or glob patterns to validate. Directory arguments are not '
-            'supported; use a glob to select files.'
+            'Files, directories, or glob patterns to validate. A directory is '
+            f'searched recursively for {" and ".join(DATA_SUFFIXES)} files.'
         ),
     )
     parser.add_argument(
@@ -258,9 +320,17 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
+    def report_directory(directory: Path, count: int) -> None:
+        # On stderr so it never lands in --format json / github output.
+        print(
+            f'{directory.as_posix()}: validating {count} file(s) found '
+            'recursively',
+            file=sys.stderr,
+        )
+
     try:
-        file_paths = expand_paths(args.paths)
-    except ValueError as exc:
+        file_paths = expand_paths(args.paths, on_directory=report_directory)
+    except (OSError, ValueError) as exc:
         print(str(exc), file=sys.stderr)
         return 1
     if not file_paths:
