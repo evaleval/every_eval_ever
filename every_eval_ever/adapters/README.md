@@ -36,6 +36,7 @@ Each adapter is run with `uv run python -m every_eval_ever.adapters.<name>.adapt
 | `mmlu_pro` | TIGER-Lab leaderboard CSV | Converts the MMLU-Pro leaderboard (`TIGER-Lab/mmlu_pro_leaderboard_submission`) into `data/mmlu-pro/`. Emits per-model overall + 14 per-subject accuracies. |
 | `lexam` | LEXam project website | Converts the LEXam legal-reasoning leaderboard (open-question judge scores + 4-choice MCQ accuracy) into `data/lexam/`. |
 | `vectara_hallucination_leaderboard` | HuggingFace (`vectara/results`) | Converts the Vectara Hallucination Leaderboard result files, pinned to a source commit, into `data/vectara-hallucination-leaderboard/`. Emits 4 aggregate metrics plus per-category and per-text-complexity breakdowns (40 scores per model). |
+| `bountybench` | BountyBench run logs (local JSON tree) | Converts BountyBench cybersecurity agent logs into `data/bountybench/`. Emits one aggregate per (model, workflow, configuration) plus a per-bounty `*_samples.jsonl` sidecar with the full agent transcript. |
 
 ### Mercor Evaluation Exports
 
@@ -205,3 +206,66 @@ scoring model and temperature policy — lives once in `source_metadata`. Each o
 the 40 results carries only what varies, because repeating the constants on
 every result doubled the size of each record. That invariant is pinned by
 `test_constant_provenance_is_not_repeated_per_result`.
+
+### BountyBench
+
+BountyBench writes one JSON log per bounty per attempt, in a tree of
+`logs/<date>/<workflow>/<task>_<bounty>/<model>/<model>_<workflow>_<task>_<bounty>_<timestamp>.json`.
+The logs are not published as a dataset, so point the adapter at a local tree:
+
+```bash
+uv run python -m every_eval_ever.adapters.bountybench.adapter \
+  --logs-dir bountybench/logs/2026-03-26 \
+  --output-dir /tmp/eee-bountybench/data/bountybench \
+  --source-org 'Your Organization' \
+  --bountybench-version 0.3.0
+```
+
+**One record per (model, workflow, configuration).** A BountyBench log records
+no run id, so a configuration — the sha256 of `resources_used.model.config`,
+reported as `config_fingerprint` — is the finest run boundary the source
+supports. Grouping any coarser would let one aggregate report a temperature or
+token budget that only some of its bounties were run under. The three workflows
+are separate evaluations (`bountybench.detect`, `.exploit`, `.patch`), each with
+`evaluation_result_id` equal to its slug, and `evaluation_id` carries the
+workflow and the fingerprint so they cannot collide.
+
+**Repeated attempts are rejected by default.** With no run id, two logs for one
+bounty under one configuration may be a retry or a second run, and they
+disagree on the score, so `--attempt-policy reject` (the default) stops rather
+than picking. `best` (success, then completion, then earliest) and `latest`
+collapse them and disclose the choice: `attempt_selection`, `n_attempts_total`
+(every source log in the partition, including excluded ones),
+`n_bounties_with_multiple_attempts`, and `GenerationArgs.max_attempts`.
+
+**Identity.** `sample_id` is `<task>_<bounty>`, the reliable key for comparing
+one bounty across models. `sample_hash` covers only the input: BountyBench
+scores by running the exploit or patch, so the only available "reference" would
+be the observed outcome, which differs per model for the same bounty. For the
+same reason `input.reference` and `answer_attribution` are empty — the verdict
+comes from the benchmark's verifier, not from parsing a turn.
+
+**Timestamps.** BountyBench stamps carry no UTC offset. `--source-timezone`
+(default `UTC`) says how to read them, so one log yields one `evaluation_id` on
+every host instead of one per converting machine's local zone. Use
+`--retrieved-timestamp` to pin the record-creation time.
+
+**Model metadata.** BountyBench drives hosted APIs, so `deployment_type`
+defaults to `externally_managed`; set `--model-availability` for open-weights
+models. Agents the source records without a provider prefix (`claude-code`)
+have no routable developer, so they are refused until `--model-developer` says
+who published them, rather than published under `unknown`.
+
+**Transcripts.** BountyBench records each command twice, as the model's chosen
+action and again as the executing resource's action carrying the output. Each
+execution becomes exactly one `ToolCall` plus, where output exists, one `tool`
+message naming that call's id. Output longer than 10,000 characters is cut with
+an in-band `[truncated N characters]` marker.
+
+**Failures and exclusions.** A log that cannot be parsed, or whose model
+identity cannot be routed, is a failure: the run stops before writing anything,
+because publishing the rest would report a success rate over a silently reduced
+denominator. `--allow-partial` converts the remainder, writes
+`adapter_reports/bountybench_failures.json`, and exits non-zero. Logs that
+failed at startup ran no iteration and are recorded as exclusions, which are
+visible in the same report but do not fail the run.
