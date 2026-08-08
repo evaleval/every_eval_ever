@@ -200,9 +200,7 @@ def render_summary_rich(
     passed = sum(
         1 for report in reports if report.valid and not report.warnings
     )
-    warned = sum(
-        1 for report in reports if report.valid and report.warnings
-    )
+    warned = sum(1 for report in reports if report.valid and report.warnings)
     failed = sum(1 for report in reports if not report.valid)
     total_errors = sum(len(report.errors) for report in reports)
     total_warnings = sum(len(report.warnings) for report in reports)
@@ -243,6 +241,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog='eee-validate',
         description='Validate EEE files using strict JSON and bundled schemas',
+        epilog='Exit codes: 0 clean, 1 errors, 2 warnings only.',
     )
     parser.add_argument(
         'paths',
@@ -276,9 +275,7 @@ def main(argv: list[str] | None = None) -> int:
         print('No files found to validate.', file=sys.stderr)
         return 1
 
-    local_contexts = [
-        (path, *_local_path_context(path)) for path in file_paths
-    ]
+    local_contexts = [(path, *_local_path_context(path)) for path in file_paths]
     reports = [
         validate_file(
             path,
@@ -303,7 +300,11 @@ def main(argv: list[str] | None = None) -> int:
             render_report_rich(report, console)
         render_summary_rich(reports, console)
 
-    return 1 if any(not report.valid for report in reports) else 0
+    if any(not report.valid for report in reports):
+        return 1
+    if any(report.warnings for report in reports):
+        return 2
+    return 0
 
 
 if __name__ == '__main__':

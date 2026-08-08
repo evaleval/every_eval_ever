@@ -160,8 +160,9 @@ uv run python -m every_eval_ever validate --format github 'data/*/*/*/*.json*'
 
 Rich output distinguishes clean `PASS`, non-fatal `WARN`, and blocking `FAIL`
 results. Its summary reports clean-pass, warning-only, and failure counts.
-Warnings keep exit code `0`, but must still be fixed before merge. Exit code is
-`1` if any file fails.
+Clean runs exit `0`, runs containing an error exit `1`, and warning-only runs
+exit `2`. Warnings do not make a record schema-invalid, but they block merge
+until fixed.
 
 ### Validate local folders with the standalone script
 
@@ -189,10 +190,10 @@ skipped.
 The script uses the current bundled schemas and registered semantic checks.
 Datastore placement and naming problems are warnings locally, so a record may
 be valid but **not merge-ready**. Aggregate/sample content and relationship
-problems remain errors. A warning-only run exits `0`; a run containing an error
-exits `1`. Fix every warning before submitting the files for merge. Checks that
-require PR history or repository-wide remote state remain the responsibility
-of the validator bot.
+problems remain errors. A clean run exits `0`, a run containing an error exits
+`1`, and a warning-only run exits `2`. Fix every warning before submitting the
+files for merge. Checks that require PR history or repository-wide remote state
+remain the responsibility of the validator bot.
 
 Terminal output starts with pass, warning-only, and failure counts, then groups
 identical errors and warnings by type, location, and message. It shows each

@@ -529,14 +529,54 @@ class TestWarningVisibility:
 
 
 class TestExitCode:
-    def test_exit_code_0_on_pass(self, tmp_path: Path):
-        fp = _write_json(tmp_path, 'pass.json', VALID_AGGREGATE)
-        report = validate_file(fp)
-        assert report.valid is True
+    def test_exit_code_0_on_clean_pass(self, tmp_path: Path):
+        path = (
+            tmp_path
+            / 'data'
+            / 'benchmark'
+            / 'developer'
+            / 'model'
+            / 'f82b2807-fb31-4e42-a4a4-497d7d7a7e61.json'
+        )
+        path.parent.mkdir(parents=True)
+        payload = {
+            **VALID_AGGREGATE,
+            'model_info': {
+                'name': 'test-model',
+                'id': 'org/test-model',
+                'developer': 'org',
+                'additional_details': {
+                    'deployment_type': 'unknown',
+                    'model_availability': 'unknown',
+                },
+            },
+        }
+        path.write_text(json.dumps(payload), encoding='utf-8')
+
+        assert main([str(path), '--format', 'json']) == 0
+
+    def test_exit_code_2_on_warning_only(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        fp = _write_json(tmp_path, 'warning.json', VALID_AGGREGATE)
+        report = ValidationReport(
+            file_path=fp,
+            valid=True,
+            file_type='aggregate',
+            warnings=[
+                {'loc': 'model_info', 'msg': 'fix me', 'type': 'warning'}
+            ],
+        )
+        monkeypatch.setattr(
+            'every_eval_ever.validator.validate.validate_file',
+            lambda *args, **kwargs: report,
+        )
+
+        assert main([str(fp), '--format', 'json']) == 2
 
     def test_exit_code_1_on_failure(self, tmp_path: Path):
         data = {**VALID_AGGREGATE}
         del data['evaluation_id']
         fp = _write_json(tmp_path, 'fail.json', data)
-        report = validate_file(fp)
-        assert report.valid is False
+
+        assert main([str(fp), '--format', 'json']) == 1

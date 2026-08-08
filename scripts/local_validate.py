@@ -75,8 +75,7 @@ def expand_directory(directory: Path) -> list[Path]:
     if not files:
         suffixes = ' or '.join(DATA_SUFFIXES)
         raise ValueError(
-            f'directory contains no {suffixes} files: '
-            f'{directory.as_posix()!r}'
+            f'directory contains no {suffixes} files: {directory.as_posix()!r}'
         )
     return files
 
@@ -151,9 +150,7 @@ def _aggregate_sibling(sample_path: Path) -> Path | None:
     suffix = '_samples.jsonl'
     if not sample_path.name.endswith(suffix):
         return None
-    return sample_path.with_name(
-        f'{sample_path.name[: -len(suffix)]}.json'
-    )
+    return sample_path.with_name(f'{sample_path.name[: -len(suffix)]}.json')
 
 
 def _logical_parent(path: Path, actual_repo_path: str | None) -> PurePosixPath:
@@ -193,7 +190,9 @@ def _repository_context(
         ]
     except OSError:
         siblings = [path]
-    files = {(parent / sibling.name).as_posix(): sibling for sibling in siblings}
+    files = {
+        (parent / sibling.name).as_posix(): sibling for sibling in siblings
+    }
     display_path = actual_repo_path or path.as_posix()
     return repo_path, LocalRepositoryFiles(files), display_path
 
@@ -269,9 +268,7 @@ def validate_local_file(
     actual_findings = check_path_structure(display_path)
     path_warnings.extend(_path_warning(message) for message in actual_findings)
     report.errors = retained_errors
-    report.warnings = _deduplicate_findings(
-        [*report.warnings, *path_warnings]
-    )
+    report.warnings = _deduplicate_findings([*report.warnings, *path_warnings])
     report.valid = not report.errors
     return report
 
@@ -302,13 +299,17 @@ def _summary(
     error_count = sum(len(report.errors) for report in reports) + len(
         input_errors
     )
+    failed = statuses.count('fail')
+    warned = statuses.count('warn')
+    exit_code = 1 if input_errors or failed else 2 if warned else 0
     return {
         'files': len(reports),
         'passed': statuses.count('pass'),
-        'warned': statuses.count('warn'),
-        'failed': statuses.count('fail'),
+        'warned': warned,
+        'failed': failed,
         'errors': error_count,
         'warnings': sum(len(report.warnings) for report in reports),
+        'exit_code': exit_code,
         'merge_ready': (
             not input_errors
             and bool(reports)
@@ -331,9 +332,7 @@ def json_payload(
             'scope': 'local',
         },
         'summary': _summary(reports, input_errors),
-        'input_errors': [
-            _normalise_finding(error) for error in input_errors
-        ],
+        'input_errors': [_normalise_finding(error) for error in input_errors],
         'reports': [
             {
                 'file': str(report.file_path),
@@ -346,8 +345,7 @@ def json_payload(
                     _normalise_finding(error) for error in report.errors
                 ],
                 'warnings': [
-                    _normalise_finding(warning)
-                    for warning in report.warnings
+                    _normalise_finding(warning) for warning in report.warnings
                 ],
             }
             for report in reports
@@ -376,9 +374,7 @@ def group_findings(
     reports: list[ValidationReport], attribute: str
 ) -> list[tuple[tuple[str, str, str], list[tuple[Path, dict[str, Any]]]]]:
     """Group report findings by type, normalized location, and message."""
-    groups: dict[
-        tuple[str, str, str], list[tuple[Path, dict[str, Any]]]
-    ] = {}
+    groups: dict[tuple[str, str, str], list[tuple[Path, dict[str, Any]]]] = {}
     for report in reports:
         findings = getattr(report, attribute)
         for finding in findings:
@@ -506,6 +502,7 @@ def main(argv: list[str] | None = None) -> int:
         description=(
             'Validate local EEE files or folders without accessing a PR.'
         ),
+        epilog='Exit codes: 0 clean, 1 errors, 2 warnings only.',
     )
     parser.add_argument(
         'paths',
@@ -569,7 +566,11 @@ def main(argv: list[str] | None = None) -> int:
         render_grouped_rich(reports, console)
         if log_error is not None:
             console.print(log_error['msg'], style='bold red')
-    return 1 if log_error or any(not report.valid for report in reports) else 0
+    if log_error or any(not report.valid for report in reports):
+        return 1
+    if any(report.warnings for report in reports):
+        return 2
+    return 0
 
 
 if __name__ == '__main__':

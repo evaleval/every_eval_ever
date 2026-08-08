@@ -49,9 +49,7 @@ def test_noncanonical_record_is_valid_but_not_merge_ready(tmp_path: Path):
     assert report.valid is True
     assert report.errors == []
     assert report.warnings
-    assert all(
-        warning['type'] == 'path_warning' for warning in report.warnings
-    )
+    assert all(warning['type'] == 'path_warning' for warning in report.warnings)
     assert local_validate.report_status(report) == 'warn'
     assert local_validate.report_merge_ready(report) is False
 
@@ -163,17 +161,16 @@ def test_json_output_is_detailed_and_stdout_stays_parseable(
     folder = tmp_path / 'flat'
     write_json(folder / 'results.json', valid_aggregate())
 
-    exit_code = local_validate.main(
-        ['--format', 'json', folder.as_posix()]
-    )
+    exit_code = local_validate.main(['--format', 'json', folder.as_posix()])
 
     captured = capsys.readouterr()
     payload = json.loads(captured.out)
-    assert exit_code == 0
+    assert exit_code == 2
     assert payload['validator']['scope'] == 'local'
     assert payload['validator']['schema_version']
     assert payload['validator']['schema_fingerprint']
     assert payload['summary']['warned'] == 1
+    assert payload['summary']['exit_code'] == 2
     assert payload['summary']['merge_ready'] is False
     assert payload['reports'][0]['status'] == 'warn'
     warning = payload['reports'][0]['warnings'][0]
@@ -184,18 +181,17 @@ def test_json_output_is_detailed_and_stdout_stays_parseable(
 
 
 def test_json_output_describes_input_errors(tmp_path: Path, capsys):
-    exit_code = local_validate.main(
-        ['--format', 'json', tmp_path.as_posix()]
-    )
+    exit_code = local_validate.main(['--format', 'json', tmp_path.as_posix()])
 
     captured = capsys.readouterr()
     payload = json.loads(captured.out)
     assert exit_code == 1
     assert payload['summary']['errors'] == 1
+    assert payload['summary']['exit_code'] == 1
     assert payload['summary']['merge_ready'] is False
     assert payload['input_errors'][0]['type'] == 'input_error'
-    assert 'contains no .json or .jsonl' in (
-        payload['input_errors'][0]['message']
+    assert (
+        'contains no .json or .jsonl' in (payload['input_errors'][0]['message'])
     )
 
 
@@ -204,9 +200,7 @@ def test_json_output_gives_agents_field_level_errors(tmp_path: Path, capsys):
     del aggregate['evaluation_id']
     path = write_json(tmp_path / 'results.json', aggregate)
 
-    exit_code = local_validate.main(
-        ['--format', 'json', path.as_posix()]
-    )
+    exit_code = local_validate.main(['--format', 'json', path.as_posix()])
 
     payload = json.loads(capsys.readouterr().out)
     error = payload['reports'][0]['errors'][0]
@@ -246,7 +240,7 @@ def test_json_log_keeps_individual_warning_details(tmp_path: Path, capsys):
 
     captured = capsys.readouterr()
     payload = json.loads(log_path.read_text(encoding='utf-8'))
-    assert exit_code == 0
+    assert exit_code == 2
     assert payload['summary']['warned'] == 1
     assert payload['reports'][0]['file'] == str(path)
     assert payload['reports'][0]['warnings']
@@ -260,6 +254,15 @@ def test_rich_output_marks_warning_only_run(tmp_path: Path, capsys):
     exit_code = local_validate.main([path.as_posix()])
 
     captured = capsys.readouterr()
-    assert exit_code == 0
+    assert exit_code == 2
     assert 'WARN' in captured.out
     assert 'not merge-ready' in captured.out
+
+
+def test_clean_run_exits_zero(tmp_path: Path, capsys):
+    path = canonical_aggregate(tmp_path)
+
+    exit_code = local_validate.main([path.as_posix()])
+
+    assert exit_code == 0
+    assert '1 passed, 0 warning-only, 0 failed' in capsys.readouterr().out
