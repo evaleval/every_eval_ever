@@ -19,6 +19,7 @@ from every_eval_ever.eval_types import (
 from every_eval_ever.helpers import SCHEMA_VERSION as ADAPTER_SCHEMA_VERSION
 from every_eval_ever.schema import get_schema_version, schema_json
 from every_eval_ever.validate import (
+    check_model_identity_path,
     check_path_structure,
     check_score_metadata,
     validate_aggregate,
@@ -426,6 +427,142 @@ def test_score_bounds_accept_infinity_and_reject_reversed_ranges():
         'greater than max_score' in finding
         for finding in check_score_metadata(data)
     )
+
+
+def test_model_identity_must_match_its_datastore_directory():
+    data = valid_aggregate()
+    assert check_model_identity_path(AGGREGATE_REPO_PATH, data) == []
+
+    # Developer-slug drift: dev/ holding a model whose id says otherwise.
+    data['model_info']['id'] = 'dev-labs/model'
+    findings = check_model_identity_path(AGGREGATE_REPO_PATH, data)
+    assert len(findings) == 1
+    assert 'bench/dev-labs/model/' in findings[0]
+
+    # A flat id falls back to model_info.developer, same as the publisher.
+    data['model_info'].update({'id': 'model', 'developer': 'dev'})
+    assert check_model_identity_path(AGGREGATE_REPO_PATH, data) == []
+
+
+def test_an_identity_that_names_no_directory_is_reported_not_raised():
+    """The publisher's own reason is the message, for each way it can fail.
+
+    Three of the four occur in the published datastore: 92 records carry a flat
+    id with no ``developer``, 81 an ``unknown`` one, and 96 an id prefixed
+    ``unknown``. The fourth, a component that is not a portable path name, is
+    unpublished but the publisher still refuses it. In each case no path follows
+    from the identity at all.
+    """
+    data = valid_aggregate()
+    for model_info in (
+        {'name': 'model', 'id': 'model'},  # flat id, no developer
+        {'name': 'model', 'id': 'model', 'developer': 'unknown'},
+        {'name': 'model', 'id': 'unknown/model'},
+        {'name': 'model', 'id': 'dev/model.'},  # not a portable component
+    ):
+        data['model_info'] = model_info
+        findings = check_model_identity_path(AGGREGATE_REPO_PATH, data)
+        assert len(findings) == 1, model_info
+        assert findings[0].startswith('model_info: '), model_info
+        # The id is quoted because 'model developer must be known' means the
+        # prefix of the id, not model_info.developer — different fix, and the
+        # publisher's wording alone does not distinguish them.
+        assert repr(model_info['id']) in findings[0], model_info
+        assert 'cannot find this record' in findings[0], model_info
+
+
+def test_a_collection_directory_is_never_reported_under_model_info():
+    """A collection the publisher would refuse is not this check's finding.
+
+    ``data/unknown/...`` passes the path-structure check but the publisher
+    rejects the collection, and blaming ``model_info`` for the directory above
+    it would send the reader to the wrong field.
+    """
+    data = valid_aggregate()
+    path = 'data/unknown/dev/model/f82b2807-fb31-4e42-a4a4-497d7d7a7e61.json'
+    assert check_model_identity_path(path, data) == []
+
+
+def test_model_identity_path_defers_to_the_schema_on_a_missing_id():
+    """A file with no ``model_info.id`` already fails; do not warn as well."""
+    data = valid_aggregate()
+    data['model_info'] = {'name': 'model'}
+    assert check_model_identity_path(AGGREGATE_REPO_PATH, data) == []
+
+
+def test_a_non_string_developer_is_left_to_the_schema(tmp_path):
+    """A flat id whose ``developer`` is the wrong type already fails.
+
+    Warning as well would restate that schema error as ``model_info.developer
+    is required``, about a field that is populated.
+    """
+    data = valid_aggregate()
+    data['model_info'].update({'id': 'model', 'developer': 1})
+    assert check_model_identity_path(AGGREGATE_REPO_PATH, data) == []
+
+    report = validate_data(tmp_path, data)
+    assert report.valid is False
+    assert [error['loc'] for error in report.errors] == [
+        'model_info -> developer'
+    ]
+    assert report.warnings == []
+
+    # A slash-separated id takes its developer from the id, so the same value
+    # leaves its drift reportable.
+    data['model_info']['id'] = 'dev-labs/model'
+    findings = check_model_identity_path(AGGREGATE_REPO_PATH, data)
+    assert len(findings) == 1
+    assert 'bench/dev-labs/model/' in findings[0]
+
+
+def test_a_blank_id_is_reported_because_the_schema_accepts_it():
+    """``id`` is required but unconstrained, so ``'  '`` reaches the datastore.
+
+    It names no directory, which is the disagreement this check reports seen
+    from the other side.
+    """
+    data = valid_aggregate()
+    data['model_info'] = {'name': 'model', 'id': '  '}
+    warning = check_model_identity_path(AGGREGATE_REPO_PATH, data)[0]
+    assert 'names no datastore directory' in warning
+
+
+def test_the_drift_warning_names_both_directories_without_choosing_one():
+    """Neither side of the disagreement is presumed correct.
+
+    A message telling the record where it "belongs" would ask for a second
+    directory for a model that already has one — the split this check reports.
+    """
+    data = valid_aggregate()
+    data['model_info']['id'] = 'dev-labs/model'
+    warning = check_model_identity_path(AGGREGATE_REPO_PATH, data)[0]
+    assert 'bench/dev-labs/model/' in warning
+    assert 'bench/dev/model/' in warning
+    assert 'rather than publishing under both' in warning
+    assert 'belongs' not in warning
+
+
+def test_model_identity_path_defers_to_the_path_structure_check():
+    """Malformed paths get one complaint, from the check that owns them.
+
+    Every path that check rejects, not only the wrong-depth ones: a warning
+    about which directory the identity addresses is noise on a path that is not
+    a datastore path at all.
+    """
+    for path in (
+        'data/bench/model.json',
+        'notdata/bench/dev/model/f82b2807-fb31-4e42-a4a4-497d7d7a7e61.json',
+        'data/bench/data/model/f82b2807-fb31-4e42-a4a4-497d7d7a7e61.json',
+    ):
+        assert check_model_identity_path(path, valid_aggregate()) == [], path
+
+
+def test_identity_path_drift_warns_without_failing_validation(tmp_path):
+    data = valid_aggregate()
+    data['model_info']['id'] = 'dev-labs/model'
+    report = validate_data(tmp_path, data)
+    assert report.valid is True
+    assert any('dev-labs' in warning['msg'] for warning in report.warnings)
 
 
 def test_model_unknown_placeholders_pass_but_missing_raw_fields_fail(tmp_path):
