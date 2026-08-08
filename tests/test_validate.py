@@ -2,17 +2,22 @@
 
 from __future__ import annotations
 
+import io
 import json
 from pathlib import Path
 
 import pytest
+from rich.console import Console
 
 from every_eval_ever.schema import get_schema_version
 from every_eval_ever.validate import (
+    ValidationReport,
     expand_paths,
     main,
     render_report_github,
     render_report_json,
+    render_report_rich,
+    render_summary_rich,
 )
 from every_eval_ever.validate import (
     validate_aggregate as _validate_aggregate,
@@ -439,6 +444,88 @@ class TestOutputFormats:
         report = validate_file(fp)
         output = render_report_github([report])
         assert output == ''
+
+
+class TestWarningVisibility:
+    @staticmethod
+    def render(report: ValidationReport, *, color: bool = False) -> str:
+        stream = io.StringIO()
+        console = Console(
+            file=stream,
+            width=100,
+            no_color=not color,
+            force_terminal=color,
+            legacy_windows=False,
+        )
+        render_report_rich(report, console)
+        render_summary_rich([report], console)
+        return stream.getvalue()
+
+    @staticmethod
+    def passing_report(
+        warnings: list[dict[str, str]],
+    ) -> ValidationReport:
+        return ValidationReport(
+            file_path=Path('data/bench/dev/model/x.json'),
+            valid=True,
+            file_type='aggregate',
+            warnings=warnings,
+        )
+
+    def test_warning_only_file_is_visible_as_warn(self):
+        output = self.render(
+            self.passing_report(
+                [
+                    {
+                        'loc': 'evaluation_results[0].metric_config',
+                        'msg': 'something worth a second look',
+                        'type': 'semantic_warning',
+                    }
+                ]
+            )
+        )
+
+        assert 'WARN' in output
+        assert 'PASS' not in output
+        assert 'something worth a second look' in output
+        assert 'evaluation_results[0].metric_config' in output
+
+    def test_warning_summary_matches_local_validator_states(self):
+        output = self.render(
+            self.passing_report(
+                [{'loc': '', 'msg': 'first', 'type': 'semantic_warning'}]
+            )
+        )
+
+        assert '0 passed, 1 warning-only, 0 failed' in output
+        assert '1 warnings' in output
+        assert 'not merge-ready' in output
+
+    def test_clean_pass_stays_clean(self):
+        output = self.render(self.passing_report([]))
+
+        assert 'PASS' in output
+        assert 'WARN' not in output
+        assert '1 passed, 0 warning-only, 0 failed' in output
+
+    def test_failure_with_warning_stays_red(self):
+        report = ValidationReport(
+            file_path=Path('data/bench/dev/model/x.json'),
+            valid=False,
+            file_type='aggregate',
+            errors=[
+                {'loc': 'model_info', 'msg': 'boom', 'type': 'value_error'}
+            ],
+            warnings=[{'loc': '', 'msg': 'first', 'type': 'semantic_warning'}],
+        )
+
+        output = self.render(report, color=True)
+
+        assert 'FAIL' in output
+        assert '0 passed, 0 warning-only, 1 failed' in output
+        assert '1 warnings' in output
+        assert '\x1b[1;31m' in output
+        assert '\x1b[1;33m' not in output
 
 
 class TestExitCode:

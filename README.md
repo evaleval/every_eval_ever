@@ -158,7 +158,10 @@ uv run python -m every_eval_ever validate --format github 'data/*/*/*/*.json*'
 | `--format {rich,json,github}` | `rich` | Output format |
 | `--max-errors N` | `50` | Maximum errors reported per JSONL file |
 
-Exit code is `0` if all files pass and `1` if any fail.
+Rich output distinguishes clean `PASS`, non-fatal `WARN`, and blocking `FAIL`
+results. Its summary reports clean-pass, warning-only, and failure counts.
+Warnings keep exit code `0`, but must still be fixed before merge. Exit code is
+`1` if any file fails.
 
 ### Validate local folders with the standalone script
 
