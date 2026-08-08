@@ -167,11 +167,15 @@ datastore checkout. It accepts files, glob patterns, and directories at any
 depth without accessing a pull request or changing the package CLI:
 
 ```sh
-# Human-readable terminal report
+# Grouped human-readable terminal report
 uv run python scripts/local_validate.py /path/to/output
 
-# Structured diagnostics for an agent or another program
+# Stream structured diagnostics to stdout
 uv run python scripts/local_validate.py --format json /path/to/output
+
+# Show grouped terminal output and save every individual finding
+uv run python scripts/local_validate.py \
+  --json-log local-validation.json /path/to/output
 ```
 
 Directories are searched recursively for every `.json` and `.jsonl` file.
@@ -187,10 +191,16 @@ exits `1`. Fix every warning before submitting the files for merge. Checks that
 require PR history or repository-wide remote state remain the responsibility
 of the validator bot.
 
+Terminal output starts with pass, warning-only, and failure counts, then groups
+identical errors and warnings by type, location, and message. It shows each
+group's occurrence and affected-file counts instead of printing one panel per
+file. Use `--json-log PATH` to retain every individual finding while keeping
+the grouped terminal view.
+
 JSON output includes the schema version and fingerprint, a summary, and one
 report per file with its status, field or line location, message, offending
-input when available, errors, and warnings. Operational directory notices are
-written to stderr so stdout remains parseable JSON.
+input when available, errors, and warnings. Operational directory and log
+notices are written to stderr so stdout remains parseable JSON.
 
 ## 🗂️ Data Structure
 

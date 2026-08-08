@@ -219,6 +219,41 @@ def test_json_output_gives_agents_field_level_errors(tmp_path: Path, capsys):
     assert 'input' in error
 
 
+def test_rich_output_groups_repeated_errors(tmp_path: Path, capsys):
+    folder = tmp_path / 'flat'
+    aggregate = valid_aggregate()
+    del aggregate['evaluation_id']
+    write_json(folder / 'first.json', aggregate)
+    write_json(folder / 'second.json', aggregate)
+
+    exit_code = local_validate.main([folder.as_posix()])
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert '0 passed, 0 warning-only, 2 failed' in captured.out
+    assert 'Errors: 1 group(s), 2 occurrence(s)' in captured.out
+    assert '2 occurrence(s) in 2 file(s)' in captured.out
+
+
+def test_json_log_keeps_individual_warning_details(tmp_path: Path, capsys):
+    folder = tmp_path / 'flat'
+    path = write_json(folder / 'results.json', valid_aggregate())
+    log_path = tmp_path / 'reports' / 'local-validation.json'
+
+    exit_code = local_validate.main(
+        ['--json-log', log_path.as_posix(), path.as_posix()]
+    )
+
+    captured = capsys.readouterr()
+    payload = json.loads(log_path.read_text(encoding='utf-8'))
+    assert exit_code == 0
+    assert payload['summary']['warned'] == 1
+    assert payload['reports'][0]['file'] == str(path)
+    assert payload['reports'][0]['warnings']
+    assert payload['reports'][0]['warnings'][0]['message']
+    assert f'Detailed JSON log: {log_path}' in captured.err
+
+
 def test_rich_output_marks_warning_only_run(tmp_path: Path, capsys):
     path = write_json(tmp_path / 'results.json', valid_aggregate())
 

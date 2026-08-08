@@ -7,6 +7,7 @@ import argparse
 import glob
 import json
 import os
+import re
 import sys
 from collections.abc import Callable, Container
 from pathlib import Path, PurePosixPath
@@ -31,6 +32,8 @@ from every_eval_ever.validator.validation_core import (
 
 DATA_SUFFIXES = ('.json', '.jsonl')
 _LOCAL_PARENT = PurePosixPath('data/local/local/local')
+_LINE_LOCATION_RE = re.compile(r'^line \d+ -> ')
+_MAX_GROUP_FILES = 5
 
 
 class LocalRepositoryFiles(Container[str]):
@@ -364,83 +367,79 @@ def render_json(
     )
 
 
-def _kind(report: ValidationReport) -> str:
-    if report.file_type == 'aggregate':
-        return 'Aggregate (EvaluationLog)'
-    if report.file_type == 'instance':
-        return (
-            'Instance (InstanceLevelEvaluationLog, '
-            f'{report.line_count} lines)'
-        )
-    return report.file_type.title() or 'Unknown file type'
+def _group_location(finding: dict[str, Any]) -> str:
+    location = str(finding.get('loc') or '(root)')
+    return _LINE_LOCATION_RE.sub('', location)
 
 
-def _truncate(value: object, max_length: int = 160) -> str:
-    text = repr(value)
-    if len(text) <= max_length:
-        return text
-    return f'{text[: max_length - 3]}...'
-
-
-def _finding_lines(
-    findings: list[dict[str, Any]], *, severity: str
-) -> list[Text]:
-    lines: list[Text] = []
-    style = 'red' if severity == 'ERROR' else 'yellow'
-    for index, finding in enumerate(findings, start=1):
-        location = finding.get('loc') or '(root)'
-        finding_type = finding.get('type') or 'validation_finding'
-        lines.append(
-            Text(
-                f'  {severity} {index} · {location} [{finding_type}]',
-                style=style,
+def group_findings(
+    reports: list[ValidationReport], attribute: str
+) -> list[tuple[tuple[str, str, str], list[tuple[Path, dict[str, Any]]]]]:
+    """Group report findings by type, normalized location, and message."""
+    groups: dict[
+        tuple[str, str, str], list[tuple[Path, dict[str, Any]]]
+    ] = {}
+    for report in reports:
+        findings = getattr(report, attribute)
+        for finding in findings:
+            key = (
+                str(finding.get('type') or 'validation_finding'),
+                _group_location(finding),
+                str(finding.get('msg') or ''),
             )
+            groups.setdefault(key, []).append((report.file_path, finding))
+    return list(groups.items())
+
+
+def _render_finding_groups(
+    reports: list[ValidationReport],
+    console: Console,
+    *,
+    attribute: str,
+    severity: str,
+) -> None:
+    groups = group_findings(reports, attribute)
+    if not groups:
+        return
+    style = 'red' if severity == 'ERROR' else 'yellow'
+    console.print()
+    console.print(
+        Text(
+            f'{severity.title()}s: {len(groups)} group(s), '
+            f'{sum(len(items) for _, items in groups)} occurrence(s)',
+            style=f'bold {style}',
         )
-        lines.append(Text(f'    {finding.get("msg", "")}'))
-        if finding.get('input') is not None:
+    )
+    for index, ((finding_type, location, message), items) in enumerate(
+        groups, start=1
+    ):
+        files = list(dict.fromkeys(path for path, _ in items))
+        shown_files = files[:_MAX_GROUP_FILES]
+        lines = [
+            Text(f'{location} [{finding_type}]', style=style),
+            Text(message),
+            Text(''),
+            Text(
+                f'{len(items)} occurrence(s) in {len(files)} file(s)',
+                style='bold',
+            ),
+        ]
+        lines.extend(Text(f'  {path}', style='dim') for path in shown_files)
+        if len(files) > len(shown_files):
             lines.append(
                 Text(
-                    f'    Got: {_truncate(finding["input"])}',
+                    f'  ... and {len(files) - len(shown_files)} more',
                     style='dim',
                 )
             )
-        lines.append(Text(''))
-    return lines
-
-
-def render_report_rich(report: ValidationReport, console: Console) -> None:
-    status = report_status(report)
-    if status == 'pass':
-        label = Text(' PASS ', style='bold white on green')
-        border = 'green'
-    elif status == 'warn':
-        label = Text(' WARN ', style='bold black on yellow')
-        border = 'yellow'
-    else:
-        label = Text(' FAIL ', style='bold white on red')
-        border = 'red'
-
-    lines = [Text.assemble(label, '  ', (_kind(report), 'dim'))]
-    if report.errors or report.warnings:
-        lines.append(Text(''))
-    lines.extend(_finding_lines(report.errors, severity='ERROR'))
-    lines.extend(_finding_lines(report.warnings, severity='WARNING'))
-    if status == 'warn':
-        lines.append(
-            Text(
-                '  Valid locally, but not merge-ready. Fix all warnings.',
-                style='bold yellow',
+        console.print(
+            Panel(
+                Text('\n').join(lines),
+                title=f'{severity} GROUP {index}',
+                title_align='left',
+                border_style=style,
             )
         )
-
-    console.print(
-        Panel(
-            Text('\n').join(lines),
-            title=Text(str(report.file_path), style='blue underline'),
-            title_align='left',
-            border_style=border,
-        )
-    )
 
 
 def render_summary_rich(
@@ -463,6 +462,33 @@ def render_summary_rich(
     console.print()
     console.print(
         Panel(Text(message, style=style), title='Summary', border_style='dim')
+    )
+
+
+def render_grouped_rich(
+    reports: list[ValidationReport], console: Console
+) -> None:
+    """Render counts first, then grouped errors and warnings."""
+    render_summary_rich(reports, console)
+    _render_finding_groups(
+        reports,
+        console,
+        attribute='errors',
+        severity='ERROR',
+    )
+    _render_finding_groups(
+        reports,
+        console,
+        attribute='warnings',
+        severity='WARNING',
+    )
+    console.print()
+    console.print(
+        Text(
+            'Use --format json for every individual finding, or '
+            '--json-log PATH to save the detailed report.',
+            style='dim',
+        )
     )
 
 
@@ -493,6 +519,12 @@ def main(argv: list[str] | None = None) -> int:
         dest='output_format',
         help='Output format (default: rich).',
     )
+    parser.add_argument(
+        '--json-log',
+        type=Path,
+        default=None,
+        help='Write the detailed per-file JSON report to this path.',
+    )
     args = parser.parse_args(argv)
 
     def report_directory(directory: Path, count: int) -> None:
@@ -513,14 +545,31 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     reports = [validate_local_file(path) for path in paths]
+    log_error: dict[str, Any] | None = None
+    if args.json_log is not None:
+        try:
+            args.json_log.parent.mkdir(parents=True, exist_ok=True)
+            args.json_log.write_text(render_json(reports), encoding='utf-8')
+        except OSError as exc:
+            log_error = _input_error(
+                f'could not write JSON log {args.json_log}: {exc}'
+            )
+        else:
+            print(f'Detailed JSON log: {args.json_log}', file=sys.stderr)
+
     if args.output_format == 'json':
-        print(render_json(reports))
+        print(
+            render_json(
+                reports,
+                input_errors=[log_error] if log_error is not None else None,
+            )
+        )
     else:
         console = Console()
-        for report in reports:
-            render_report_rich(report, console)
-        render_summary_rich(reports, console)
-    return 1 if any(not report.valid for report in reports) else 0
+        render_grouped_rich(reports, console)
+        if log_error is not None:
+            console.print(log_error['msg'], style='bold red')
+    return 1 if log_error or any(not report.valid for report in reports) else 0
 
 
 if __name__ == '__main__':
