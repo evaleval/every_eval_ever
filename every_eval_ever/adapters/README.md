@@ -29,6 +29,7 @@ Each adapter is run with `uv run python -m every_eval_ever.adapters.<name>.adapt
 | `llm_stats` | LLM Stats API | Converts LLM Stats model, benchmark, and score API data into `data/llm-stats/`. |
 | `mercor_eval` | Mercor Evaluation Exports API | Fetches authenticated Mercor benchmark leaderboards and writes aggregate EEE records. |
 | `mt_bench` | LMSYS / FastChat | Converts MT-Bench GPT-4 single-answer judgments into `data/mt-bench/`. Emits overall, turn-1, and turn-2 means per model. |
+| `open_medical_llm` | HuggingFace (`openlifescienceai/results`) | Converts the Open Medical-LLM Leaderboard's lm-evaluation-harness results into `data/open-medical-llm/`. One record per model, one result per medical benchmark (9). See [`open_medical_llm/README.md`](open_medical_llm/README.md). |
 | `openeval` | HuggingFace | Converts OpenEval response scores from `human-centered-eval/OpenEval` into `data/openeval/`; pass `--include-instances` to also write `*_samples.jsonl` sidecars. |
 | `rewardbench` | HuggingFace | Fetches RewardBench v1 (CSV) and RewardBench v2 (JSON) leaderboard data. |
 | `terminal_bench_2` | tbench.ai | Fetches Terminal-Bench 2.0 agentic coding benchmark results. |
