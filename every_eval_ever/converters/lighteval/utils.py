@@ -26,10 +26,23 @@ SECRET_MODEL_CONFIG_KEYS = frozenset(
         'auth_token',
         'credentials',
         'hf_token',
+        'key',
         'password',
         'secret',
         'token',
     }
+)
+
+# Suffixes that make a key credential-bearing whatever the provider prefix.
+# Nested `env_vars` mappings are where these actually appear: OPENAI_API_KEY,
+# AWS_SECRET_ACCESS_KEY, HUGGING_FACE_HUB_TOKEN. Anchoring on the suffix keeps
+# `tokenizer` and `max_tokens` out of the redaction set.
+_SECRET_KEY_SUFFIXES = (
+    '_key',
+    '_token',
+    '_secret',
+    '_password',
+    '_credentials',
 )
 
 _DATE_ID_PATTERN = re.compile(
@@ -169,13 +182,99 @@ def parse_results_file_timestamp(file_path: Path) -> Optional[str]:
     )
 
 
+# lighteval metric names whose cross-source identity is unambiguous. Only names
+# that mean the same thing in every harness belong here — this is the join key,
+# so a wrong entry silently merges two different measurements, which is worse
+# than leaving one unjoined.
+#
+# Everything else gets a stable `lighteval/<name>` id: namespaced rather than
+# guessed, and never bare. `metric_id_source` records which route was taken, so
+# a later pass can resolve the namespaced ones against the eval-card-registry
+# without having to re-derive which were canonical to begin with.
+CANONICAL_METRIC_IDS = {
+    'acc': 'accuracy',
+    'acc_norm': 'accuracy_normalized',
+    'bleu': 'bleu',
+    'chrf': 'chrf',
+    'exact_match': 'exact_match',
+    'f1': 'f1',
+    'mcc': 'matthews_correlation',
+    'perplexity': 'perplexity',
+    'rouge1': 'rouge1',
+    'rouge2': 'rouge2',
+    'rougeL': 'rougeL',
+    'ter': 'ter',
+    'word_perplexity': 'word_perplexity',
+}
+
+METRIC_ID_NAMESPACE = 'lighteval'
+
+
+def resolve_metric_id(metric_name: str) -> tuple[str, str]:
+    """Return (metric_id, how_it_was_derived) for a lighteval metric name.
+
+    `metric_id` is the cross-source join key and must always be set, so this
+    never returns None. Canonical names come from the table above; anything
+    else is namespaced under `lighteval/` rather than being invented, and the
+    second element says which happened.
+    """
+    canonical = CANONICAL_METRIC_IDS.get(metric_name)
+    if canonical is not None:
+        return canonical, 'canonical'
+    return f'{METRIC_ID_NAMESPACE}/{metric_name}', 'namespaced_unresolved'
+
+
+def _is_secret_key(key: Any) -> bool:
+    """True if a config key names a credential.
+
+    Exact names cover the common cases; the suffix rule catches the
+    provider-prefixed forms that show up inside nested `env_vars` mappings,
+    such as OPENAI_API_KEY or AWS_SECRET_ACCESS_KEY.
+
+    Matching on suffixes rather than substrings is deliberate: 'token' as a
+    substring would also redact `tokenizer`, and 'tokens' would take
+    `max_tokens`. Both are ordinary evaluation config worth keeping, and
+    neither ends in `_token`.
+    """
+    lowered = str(key).lower()
+    if lowered in SECRET_MODEL_CONFIG_KEYS:
+        return True
+    return lowered.endswith(_SECRET_KEY_SUFFIXES)
+
+
+def _sanitize_config_value(
+    value: Any, path: List[str], redacted: List[str]
+) -> Any:
+    """Strip credential-bearing keys from nested mappings and sequences.
+
+    lighteval dumps the whole model config, and a nested `env_vars` mapping can
+    carry a live provider token. Filtering only the top level left those values
+    to be serialized wholesale into `additional_details`, which is published.
+    """
+    if isinstance(value, dict):
+        cleaned: Dict[Any, Any] = {}
+        for key, item in value.items():
+            child_path = path + [str(key)]
+            if _is_secret_key(key):
+                redacted.append('.'.join(child_path))
+                continue
+            cleaned[key] = _sanitize_config_value(item, child_path, redacted)
+        return cleaned
+    if isinstance(value, (list, tuple)):
+        return [
+            _sanitize_config_value(item, path + [str(index)], redacted)
+            for index, item in enumerate(value)
+        ]
+    return value
+
+
 def flatten_model_config(
     model_config: Any,
 ) -> tuple[Dict[str, str], List[str]]:
     """Stringify a dumped lighteval model config for additional_details.
 
-    Returns the flattened values and the names of any credential-bearing keys
-    that were dropped.
+    Returns the flattened values and the dotted paths of any credential-bearing
+    keys that were dropped, nested ones included.
     """
     if not isinstance(model_config, dict):
         return {}, []
@@ -185,11 +284,12 @@ def flatten_model_config(
     for key, value in model_config.items():
         if value is None:
             continue
-        if key.lower() in SECRET_MODEL_CONFIG_KEYS:
-            redacted.append(key)
+        if _is_secret_key(key):
+            redacted.append(str(key))
             continue
         if isinstance(value, str):
             flattened[key] = value
         else:
-            flattened[key] = json.dumps(value, sort_keys=True, default=str)
+            cleaned = _sanitize_config_value(value, [str(key)], redacted)
+            flattened[key] = json.dumps(cleaned, sort_keys=True, default=str)
     return flattened, sorted(redacted)

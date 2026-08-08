@@ -232,7 +232,12 @@ def _cmd_convert_lighteval(args: argparse.Namespace) -> int:
     log_path = Path(args.log_path)
     input_result: SourceConversionResult[Any] | None = None
     if log_path.is_file():
-        logs = adapter.transform_from_file(log_path, metadata)
+        # Via the result path, so a parse or conversion error reaches the
+        # failure report before it is raised. The directory branch already
+        # behaved this way, so the same failure class was reported differently
+        # depending on which entry mode you used.
+        input_result = adapter.transform_from_file_result(log_path, metadata)
+        logs = input_result.records
     elif log_path.is_dir():
         input_result = adapter.transform_from_directory_result(
             log_path, metadata

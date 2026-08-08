@@ -327,7 +327,15 @@ def test_bootstrap_stderr_and_unknown_bounds():
     assert custom.metric_config.additional_details == {
         'direction_status': 'assumed_higher_is_better',
         'bounds_status': 'unknown',
+        'metric_id_source': 'namespaced_unresolved',
     }
+    # Always set, because it is the cross-source join key — namespaced rather
+    # than guessed when the name has no unambiguous canonical identity.
+    assert custom.metric_config.metric_id == 'lighteval/custom_reward'
+    assert mcc.metric_config.metric_id == 'matthews_correlation'
+    assert (
+        mcc.metric_config.additional_details['metric_id_source'] == 'canonical'
+    )
     assert (
         logs['glue:cola|0'].source_metadata.additional_details[
             'metrics_with_unknown_bounds'
@@ -357,7 +365,14 @@ def test_task_with_no_finite_scores_is_named_on_the_remaining_logs(tmp_path):
     )
 
 
-def test_file_with_no_measured_task_yields_nothing(tmp_path):
+def test_file_whose_measured_tasks_are_all_unconvertible_is_a_failure(tmp_path):
+    """Total conversion loss must be distinguishable from nothing to convert.
+
+    This file HAS a measured task; it just has no finite score. Previously the
+    adapter returned an empty list and recorded no failure, so a directory made
+    entirely of such files converted zero records and exited successfully —
+    automation could not tell that everything had been dropped.
+    """
     source = json.loads(RESULTS_FILE.read_text(encoding='utf-8'))
     source['results'] = {'glue:cola|0': {'mcc': float('nan')}}
     empty = tmp_path / 'results_2026-01-21T03-44-18.458309.json'
@@ -367,7 +382,45 @@ def test_file_with_no_measured_task_yields_nothing(tmp_path):
     result = adapter.transform_from_directory_result(tmp_path, {})
 
     assert result.records == []
+    assert len(result.failures) == 1
+    assert 'glue:cola|0' in result.failures[0].reason
+    with pytest.raises(SourceRecordsError):
+        result.raise_if_incomplete()
+
+
+def test_file_with_only_derived_rows_is_an_exclusion_not_a_failure(tmp_path):
+    """Rows lighteval averaged itself are dropped on purpose, so they are
+    excluded and accounted for rather than counted against the error budget."""
+    source = json.loads(RESULTS_FILE.read_text(encoding='utf-8'))
+    source['results'] = {'all': {'mcc': 0.5}, 'mmlu:_average|5': {'acc': 0.5}}
+    derived_only = tmp_path / 'results_2026-01-21T03-44-18.458309.json'
+    derived_only.write_text(json.dumps(source), encoding='utf-8')
+
+    result = LightevalAdapter().transform_from_directory_result(tmp_path, {})
+
+    assert result.records == []
     assert result.failures == []
+    assert len(result.exclusions) == 1
+    assert 'derived' in result.exclusions[0].reason
+    result.raise_if_incomplete()
+
+
+def test_total_records_counts_source_files_not_output_logs(tmp_path):
+    """The coverage denominator needs one consistent unit.
+
+    A good file yields several task-level logs while a bad file yields one
+    failure, so summing the two gave a denominator that meant nothing.
+    """
+    source = json.loads(RESULTS_FILE.read_text(encoding='utf-8'))
+    good = tmp_path / 'results_2026-01-21T03-44-18.458309.json'
+    good.write_text(json.dumps(source), encoding='utf-8')
+
+    result = LightevalAdapter().transform_from_directory_result(tmp_path, {})
+    report = result.failure_report()
+
+    assert report['total_source_records'] == 1
+    assert report['converted_records'] == len(result.records)
+    assert len(result.records) > 1, 'fixture should yield several task logs'
 
 
 # ── Adapter: transform_from_directory ──────────────────────────────────
@@ -453,3 +506,128 @@ def test_missing_model_name_is_an_error():
     adapter = LightevalAdapter()
     with pytest.raises(ValueError, match='config_general.model_name'):
         adapter._extract_model_info({'config_general': {}}, {})
+
+
+# ── Review findings: identity, credentials, coverage ───────────────────
+
+
+def test_evaluation_id_is_identical_across_repeat_conversions():
+    """Keyed on the source, so re-ingesting the same file cannot duplicate it.
+
+    It previously carried the conversion time, which gave the same evaluation a
+    new identity on every run.
+    """
+    adapter = LightevalAdapter()
+    first = sorted(
+        log.evaluation_id
+        for log in adapter.transform_from_file(
+            RESULTS_FILE, _make_metadata_args()
+        )
+    )
+    second = sorted(
+        log.evaluation_id
+        for log in LightevalAdapter().transform_from_file(
+            RESULTS_FILE, _make_metadata_args()
+        )
+    )
+
+    assert first == second
+    assert all(log_id for log_id in first)
+
+
+def test_evaluation_id_separates_runs_that_differ_only_in_config(tmp_path):
+    """Same task, same model, different settings must not collapse to one id."""
+    source = json.loads(RESULTS_FILE.read_text(encoding='utf-8'))
+    baseline = LightevalAdapter().transform_from_file(
+        RESULTS_FILE, _make_metadata_args()
+    )[0]
+
+    source['config_general']['model_config']['temperature'] = 0.9
+    variant_file = tmp_path / 'results_2026-01-21T03-44-18.458309.json'
+    variant_file.write_text(json.dumps(source), encoding='utf-8')
+    variant = LightevalAdapter().transform_from_file(
+        variant_file, _make_metadata_args()
+    )[0]
+
+    assert baseline.evaluation_id != variant.evaluation_id
+
+
+def test_nested_credentials_never_reach_additional_details(tmp_path):
+    """The filter tested only top-level keys, so a nested env_vars token was
+    serialized wholesale into a published field."""
+    source = json.loads(RESULTS_FILE.read_text(encoding='utf-8'))
+    source['config_general']['model_config'].update(
+        {
+            'api_key': 'sk-TOPLEVEL',
+            'env_vars': {
+                'OPENAI_API_KEY': 'sk-NESTED',
+                'HF_TOKEN': 'hf-NESTED',
+                'REGION': 'us-east-1',
+            },
+            'providers': [
+                {'name': 'aws', 'aws_secret_access_key': 'AKIA-NESTED'}
+            ],
+        }
+    )
+    leaky = tmp_path / 'results_2026-01-21T03-44-18.458309.json'
+    leaky.write_text(json.dumps(source), encoding='utf-8')
+
+    log = LightevalAdapter().transform_from_file(leaky, _make_metadata_args())[
+        0
+    ]
+    published = json.dumps(log.model_info.additional_details or {})
+
+    for secret in ('sk-TOPLEVEL', 'sk-NESTED', 'hf-NESTED', 'AKIA-NESTED'):
+        assert secret not in published, f'{secret} reached additional_details'
+    assert 'us-east-1' in published, 'non-secret nested config should survive'
+    redacted = (log.model_info.additional_details or {})[
+        'redacted_model_config_keys'
+    ]
+    assert 'env_vars.OPENAI_API_KEY' in redacted
+
+
+def test_ordinary_config_is_not_mistaken_for_a_credential(tmp_path):
+    """`tokenizer` and `max_tokens` contain 'token' but are not secrets."""
+    source = json.loads(RESULTS_FILE.read_text(encoding='utf-8'))
+    source['config_general']['model_config'].update(
+        {'tokenizer': 'gpt2', 'max_tokens': 512}
+    )
+    path = tmp_path / 'results_2026-01-21T03-44-18.458309.json'
+    path.write_text(json.dumps(source), encoding='utf-8')
+
+    log = LightevalAdapter().transform_from_file(path, _make_metadata_args())[0]
+    published = json.dumps(log.model_info.additional_details or {})
+
+    assert 'gpt2' in published
+    assert '512' in published
+
+
+def test_operator_can_declare_a_direction_the_run_omits():
+    metadata = {
+        **_make_metadata_args(),
+        'metric_directions': {'custom_reward': False},
+    }
+    logs = _logs_by_task(
+        LightevalAdapter().transform_from_file(RESULTS_FILE, metadata)
+    )
+    results = {
+        result.metric_config.metric_name: result
+        for result in logs['glue:cola|0'].evaluation_results
+    }
+
+    custom = results['custom_reward']
+    assert custom.metric_config.lower_is_better is True
+    assert (
+        custom.metric_config.additional_details['direction_status']
+        == 'operator_declared'
+    )
+
+
+def test_metrics_without_a_declared_direction_are_reported():
+    adapter = LightevalAdapter()
+    logs = _logs_by_task(
+        adapter.transform_from_file(RESULTS_FILE, _make_metadata_args())
+    )
+    meta = adapter.get_eval_metadata(logs['glue:cola|0'].evaluation_id)
+
+    assert 'custom_reward' in meta['metrics_without_declared_direction']

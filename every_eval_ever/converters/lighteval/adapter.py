@@ -1,5 +1,6 @@
 """Adapter for converting lighteval output to every_eval_ever format."""
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
@@ -32,6 +33,7 @@ from every_eval_ever.eval_types import (
 )
 from every_eval_ever.helpers.io import (
     SourceConversionResult,
+    SourceRecordExclusion,
     SourceRecordFailure,
 )
 
@@ -44,6 +46,7 @@ from .utils import (
     is_derived_aggregate_key,
     is_finite_number,
     parse_results_file_timestamp,
+    resolve_metric_id,
     split_task_key,
     stderr_method_for,
 )
@@ -177,6 +180,19 @@ class LightevalAdapter(BaseEvaluationAdapter):
             )
 
         original_num_docs = task_config.get('original_num_docs')
+        # samples_number is the dataset's own size, which stays as provenance.
+        # When lighteval caps or deduplicates a run the score comes from the
+        # smaller effective population, and the uncertainty is computed over
+        # that one — so record it rather than let the larger number stand in
+        # for both.
+        effective_num_docs = task_config.get('effective_num_docs')
+        if (
+            isinstance(effective_num_docs, int)
+            and effective_num_docs >= 0
+            and effective_num_docs != original_num_docs
+        ):
+            additional['scored_num_docs'] = str(effective_num_docs)
+
         return SourceDataHf(
             dataset_name=dataset_name,
             source_type='hf_dataset',
@@ -251,8 +267,19 @@ class LightevalAdapter(BaseEvaluationAdapter):
         raw_data: Dict[str, Any],
         task_key: str,
         evaluation_timestamp: Optional[str] = None,
+        metric_directions: Optional[Dict[str, bool]] = None,
+        unresolved_metrics: Optional[List[str]] = None,
     ) -> List[EvaluationResult]:
-        """Build the EvaluationResult list for a single lighteval task."""
+        """Build the EvaluationResult list for a single lighteval task.
+
+        ``metric_directions`` lets an operator declare higher/lower-is-better
+        for metrics the results file does not describe. Names that stay
+        undeclared are appended to ``unresolved_metrics`` so the caller can
+        report them instead of the guess going unnoticed.
+        """
+        metric_directions = metric_directions or {}
+        if unresolved_metrics is None:
+            unresolved_metrics = []
         task_results = raw_data['results'][task_key]
         task_name, num_fewshots = split_task_key(task_key)
         task_config = (raw_data.get('config_tasks') or {}).get(task_key) or {}
@@ -284,10 +311,23 @@ class LightevalAdapter(BaseEvaluationAdapter):
             higher_is_better = higher_is_better_for(metric_spec, metric_name)
 
             metric_details = {}
-            if higher_is_better is None:
-                # EEE requires a direction; record that the run did not give one.
+            declared_direction = metric_directions.get(metric_name)
+            if declared_direction is not None:
+                # An operator-supplied definition outranks the source and the
+                # fallback both.
+                higher_is_better = declared_direction
+                metric_details['direction_status'] = 'operator_declared'
+            elif higher_is_better is None:
+                # A finite score does not prove a direction. EEE requires one,
+                # so the assumption stays — but it is labelled, and the name is
+                # reported so the run can be re-converted once the metric has a
+                # definition rather than the guess passing unnoticed.
                 metric_details['direction_status'] = 'assumed_higher_is_better'
                 higher_is_better = True
+                unresolved_metrics.append(metric_name)
+
+            metric_id, id_source = resolve_metric_id(metric_name)
+            metric_details['metric_id_source'] = id_source
 
             bounds = KNOWN_METRIC_BOUNDS.get(metric_name)
             if bounds is None:
@@ -297,6 +337,7 @@ class LightevalAdapter(BaseEvaluationAdapter):
                 metric_config = MetricConfig(
                     evaluation_description=metric_name,
                     metric_name=metric_name,
+                    metric_id=metric_id,
                     lower_is_better=not higher_is_better,
                     additional_details=metric_details,
                 )
@@ -304,6 +345,7 @@ class LightevalAdapter(BaseEvaluationAdapter):
                 metric_config = MetricConfig(
                     evaluation_description=metric_name,
                     metric_name=metric_name,
+                    metric_id=metric_id,
                     lower_is_better=not higher_is_better,
                     score_type=ScoreType.continuous,
                     min_score=bounds[0],
@@ -358,6 +400,44 @@ class LightevalAdapter(BaseEvaluationAdapter):
             if not key.endswith(STDERR_SUFFIX) and not is_finite_number(value)
         )
 
+    def _stable_evaluation_id(
+        self,
+        task_key: str,
+        model_info: ModelInfo,
+        eval_timestamp: Optional[str],
+    ) -> str:
+        """Build an evaluation_id that is identical across re-conversions.
+
+        Keyed on the raw source identity — task key, the model name as the
+        results file states it, and the run's own wall-clock stamp — never on
+        the conversion time, which would mint a new identity on every run and
+        let re-ingest duplicate the same evaluation.
+
+        The digest carries the non-secret run configuration so that two runs of
+        the same task and model under different settings stay distinct rather
+        than collapsing onto one id. It is taken from
+        ``model_info.additional_details``, which is already credential-filtered,
+        so no secret can reach the identity.
+
+        ``model_info.id`` here is the raw name from the file, not a
+        registry-resolved id: a resolved id can be re-mapped later, and a moving
+        identity would break idempotency just as surely as keying on now.
+        """
+        fingerprint = json.dumps(
+            {
+                'task': task_key,
+                'model': model_info.id,
+                'evaluated_at': eval_timestamp,
+                'config': model_info.additional_details or {},
+            },
+            sort_keys=True,
+            default=str,
+        )
+        digest = hashlib.sha256(fingerprint.encode('utf-8')).hexdigest()[:8]
+        return (
+            f'{task_key}/{model_info.id}/{eval_timestamp or "unknown"}-{digest}'
+        )
+
     def _transform_single(
         self, raw_data: Dict[str, Any], metadata_args: Dict[str, Any]
     ) -> EvaluationLog:
@@ -369,12 +449,22 @@ class LightevalAdapter(BaseEvaluationAdapter):
         model_info = self._extract_model_info(raw_data, metadata_args)
         config_general = raw_data.get('config_general') or {}
 
+        # Conversion time. Belongs in retrieved_timestamp and nowhere else —
+        # see _stable_evaluation_id.
         retrieved_timestamp = get_current_unix_timestamp()
         eval_timestamp = metadata_args.get('evaluation_timestamp')
 
-        evaluation_id = f'{task_key}/{model_info.id}/{retrieved_timestamp}'
+        evaluation_id = self._stable_evaluation_id(
+            task_key, model_info, eval_timestamp
+        )
+        metric_directions = metadata_args.get('metric_directions') or {}
+        unresolved_metrics: List[str] = []
         evaluation_results = self._build_evaluation_results(
-            raw_data, task_key, eval_timestamp
+            raw_data,
+            task_key,
+            eval_timestamp,
+            metric_directions=metric_directions,
+            unresolved_metrics=unresolved_metrics,
         )
         if not evaluation_results:
             raise ValueError(
@@ -447,6 +537,12 @@ class LightevalAdapter(BaseEvaluationAdapter):
         self._eval_metadata[evaluation_id] = {
             'parent_dir': metadata_args.get('parent_eval_output_dir'),
             'task_key': task_key,
+            # Metrics whose direction the run never stated and no operator
+            # declared. Reported rather than silently carried, so the guess is
+            # visible to whoever reads the conversion.
+            'metrics_without_declared_direction': sorted(
+                set(unresolved_metrics)
+            ),
         }
 
         return EvaluationLog(
@@ -488,12 +584,72 @@ class LightevalAdapter(BaseEvaluationAdapter):
             'evaluation_timestamp': parse_results_file_timestamp(file_path),
         }
 
+        if not tasks and skipped_keys:
+            # The file HAS measured tasks, and not one of them could be
+            # converted. Returning an empty list here made total conversion
+            # loss indistinguishable from a file that legitimately carried
+            # nothing to convert: the directory walk recorded no failure and
+            # exited zero. Raising puts it in the failure ledger instead.
+            raise ValueError(
+                f'lighteval file has {len(skipped_keys)} measured task(s) but '
+                f'none with a finite score: {", ".join(sorted(skipped_keys))}'
+            )
+
         results = []
         for task_key in tasks:
             task_metadata = {**metadata_args, 'task_key': task_key}
             results.append(self._transform_single(raw_data, task_metadata))
 
         return results
+
+    def transform_from_file_result(
+        self, file_path: Union[str, Path], metadata_args: Dict[str, Any]
+    ) -> SourceConversionResult[EvaluationLog]:
+        """Convert one file, reporting failures rather than only raising.
+
+        The directory walk caught a bad file, recorded it and still wrote a
+        failure report; the single-file entry point let the exception escape
+        the command, so the same failure produced a non-zero exit with no
+        structured report at all. Both entry modes now build the same result,
+        which is what lets the CLI report before it raises.
+        """
+        file_path = Path(file_path)
+        records: List[EvaluationLog] = []
+        failures: list[SourceRecordFailure] = []
+        exclusions: list[SourceRecordExclusion] = []
+        try:
+            records = self.transform_from_file(file_path, metadata_args)
+        except Exception as exc:
+            failures.append(
+                SourceRecordFailure(
+                    source_ref=str(file_path),
+                    reason=str(exc),
+                    source_record={'path': str(file_path)},
+                )
+            )
+        else:
+            if not records:
+                # Nothing measured to convert: the file holds only rows
+                # lighteval derived by averaging. A deliberate exclusion, not a
+                # failure, so it stays out of the error budget while the file
+                # is still accounted for.
+                exclusions.append(
+                    SourceRecordExclusion(
+                        source_ref=str(file_path),
+                        reason=(
+                            'no measured task rows; file contains only '
+                            'derived aggregate keys'
+                        ),
+                        source_record={'path': str(file_path)},
+                    )
+                )
+        return SourceConversionResult(
+            source_name=f'lighteval evaluation {file_path}',
+            total_records=1,
+            records=records,
+            failures=failures,
+            exclusions=exclusions,
+        )
 
     def transform_from_directory(
         self, dir_path: Union[str, Path], metadata_args: Dict[str, Any]
@@ -519,23 +675,24 @@ class LightevalAdapter(BaseEvaluationAdapter):
 
         all_logs: list[EvaluationLog] = []
         failures: list[SourceRecordFailure] = []
+        exclusions: list[SourceRecordExclusion] = []
         for results_file in results_files:
-            try:
-                all_logs.extend(
-                    self.transform_from_file(results_file, metadata_args)
-                )
-            except Exception as exc:
-                failures.append(
-                    SourceRecordFailure(
-                        source_ref=str(results_file),
-                        reason=str(exc),
-                        source_record={'path': str(results_file)},
-                    )
-                )
+            file_result = self.transform_from_file_result(
+                results_file, metadata_args
+            )
+            all_logs.extend(file_result.records)
+            failures.extend(file_result.failures)
+            exclusions.extend(file_result.exclusions)
 
         return SourceConversionResult(
             source_name=f'lighteval evaluations under {dir_path}',
-            total_records=len(all_logs) + len(failures),
+            # The source-record grain is the results FILE. Adding task-level
+            # logs to file-level failures gave a denominator with no consistent
+            # unit, because one good file contributes several logs while one
+            # bad file contributes a single failure. Converted-log count is
+            # reported separately by failure_report().
+            total_records=len(results_files),
             records=all_logs,
             failures=failures,
+            exclusions=exclusions,
         )
