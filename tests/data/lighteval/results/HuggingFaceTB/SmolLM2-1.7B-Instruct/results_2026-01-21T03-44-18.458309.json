@@ -1,0 +1,229 @@
+{
+  "config_general": {
+    "lighteval_sha": "?",
+    "num_fewshot_seeds": 1,
+    "max_samples": null,
+    "job_id": 0,
+    "start_time": 3122.7169191,
+    "end_time": 3251.1406346,
+    "total_evaluation_time_secondes": "128.42371550000023",
+    "model_config": {
+      "model_name": "HuggingFaceTB/SmolLM2-1.7B-Instruct",
+      "generation_parameters": {
+        "max_new_tokens": 256,
+        "temperature": 0.0,
+        "top_p": 0.95,
+        "top_k": null,
+        "seed": 42,
+        "stop_tokens": [
+          "</s>"
+        ],
+        "repetition_penalty": null
+      },
+      "system_prompt": null,
+      "cache_dir": "~/.cache/huggingface/lighteval",
+      "batch_size": 8,
+      "dtype": "bfloat16",
+      "revision": "main"
+    },
+    "model_name": "HuggingFaceTB/SmolLM2-1.7B-Instruct"
+  },
+  "results": {
+    "mmlu:abstract_algebra|5": {
+      "acc": 0.31,
+      "acc_stderr": 0.04648231987117316
+    },
+    "mmlu:anatomy|5": {
+      "acc": 0.4444444444444444,
+      "acc_stderr": NaN
+    },
+    "glue:cola|0": {
+      "mcc": 0.1673623873916,
+      "mcc_stderr": 0.03127419342,
+      "custom_reward": 7.25,
+      "broken_metric": NaN
+    },
+    "mmlu:_average|5": {
+      "acc": 0.3772222222222222,
+      "acc_stderr": 0.04648231987117316
+    },
+    "all": {
+      "acc": 0.3772222222222222,
+      "acc_stderr": 0.04648231987117316,
+      "mcc": 0.1673623873916,
+      "mcc_stderr": 0.03127419342,
+      "custom_reward": 7.25
+    }
+  },
+  "versions": {
+    "mmlu:abstract_algebra|5": 0,
+    "mmlu:anatomy|5": 0,
+    "glue:cola|0": 0
+  },
+  "config_tasks": {
+    "mmlu:abstract_algebra|5": {
+      "name": "mmlu:abstract_algebra",
+      "prompt_function": "mmlu_harness",
+      "hf_repo": "lighteval/mmlu",
+      "hf_subset": "abstract_algebra",
+      "metrics": [
+        {
+          "metric_name": "acc",
+          "higher_is_better": true,
+          "category": "LOGPROBS",
+          "sample_level_fn": "LoglikelihoodAcc",
+          "corpus_level_fn": "mean",
+          "batched_compute": false
+        }
+      ],
+      "hf_revision": null,
+      "hf_avail_splits": [
+        "auxiliary_train",
+        "test",
+        "validation",
+        "dev"
+      ],
+      "evaluation_splits": [
+        "test"
+      ],
+      "few_shots_split": "dev",
+      "few_shots_select": "sequential",
+      "generation_size": 5,
+      "generation_grammar": null,
+      "stop_sequence": [
+        "\n"
+      ],
+      "num_samples": null,
+      "original_num_docs": 100,
+      "effective_num_docs": 100,
+      "must_remove_duplicate_docs": false,
+      "num_fewshots": 5,
+      "version": 0
+    },
+    "mmlu:anatomy|5": {
+      "name": "mmlu:anatomy",
+      "prompt_function": "mmlu_harness",
+      "hf_repo": "lighteval/mmlu",
+      "hf_subset": "anatomy",
+      "metrics": [
+        {
+          "metric_name": "acc",
+          "higher_is_better": true,
+          "category": "LOGPROBS",
+          "sample_level_fn": "LoglikelihoodAcc",
+          "corpus_level_fn": "mean",
+          "batched_compute": false
+        }
+      ],
+      "hf_revision": null,
+      "hf_avail_splits": [
+        "auxiliary_train",
+        "test",
+        "validation",
+        "dev"
+      ],
+      "evaluation_splits": [
+        "test"
+      ],
+      "few_shots_split": "dev",
+      "few_shots_select": "sequential",
+      "generation_size": 5,
+      "generation_grammar": null,
+      "stop_sequence": [
+        "\n"
+      ],
+      "num_samples": null,
+      "original_num_docs": 135,
+      "effective_num_docs": 135,
+      "must_remove_duplicate_docs": false,
+      "num_fewshots": 5,
+      "version": 0
+    },
+    "glue:cola|0": {
+      "name": "glue:cola",
+      "prompt_function": "cola",
+      "hf_repo": "nyu-mll/glue",
+      "hf_subset": "cola",
+      "metrics": [
+        {
+          "metric_name": "mcc",
+          "higher_is_better": true,
+          "category": "LOGPROBS",
+          "sample_level_fn": "LoglikelihoodPreparator",
+          "corpus_level_fn": "matthews_corrcoef",
+          "batched_compute": false
+        }
+      ],
+      "hf_revision": null,
+      "hf_avail_splits": [
+        "train",
+        "validation",
+        "test"
+      ],
+      "evaluation_splits": [
+        "validation"
+      ],
+      "few_shots_split": null,
+      "few_shots_select": null,
+      "generation_size": null,
+      "generation_grammar": null,
+      "stop_sequence": [],
+      "num_samples": null,
+      "original_num_docs": 1043,
+      "effective_num_docs": 1043,
+      "must_remove_duplicate_docs": false,
+      "num_fewshots": 0,
+      "version": 0
+    }
+  },
+  "summary_tasks": {
+    "mmlu:abstract_algebra|5": {
+      "hashes": {
+        "hash_examples": "5e8b3a1c9d0f2a44",
+        "hash_full_prompts": "2f1d4c7b6a9e0355",
+        "hash_input_tokens": "9c0a5e2b7d4f1866",
+        "hash_cont_tokens": "7b3e9f1a4c2d5077"
+      },
+      "truncated": 0,
+      "non_truncated": 100,
+      "padded": 400,
+      "non_padded": 0
+    },
+    "mmlu:anatomy|5": {
+      "hashes": {
+        "hash_examples": "1a2b3c4d5e6f7088",
+        "hash_full_prompts": "8f7e6d5c4b3a2199",
+        "hash_input_tokens": "0d1c2b3a49586700",
+        "hash_cont_tokens": "6a5b4c3d2e1f0911"
+      },
+      "truncated": 0,
+      "non_truncated": 135,
+      "padded": 540,
+      "non_padded": 0
+    },
+    "glue:cola|0": {
+      "hashes": {
+        "hash_examples": "3c4d5e6f70819222",
+        "hash_full_prompts": "4d5e6f7081922333",
+        "hash_input_tokens": "5e6f708192233444",
+        "hash_cont_tokens": "6f70819223344555"
+      },
+      "truncated": 0,
+      "non_truncated": 1043,
+      "padded": 2086,
+      "non_padded": 0
+    }
+  },
+  "summary_general": {
+    "hashes": {
+      "hash_examples": "aa11bb22cc33dd44",
+      "hash_full_prompts": "bb22cc33dd44ee55",
+      "hash_input_tokens": "cc33dd44ee55ff66",
+      "hash_cont_tokens": "dd44ee55ff667700"
+    },
+    "truncated": 0,
+    "non_truncated": 1278,
+    "padded": 3026,
+    "non_padded": 0
+  }
+}
