@@ -63,6 +63,10 @@ every_eval_ever = [
     "adapters/**/*.sh",
     "adapters/**/registry_snapshot.json",
     "tools/*.md",
+    # Vendored eval-card-registry vocabulary, resolved against offline.
+    "helpers/data/*.json",
+    # Vendored upstream snapshots converters resolve against offline.
+    "converters/**/*.json",
 ]
 [dependency-groups]
 dev = [
