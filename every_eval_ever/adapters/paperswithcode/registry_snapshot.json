@@ -1,0 +1,5231 @@
+{
+  "_meta": {
+    "source": "eval-card-registry seed/metrics.yaml",
+    "note": "Vendored snapshot of canonical metric entries. Regenerate with refresh_registry_snapshot.py. Do not edit by hand.",
+    "count": 397,
+    "registry_revision": "0052cd2c48e6918b22192195d911ea7423d20db9"
+  },
+  "metrics": [
+    {
+      "id": "accuracy",
+      "display_name": "Accuracy",
+      "aliases": [
+        "Acc",
+        "Macro Accuracy",
+        "Top-1 Accuracy"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "reviewed",
+      "metadata": "{}"
+    },
+    {
+      "id": "ast-accuracy",
+      "display_name": "AST Accuracy",
+      "aliases": [
+        "AST Accuracy"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "reviewed",
+      "metadata": "{}"
+    },
+    {
+      "id": "exact-match",
+      "display_name": "Exact Match",
+      "aliases": [
+        "EM",
+        "EM-1"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "reviewed",
+      "metadata": "{}"
+    },
+    {
+      "id": "f1",
+      "display_name": "F1 Score",
+      "aliases": [
+        "F1",
+        "F1-macro",
+        "Tokenized F1"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "reviewed",
+      "metadata": "{}"
+    },
+    {
+      "id": "pass-at-1",
+      "display_name": "Pass@1",
+      "aliases": [
+        "Pass@1"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "reviewed",
+      "metadata": "{}"
+    },
+    {
+      "id": "mean-win-rate",
+      "display_name": "Mean Win Rate",
+      "aliases": [
+        "Mean win rate"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "reviewed",
+      "metadata": "{}"
+    },
+    {
+      "id": "score",
+      "display_name": "Score",
+      "aliases": [
+        "score"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": null,
+      "max_score": null,
+      "review_status": "reviewed",
+      "metadata": "{}"
+    },
+    {
+      "id": "bleu-4",
+      "display_name": "BLEU-4",
+      "aliases": [
+        "BLEU-4"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "reviewed",
+      "metadata": "{}"
+    },
+    {
+      "id": "cot-correct",
+      "display_name": "COT Correct",
+      "aliases": [
+        "COT correct",
+        "Equivalent (CoT)"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "reviewed",
+      "metadata": "{}"
+    },
+    {
+      "id": "win-rate",
+      "display_name": "Win Rate",
+      "aliases": [
+        "Win rate (%)",
+        "win_rate",
+        "Median Win Rate"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "reviewed",
+      "metadata": "{}"
+    },
+    {
+      "id": "harmlessness",
+      "display_name": "Harmlessness",
+      "aliases": [],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "reviewed",
+      "metadata": "{}"
+    },
+    {
+      "id": "pass-at-8",
+      "display_name": "Pass@8",
+      "aliases": [
+        "Overall Pass@8"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "reviewed",
+      "metadata": "{}"
+    },
+    {
+      "id": "cost-per-task",
+      "display_name": "Cost Per Task",
+      "aliases": [
+        "cost_per_task",
+        "cost"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "reviewed",
+      "metadata": "{}"
+    },
+    {
+      "id": "elo",
+      "display_name": "Elo Rating",
+      "aliases": [
+        "elo",
+        "overall_elo"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": null,
+      "max_score": null,
+      "review_status": "reviewed",
+      "metadata": "{}"
+    },
+    {
+      "id": "avg-attempts",
+      "display_name": "Average Attempts",
+      "aliases": [
+        "Average guesses used per game",
+        "avg_attempts"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 1.0,
+      "max_score": null,
+      "review_status": "reviewed",
+      "metadata": "{}"
+    },
+    {
+      "id": "mean-response-time",
+      "display_name": "Mean Response Time",
+      "aliases": [
+        "Mean response time per LLM invocation (ms)"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "reviewed",
+      "metadata": "{}"
+    },
+    {
+      "id": "mean-score",
+      "display_name": "Mean Score",
+      "aliases": [
+        "Mean score"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": null,
+      "max_score": null,
+      "review_status": "reviewed",
+      "metadata": "{}"
+    },
+    {
+      "id": "p95-latency",
+      "display_name": "Latency 95th Percentile",
+      "aliases": [
+        "latency_p95",
+        "Latency 95th Percentile"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "reviewed",
+      "metadata": "{}"
+    },
+    {
+      "id": "mean-latency",
+      "display_name": "Latency Mean",
+      "aliases": [
+        "latency_mean",
+        "Latency Mean"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "reviewed",
+      "metadata": "{}"
+    },
+    {
+      "id": "latency-stddev",
+      "display_name": "Latency Standard Deviation",
+      "aliases": [
+        "latency_std",
+        "Latency Standard Deviation"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "reviewed",
+      "metadata": "{}"
+    },
+    {
+      "id": "total-cost",
+      "display_name": "Total Cost",
+      "aliases": [
+        "total_cost",
+        "Total Cost"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "reviewed",
+      "metadata": "{}"
+    },
+    {
+      "id": "rank",
+      "display_name": "Rank",
+      "aliases": [
+        "Rank",
+        "rank",
+        "Average Rank"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 1.0,
+      "max_score": null,
+      "review_status": "reviewed",
+      "metadata": "{}"
+    },
+    {
+      "id": "refusal-rate",
+      "display_name": "Refusal Rate",
+      "aliases": [
+        "Refusal Rate"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": null,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "reviewed",
+      "metadata": "{}"
+    },
+    {
+      "id": "cvebench.mean",
+      "display_name": "cvebench.mean",
+      "aliases": [],
+      "score_type": "continuous",
+      "lower_is_better": null,
+      "min_score": null,
+      "max_score": null,
+      "review_status": "reviewed",
+      "metadata": "{}"
+    },
+    {
+      "id": "cyse2-vulnerability-exploit.mean",
+      "display_name": "cyse2-vulnerability-exploit.mean",
+      "aliases": [],
+      "score_type": "continuous",
+      "lower_is_better": null,
+      "min_score": null,
+      "max_score": null,
+      "review_status": "reviewed",
+      "metadata": "{}"
+    },
+    {
+      "id": "swebench-verified-mini-mariushobbhahn.mean",
+      "display_name": "swebench-verified-mini-mariushobbhahn.mean",
+      "aliases": [],
+      "score_type": "continuous",
+      "lower_is_better": null,
+      "min_score": null,
+      "max_score": null,
+      "review_status": "reviewed",
+      "metadata": "{}"
+    },
+    {
+      "id": "codegolf.score",
+      "display_name": "codegolf.score",
+      "aliases": [],
+      "score_type": "continuous",
+      "lower_is_better": null,
+      "min_score": null,
+      "max_score": null,
+      "review_status": "reviewed",
+      "metadata": "{}"
+    },
+    {
+      "id": "psnr",
+      "display_name": "PSNR",
+      "aliases": [],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{}"
+    },
+    {
+      "id": "ssim",
+      "display_name": "SSIM",
+      "aliases": [],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{}"
+    },
+    {
+      "id": "lpips",
+      "display_name": "LPIPS",
+      "aliases": [],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{}"
+    },
+    {
+      "id": "abs-rel",
+      "display_name": "AbsRel",
+      "aliases": [],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{}"
+    },
+    {
+      "id": "delta1",
+      "display_name": "delta1",
+      "aliases": [],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{}"
+    },
+    {
+      "id": "overall-chamfer",
+      "display_name": "Overall (Chamfer)",
+      "aliases": [
+        "Overall (Chamfer)"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{}"
+    },
+    {
+      "id": "auc-5",
+      "display_name": "AUC@5",
+      "aliases": [
+        "AUC@5"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{}"
+    },
+    {
+      "id": "anls",
+      "display_name": "ANLS",
+      "aliases": [
+        "ANLS"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "musiq",
+      "display_name": "MUSIQ",
+      "aliases": [
+        "MUSIQ"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "rtfx",
+      "display_name": "RTFx",
+      "aliases": [
+        "RTFx"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "fps",
+      "display_name": "FPS",
+      "aliases": [
+        "FPS"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "maniqa",
+      "display_name": "MANIQA",
+      "aliases": [
+        "MANIQA"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "ap50",
+      "display_name": "AP50",
+      "aliases": [
+        "AP50"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "normalized-score",
+      "display_name": "Normalized Score",
+      "aliases": [
+        "Normalized Score"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": null,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"dataset_specific\", \"confidence\": \"low\"}"
+    },
+    {
+      "id": "crps",
+      "display_name": "CRPS",
+      "aliases": [
+        "CRPS"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "clipiqa-plus",
+      "display_name": "CLIPIQA+",
+      "aliases": [
+        "CLIPIQA+"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "dists",
+      "display_name": "DISTS",
+      "aliases": [
+        "DISTS"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "mteb-score",
+      "display_name": "MTEB Score",
+      "aliases": [
+        "MTEB Score"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"dataset_specific\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "mmteb-score",
+      "display_name": "MMTEB Score",
+      "aliases": [
+        "MMTEB Score"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"dataset_specific\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "j-and-f",
+      "display_name": "J&F",
+      "aliases": [
+        "J&F"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "speaker-similarity",
+      "display_name": "Speaker Similarity",
+      "aliases": [
+        "Speaker Similarity"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": -1.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "gradient-error",
+      "display_name": "Gradient",
+      "aliases": [
+        "Gradient"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "return",
+      "display_name": "Return",
+      "aliases": [
+        "Return"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": null,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "calvin-avg-seq-length",
+      "display_name": "Average Length",
+      "aliases": [
+        "Average Length"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 5.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"dataset_specific\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "niqe",
+      "display_name": "NIQE",
+      "aliases": [
+        "NIQE"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "truthfulqa-mc2",
+      "display_name": "MC2Acc",
+      "aliases": [
+        "MC2Acc"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"dataset_specific\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "median-human-normalized-score",
+      "display_name": "Median Human Normalized Score",
+      "aliases": [
+        "Median Human Normalized Score"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": null,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "correlation",
+      "display_name": "Pearson/Spearman Correlation",
+      "aliases": [
+        "Pearson/Spearman Correlation"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": -1.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "pointmap-accuracy",
+      "display_name": "Pointmap Accuracy",
+      "aliases": [
+        "Pointmap Accuracy"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "recall-at-5",
+      "display_name": "Recall@5",
+      "aliases": [
+        "Recall@5",
+        "R@5"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "log-loss",
+      "display_name": "Log Loss",
+      "aliases": [
+        "Log Loss",
+        "LogLoss"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "counting-precision",
+      "display_name": "CntP",
+      "aliases": [
+        "CntP"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "xcomet-xl",
+      "display_name": "xCOMETxl",
+      "aliases": [
+        "xCOMETxl"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "mlgm",
+      "display_name": "mLGM",
+      "aliases": [
+        "mLGM"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"dataset_specific\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "sad",
+      "display_name": "SAD",
+      "aliases": [
+        "SAD"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "rpe-rotation",
+      "display_name": "RPE-R",
+      "aliases": [
+        "RPE-R"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "correspondence-recall",
+      "display_name": "Correspondence Recall",
+      "aliases": [
+        "Correspondence Recall"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "clip-score",
+      "display_name": "CLIP Sim",
+      "aliases": [
+        "CLIP Sim"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "chamfer-distance",
+      "display_name": "CD",
+      "aliases": [
+        "CD",
+        "Chamfer Distance"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "vqascore",
+      "display_name": "VQA Score",
+      "aliases": [
+        "VQA Score"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"low\"}"
+    },
+    {
+      "id": "vpq",
+      "display_name": "VPQ",
+      "aliases": [
+        "VPQ"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "soda",
+      "display_name": "SODA",
+      "aliases": [
+        "SODA"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "nds",
+      "display_name": "NDS",
+      "aliases": [
+        "NDS"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"dataset_specific\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "radle-cwi",
+      "display_name": "RadLE-C",
+      "aliases": [
+        "RadLE-C"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 2000.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"dataset_specific\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "completeness",
+      "display_name": "Completeness",
+      "aliases": [
+        "Completeness"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"low\"}"
+    },
+    {
+      "id": "edit-distance",
+      "display_name": "Edit Distance",
+      "aliases": [
+        "Edit Distance"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "pccn",
+      "display_name": "PCCN",
+      "aliases": [
+        "PCCN"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"dataset_specific\", \"confidence\": \"low\"}"
+    },
+    {
+      "id": "hota",
+      "display_name": "HOTA",
+      "aliases": [
+        "HOTA"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "gedit-overall",
+      "display_name": "G_O (Overall)",
+      "aliases": [
+        "G_O (Overall)"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 10.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"dataset_specific\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "hpsv3",
+      "display_name": "HPSv3 Score",
+      "aliases": [
+        "HPSv3 Score"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": null,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "v-star-mam",
+      "display_name": "mAM",
+      "aliases": [
+        "mAM"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"dataset_specific\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "ate",
+      "display_name": "ATE",
+      "aliases": [
+        "ATE"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "tm-score",
+      "display_name": "TM-score",
+      "aliases": [
+        "TM-score"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "clip-r-precision",
+      "display_name": "CLIP R-Precision",
+      "aliases": [
+        "CLIP R-Precision"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "nrqm",
+      "display_name": "NRQM",
+      "aliases": [
+        "NRQM"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 10.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "llm-score",
+      "display_name": "LLM-Score",
+      "aliases": [
+        "LLM-Score"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": null,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"low\"}"
+    },
+    {
+      "id": "target-area-coverage",
+      "display_name": "Target Area Coverage",
+      "aliases": [
+        "Target Area Coverage"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"dataset_specific\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "recall-at-1",
+      "display_name": "Mean Recall@1",
+      "aliases": [
+        "Mean Recall@1",
+        "R@1"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "tar-at-far",
+      "display_name": "TAR @ FAR=1e-4",
+      "aliases": [
+        "TAR @ FAR=1e-4"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "clip-iqa",
+      "display_name": "CLIP-IQA",
+      "aliases": [
+        "CLIP-IQA"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "multimodality",
+      "display_name": "Multimodality",
+      "aliases": [
+        "Multimodality"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "diversity",
+      "display_name": "Diversity",
+      "aliases": [
+        "Diversity"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "mpjpe",
+      "display_name": "MPJPE",
+      "aliases": [
+        "MPJPE"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "p-mpjpe",
+      "display_name": "P-MPJPE",
+      "aliases": [
+        "P-MPJPE",
+        "PA-MPJPE",
+        "PMPJPE",
+        "MPJPE-PA"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "mpvpe",
+      "display_name": "MPVPE",
+      "aliases": [
+        "MPVPE",
+        "MVE",
+        "PVE",
+        "MPVE",
+        "Mean Vertex Error",
+        "Per-Vertex Error"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "pa-pve",
+      "display_name": "PA-PVE",
+      "aliases": [
+        "PA-PVE"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "pck",
+      "display_name": "PCK",
+      "aliases": [
+        "PCK"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "3dpck",
+      "display_name": "3DPCK",
+      "aliases": [
+        "3DPCK",
+        "3D-PCK",
+        "PCK3D"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "geodesic-error",
+      "display_name": "Geodesic Error (degrees)",
+      "aliases": [
+        "Geodesic Error (degrees)",
+        "Geodesic Error"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": 180.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "epe",
+      "display_name": "EPE",
+      "aliases": [
+        "EPE",
+        "Average End-Point Error",
+        "AEPE",
+        "Avg EPE"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "tepe",
+      "display_name": "TEPE",
+      "aliases": [
+        "TEPE",
+        "Temporal EPE"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "fl-all",
+      "display_name": "Fl-all",
+      "aliases": [
+        "Fl-all",
+        "F1-all",
+        "Fl"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "d1-all",
+      "display_name": "D1-all",
+      "aliases": [
+        "D1-all",
+        "D1",
+        "Overall D1"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "bad-1.0",
+      "display_name": "Bad 1.0",
+      "aliases": [
+        "Bad 1.0",
+        "BP-1"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "bad-2.0",
+      "display_name": "Bad 2.0",
+      "aliases": [
+        "Bad 2.0",
+        "BP-2"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "n-mpjpe",
+      "display_name": "N-MPJPE",
+      "aliases": [
+        "N-MPJPE",
+        "NMPJPE",
+        "Normalized MPJPE"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "n-pve",
+      "display_name": "N-PVE",
+      "aliases": [
+        "N-PVE",
+        "NPVE",
+        "Normalized PVE",
+        "N-MPVPE"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "add",
+      "display_name": "ADD (mm)",
+      "aliases": [
+        "ADD (mm)",
+        "ADD"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "rotation-mae",
+      "display_name": "Rotation MAE (degrees)",
+      "aliases": [
+        "Rotation MAE (degrees)",
+        "Rotation MAE",
+        "Rotation Error (degrees)"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": 180.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "translation-mae",
+      "display_name": "Translation MAE (mm)",
+      "aliases": [
+        "Translation MAE (mm)",
+        "Translation MAE",
+        "Translation Error (mm)"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "warping-error",
+      "display_name": "E_warp",
+      "aliases": [
+        "E_warp"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "paired-accuracy",
+      "display_name": "Paired Accuracy",
+      "aliases": [
+        "Paired Accuracy"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "overall",
+      "display_name": "Overall",
+      "aliases": [
+        "Overall"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"dataset_specific\", \"confidence\": \"low\"}"
+    },
+    {
+      "id": "rra-at-15",
+      "display_name": "RRA@15",
+      "aliases": [
+        "RRA@15"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "hr-at-10",
+      "display_name": "HR@10",
+      "aliases": [
+        "HR@10"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "gap",
+      "display_name": "GAP",
+      "aliases": [
+        "GAP"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "rpe-translation",
+      "display_name": "RPE-T",
+      "aliases": [
+        "RPE-T"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "mce",
+      "display_name": "mCE",
+      "aliases": [
+        "mCE"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "image-reward",
+      "display_name": "ImageReward",
+      "aliases": [
+        "ImageReward"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": null,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "perceptual-index",
+      "display_name": "PI",
+      "aliases": [
+        "PI"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "ods",
+      "display_name": "ODS",
+      "aliases": [
+        "ODS"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "grits",
+      "display_name": "GriTS",
+      "aliases": [
+        "GriTS"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "utmos",
+      "display_name": "UTMOS",
+      "aliases": [
+        "UTMOS"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 1.0,
+      "max_score": 5.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "judge-score-1-10",
+      "display_name": "Score (1-10)",
+      "aliases": [
+        "Score (1-10)"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 1.0,
+      "max_score": 10.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "r-precision-top-3",
+      "display_name": "R Precision Top3",
+      "aliases": [
+        "R Precision Top3"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "normal-consistency",
+      "display_name": "Normal Consistency",
+      "aliases": [
+        "Normal Consistency"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "hits-at-10",
+      "display_name": "Hit@10",
+      "aliases": [
+        "Hit@10"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "nmn",
+      "display_name": "NMN",
+      "aliases": [
+        "NMN"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "imgedit-score",
+      "display_name": "ImgEdit Score",
+      "aliases": [
+        "ImgEdit Score"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 1.0,
+      "max_score": 5.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"dataset_specific\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "mean-recall",
+      "display_name": "mR",
+      "aliases": [
+        "mR"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "mmota",
+      "display_name": "mMOTA",
+      "aliases": [
+        "mMOTA"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": null,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "brisque",
+      "display_name": "BRISQUE",
+      "aliases": [
+        "BRISQUE"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "gpt4o-judge-score",
+      "display_name": "GPT4o",
+      "aliases": [
+        "GPT4o"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"dataset_specific\", \"confidence\": \"low\"}"
+    },
+    {
+      "id": "maa-at-30",
+      "display_name": "mAA@30",
+      "aliases": [
+        "mAA@30"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "maa-at-10px",
+      "display_name": "mAA@10px",
+      "aliases": [
+        "mAA@10px"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "mean-normalized-performance",
+      "display_name": "Mean Normalized Performance",
+      "aliases": [
+        "Mean Normalized Performance"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"dataset_specific\", \"confidence\": \"low\"}"
+    },
+    {
+      "id": "rta-at-15",
+      "display_name": "RTA@15",
+      "aliases": [
+        "RTA@15"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "human-normalized-score",
+      "display_name": "Mean Human Normalized Score",
+      "aliases": [
+        "Mean Human Normalized Score"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": null,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "dominance",
+      "display_name": "Dominance",
+      "aliases": [
+        "Dominance"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": null,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"dataset_specific\", \"confidence\": \"low\"}"
+    },
+    {
+      "id": "word-accuracy",
+      "display_name": "Word Accuracy",
+      "aliases": [
+        "Word Accuracy"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "panoptic-quality",
+      "display_name": "PQ",
+      "aliases": [
+        "PQ"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "mota",
+      "display_name": "MOTA",
+      "aliases": [
+        "MOTA"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": null,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "normalized-precision",
+      "display_name": "Normalized Precision",
+      "aliases": [
+        "Normalized Precision"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "teds",
+      "display_name": "TEDS",
+      "aliases": [
+        "TEDS"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "average-overlap",
+      "display_name": "Average Overlap",
+      "aliases": [
+        "Average Overlap"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "radgraph-f1",
+      "display_name": "RadGraph F1",
+      "aliases": [
+        "RadGraph F1"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "fastervqa",
+      "display_name": "FasterVQA",
+      "aliases": [
+        "FasterVQA"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"low\"}"
+    },
+    {
+      "id": "xcomet-xxl",
+      "display_name": "XCOMET-XXL",
+      "aliases": [
+        "XCOMET-XXL"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "acc-at-0-25",
+      "display_name": "Acc@0.25",
+      "aliases": [
+        "Acc@0.25"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "average",
+      "display_name": "Average",
+      "aliases": [
+        "Average"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"dataset_specific\", \"confidence\": \"low\"}"
+    },
+    {
+      "id": "dover",
+      "display_name": "DOVER",
+      "aliases": [
+        "DOVER"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"low\"}"
+    },
+    {
+      "id": "ap-large",
+      "display_name": "AP^L",
+      "aliases": [
+        "AP^L"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "multi-binary-accuracy",
+      "display_name": "MBAcc",
+      "aliases": [
+        "MBAcc"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "localization-recall",
+      "display_name": "Localization Recall",
+      "aliases": [
+        "DUC1 @0.25m/2deg",
+        "DUC1 @0.5m/5deg",
+        "DUC1 @1.0m/10deg",
+        "DUC2 @0.25m/2deg",
+        "DUC2 @0.5m/5deg",
+        "DUC2 @1.0m/10deg",
+        "Day @0.25m/2deg",
+        "Day @0.5m/5deg",
+        "Day @1.0m/10deg",
+        "Night @0.25m/2deg",
+        "Night @0.5m/5deg",
+        "Night @1.0m/10deg"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\", \"note\": \"pose recall at various distance/angle thresholds; threshold+scene in the raw alias\"}"
+    },
+    {
+      "id": "mae",
+      "display_name": "mae",
+      "aliases": [
+        "MAD",
+        "MAD-T"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "map",
+      "display_name": "map",
+      "aliases": [
+        "AP",
+        "Mean AP"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "mrr",
+      "display_name": "mrr",
+      "aliases": [
+        "MRR"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "success-rate",
+      "display_name": "success-rate",
+      "aliases": [
+        "Pass Rate"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "auc",
+      "display_name": "auc",
+      "aliases": [
+        "ROC-AUC"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "recall",
+      "display_name": "recall",
+      "aliases": [
+        "CntR"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "miou",
+      "display_name": "miou",
+      "aliases": [
+        "mIoU (5-click)"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "bleu",
+      "display_name": "bleu",
+      "aliases": [
+        "spBLEU"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "wer",
+      "display_name": "WER",
+      "aliases": [
+        "WER"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "mase",
+      "display_name": "MASE",
+      "aliases": [
+        "MASE"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "geneval-score",
+      "display_name": "GenEval Score",
+      "aliases": [
+        "GenEval Score"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"dataset_specific\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "mdpbench-overall",
+      "display_name": "MDPBench Overall",
+      "aliases": [
+        "MDPBench Overall"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"dataset_specific\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "mdpbench-non-latin",
+      "display_name": "MDPBench Non-Latin",
+      "aliases": [
+        "MDPBench Non-Latin"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"dataset_specific\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "matthews-correlation",
+      "display_name": "Matthews Correlation",
+      "aliases": [
+        "Matthews Correlation"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": -1.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "dpg-bench-score",
+      "display_name": "DPG-Bench Score",
+      "aliases": [
+        "DPG-Bench Score"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"dataset_specific\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "rouge-1",
+      "display_name": "ROUGE-1",
+      "aliases": [
+        "ROUGE-1"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "pose-auc-at-30",
+      "display_name": "AUC@30",
+      "aliases": [
+        "AUC@30"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "precision",
+      "display_name": "Precision",
+      "aliases": [
+        "Precision"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "line-accuracy",
+      "display_name": "Web LACC",
+      "aliases": [
+        "Document LACC",
+        "Handwriting LACC",
+        "Scene LACC",
+        "Web LACC"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "waics",
+      "display_name": "WAICS (Artistic)",
+      "aliases": [
+        "WAICS (Artistic)",
+        "WAICS (Average, excl. Incomplete)",
+        "WAICS (Contextless)",
+        "WAICS (Curve)",
+        "WAICS (General)",
+        "WAICS (Multi-Oriented)",
+        "WAICS (Multi-Words)",
+        "WAICS (Salient)"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "pose-auc-at-20",
+      "display_name": "AUC@20",
+      "aliases": [
+        "AUC@20"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "mrr-at-20",
+      "display_name": "MRR@20",
+      "aliases": [
+        "MRR@20"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "bpc",
+      "display_name": "bpc",
+      "aliases": [
+        "bpc"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "chrf-plus-plus",
+      "display_name": "chrF++",
+      "aliases": [
+        "chrF++"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "iou",
+      "display_name": "IoU",
+      "aliases": [
+        "IoU"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "comet",
+      "display_name": "COMET",
+      "aliases": [
+        "COMET"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "cometkiwi",
+      "display_name": "CometKiwi",
+      "aliases": [
+        "CometKiwi"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "cer",
+      "display_name": "CER",
+      "aliases": [
+        "CER"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "hits-at-100",
+      "display_name": "Hits@100",
+      "aliases": [
+        "Hits@100"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "bleu-1",
+      "display_name": "BLEU-1",
+      "aliases": [
+        "BLEU-1"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "bleu-3",
+      "display_name": "BLEU-3",
+      "aliases": [
+        "BLEU-3"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "bleurt",
+      "display_name": "BLEURT",
+      "aliases": [
+        "BLEURT"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "omnicontext-score",
+      "display_name": "OmniContext score",
+      "aliases": [
+        "OmniContext score"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 10.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"dataset_specific\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "f1-at-0-25",
+      "display_name": "F1@0.25",
+      "aliases": [
+        "F1@0.25"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "rouge-l",
+      "display_name": "ROUGE-L",
+      "aliases": [
+        "ROUGE-L"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "mdpbench-latin",
+      "display_name": "MDPBench Latin",
+      "aliases": [
+        "MDPBench Latin"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"dataset_specific\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "perplexity",
+      "display_name": "Perplexity",
+      "aliases": [
+        "Perplexity"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 1.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "ndcg-at-10",
+      "display_name": "NDCG@10",
+      "aliases": [
+        "NDCG@10"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "ndcg-at-20",
+      "display_name": "NDCG@20",
+      "aliases": [
+        "NDCG@20"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "rouge-2",
+      "display_name": "ROUGE-2",
+      "aliases": [
+        "ROUGE-2"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "geometric-auc-at-10",
+      "display_name": "AUC@10",
+      "aliases": [
+        "AUC@10"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "inception-score",
+      "display_name": "IS",
+      "aliases": [
+        "IS"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 1.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "geometric-auc-at-3",
+      "display_name": "AUC@3",
+      "aliases": [
+        "AUC@3"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"low\"}"
+    },
+    {
+      "id": "precision-at-20",
+      "display_name": "Precision@20",
+      "aliases": [
+        "Precision@20"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "wise-score",
+      "display_name": "WISE Score",
+      "aliases": [
+        "WISE Score"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"dataset_specific\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "top-5-accuracy",
+      "display_name": "Top-5 Accuracy",
+      "aliases": [
+        "Top-5 Accuracy"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "success-rate-0-5",
+      "display_name": "Success Rate 0.5",
+      "aliases": [
+        "Success Rate 0.5"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "dockq-success-rate",
+      "display_name": "DockQ Pass Rate",
+      "aliases": [
+        "DockQ Pass Rate"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "fvd",
+      "display_name": "FVD",
+      "aliases": [
+        "FVD"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "ice-bench-overall",
+      "display_name": "Task1-31 Overall",
+      "aliases": [
+        "Task1-31 Overall"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"dataset_specific\", \"confidence\": \"low\"}"
+    },
+    {
+      "id": "geometric-auc-at-1",
+      "display_name": "AUC@1",
+      "aliases": [
+        "AUC@1"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"low\"}"
+    },
+    {
+      "id": "mdpbench-private",
+      "display_name": "MDPBench Private",
+      "aliases": [
+        "MDPBench Private"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"dataset_specific\", \"confidence\": \"low\"}"
+    },
+    {
+      "id": "ndcg-at-5",
+      "display_name": "NDCG@5",
+      "aliases": [
+        "NDCG@5"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "score-0-10",
+      "display_name": "Score (0-10)",
+      "aliases": [
+        "Score (0-10)"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"low\"}"
+    },
+    {
+      "id": "recall-at-20",
+      "display_name": "Recall@20",
+      "aliases": [
+        "Recall@20"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "glue-score",
+      "display_name": "GLUE (dev)",
+      "aliases": [
+        "GLUE (dev)",
+        "GLUE (test)"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"dataset_specific\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "oneig-overall-score",
+      "display_name": "OneIG Overall Score",
+      "aliases": [
+        "OneIG Overall Score"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"dataset_specific\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "ocrbench-v2-english-score",
+      "display_name": "English Score",
+      "aliases": [
+        "English Score"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"dataset_specific\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "ocrbench-v2-chinese-score",
+      "display_name": "Chinese Score",
+      "aliases": [
+        "Chinese Score"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"dataset_specific\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "ap-rare",
+      "display_name": "mAP (rare)",
+      "aliases": [
+        "mAP (rare)"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "maph",
+      "display_name": "mAPH",
+      "aliases": [
+        "mAPH"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "success-rate-at-0-75",
+      "display_name": "Success Rate 0.75",
+      "aliases": [
+        "Success Rate 0.75"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "recall-at-10",
+      "display_name": "R@10",
+      "aliases": [
+        "R@10"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "top-5-localization-error",
+      "display_name": "Top-5 Localization Error",
+      "aliases": [
+        "Top-5 Localization Error"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "hits-at-50",
+      "display_name": "Hits@50",
+      "aliases": [
+        "Hits@50"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "bleu-2",
+      "display_name": "BLEU-2",
+      "aliases": [
+        "BLEU-2"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "comet-22",
+      "display_name": "COMET-22",
+      "aliases": [
+        "COMET-22"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "mega-bench-macro-score",
+      "display_name": "Macro score",
+      "aliases": [
+        "Macro score"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"dataset_specific\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "map-at-10",
+      "display_name": "mAP@10",
+      "aliases": [
+        "mAP@10"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\"}"
+    },
+    {
+      "id": "normalized-edit-similarity",
+      "display_name": "Normalized Edit Similarity",
+      "aliases": [
+        "Document NED",
+        "Handwriting NED",
+        "NED",
+        "Scene NED",
+        "Web NED"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\", \"note\": \"family-merged; threshold/subset in the raw alias\"}"
+    },
+    {
+      "id": "mse",
+      "display_name": "mse",
+      "aliases": [
+        "MSE"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "cider",
+      "display_name": "cider",
+      "aliases": [
+        "CIDEr"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "rmse",
+      "display_name": "rmse",
+      "aliases": [
+        "RMSE"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "fid",
+      "display_name": "fid",
+      "aliases": [
+        "FID"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\"}"
+    },
+    {
+      "id": "action-top-1-accuracy",
+      "display_name": "Action Top-1 Accuracy",
+      "aliases": [
+        "Action Top-1 Accuracy"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "ap3d",
+      "display_name": "AP3D",
+      "aliases": [
+        "AP3D"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "auprc",
+      "display_name": "AUPRC",
+      "aliases": [
+        "AUPRC"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "auroc",
+      "display_name": "AUROC",
+      "aliases": [
+        "AUROC"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "avg-detection-auroc",
+      "display_name": "Avg. Detection AUROC",
+      "aliases": [
+        "Avg. Detection AUROC"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "avg-accuracy",
+      "display_name": "Avg/Accuracy",
+      "aliases": [
+        "Avg/Accuracy"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "cds",
+      "display_name": "CDS",
+      "aliases": [
+        "CDS"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "compilation-success-rate-csr",
+      "display_name": "Compilation Success Rate (CSR)",
+      "aliases": [
+        "Compilation Success Rate (CSR)"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "detection-ap",
+      "display_name": "Detection AP",
+      "aliases": [
+        "Detection AP"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "detection-auroc",
+      "display_name": "Detection AUROC",
+      "aliases": [
+        "Detection AUROC"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "detection-auroc-only-logical",
+      "display_name": "Detection AUROC (only logical)",
+      "aliases": [
+        "Detection AUROC (only logical)"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "detection-auroc-only-structural",
+      "display_name": "Detection AUROC (only structural)",
+      "aliases": [
+        "Detection AUROC (only structural)"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "detection-f1-max",
+      "display_name": "Detection F1-max",
+      "aliases": [
+        "Detection F1-max"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "element-accuracy",
+      "display_name": "Element Accuracy",
+      "aliases": [
+        "Element Accuracy"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "f1-at-0-5",
+      "display_name": "F1@0.5",
+      "aliases": [
+        "F1@0.5"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "fpr95",
+      "display_name": "FPR95",
+      "aliases": [
+        "FPR95"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "frame-auc",
+      "display_name": "Frame AUC",
+      "aliases": [
+        "Frame AUC"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "framework-accuracy-fa",
+      "display_name": "Framework Accuracy (FA)",
+      "aliases": [
+        "Framework Accuracy (FA)"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "lane-segment-ols",
+      "display_name": "Lane Segment OLS",
+      "aliases": [
+        "Lane Segment OLS"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "macro-f1",
+      "display_name": "Macro F1",
+      "aliases": [
+        "Macro F1"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "map-avg-iou-0-5-0-95",
+      "display_name": "mAP Avg IoU=0.5:0.95",
+      "aliases": [
+        "mAP Avg IoU=0.5:0.95"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "map-iou-0-5",
+      "display_name": "mAP IoU=0.5",
+      "aliases": [
+        "mAP IoU=0.5"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "map-iou-0-75",
+      "display_name": "mAP IoU=0.75",
+      "aliases": [
+        "mAP IoU=0.75"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "map-07",
+      "display_name": "mAP-07",
+      "aliases": [
+        "mAP-07"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "map-12",
+      "display_name": "mAP-12",
+      "aliases": [
+        "mAP-12"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "noun-top-1-accuracy",
+      "display_name": "Noun Top-1 Accuracy",
+      "aliases": [
+        "Noun Top-1 Accuracy"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "operation-f1",
+      "display_name": "Operation F1",
+      "aliases": [
+        "Operation F1"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "pcp3d",
+      "display_name": "PCP3D",
+      "aliases": [
+        "PCP3D"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "r1-at-0-3",
+      "display_name": "R1@0.3",
+      "aliases": [
+        "R1@0.3"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "r1-at-0-5",
+      "display_name": "R1@0.5",
+      "aliases": [
+        "R1@0.5"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "r1-at-0-7",
+      "display_name": "R1@0.7",
+      "aliases": [
+        "R1@0.7"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "r-at-1-iou-0-1",
+      "display_name": "R@1 IoU=0.1",
+      "aliases": [
+        "R@1 IoU=0.1"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "r-at-1-iou-0-3",
+      "display_name": "R@1 IoU=0.3",
+      "aliases": [
+        "R@1 IoU=0.3"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "r-at-1-iou-0-5",
+      "display_name": "R@1 IoU=0.5",
+      "aliases": [
+        "R@1 IoU=0.5"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "r-at-1-iou-0-7",
+      "display_name": "R@1 IoU=0.7",
+      "aliases": [
+        "R@1 IoU=0.7"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "r-at-1-mean-0-3-and-0-5",
+      "display_name": "R@1 Mean(0.3 and 0.5)",
+      "aliases": [
+        "R@1 Mean(0.3 and 0.5)"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "r-at-10-iou-0-1",
+      "display_name": "R@10 IoU=0.1",
+      "aliases": [
+        "R@10 IoU=0.1"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "r-at-10-iou-0-3",
+      "display_name": "R@10 IoU=0.3",
+      "aliases": [
+        "R@10 IoU=0.3"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "r-at-10-iou-0-5",
+      "display_name": "R@10 IoU=0.5",
+      "aliases": [
+        "R@10 IoU=0.5"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "r-at-100-iou-0-1",
+      "display_name": "R@100 IoU=0.1",
+      "aliases": [
+        "R@100 IoU=0.1"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "r-at-100-iou-0-3",
+      "display_name": "R@100 IoU=0.3",
+      "aliases": [
+        "R@100 IoU=0.3"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "r-at-100-iou-0-5",
+      "display_name": "R@100 IoU=0.5",
+      "aliases": [
+        "R@100 IoU=0.5"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "r-at-5-iou-0-1",
+      "display_name": "R@5 IoU=0.1",
+      "aliases": [
+        "R@5 IoU=0.1"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "r-at-5-iou-0-3",
+      "display_name": "R@5 IoU=0.3",
+      "aliases": [
+        "R@5 IoU=0.3"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "r-at-5-iou-0-5",
+      "display_name": "R@5 IoU=0.5",
+      "aliases": [
+        "R@5 IoU=0.5"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "r-at-5-iou-0-7",
+      "display_name": "R@5 IoU=0.7",
+      "aliases": [
+        "R@5 IoU=0.7"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "r-at-50-iou-0-1",
+      "display_name": "R@50 IoU=0.1",
+      "aliases": [
+        "R@50 IoU=0.1"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "r-at-50-iou-0-3",
+      "display_name": "R@50 IoU=0.3",
+      "aliases": [
+        "R@50 IoU=0.3"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "r-at-50-iou-0-5",
+      "display_name": "R@50 IoU=0.5",
+      "aliases": [
+        "R@50 IoU=0.5"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "risebench-overall-accuracy",
+      "display_name": "RISEBench Overall Accuracy",
+      "aliases": [
+        "RISEBench Overall Accuracy"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "segmentation-ap",
+      "display_name": "Segmentation AP",
+      "aliases": [
+        "Segmentation AP"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "segmentation-au-spro-until-fpr-5-pct",
+      "display_name": "Segmentation AU-sPRO (until FPR 5%)",
+      "aliases": [
+        "Segmentation AU-sPRO (until FPR 5%)"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "segmentation-aupro-at-30-pct-fpr",
+      "display_name": "Segmentation AUPRO@30% FPR",
+      "aliases": [
+        "Segmentation AUPRO@30% FPR"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "segmentation-auroc",
+      "display_name": "Segmentation AUROC",
+      "aliases": [
+        "Segmentation AUROC"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "segmentation-f1-private-mixed",
+      "display_name": "Segmentation F1 (Private Mixed)",
+      "aliases": [
+        "Segmentation F1 (Private Mixed)"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "segmentation-f1-private",
+      "display_name": "Segmentation F1 (Private)",
+      "aliases": [
+        "Segmentation F1 (Private)"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "segmentation-f1-public",
+      "display_name": "Segmentation F1 (Public)",
+      "aliases": [
+        "Segmentation F1 (Public)"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "segmentation-f1-max",
+      "display_name": "Segmentation F1-max",
+      "aliases": [
+        "Segmentation F1-max"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "step-success-rate",
+      "display_name": "Step Success Rate",
+      "aliases": [
+        "Step Success Rate"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "stq",
+      "display_name": "STQ",
+      "aliases": [
+        "STQ"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "verb-top-1-accuracy",
+      "display_name": "Verb Top-1 Accuracy",
+      "aliases": [
+        "Verb Top-1 Accuracy"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"rate\", \"source\": \"bounded score in [0,1] by definition (rate/recall/precision/F1/AP/AUROC/IoU); percent reported, adapter rescales\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "absolute-mpjpe-mm",
+      "display_name": "Absolute MPJPE (mm)",
+      "aliases": [
+        "Absolute MPJPE (mm)"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"pose-error\", \"source\": \"joint/vertex position error in mm; [0,inf), lower better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "b-mpjpe",
+      "display_name": "B-MPJPE",
+      "aliases": [
+        "B-MPJPE"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"pose-error\", \"source\": \"joint/vertex position error in mm; [0,inf), lower better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "b-mve",
+      "display_name": "B-MVE",
+      "aliases": [
+        "B-MVE"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"pose-error\", \"source\": \"joint/vertex position error in mm; [0,inf), lower better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "b-nmje",
+      "display_name": "B-NMJE",
+      "aliases": [
+        "B-NMJE"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"pose-error\", \"source\": \"joint/vertex position error in mm; [0,inf), lower better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "b-nmve",
+      "display_name": "B-NMVE",
+      "aliases": [
+        "B-NMVE"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"pose-error\", \"source\": \"joint/vertex position error in mm; [0,inf), lower better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "f-mpjpe",
+      "display_name": "F-MPJPE",
+      "aliases": [
+        "F-MPJPE"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"pose-error\", \"source\": \"joint/vertex position error in mm; [0,inf), lower better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "fb-mpjpe",
+      "display_name": "FB-MPJPE",
+      "aliases": [
+        "FB-MPJPE"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"pose-error\", \"source\": \"joint/vertex position error in mm; [0,inf), lower better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "fb-mve",
+      "display_name": "FB-MVE",
+      "aliases": [
+        "FB-MVE"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"pose-error\", \"source\": \"joint/vertex position error in mm; [0,inf), lower better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "fb-nmje",
+      "display_name": "FB-NMJE",
+      "aliases": [
+        "FB-NMJE"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"pose-error\", \"source\": \"joint/vertex position error in mm; [0,inf), lower better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "fb-nmve",
+      "display_name": "FB-NMVE",
+      "aliases": [
+        "FB-NMVE"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"pose-error\", \"source\": \"joint/vertex position error in mm; [0,inf), lower better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "lh-mpjpe",
+      "display_name": "LH-MPJPE",
+      "aliases": [
+        "LH-MPJPE"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"pose-error\", \"source\": \"joint/vertex position error in mm; [0,inf), lower better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "mrpe-mm",
+      "display_name": "MRPE (mm)",
+      "aliases": [
+        "MRPE (mm)"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"pose-error\", \"source\": \"joint/vertex position error in mm; [0,inf), lower better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "pa-pve-all",
+      "display_name": "PA-PVE-All",
+      "aliases": [
+        "PA-PVE-All"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"pose-error\", \"source\": \"joint/vertex position error in mm; [0,inf), lower better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "pa-pve-face",
+      "display_name": "PA-PVE-Face",
+      "aliases": [
+        "PA-PVE-Face"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"pose-error\", \"source\": \"joint/vertex position error in mm; [0,inf), lower better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "pa-pve-hands",
+      "display_name": "PA-PVE-Hands",
+      "aliases": [
+        "PA-PVE-Hands"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"pose-error\", \"source\": \"joint/vertex position error in mm; [0,inf), lower better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "pve-all",
+      "display_name": "PVE-All",
+      "aliases": [
+        "PVE-All"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"pose-error\", \"source\": \"joint/vertex position error in mm; [0,inf), lower better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "pve-face",
+      "display_name": "PVE-Face",
+      "aliases": [
+        "PVE-Face"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"pose-error\", \"source\": \"joint/vertex position error in mm; [0,inf), lower better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "pve-hands",
+      "display_name": "PVE-Hands",
+      "aliases": [
+        "PVE-Hands"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"pose-error\", \"source\": \"joint/vertex position error in mm; [0,inf), lower better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "rh-mpjpe",
+      "display_name": "RH-MPJPE",
+      "aliases": [
+        "RH-MPJPE"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"pose-error\", \"source\": \"joint/vertex position error in mm; [0,inf), lower better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "root-relative-mpjpe-mm",
+      "display_name": "Root-relative MPJPE (mm)",
+      "aliases": [
+        "Root-relative MPJPE (mm)"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"pose-error\", \"source\": \"joint/vertex position error in mm; [0,inf), lower better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "action-space-generalization-mse",
+      "display_name": "Action Space Generalization MSE",
+      "aliases": [
+        "Action Space Generalization MSE"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"dist-error\", \"source\": \"distance/regression error; [0,inf), lower better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "generated-scene-consistency-mse",
+      "display_name": "Generated Scene Consistency MSE",
+      "aliases": [
+        "Generated Scene Consistency MSE"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"dist-error\", \"source\": \"distance/regression error; [0,inf), lower better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "long-context-memory-mse",
+      "display_name": "Long Context Memory MSE",
+      "aliases": [
+        "Long Context Memory MSE"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"dist-error\", \"source\": \"distance/regression error; [0,inf), lower better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "rmse-m",
+      "display_name": "RMSE (m)",
+      "aliases": [
+        "RMSE (m)"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"dist-error\", \"source\": \"distance/regression error; [0,inf), lower better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "f0-rmse",
+      "display_name": "F0-RMSE",
+      "aliases": [
+        "F0-RMSE"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\", \"family\": \"spec-loss\", \"source\": \"spectral / L1 loss distance; [0,inf), lower better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "mel-loss",
+      "display_name": "Mel Loss",
+      "aliases": [
+        "Mel Loss"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\", \"family\": \"spec-loss\", \"source\": \"spectral / L1 loss distance; [0,inf), lower better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "mel-l1",
+      "display_name": "Mel-L1",
+      "aliases": [
+        "Mel-L1"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\", \"family\": \"spec-loss\", \"source\": \"spectral / L1 loss distance; [0,inf), lower better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "stft-distance",
+      "display_name": "STFT Distance",
+      "aliases": [
+        "STFT Distance"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\", \"family\": \"spec-loss\", \"source\": \"spectral / L1 loss distance; [0,inf), lower better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "stft-loss",
+      "display_name": "STFT Loss",
+      "aliases": [
+        "STFT Loss"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\", \"family\": \"spec-loss\", \"source\": \"spectral / L1 loss distance; [0,inf), lower better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "stft-dist",
+      "display_name": "STFT-Dist.",
+      "aliases": [
+        "STFT-Dist."
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\", \"family\": \"spec-loss\", \"source\": \"spectral / L1 loss distance; [0,inf), lower better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "average-psnr-db",
+      "display_name": "Average PSNR (dB)",
+      "aliases": [
+        "Average PSNR (dB)"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"psnr\", \"source\": \"PSNR in dB; [0,inf), higher better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "pie-bench-background-psnr",
+      "display_name": "PIE-Bench Background PSNR",
+      "aliases": [
+        "PIE-Bench Background PSNR"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"psnr\", \"source\": \"PSNR in dB; [0,inf), higher better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "pesq",
+      "display_name": "PESQ",
+      "aliases": [
+        "PESQ"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": -0.5,
+      "max_score": 4.5,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"pesq\", \"source\": \"PESQ per ITU-T P.862; [-0.5,4.5], higher better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "pesq-nb",
+      "display_name": "PESQ-NB",
+      "aliases": [
+        "PESQ-NB"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": -0.5,
+      "max_score": 4.5,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"pesq\", \"source\": \"PESQ per ITU-T P.862; [-0.5,4.5], higher better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "pesq-wb",
+      "display_name": "PESQ-WB",
+      "aliases": [
+        "PESQ-WB"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": -0.5,
+      "max_score": 4.5,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"pesq\", \"source\": \"PESQ per ITU-T P.862; [-0.5,4.5], higher better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "dnsmos",
+      "display_name": "DNSMOS",
+      "aliases": [
+        "DNSMOS"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 1.0,
+      "max_score": 5.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\", \"family\": \"mos\", \"source\": \"mean opinion score scale [1,5], higher better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "plcmos",
+      "display_name": "PLCMOS",
+      "aliases": [
+        "PLCMOS"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 1.0,
+      "max_score": 5.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\", \"family\": \"mos\", \"source\": \"mean opinion score scale [1,5], higher better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "visqol",
+      "display_name": "VISQOL",
+      "aliases": [
+        "VISQOL"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 1.0,
+      "max_score": 5.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\", \"family\": \"mos\", \"source\": \"mean opinion score scale [1,5], higher better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "stoi",
+      "display_name": "STOI",
+      "aliases": [
+        "STOI"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"stoi\", \"source\": \"STOI intelligibility; [0,1], higher better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "mcd",
+      "display_name": "MCD",
+      "aliases": [
+        "MCD"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"mcd\", \"source\": \"mel-cepstral distortion in dB; [0,inf), lower better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "rfvd",
+      "display_name": "rFVD",
+      "aliases": [
+        "rFVD"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\", \"family\": \"gen-dist\", \"source\": \"FID/KID/FVD generative distance; [0,inf), lower better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "bpp16",
+      "display_name": "BPP16",
+      "aliases": [
+        "BPP16"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\", \"family\": \"bitrate\", \"source\": \"bit-rate (bpsp/bpp); [0,inf), lower better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "bpsp",
+      "display_name": "bpsp",
+      "aliases": [
+        "bpsp"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\", \"family\": \"bitrate\", \"source\": \"bit-rate (bpsp/bpp); [0,inf), lower better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "bd-rate",
+      "display_name": "BD-Rate",
+      "aliases": [
+        "BD-Rate"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": null,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\", \"family\": \"bd\", \"source\": \"Bjontegaard-delta rate (signed %); unbounded, lower better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "bd-rate-ms-ssim-rgb",
+      "display_name": "BD-Rate (MS-SSIM RGB)",
+      "aliases": [
+        "BD-Rate (MS-SSIM RGB)"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": null,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\", \"family\": \"bd\", \"source\": \"Bjontegaard-delta rate (signed %); unbounded, lower better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "bd-rate-psnr-rgb",
+      "display_name": "BD-Rate (PSNR RGB)",
+      "aliases": [
+        "BD-Rate (PSNR RGB)"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": null,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bd\", \"source\": \"Bjontegaard-delta rate (signed %); unbounded, lower better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "bd-rate-weighted-psnr-yuv420",
+      "display_name": "BD-Rate (Weighted PSNR YUV420)",
+      "aliases": [
+        "BD-Rate (Weighted PSNR YUV420)"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": null,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bd\", \"source\": \"Bjontegaard-delta rate (signed %); unbounded, lower better\", \"provenance\": \"paperswithcode-adapter\"}"
+    },
+    {
+      "id": "1pe",
+      "display_name": "1PE",
+      "aliases": [
+        "1PE"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"Percentage scale (0-100). N-pixel error: percentage of evaluated ground-truth pixels whose optical-flow error exceeds 1 pixel. A percentage-of-outlier-pixels r\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://dsec.ifi.uzh.ch/uzh/dsec-flow-optical-flow-benchmark/\"}"
+    },
+    {
+      "id": "1px-total",
+      "display_name": "1px total",
+      "aliases": [
+        "1px total"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"Spring benchmark 1px outlier rate: percentage of all evaluated pixels whose optical-flow endpoint (or stereo disparity) error deviates more than 1px from groun\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://openaccess.thecvf.com/content/CVPR2023/papers/Mehl_Spring_A_High-Resolution_High-Detail_Dataset_and_Benchmark_for_Scene_Flow_CVPR_2023_paper.pdf\"}"
+    },
+    {
+      "id": "2pe",
+      "display_name": "2PE",
+      "aliases": [
+        "2PE"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"Percentage scale (0-100). N-pixel error: percentage of evaluated ground-truth pixels whose optical-flow error exceeds 2 pixels. A percentage-of-outlier-pixels\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://dsec.ifi.uzh.ch/uzh/dsec-flow-optical-flow-benchmark/\"}"
+    },
+    {
+      "id": "3pe",
+      "display_name": "3PE",
+      "aliases": [
+        "3PE"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"Percentage scale (0-100). N-pixel error: percentage of evaluated ground-truth pixels whose optical-flow error exceeds 3 pixels. A percentage-of-outlier-pixels\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://dsec.ifi.uzh.ch/uzh/dsec-flow-optical-flow-benchmark/\"}"
+    },
+    {
+      "id": "agentworldbench-overall",
+      "display_name": "AgentWorldBench Overall",
+      "aliases": [
+        "AgentWorldBench Overall"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\", \"family\": \"bespoke-paper\", \"source\": \"Composite rubric mean scaled to [0,100], higher is better. An LLM judge (GPT-5.2) scores each predicted observation on five dimensions (Format, Factuality, Con\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://arxiv.org/abs/2606.24597\"}"
+    },
+    {
+      "id": "air-bench-chat-gpt-4-score",
+      "display_name": "AIR-Bench Chat GPT-4 Score",
+      "aliases": [
+        "AIR-Bench Chat GPT-4 Score"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 1.0,
+      "max_score": 10.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"GPT-4-judged quality score on a 1-10 scale, higher is better. For the chat benchmark, GPT-4 generates a reference answer and the evaluator scores each generate\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://arxiv.org/abs/2402.07729\"}"
+    },
+    {
+      "id": "ap25",
+      "display_name": "AP25",
+      "aliases": [
+        "AP25"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"Average Precision at a 3D IoU threshold of 0.25 for 3D object detection on CA-1M. The paper reports AP on a 0-100 percentage scale (e.g., CuTR RGB-D AP25 = 40.\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://arxiv.org/abs/2412.04458\"}"
+    },
+    {
+      "id": "cc",
+      "display_name": "CC",
+      "aliases": [
+        "CC"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": -1.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"Pearson's linear correlation coefficient between the predicted and ground-truth saliency maps. Bounded in [-1,1] by the Cauchy-Schwarz inequality; +1 is perfec\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://arxiv.org/abs/2301.02315\"}"
+    },
+    {
+      "id": "cc-ocr-total",
+      "display_name": "CC-OCR Total",
+      "aliases": [
+        "CC-OCR Total"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"Percentage scale [0,100]. The overall/total is the (unweighted) macro-average of the four track totals (Multi-Scene Text Reading, Multilingual Text Reading, Do\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://arxiv.org/abs/2412.02210\"}"
+    },
+    {
+      "id": "clip-i",
+      "display_name": "CLIP-I",
+      "aliases": [
+        "CLIP-I"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": -1.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"Cosine similarity between CLIP image embeddings of the generated and ground-truth images. Mathematically bounded to [-1, 1]; the paper/community report the raw\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://arxiv.org/abs/2306.10012\"}"
+    },
+    {
+      "id": "clip-t",
+      "display_name": "CLIP-T",
+      "aliases": [
+        "CLIP-T"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": -1.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"Cosine similarity between CLIP embeddings of the generated image and the (local) target text description. Mathematically bounded to [-1, 1]; reported as the ra\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://arxiv.org/abs/2306.10012\"}"
+    },
+    {
+      "id": "collision-rate-1s",
+      "display_name": "Collision Rate 1s",
+      "aliases": [
+        "Collision Rate 1s"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"Collision rate as a percentage in [0,100] (fraction of frames in which the ego vehicle would collide with other agents, x100) at the 1s horizon. Lower is bette\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://ar5iv.labs.arxiv.org/abs/2207.07601\"}"
+    },
+    {
+      "id": "collision-rate-2s",
+      "display_name": "Collision Rate 2s",
+      "aliases": [
+        "Collision Rate 2s"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"Collision rate as a percentage in [0,100] (fraction of frames in which the ego vehicle would collide with other agents, x100) at the 2s horizon. Lower is bette\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://ar5iv.labs.arxiv.org/abs/2207.07601\"}"
+    },
+    {
+      "id": "collision-rate-3s",
+      "display_name": "Collision Rate 3s",
+      "aliases": [
+        "Collision Rate 3s"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"Collision rate as a percentage in [0,100] (fraction of frames in which the ego vehicle would collide with other agents, x100) at the 3s horizon. Lower is bette\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://ar5iv.labs.arxiv.org/abs/2207.07601\"}"
+    },
+    {
+      "id": "color",
+      "display_name": "Color",
+      "aliases": [
+        "Color"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"Disentangled BLIP-VQA score: product of the probabilities of answering 'yes' to per-attribute questions, averaged over images; proportion in [0,1] reported as\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://arxiv.org/html/2307.06350\"}"
+    },
+    {
+      "id": "complex",
+      "display_name": "Complex",
+      "aliases": [
+        "Complex"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\", \"family\": \"bespoke-paper\", \"source\": \"3-in-1 metric: arithmetic mean of CLIPScore (cosine similarity), Disentangled BLIP-VQA, and UniDet spatial score. Effective range is [0,1] (BLIP-VQA and UniDet\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://arxiv.org/html/2307.06350\"}"
+    },
+    {
+      "id": "d-bleu",
+      "display_name": "D-BLEU",
+      "aliases": [
+        "D-BLEU"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"Discrete Speech BLEU Score = BLEU (n-gram precision) computed over discrete speech tokens; from SpeechBERTScore work (Saeki et al. 2024, SpeechBLEU). VERSA met\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://aclanthology.org/2025.naacl-demo.19.pdf\"}"
+    },
+    {
+      "id": "d-distance",
+      "display_name": "D-Distance",
+      "aliases": [
+        "D-Distance"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"Discrete Speech Token Edit Distance (SpeechTokenDistance, Saeki et al. 2024), implemented in VERSA as a Jaro-Winkler-style token similarity. Despite the name '\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://aclanthology.org/2025.naacl-demo.19.pdf\"}"
+    },
+    {
+      "id": "dino",
+      "display_name": "DINO",
+      "aliases": [
+        "DINO"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": -1.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"Cosine similarity between DINO (self-supervised ViT-S/16) embeddings of the generated and ground-truth images. Mathematically bounded to [-1, 1]; reported as t\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://arxiv.org/abs/2306.10012\"}"
+    },
+    {
+      "id": "dreamgenbench-average-score",
+      "display_name": "DreamGenBench Average Score",
+      "aliases": [
+        "DreamGenBench Average Score"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"Bounded proportion in [0,1], higher is better. The registered metric is the arithmetic mean of the three Qwen2.5-VL Instruction-Following (IF) scores over the\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://arxiv.org/abs/2505.12705\"}"
+    },
+    {
+      "id": "drivelm-p1-3-gpt-score-chatgpt-3-5",
+      "display_name": "DriveLM P1-3 GPT Score (ChatGPT-3.5)",
+      "aliases": [
+        "DriveLM P1-3 GPT Score (ChatGPT-3.5)"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"GPT-judged semantic-alignment score for DriveLM graph VQA answers (Perception/Prediction/Planning nodes). ChatGPT-3.5 is prompted to rate a predicted answer ag\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://arxiv.org/abs/2312.14150\"}"
+    },
+    {
+      "id": "driving-score",
+      "display_name": "Driving Score",
+      "aliases": [
+        "Driving Score"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"Main leaderboard metric = per-route product of Route Completion and Infraction Penalty (R_i * P_i). Since Route Completion is a percentage (max 100) and Infrac\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"http://leaderboard.carla.org/evaluation_v1_0/\"}"
+    },
+    {
+      "id": "epdms",
+      "display_name": "EPDMS",
+      "aliases": [
+        "EPDMS"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"Extended Predictive Driver Model Score (NAVSIM v2 navtest), building on PDMS. Composite: multiplicative penalty terms (NC, DAC, DDC, TLC) times a weighted aver\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://arxiv.org/abs/2506.04218\"}"
+    },
+    {
+      "id": "f0-corr",
+      "display_name": "F0-CORR",
+      "aliases": [
+        "F0-CORR"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": -1.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"F0 (fundamental-frequency / pitch) Pearson correlation between reference and generated speech pitch contours (Hayashi et al. 2021). As a Pearson correlation co\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://aclanthology.org/2025.naacl-demo.19.pdf\"}"
+    },
+    {
+      "id": "final-score-fs",
+      "display_name": "Final Score (FS)",
+      "aliases": [
+        "Final Score (FS)"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": null,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"unknown\", \"family\": \"bespoke-paper\", \"source\": \"Bespoke composite for RealIR-Bench, defined by Eq.(1): FS = 0.2*(1-LPS)*RS (verified to reproduce reported table values exactly, incl. the Avg-Total-9 column).\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://arxiv.org/abs/2603.25502\"}"
+    },
+    {
+      "id": "infraction-penalty",
+      "display_name": "Infraction Penalty",
+      "aliases": [
+        "Infraction Penalty"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"Multiplicative penalty factor P_i = product_j (p_j)^(#infractions_j). Agents start at an ideal base of 1.0 (no infractions) and it is reduced with each infract\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"http://leaderboard.carla.org/evaluation_v1_0/\"}"
+    },
+    {
+      "id": "kld",
+      "display_name": "KLD",
+      "aliases": [
+        "KLD"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"Kullback-Leibler divergence between the predicted and ground-truth saliency probability maps. Non-negative by Gibbs' inequality; equals 0 iff the two distribut\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://arxiv.org/abs/2301.02315\"}"
+    },
+    {
+      "id": "kris-bench-overall",
+      "display_name": "KRIS-Bench Overall",
+      "aliases": [
+        "KRIS-Bench Overall"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"Overall Average across KRIS-Bench reasoning dimensions. GPT-4o (May 2025) rates each component metric from 1 to 5; all scores are normalized to a 100-point sca\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://arxiv.org/html/2505.16707\"}"
+    },
+    {
+      "id": "l1",
+      "display_name": "L1",
+      "aliases": [
+        "L1"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\", \"family\": \"bespoke-paper\", \"source\": \"Average per-pixel absolute difference between the generated and ground-truth image. In the MagicBrush single-turn / mask-free evaluation the images are normali\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://arxiv.org/abs/2306.10012\"}"
+    },
+    {
+      "id": "l2-1s",
+      "display_name": "L2 1s",
+      "aliases": [
+        "L2 1s"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"L2 displacement error in meters between planned and human/GT trajectory at the 1s horizon; unbounded above, 0 = perfect match. Lower is better.\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://ar5iv.labs.arxiv.org/abs/2207.07601\"}"
+    },
+    {
+      "id": "l2-2s",
+      "display_name": "L2 2s",
+      "aliases": [
+        "L2 2s"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"L2 displacement error in meters between planned and human/GT trajectory at the 2s horizon; unbounded above, 0 = perfect match. Lower is better.\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://ar5iv.labs.arxiv.org/abs/2207.07601\"}"
+    },
+    {
+      "id": "l2-3s",
+      "display_name": "L2 3s",
+      "aliases": [
+        "L2 3s"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"L2 displacement error in meters between planned and human/GT trajectory at the 3s horizon; unbounded above, 0 = perfect match. Lower is better.\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://ar5iv.labs.arxiv.org/abs/2207.07601\"}"
+    },
+    {
+      "id": "laion-aesthetic-score",
+      "display_name": "LAION Aesthetic Score",
+      "aliases": [
+        "LAION Aesthetic Score"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\", \"family\": \"bespoke-paper\", \"source\": \"NATIVE: the LAION aesthetic predictor outputs a score on a 1-10 scale (LAION-Aesthetics trained on 1-10 human ratings from SAC/AVA; 'aesthetically pleasing...\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://laion.ai/blog/laion-aesthetics/\"}"
+    },
+    {
+      "id": "longaudiobench-overall-judge-score",
+      "display_name": "LongAudioBench Overall Judge Score",
+      "aliases": [
+        "LongAudioBench Overall Judge Score"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\", \"family\": \"bespoke-paper\", \"source\": \"Macro-average of the six LongAudioBench category scores (Captioning, Plot QA, Temporal QA, Needle QA, Subscene QA, General QA). The underlying GPT-4o LLM-as-ju\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://arxiv.org/abs/2503.03983\"}"
+    },
+    {
+      "id": "lps",
+      "display_name": "LPS",
+      "aliases": [
+        "LPS"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\", \"family\": \"bespoke-paper\", \"source\": \"LPS = LPIPS perceptual distance between the restored image and the degraded input (a consistency measure). In Tables 1-2 it is reported with a down-arrow (lowe\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://arxiv.org/abs/2603.25502\"}"
+    },
+    {
+      "id": "maev",
+      "display_name": "MAEV",
+      "aliases": [
+        "MAEV"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": 180.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"Mean Absolute Error of Vectors (Chu et al., TriNet, WACV 2021): head pose is represented by three orthonormal direction vectors (left/down/front columns of the\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://openaccess.thecvf.com/content/WACV2021/papers/Chu_A_Vector-Based_Representation_to_Enhance_Head_Pose_Estimation_WACV_2021_paper.pdf\"}"
+    },
+    {
+      "id": "mind-musiq",
+      "display_name": "MIND MUSIQ",
+      "aliases": [
+        "MIND MUSIQ"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\", \"family\": \"bespoke-paper\", \"source\": \"NATIVE: MUSIQ (no-reference image quality) native range is 0-100, with 100 = highest perceived quality (Google Research). NORMALIZATION: MIND reports a frame-a\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://research.google/blog/musiq-assessing-image-aesthetic-and-technical-quality-with-multi-scale-transformers/\"}"
+    },
+    {
+      "id": "mmau-pro-open-ended-judge-score",
+      "display_name": "MMAU-Pro Open-Ended Judge Score",
+      "aliases": [
+        "MMAU-Pro Open-Ended Judge Score"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"Reported as a percentage on the 0-100 scale (same scale as accuracy). The judge (Qwen2.5-7B-Instruct) produces a raw OVERALL score on a 1-5 scale (5 = best) wh\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://arxiv.org/html/2508.13992\"}"
+    },
+    {
+      "id": "mmau-pro-overall-weighted-performance",
+      "display_name": "MMAU-Pro Overall Weighted Performance",
+      "aliases": [
+        "MMAU-Pro Overall Weighted Performance"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"Percentage scale 0-100. Sample-count-weighted mean across MMAU-Pro task categories: closed-ended items scored as classification accuracy (%) and open-ended ite\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://arxiv.org/html/2508.13992\"}"
+    },
+    {
+      "id": "non-lin-score",
+      "display_name": "Non-Lin Score",
+      "aliases": [
+        "Non-Lin Score"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"Video-MME-v2 group-based non-linear score. Questions are grouped in fours; consistency groups score (N/4)^2 given N correct, coherence groups use first-error t\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://arxiv.org/html/2604.05015\"}"
+    },
+    {
+      "id": "non-spatial",
+      "display_name": "Non-Spatial",
+      "aliases": [
+        "Non-Spatial"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": -1.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\", \"family\": \"bespoke-paper\", \"source\": \"CLIPScore = cosine similarity between CLIP text and image features (raw, unscaled). Cosine similarity is theoretically bounded in [-1,1]; in practice CLIP text\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://arxiv.org/html/2307.06350\"}"
+    },
+    {
+      "id": "nss",
+      "display_name": "NSS",
+      "aliases": [
+        "NSS"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": null,
+      "max_score": null,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"Normalized Scanpath Saliency: the mean of the predicted saliency map (normalized to zero mean, unit standard deviation) sampled at ground-truth fixation locati\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://arxiv.org/abs/2301.02315\"}"
+    },
+    {
+      "id": "out-noc",
+      "display_name": "Out-Noc",
+      "aliases": [
+        "Out-Noc"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"KITTI 2012 optical-flow bad-pixel rate: percentage of non-occluded pixels whose flow endpoint error exceeds the official outlier threshold (3px / 5%). A bounde\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://www.cvlibs.net/datasets/kitti/eval_stereo_flow.php?benchmark=flow\"}"
+    },
+    {
+      "id": "out-noc-3px",
+      "display_name": "Out-Noc 3px",
+      "aliases": [
+        "Out-Noc 3px"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"KITTI 2012 stereo bad-pixel rate: percentage of evaluated non-occluded pixels whose absolute disparity error exceeds 3px. A bounded outlier rate reported as a\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://www.cvlibs.net/datasets/kitti/eval_stereo_flow.php?benchmark=stereo\"}"
+    },
+    {
+      "id": "pdms",
+      "display_name": "PDMS",
+      "aliases": [
+        "PDMS"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"NAVSIM PDM Score is formally defined as PDMS in [0,1] (product of penalty sub-scores NC, DAC times a weighted average of EP, TTC, C sub-scores), but the paper'\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://arxiv.org/html/2406.15349\"}"
+    },
+    {
+      "id": "pie-bench-background-lpips",
+      "display_name": "PIE-Bench Background LPIPS",
+      "aliases": [
+        "PIE-Bench Background LPIPS"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": 1000.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"REPORTED SCALE = underlying LPIPS x 10^3. PIE-Bench computes LPIPS (torchmetrics LearnedPerceptualImagePatchSimilarity, SqueezeNet backbone) in the region OUTS\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://proceedings.iclr.cc/paper_files/paper/2024/file/661caac7729aa7d8c6b8ac0d39ccbc6a-Paper-Conference.pdf\"}"
+    },
+    {
+      "id": "pie-bench-edit-region-clip-similarity",
+      "display_name": "PIE-Bench Edit Region CLIP Similarity",
+      "aliases": [
+        "PIE-Bench Edit Region CLIP Similarity"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"REPORTED SCALE = underlying CLIP cosine similarity x 100 (x10^2). PIE-Bench uses torchmetrics CLIPScore with openai/clip-vit-large-patch14, evaluated in the an\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://proceedings.iclr.cc/paper_files/paper/2024/file/661caac7729aa7d8c6b8ac0d39ccbc6a-Paper-Conference.pdf\"}"
+    },
+    {
+      "id": "pie-bench-structure-distance",
+      "display_name": "PIE-Bench Structure Distance",
+      "aliases": [
+        "PIE-Bench Structure Distance"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": true,
+      "min_score": 0.0,
+      "max_score": 4000.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"medium\", \"family\": \"bespoke-paper\", \"source\": \"REPORTED SCALE = underlying DINO structure distance x 10^3. Following Tumanyan et al. (2022), PIE-Bench extracts DINO-ViT (dino_vitb8) key features, builds a s\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://proceedings.iclr.cc/paper_files/paper/2024/file/661caac7729aa7d8c6b8ac0d39ccbc6a-Paper-Conference.pdf\"}"
+    },
+    {
+      "id": "pie-bench-whole-image-clip-similarity",
+      "display_name": "PIE-Bench Whole Image CLIP Similarity",
+      "aliases": [
+        "PIE-Bench Whole Image CLIP Similarity"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"REPORTED SCALE = underlying CLIP cosine similarity x 100 (x10^2). Same metric as Edit Region CLIP Similarity but computed over the WHOLE edited image against t\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://proceedings.iclr.cc/paper_files/paper/2024/file/661caac7729aa7d8c6b8ac0d39ccbc6a-Paper-Conference.pdf\"}"
+    },
+    {
+      "id": "q-score",
+      "display_name": "Q-Score",
+      "aliases": [
+        "Q-Score"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"BEHAVIOR Challenge task-success score. Per task it is the fraction of goal BDDL predicates satisfied = (satisfied goal predicates)/(total goal predicates), a p\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://behavior.stanford.edu/challenge/evaluation.html\"}"
+    },
+    {
+      "id": "resolution-rate",
+      "display_name": "Resolution Rate",
+      "aliases": [
+        "Resolution Rate"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"Percentage of Frontier-Bench (v0.1) tasks successfully resolved; equivalent to mean reward when task rewards are binary. Bounded rate reported as a percentage\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://www.anthropic.com/claude-opus-5-system-card\"}"
+    },
+    {
+      "id": "restoration-score-rs",
+      "display_name": "Restoration Score (RS)",
+      "aliases": [
+        "Restoration Score (RS)"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": -5.0,
+      "max_score": 5.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"VLM-assessed degradation-improvement score. A VLM (Qwen3-VL-8B-Instruct) rates degradation severity of the degraded and the restored image on a 0-5 scale (5 =\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://arxiv.org/abs/2603.25502\"}"
+    },
+    {
+      "id": "rhae",
+      "display_name": "RHAE",
+      "aliases": [
+        "RHAE"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"Relative Human Action Efficiency (ARC-AGI-3). Per-level score S = min(1.0, human_actions/agent_actions)^2 (human baseline = 2nd-best human action count), cappe\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://arxiv.org/abs/2603.24621\"}"
+    },
+    {
+      "id": "route-completion",
+      "display_name": "Route Completion",
+      "aliases": [
+        "Route Completion"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"Percentage of the route distance completed by the agent (R_i). Range [0, 100] percent; higher is better. Maximum value is 100.\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"http://leaderboard.carla.org/evaluation_v1_0/\"}"
+    },
+    {
+      "id": "s-bert",
+      "display_name": "S-BERT",
+      "aliases": [
+        "S-BERT"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": -1.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"Speech BERT Score / SpeechBERTScore (Saeki et al. 2024): BERTScore-style precision over self-supervised speech feature sequences, aggregated from token-wise co\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://aclanthology.org/2025.naacl-demo.19.pdf\"}"
+    },
+    {
+      "id": "shape",
+      "display_name": "Shape",
+      "aliases": [
+        "Shape"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"Disentangled BLIP-VQA score: product of 'yes' probabilities averaged over images; proportion in [0,1] reported as a decimal.\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://arxiv.org/html/2307.06350\"}"
+    },
+    {
+      "id": "sim",
+      "display_name": "SIM",
+      "aliases": [
+        "SIM"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"Similarity / histogram-intersection metric. Both predicted and ground-truth saliency maps are normalized to probability distributions summing to 1; SIM = sum o\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://arxiv.org/abs/2301.02315\"}"
+    },
+    {
+      "id": "spatial",
+      "display_name": "Spatial",
+      "aliases": [
+        "Spatial"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"UniDet detection-based score: per-image 0/1 outcome (bounding-box geometry + IoU threshold) averaged over images; proportion in [0,1] reported as a decimal.\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://arxiv.org/html/2307.06350\"}"
+    },
+    {
+      "id": "success-suboptimal-rate",
+      "display_name": "Success + Suboptimal Rate",
+      "aliases": [
+        "Success + Suboptimal Rate"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"Percentage of scored rollouts labelled either 'successful' or 'suboptimal' (i.e., not 'failure') under ArmnetBench's three-way human labelling scheme. A combin\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://arxiv.org/abs/2607.24481\"}"
+    },
+    {
+      "id": "texture",
+      "display_name": "Texture",
+      "aliases": [
+        "Texture"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 1.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"Disentangled BLIP-VQA score: product of 'yes' probabilities averaged over images; proportion in [0,1] reported as a decimal.\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://arxiv.org/html/2307.06350\"}"
+    },
+    {
+      "id": "utmosv2",
+      "display_name": "UTMOSv2",
+      "aliases": [
+        "UTMOSv2"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 1.0,
+      "max_score": 5.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"Predicted Mean Opinion Score (MOS) for speech naturalness on the standard 5-point absolute-category-rating scale [1,5] (1=Bad, 5=Excellent); higher is better.\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://github.com/sarulab-speech/UTMOSv2\"}"
+    },
+    {
+      "id": "worldmodelbench-total-score",
+      "display_name": "WorldModelBench Total Score",
+      "aliases": [
+        "WorldModelBench Total Score"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 10.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"Sum of three human/judge-graded dimensions per video: Instruction Following (integer 0-3), Physics Adherence (five binary physical laws, 0-5), and Commonsense\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://arxiv.org/abs/2502.20694\"}"
+    },
+    {
+      "id": "worldscore-dynamic",
+      "display_name": "WorldScore-Dynamic",
+      "aliases": [
+        "WorldScore-Dynamic"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"0-100 scale. Each dimension normalized to [0,1] via linear mapping on empirical bounds, scaled by 100; WorldScore-Dynamic is the arithmetic mean of the control\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://arxiv.org/html/2504.00983v2\"}"
+    },
+    {
+      "id": "worldscore-static",
+      "display_name": "WorldScore-Static",
+      "aliases": [
+        "WorldScore-Static"
+      ],
+      "score_type": "continuous",
+      "lower_is_better": false,
+      "min_score": 0.0,
+      "max_score": 100.0,
+      "review_status": "draft",
+      "metadata": "{\"kind\": \"real\", \"confidence\": \"high\", \"family\": \"bespoke-paper\", \"source\": \"0-100 scale. Each dimension score is linearly normalized to [0,1] using empirical bounds and then scaled by 100; WorldScore-Static is the arithmetic mean of th\\u2026\", \"provenance\": \"paperswithcode-adapter\", \"paper\": \"https://arxiv.org/html/2504.00983v2\"}"
+    }
+  ]
+}

@@ -36,6 +36,7 @@ Each adapter is run with `uv run python -m every_eval_ever.adapters.<name>.adapt
 | `mmlu_pro` | TIGER-Lab leaderboard CSV | Converts the MMLU-Pro leaderboard (`TIGER-Lab/mmlu_pro_leaderboard_submission`) into `data/mmlu-pro/`. Emits per-model overall + 14 per-subject accuracies. |
 | `lexam` | LEXam project website | Converts the LEXam legal-reasoning leaderboard (open-question judge scores + 4-choice MCQ accuracy) into `data/lexam/`. |
 | `vectara_hallucination_leaderboard` | HuggingFace (`vectara/results`) | Converts the Vectara Hallucination Leaderboard result files, pinned to a source commit, into `data/vectara-hallucination-leaderboard/`. Emits 4 aggregate metrics plus per-category and per-text-complexity breakdowns (40 scores per model). |
+| `paperswithcode` | Papers with Code PostgreSQL dumps | Converts PwC leaderboard entries into `data/paperswithcode/`. Metric bounds and direction are resolved against a vendored eval-card-registry snapshot; unknown metrics fail the run rather than getting invented bounds. Needs the `paperswithcode` extra. |
 
 ### Mercor Evaluation Exports
 
@@ -104,6 +105,81 @@ adapter-specific caveat: record filenames are fresh uuids per run, so a second
 `upload_folder` onto an open submission PR adds another copy of every model.
 Update a submission by deleting `data/lexam/` and adding the new records in a
 single `create_commit`.
+
+### Papers with Code
+
+The source is a nightly PostgreSQL backup of the PwC database, published to the
+HF bucket `huggingface/paperswithcode-backups` under `postgres/*.dump`
+(`pg_dump -Fc`, ~180–210 MB each). Dumps are read with
+[`pgdumplib`](https://pypi.org/project/pgdumplib/), so no PostgreSQL server or
+`pg_restore` is needed — install the extra:
+
+```bash
+uv sync --extra paperswithcode
+```
+
+Auto-downloading the newest dump additionally needs `huggingface_hub>=1.0` for
+the bucket API, above the range this repo pins. The `--dump` path (a dump
+already on disk) has no such requirement, and the import is lazy, so only
+auto-download fails and only when it is actually used.
+
+```bash
+# a dump already on disk, two leaderboards, no network
+uv run python -m every_eval_ever.adapters.paperswithcode.adapter \
+  --dump /tmp/pwc-raw/paperswithcode_hf_20260716_031511.dump \
+  --dataset-slug eth3d-relative --dataset-slug re10k-2-view \
+  --output-dir /tmp/eee-pwc
+
+# download the newest dump and convert everything (large)
+uv run python -m every_eval_ever.adapters.paperswithcode.adapter \
+  --all --output-dir data/paperswithcode
+```
+
+PwC re-reports numbers rather than running models, so `source_type` is
+`documentation`, there is no per-item data and no `_samples.jsonl`. One record
+per canonical model id; each result is one (evaluation row × metric) pair. A
+re-run over the same dump is byte-stable — `retrieved_timestamp` and
+`evaluation_id` are keyed on the dump date, never on wall-clock time. Because
+record filenames are fresh uuids, a re-run replaces the output directory's
+contents: the new batch is validated and written first, and only then are the
+previous run's records removed, so a failed run leaves that run's output intact.
+
+`continuous` metrics need a defined `min_score`/`max_score`, and PwC does not
+publish them. They come from the eval-card-registry's canonical metric entries,
+vendored in `registry_snapshot.json` and pinned to the registry revision they
+came from, so resolution at convert time is a static lookup. A metric that is
+absent from the snapshot, or whose name maps to more than one canonical id,
+**fails the run** by default and is named in the report; `--allow-unresolved`
+emits it with observed-range bounds flagged as such. Reported values are mapped
+onto the canonical scale per `(metric, dataset)` leaderboard rather than per
+score, so an all-percent board for a `[0,1]` metric is rescaled as a group and a
+lone out-of-range value is flagged instead of silently divided. `metric_unit`
+names that canonical scale rather than the one PwC declared, so it stays true
+after a rescale; the source declaration is kept as `pwc_scale`. A score the
+group decision cannot place inside the declared bounds is **not published** —
+that cell is omitted and listed in the failure report, since the bounds a record
+declares have to contain its score.
+
+Every run prints a full imperfection report — unresolved metrics, unknown
+directions, scale anomalies — to stderr. The mode decides only whether to abort
+before publishing: strict (the default) exits non-zero before writing anything,
+`--allow-unresolved` tolerates only the unresolved class, and `--best-effort`
+writes everything representable with each imperfection flagged. No mode ships an
+out-of-range score, so a run that dropped one still exits non-zero.
+
+Registering a bound for a new metric is the one part of this adapter that needs
+human judgment; [`METRIC_MAINTENANCE.md`](paperswithcode/METRIC_MAINTENANCE.md)
+is the procedure, including the observed-range cross-check that keeps a cited
+bound honest. Refresh the snapshot after any registry change:
+
+```bash
+uv run python -m every_eval_ever.adapters.paperswithcode.refresh_registry_snapshot \
+    --seed /path/to/eval-card-registry/seed/metrics.yaml
+```
+
+Model ids use the HF `developer/model` form when `hf_model_url` is present.
+Effort/mode tiers in PwC model names (`GPT-5.5 Pro (xhigh)`) are kept verbatim;
+collapsing them and aliasing the ids belongs in the registry, not here.
 
 ## Notes
 
