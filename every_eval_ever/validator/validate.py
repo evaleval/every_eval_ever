@@ -146,12 +146,7 @@ def _truncate(value: object, max_len: int = 80) -> str:
 
 
 def render_report_rich(report: ValidationReport, console: Console) -> None:
-    """Render one validation report as a terminal panel.
-
-    Warnings are shown whether or not the file passed. A warning on a passing
-    file is exactly what the datastore review bot reports on a submission, so
-    dropping it locally sends contributors into review with surprises.
-    """
+    """Render one validation report as a terminal panel."""
     if report.valid:
         label = Text(' PASS ', style='bold white on green')
         kind = (
@@ -159,19 +154,23 @@ def render_report_rich(report: ValidationReport, console: Console) -> None:
             if report.file_type == 'aggregate'
             else f'Instance (InstanceLevelEvaluationLog, {report.line_count} lines)'
         )
-        border_style = 'yellow' if report.warnings else 'green'
-    else:
-        label = Text(' FAIL ', style='bold white on red')
-        kind = (
-            'Aggregate (EvaluationLog)'
-            if report.file_type == 'aggregate'
-            else 'Instance (InstanceLevelEvaluationLog)'
+        console.print(
+            Panel(
+                Text.assemble(label, '  ', (kind, 'dim')),
+                title=f'[blue underline]{report.file_path}[/]',
+                title_align='left',
+                border_style='green',
+            )
         )
-        border_style = 'red'
+        return
 
-    lines = [Text.assemble(label, '  ', (kind, 'dim'))]
-    if report.errors or report.warnings:
-        lines.append(Text(''))
+    label = Text(' FAIL ', style='bold white on red')
+    kind = (
+        'Aggregate (EvaluationLog)'
+        if report.file_type == 'aggregate'
+        else 'Instance (InstanceLevelEvaluationLog)'
+    )
+    lines = [Text.assemble(label, '  ', (kind, 'dim')), Text('')]
     for index, error in enumerate(report.errors, 1):
         lines.append(Text(f'  {index}. {error["loc"]}', style='cyan'))
         lines.append(Text(f'     {error["msg"]}'))
@@ -189,7 +188,7 @@ def render_report_rich(report: ValidationReport, console: Console) -> None:
             Text('\n').join(lines),
             title=f'[blue underline]{report.file_path}[/]',
             title_align='left',
-            border_style=border_style,
+            border_style='red',
         )
     )
 
@@ -201,7 +200,6 @@ def render_summary_rich(
     passed = sum(1 for report in reports if report.valid)
     failed = len(reports) - passed
     total_errors = sum(len(report.errors) for report in reports)
-    total_warnings = sum(len(report.warnings) for report in reports)
     if failed:
         style = 'bold red'
         message = (
@@ -211,16 +209,6 @@ def render_summary_rich(
     else:
         style = 'bold green'
         message = f'All {passed} file(s) passed validation'
-    if total_warnings:
-        # Warnings never change the exit code; say so, so a green run that the
-        # review bot will comment on does not read as "nothing to do". A failed
-        # run stays red — the warnings are the smaller problem there.
-        if not failed:
-            style = 'bold yellow'
-        message += (
-            f'\n{total_warnings} warning(s) — not fatal, but the datastore '
-            'review bot reports them'
-        )
     console.print()
     console.print(
         Panel(Text(message, style=style), title='Summary', border_style='dim')

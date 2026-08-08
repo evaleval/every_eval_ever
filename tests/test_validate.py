@@ -2,22 +2,17 @@
 
 from __future__ import annotations
 
-import io
 import json
 from pathlib import Path
 
 import pytest
-from rich.console import Console
 
 from every_eval_ever.schema import get_schema_version
 from every_eval_ever.validate import (
-    ValidationReport,
     expand_paths,
     main,
     render_report_github,
     render_report_json,
-    render_report_rich,
-    render_summary_rich,
 )
 from every_eval_ever.validate import (
     validate_aggregate as _validate_aggregate,
@@ -444,93 +439,6 @@ class TestOutputFormats:
         report = validate_file(fp)
         output = render_report_github([report])
         assert output == ''
-
-
-class TestWarningVisibility:
-    """A warning on a passing file must reach the terminal.
-
-    The JSON and GitHub renderers already emit warnings regardless of validity,
-    so only the default `rich` output could hide one — which is the output a
-    contributor actually looks at before submitting.
-    """
-
-    @staticmethod
-    def _render(report: ValidationReport) -> str:
-        stream = io.StringIO()
-        console = Console(
-            file=stream, width=100, no_color=True, legacy_windows=False
-        )
-        render_report_rich(report, console)
-        render_summary_rich([report], console)
-        return stream.getvalue()
-
-    @staticmethod
-    def _passing_report(warnings: list[dict[str, str]]) -> ValidationReport:
-        return ValidationReport(
-            file_path=Path('data/bench/dev/model/x.json'),
-            valid=True,
-            file_type='aggregate',
-            warnings=warnings,
-        )
-
-    def test_passing_file_still_shows_its_warnings(self):
-        output = self._render(
-            self._passing_report(
-                [
-                    {
-                        'loc': 'evaluation_results[0].metric_config',
-                        'msg': 'something worth a second look',
-                        'type': 'semantic_warning',
-                    }
-                ]
-            )
-        )
-        assert 'PASS' in output
-        assert 'something worth a second look' in output
-        assert 'evaluation_results[0].metric_config' in output
-
-    def test_summary_counts_warnings_and_says_they_are_not_fatal(self):
-        output = self._render(
-            self._passing_report(
-                [{'loc': '', 'msg': 'first', 'type': 'semantic_warning'}]
-            )
-        )
-        assert '1 warning(s)' in output
-        assert 'not fatal' in output
-
-    def test_clean_pass_stays_quiet(self):
-        output = self._render(self._passing_report([]))
-        assert 'PASS' in output
-        # Either capitalization would be a leaked warning line.
-        assert 'arning' not in output
-
-    def test_a_failing_file_still_reads_as_a_failure(self):
-        """Warnings must not soften the summary of a run that failed.
-
-        Colour is the only signal the summary panel carries, so a failed run
-        recolored to warning-yellow would announce the smaller problem.
-        """
-        report = ValidationReport(
-            file_path=Path('data/bench/dev/model/x.json'),
-            valid=False,
-            file_type='aggregate',
-            errors=[
-                {'loc': 'model_info', 'msg': 'boom', 'type': 'value_error'}
-            ],
-            warnings=[{'loc': '', 'msg': 'first', 'type': 'semantic_warning'}],
-        )
-        stream = io.StringIO()
-        console = Console(
-            file=stream, width=100, force_terminal=True, legacy_windows=False
-        )
-        render_summary_rich([report], console)
-        output = stream.getvalue()
-
-        assert '1 file(s) failed' in output
-        assert '1 warning(s)' in output
-        # rich renders 'bold red' as 1;31 and 'bold yellow' as 1;33.
-        assert '\x1b[1;31m' in output
-        assert '\x1b[1;33m' not in output
 
 
 class TestExitCode:
