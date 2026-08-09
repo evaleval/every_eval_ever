@@ -18,4 +18,4 @@ done
 # Validate the files at their canonical data/<collection>/<dev>/<model>/ path so the
 # CLI's semantic checks (path structure, companion pairing, model-deployment fields)
 # have the datastore context they need.
-python -m every_eval_ever validate "${files[@]}"
+uv run python -m every_eval_ever validate "${files[@]}"

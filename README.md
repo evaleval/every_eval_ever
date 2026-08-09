@@ -10,18 +10,18 @@
 - 🔧 **Validation** that checks data against the schema before it enters the repository
 - 🔌 **Converters** for [Inspect AI](every_eval_ever/converters/inspect/), [HELM](every_eval_ever/converters/helm/), and [lm-eval-harness](every_eval_ever/converters/lm_eval/), so you can transform your existing evaluation logs into the standard format
 
-Install the package:
+Add the package to your project:
 
 ```bash
-pip install every-eval-ever
+uv add every-eval-ever
 ```
 
 Optional converter dependencies:
 
 ```bash
-pip install 'every-eval-ever[inspect]'
-pip install 'every-eval-ever[helm]'
-pip install 'every-eval-ever[all]'
+uv add 'every-eval-ever[inspect]'
+uv add 'every-eval-ever[helm]'
+uv add 'every-eval-ever[all]'
 ```
 
 > [!NOTE]

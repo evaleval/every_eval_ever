@@ -84,8 +84,8 @@ a directory. Include companion files required by semantic validation.
 Use:
 
 ```text
-python -m every_eval_ever validate <changed files>
-python -m every_eval_ever.check_duplicate_entries <relevant files>
+uv run python -m every_eval_ever validate <changed files>
+uv run python -m every_eval_ever.check_duplicate_entries <relevant files>
 ```
 
 Capture the full output and exit status. Do not rely on Pydantic model construction

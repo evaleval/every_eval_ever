@@ -182,5 +182,5 @@ def run(args):
 if __name__ == "__main__":   # run: uv run python -m every_eval_ever.adapters.<name>.adapter
     run(parse_args())
     # then validate the written FILES (the CLI rejects a bare dir):
-    #   python -m every_eval_ever validate '/tmp/<src>-smoke/data/<src>/*/*/*.json'
+    #   uv run python -m every_eval_ever validate '/tmp/<src>-smoke/data/<src>/*/*/*.json'
     #   (or scripts/validate.sh /tmp/<src>-smoke/data)

@@ -14,7 +14,7 @@ reference conversion already satisfies leaves it green, so re-derive
 
 Regenerate the frozen conversion after a deliberate change:
 
-    python -c "from tests.test_skill_conversion import regenerate_frozen_reference as r; r()"
+    uv run python -c "from tests.test_skill_conversion import regenerate_frozen_reference as r; r()"
 """
 
 from __future__ import annotations
@@ -48,7 +48,7 @@ FROZEN_RETRIEVED_TS = '1750000001'
 SRC_SLUG = 'demo-source'
 
 REGENERATE_CMD = (
-    'python -c "from tests.test_skill_conversion import '
+    'uv run python -c "from tests.test_skill_conversion import '
     'regenerate_frozen_reference as r; r()"'
 )
 

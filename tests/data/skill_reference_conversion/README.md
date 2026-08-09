@@ -6,4 +6,4 @@ and compared byte-for-byte against what the templates produce today.
 
 Do not hand-edit. Regenerate with:
 
-    python -c "from tests.test_skill_conversion import regenerate_frozen_reference as r; r()"
+    uv run python -c "from tests.test_skill_conversion import regenerate_frozen_reference as r; r()"
