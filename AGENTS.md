@@ -1,7 +1,7 @@
 # AGENTS.md — every_eval_ever
 
-Entry point for coding agents in this repo. (Open standard — see https://agents.md.
-Claude Code also reads this file and any `.claude/skills/`.)
+Entry point for coding agents in this repo. (Open standard — see https://agents.md.)
+Repo-local agent skills live under `.agents/skills/`.
 
 This repo defines the **Every Eval Ever (EEE)** schema and hosts **adapters** that
 convert external eval sources into it.
@@ -9,7 +9,8 @@ convert external eval sources into it.
 ## Skills (agent-invoked, loaded on demand)
 | Skill | Use when |
 |---|---|
-| [`eee-dataset-conversion`](.claude/skills/eee-dataset-conversion/SKILL.md) | Converting a dataset/leaderboard into EEE; writing/fixing an adapter under `every_eval_ever/adapters/`; debugging why an EEE record won't validate |
+| [`eee-dataset-conversion`](.agents/skills/eee-dataset-conversion/SKILL.md) | Converting a dataset/leaderboard into EEE; writing/fixing an adapter under `every_eval_ever/adapters/`; debugging why an EEE record won't validate |
+| [`eee-datastore-pr-review`](.agents/skills/eee-datastore-pr-review/SKILL.md) | Reviewing or repairing an `EEE_datastore` Hugging Face PR; reproducing `/eee validate changed`; researching validator warnings and model deployment metadata |
 
 ## Layout
 - `every_eval_ever/eval_types.py` + `eval.schema.json` — aggregate `EvaluationLog`.
@@ -61,7 +62,7 @@ part of the change — not a follow-up.
 - `tests/test_skill_conversion.py` is the tripwire: it re-validates the skill's templates
   and one frozen reference conversion through the real CLI (semantic checks on). Run it.
 - When it fails, fix the **skill**, not the test: the rule lives in
-  `.claude/skills/eee-dataset-conversion/reference/` (gate rules in `datastore-gate.md`,
+  `.agents/skills/eee-dataset-conversion/reference/` (gate rules in `datastore-gate.md`,
   field semantics in `fields.md`), the emitting code in `templates/`. Then regenerate the
   frozen conversion with the command in the failure message.
 - Don't restate the new rule anywhere else. The test is the enforcement; prose that
@@ -70,4 +71,4 @@ part of the change — not a follow-up.
 ## Human docs
 `README.md` (understand & use), `CONTRIBUTING.md` (author & submit) and
 `every_eval_ever/adapters/README.md` (adapter authors) are for people. Keep agent
-instructions here and in `.claude/skills/`.
+instructions here and in `.agents/skills/`.

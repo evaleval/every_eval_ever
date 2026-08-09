@@ -298,7 +298,7 @@ uv run python -m every_eval_ever.post_codegen
 
 Changing the schema or the validator also changes what a contributor has to produce, so
 `tests/test_skill_conversion.py` re-validates the contributor-facing
-[`eee-dataset-conversion` skill](.claude/skills/eee-dataset-conversion/SKILL.md) — its
+[`eee-dataset-conversion` skill](.agents/skills/eee-dataset-conversion/SKILL.md) — its
 templates and one frozen reference conversion — against the live validator. If it goes
 red, the guidance is what needs updating; the failure message says which file and gives
 the regeneration command. Don't skip it: it is the check that keeps the docs from
