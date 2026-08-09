@@ -62,6 +62,8 @@ run receipts, not Hugging Face discussion comments: do not post them to the PR u
 the operator explicitly asks. Each checkpoint must include the phase, current PR head
 SHA, facts established since the prior checkpoint, affected file/model counts, command
 exit statuses or evidence URLs when applicable, blockers, and the next action.
+When a progress or parent-message channel is available, send the checkpoint through it
+and continue in the same run. Do not end a turn merely to deliver a checkpoint.
 
 Required checkpoints:
 
