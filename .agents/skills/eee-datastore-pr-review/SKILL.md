@@ -6,7 +6,8 @@ description: >-
   or reproduce `/eee validate changed`, resolve EEE validator errors or
   warnings, research model deployment_type or model_availability, edit the
   changed datastore records, prepare human-approved deployment metadata
-  proposals, rerun the bot, or prepare canonical-registry follow-ups.
+  proposals, distinguish record omissions from genuinely unavailable metadata,
+  rerun the bot, or prepare canonical-registry follow-ups.
 ---
 
 # Review and repair an EEE datastore PR
@@ -23,9 +24,11 @@ not sufficient.
   declared bounds, or change a value merely to silence the validator.
 - Make `unknown` a researched conclusion, not a default. Record which relevant
   surfaces were checked before retaining it.
-- Distinguish absent record metadata from unavailable source evidence. A missing or
-  null `model_info.additional_details` object means the record needs investigation;
-  it does not establish either axis as `unknown`.
+- Distinguish absent record metadata from unavailable source evidence for every field.
+  Describe an unchecked absence as "not surfaced in the submitted record," not as
+  missing from the underlying evaluation. A missing or null
+  `model_info.additional_details` object means the record needs investigation; it does
+  not establish either axis as `unknown`.
 - Keep work on the supplied `refs/pr/<number>` ref. Do not open a replacement PR for
   another repair round.
 - If asked only to review, prepare a patch and findings without uploading or
@@ -47,6 +50,10 @@ Before editing, read these sibling references:
 - `../eee-dataset-conversion/reference/fields.md`
 - `../eee-dataset-conversion/reference/datastore-submission.md`
 - `../eee-dataset-conversion/reference/verification.md`
+
+Read `reference/metadata-missingness.md` whenever a field is absent, null, defaulted,
+or claimed to be unavailable. Apply it to deployment metadata and reproducibility
+fields such as temperature and maximum output tokens.
 
 Read `reference/model-deployment.md` whenever either model deployment axis is
 missing, stale, invalid, or suspicious. Read
@@ -136,6 +143,12 @@ Group findings by root cause rather than by file. For each group, record:
 - the source evidence needed for a correct fix;
 - proposed change and confidence.
 
+Classify every apparent omission with `reference/metadata-missingness.md`. Do not call
+an absent field genuinely missing while its status is `record_absent` or
+`research_incomplete`. If a README, eval card, methodology page, leaderboard, paper,
+repository, or API exposes it, classify it as `available_not_surfaced` and identify
+the adapter/submission gap.
+
 Inspect content even when the validator omits it. At minimum check suspicious zeroes,
 score scale and bounds, metric identity, `source_data`, duplicate overall/subtask
 aggregates, stable `evaluation_id`, model identity, answer leakage, and companion
@@ -148,9 +161,10 @@ actually supplied `additional_details`, supplied only one axis, or supplied neit
 
 ### 4. Research ambiguous metadata
 
-For deployment warnings, apply `reference/model-deployment.md` to each exact model
-variant and evaluation run. Determine the two axes independently. Do not infer one
-from the other, from the developer folder, or from a provider-wide rule.
+Apply `reference/metadata-missingness.md` before deciding any absent field is truly
+unavailable. For deployment warnings, then apply `reference/model-deployment.md` to
+each exact model variant and evaluation run. Determine the two axes independently. Do
+not infer one from the other, from the developer folder, or from a provider-wide rule.
 
 Search all relevant primary surfaces before choosing `unknown`: record payload and
 run config, generating adapter, pinned model card, evaluator methodology, paper and
@@ -166,10 +180,13 @@ Before editing either deployment axis:
    repository and fill one row per exact submitted `model_info.id`. Do not substitute
    a folder slug or an unapproved canonical id.
 2. Use only the five table columns in the template. Reference sources as `S1`, `S2`,
-   and so on; list each full URL and pinned revision/date once below the table.
+   and so on; list each full URL and pinned revision/date once below the table. Record
+   deployment (`D`) and availability (`A`) confidence and sources separately inside
+   their shared cells.
 3. Include every model whose deployment fields would change, including mechanical
-   vocabulary migrations. State unresolved axes as `unknown` rather than omitting a
-   row.
+   vocabulary migrations. Propose `unknown` only for `conflicting_sources` or
+   `unavailable_after_search`, and complete the template's unknown-rationale table.
+   If any axis is `research_incomplete`, do not finalize the proposal.
 4. Compute the completed file's SHA-256. Return the rendered Markdown (or a clickable
    path in a shared workspace), digest, PR head, model count, and affected-file count.
 5. Stop and request explicit human approval of that digest at that PR head. Do not edit
@@ -196,6 +213,9 @@ again. Record the approver and approval time in the decision log.
 - If generated records are wrong, fix or prepare the generating adapter in the code
   repo as well; otherwise the next refresh will restore the defect. Keep adapter code
   out of the datastore PR and cross-link its separate PR.
+- Treat `available_not_surfaced` as an extraction defect: backfill the approved value
+  in the data repair and prepare an adapter/submission follow-up so regeneration does
+  not erase it.
 - Review the resulting diff for accidental deletion, unrelated churn, and a mechanical
   replacement applied to semantically different models.
 
@@ -257,6 +277,8 @@ Return:
 - files changed, grouped by root cause;
 - local validation and duplicate-check results;
 - content spot-checks performed;
+- missingness classification for each absent field, including source-available
+  extraction gaps and the surfaces checked before any unavailable claim;
 - deployment/availability evidence table, including researched `unknown` values;
 - research proposal path or rendered table, SHA-256, approved head, approver, and
   approval time;
