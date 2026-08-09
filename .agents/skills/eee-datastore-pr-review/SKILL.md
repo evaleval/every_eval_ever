@@ -5,8 +5,8 @@ description: >-
   dataset. Use when given an EEE_datastore discussion or PR URL, asked to run
   or reproduce `/eee validate changed`, resolve EEE validator errors or
   warnings, research model deployment_type or model_availability, edit the
-  changed datastore records, rerun the bot, or prepare canonical-registry
-  follow-ups.
+  changed datastore records, prepare human-approved deployment metadata
+  proposals, rerun the bot, or prepare canonical-registry follow-ups.
 ---
 
 # Review and repair an EEE datastore PR
@@ -31,6 +31,9 @@ not sufficient.
 - If asked only to review, prepare a patch and findings without uploading or
   commenting. If asked to fix, update the supplied PR, trigger its validator, and
   iterate on that same ref.
+- Before changing `deployment_type` or `model_availability` on the live PR, obtain
+  explicit human approval of a proposal bound to the current PR head. Authorization
+  to fix the PR is not approval of research-derived field values.
 - Ask the operator before a policy decision: minting a new canonical id, changing a
   schema/validator rule, dropping non-trivial data, choosing an ambiguous metric or
   bound, or making another structural change. Do not hide such a choice in a data
@@ -69,8 +72,9 @@ Required checkpoints:
 
 1. **Snapshot:** after selecting the PR head and matching bot run.
 2. **Diagnosis:** after reproducing the gate and grouping its findings.
-3. **Evidence and patch plan:** after resolving model-specific evidence and before the
-   first live PR mutation. Include every proposed field change and any unresolved axis.
+3. **Research proposal:** after resolving model-specific evidence. Render
+   `assets/deployment-metadata-proposal.md`, report its SHA-256, and pause for explicit
+   human approval before editing deployment fields or mutating the live PR.
 4. **Local repair:** after the repaired diff passes local validation and content review.
 5. **Remote receipt:** immediately after each uploaded commit or validator-trigger
    comment, including the returned commit SHA or discussion event id.
@@ -80,9 +84,9 @@ Required checkpoints:
 For a phase lasting more than 60 seconds, emit a heartbeat at least once per minute
 with the current evidence surface or bounded poll, completed/remaining counts, and
 whether local or remote state changed. Use bounded polling calls of at most 45 seconds
-so progress messages can be delivered. A checkpoint is not an approval gate: continue
-unless the operating contract requires an operator decision or the operator asked to
-pause at that phase.
+so progress messages can be delivered. Continue after ordinary checkpoints. The
+research proposal is an approval gate; do not continue past it without an explicit
+approval matching both its digest and PR head.
 
 ## Workflow
 
@@ -154,12 +158,33 @@ appendix, source repository, and official API/release documentation. Use current
 research where facts may have changed, but pin the evidence revision or date relevant
 to the submitted evaluation.
 
-Batch models only after proving that they share the same evidence. Keep an evidence
-table with raw model label, canonical model id, both decisions, source URL/revision,
-and confidence.
+Batch models only after proving that they share the same evidence.
+
+Before editing either deployment axis:
+
+1. Copy `assets/deployment-metadata-proposal.md` to run notes outside the datastore
+   repository and fill one row per exact submitted `model_info.id`. Do not substitute
+   a folder slug or an unapproved canonical id.
+2. Use only the five table columns in the template. Reference sources as `S1`, `S2`,
+   and so on; list each full URL and pinned revision/date once below the table.
+3. Include every model whose deployment fields would change, including mechanical
+   vocabulary migrations. State unresolved axes as `unknown` rather than omitting a
+   row.
+4. Compute the completed file's SHA-256. Return the rendered Markdown (or a clickable
+   path in a shared workspace), digest, PR head, model count, and affected-file count.
+5. Stop and request explicit human approval of that digest at that PR head. Do not edit
+   the records, upload a commit, or comment on the Hugging Face discussion while
+   approval is pending.
+
+Approval covers only the exact table and head named by the human. Before applying it,
+re-fetch `refs/pr/<number>`. If the head changed, evidence changed, a proposed value
+changed, or a new model entered scope, regenerate the artifact and obtain approval
+again. Record the approver and approval time in the decision log.
 
 ### 5. Make the repair
 
+- For deployment metadata, begin only after the research proposal is explicitly
+  approved and the remote head still matches it. Apply only its approved rows.
 - Edit only files implicated by a finding. Avoid mass reformatting unrelated data.
 - Preserve UUID filenames and stable evaluation identities unless identity itself is
   the defect.
@@ -189,6 +214,9 @@ When the task authorizes a fix, upload exact add/delete operations to the existi
 `refs/pr/<number>` with `huggingface_hub.HfApi.create_commit`; set the current PR head
 as `parent_commit` so concurrent updates fail instead of being overwritten. Never set
 `create_pr=True` for a repair round.
+
+If the commit changes either deployment axis, require the approved proposal digest and
+head in the decision log before uploading. General authorization to fix is insufficient.
 
 After the commit lands:
 
@@ -230,6 +258,8 @@ Return:
 - local validation and duplicate-check results;
 - content spot-checks performed;
 - deployment/availability evidence table, including researched `unknown` values;
+- research proposal path or rendered table, SHA-256, approved head, approver, and
+  approval time;
 - registry and adapter follow-ups with cross-links or candidate tables;
 - decision log and any unresolved blocker.
 
