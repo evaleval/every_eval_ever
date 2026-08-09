@@ -55,6 +55,33 @@ Re-read the allowed deployment values from
 `every_eval_ever/validator/validation_core.py` and the live schema. Existing records
 and old bot comments may use obsolete vocabularies.
 
+## Progress checkpoints
+
+Emit an incremental checkpoint to the caller at every boundary below. Checkpoints are
+run receipts, not Hugging Face discussion comments: do not post them to the PR unless
+the operator explicitly asks. Each checkpoint must include the phase, current PR head
+SHA, facts established since the prior checkpoint, affected file/model counts, command
+exit statuses or evidence URLs when applicable, blockers, and the next action.
+
+Required checkpoints:
+
+1. **Snapshot:** after selecting the PR head and matching bot run.
+2. **Diagnosis:** after reproducing the gate and grouping its findings.
+3. **Evidence and patch plan:** after resolving model-specific evidence and before the
+   first live PR mutation. Include every proposed field change and any unresolved axis.
+4. **Local repair:** after the repaired diff passes local validation and content review.
+5. **Remote receipt:** immediately after each uploaded commit or validator-trigger
+   comment, including the returned commit SHA or discussion event id.
+6. **Bot result:** after each completed bot run, tied to its head/fingerprint; repeat
+   diagnosis and repair checkpoints for another iteration.
+
+For a phase lasting more than 60 seconds, emit a heartbeat at least once per minute
+with the current evidence surface or bounded poll, completed/remaining counts, and
+whether local or remote state changed. Use bounded polling calls of at most 45 seconds
+so progress messages can be delivered. A checkpoint is not an approval gate: continue
+unless the operating contract requires an operator decision or the operator asked to
+pause at that phase.
+
 ## Workflow
 
 ### 1. Establish the exact PR state
