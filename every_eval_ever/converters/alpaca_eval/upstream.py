@@ -338,18 +338,6 @@ def populate_snapshot(
     return snapshot
 
 
-def fetch_snapshot(
-    boards: Dict[str, Dict[str, Any]],
-    slugs_of: Any,
-    ref: str = DEFAULT_UPSTREAM_REF,
-    max_workers: int = 8,
-) -> UpstreamSnapshot:
-    """Fetch every upstream artefact needed to convert *boards*, at *ref*."""
-    return populate_snapshot(
-        UpstreamSnapshot(ref=ref), boards, slugs_of, max_workers
-    )
-
-
 def _unique(values: Iterable[str]) -> List[str]:
     seen: Dict[str, None] = {}
     for value in values:
@@ -408,9 +396,3 @@ def _fetch_model_prompts(
             else:
                 snapshot.model_prompts[template] = text
 
-
-def model_config_reference(
-    slug: str, ref: str = DEFAULT_UPSTREAM_REF
-) -> Optional[str]:
-    """Return the browsable URL of a leaderboard entry's model config."""
-    return blob_url(model_config_path(slug), ref)
