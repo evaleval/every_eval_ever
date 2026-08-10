@@ -42,9 +42,15 @@ helm = [
     # because crfm-helm is frozen.
     "nltk<3.10.1",
 ]
+# Only what is needed to READ a lighteval run's output. lighteval itself is not
+# installable alongside the helm extra (it needs datasets>=4, crfm-helm pins
+# datasets~=3.1), so it is deliberately absent: producing a lighteval run is the
+# upstream smoke job's business, converting one is this package's.
+lighteval = ["pyarrow>=17"]
 all = [
     "every-eval-ever[inspect]",
     "every-eval-ever[helm]",
+    "every-eval-ever[lighteval]",
 ]
 
 [project.scripts]

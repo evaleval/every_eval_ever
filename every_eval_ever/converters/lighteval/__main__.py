@@ -45,6 +45,14 @@ def main():
         help='Logo of the source organization',
     )
     parser.add_argument(
+        '--include_details',
+        '--include-details',
+        action='store_true',
+        help='Also convert lighteval details parquet into instance-level '
+        'output. Needs a run made with save_details and the lighteval extra '
+        'installed.',
+    )
+    parser.add_argument(
         '--inference_platform',
         type=str,
         default=None,

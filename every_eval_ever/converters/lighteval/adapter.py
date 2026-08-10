@@ -536,7 +536,9 @@ class LightevalAdapter(BaseEvaluationAdapter):
         # Store metadata so callers can trace a log back to its results file
         self._eval_metadata[evaluation_id] = {
             'parent_dir': metadata_args.get('parent_eval_output_dir'),
+            'results_file': metadata_args.get('results_file'),
             'task_key': task_key,
+            'model_name': model_info.id,
             # Metrics whose direction the run never stated and no operator
             # declared. Reported rather than silently carried, so the guess is
             # visible to whoever reads the conversion.
@@ -578,6 +580,7 @@ class LightevalAdapter(BaseEvaluationAdapter):
         metadata_args = {
             **metadata_args,
             'parent_eval_output_dir': str(file_path.parent),
+            'results_file': str(file_path),
             'derived_aggregate_keys': sorted(derived_keys),
             'tasks_without_finite_scores': sorted(skipped_keys),
             # The results filename holds the only wall-clock time in the run.

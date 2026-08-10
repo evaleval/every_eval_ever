@@ -166,6 +166,77 @@ def stderr_method_for(
     return 'analytic' if 'mean' in aggregation else 'bootstrap'
 
 
+DETAILS_DIR_NAME = 'details'
+
+# How far above a results file to look for the sibling `details/` tree.
+# results_path_template lets an operator move the results directory but not the
+# details one, so the two are not always siblings.
+_DETAILS_SEARCH_DEPTH = 6
+
+
+def results_file_date_id(file_path: Path) -> Optional[str]:
+    """Recover the raw date_id lighteval stamps into a results filename.
+
+    This is the filename form, ':' replaced by '-', which is also the name of
+    the details subdirectory and part of every details filename. Use
+    parse_results_file_timestamp for the ISO-8601 form.
+    """
+    stem = Path(file_path).stem
+    if _DATE_ID_PATTERN.match(stem) is None:
+        return None
+    return stem[len('results_') :]
+
+
+def details_file_name(task_key: str, date_id: str) -> str:
+    """Name the per-sample parquet lighteval writes for one task of one run."""
+    return f'details_{task_key}_{date_id}.parquet'
+
+
+def find_details_file(
+    results_path: Path,
+    task_key: str,
+    model_name: Optional[str] = None,
+) -> Optional[Path]:
+    """Locate the per-sample parquet belonging to one task of one run.
+
+    lighteval writes details to
+    `<output_dir>/details/<model_name>/<date_id>/details_<task_key>_<date_id>.parquet`
+    while the results file it belongs to sits under `<output_dir>/results/...`,
+    so the two are found by walking up to the shared output directory. Returns
+    None when the run was made without `save_details`.
+    """
+    results_path = Path(results_path)
+    date_id = results_file_date_id(results_path)
+    if date_id is None:
+        return None
+    expected = details_file_name(task_key, date_id)
+
+    directory = results_path.resolve().parent
+    for _ in range(_DETAILS_SEARCH_DEPTH):
+        details_root = directory / DETAILS_DIR_NAME
+        if details_root.is_dir():
+            # A model subtree first: a details root can hold several models,
+            # and matching the run's own model keeps a same-named task from a
+            # different model out of this evaluation's samples.
+            roots = []
+            if model_name:
+                model_root = details_root / model_name.strip('/')
+                if model_root.is_dir():
+                    roots.append(model_root)
+            roots.append(details_root)
+            for root in roots:
+                # Compared by name rather than globbed: a task key carries '|'
+                # and ':', and glob would read a '[' in a task name as a
+                # character class.
+                for candidate in sorted(root.rglob('*.parquet')):
+                    if candidate.name == expected:
+                        return candidate
+        if directory.parent == directory:
+            break
+        directory = directory.parent
+    return None
+
+
 def parse_results_file_timestamp(file_path: Path) -> Optional[str]:
     """Recover the wall-clock stamp lighteval encodes in a results filename.
 

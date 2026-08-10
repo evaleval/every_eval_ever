@@ -240,6 +240,34 @@ the output:
   under `all`. Those are not converted; the keys that were skipped are recorded
   in `source_metadata.additional_details.lighteval_derived_rows_not_converted`.
 
+### Per-sample output
+
+`--include_details` also converts lighteval's per-sample details into an
+instance-level `<uuid>_samples.jsonl` beside the aggregate, and points the
+aggregate's `detailed_evaluation_results` at it. It needs a run made with
+`save_details=True` and a parquet engine:
+
+```bash
+uv sync --extra lighteval
+uv run every_eval_ever convert lighteval --log_path <results.json> --include_details
+```
+
+lighteval writes details to
+`{output_dir}/details/{model_name}/{date_id}/details_{task_key}_{date_id}.parquet`,
+which the converter finds from the results file's own `date_id`. Note that
+`results_path_template` can move the results directory but there is no equivalent
+for details, so the two are not always siblings; the search walks up to their
+shared output directory. A run without `save_details` still publishes its
+aggregates, but records a per-task failure in
+`adapter_reports/lighteval_details_failures.json` and exits non-zero, so a
+missing details tree cannot pass for a successful conversion.
+
+One field needs care when reading the output. `doc.choices` is what the model was
+shown for a multiple-choice task but the *reference answers* for a generative one
+(lighteval's own `Doc` docstring says so), so only the first case is published as
+`input.choices`. `input.reference` carries the gold in both, and
+`metadata.lighteval_sampling_methods` records which kind of row it was.
+
 Full manual for conversion of your own lighteval evaluation log into unified is available below:
 
 ```bash
@@ -248,6 +276,7 @@ usage: __main__.py [-h] --log_path LOG_PATH [--output_dir OUTPUT_DIR]
                    [--evaluator_relationship {first_party,third_party,collaborative,other}]
                    [--source_organization_url SOURCE_ORGANIZATION_URL]
                    [--source_organization_logo_url SOURCE_ORGANIZATION_LOGO_URL]
+                   [--include_details]
                    [--inference_platform INFERENCE_PLATFORM]
                    [--inference_engine INFERENCE_ENGINE]
                    [--inference_engine_version INFERENCE_ENGINE_VERSION]
@@ -270,6 +299,10 @@ options:
                         URL of the source organization
   --source_organization_logo_url SOURCE_ORGANIZATION_LOGO_URL
                         Logo of the source organization
+  --include_details, --include-details
+                        Also convert lighteval details parquet into instance-
+                        level output. Needs a run made with save_details and
+                        the lighteval extra installed.
   --inference_platform INFERENCE_PLATFORM
                         Inference platform (e.g. 'together', 'openai'). Read
                         from the model config for LiteLLM and inference-
