@@ -79,7 +79,7 @@ dataset, a harness dump) and you must emit EEE records. Two artifacts:
    flag + never-fatal fallback to the raw id (marked unverified). **But never key
    `evaluation_id` on the resolved id** — that's a moving join key; the record identity
    rides the raw source id. See `reference/registry.md`.
-6. **Verify** — `python -m every_eval_ever validate <files>` (files/glob, **not** a
+6. **Verify** — `uv run python -m every_eval_ever validate <files>` (files/glob, **not** a
    dir), an offline unit test, ruff, a live smoke run, and a content spot-check.
    The validator's *semantic* checks run only on the CLI, and only when the file sits at
    its final `data/<collection>/<dev>/<model>/` path. They are the merge gate, listed in

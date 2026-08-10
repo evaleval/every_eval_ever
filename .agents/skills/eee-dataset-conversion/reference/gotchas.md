@@ -42,7 +42,7 @@
   every call, so a second run adds a *second* logical record for the same evaluation
   instead of replacing it. `publish_evaluation_logs` refuses to overwrite (loud failure —
   good); if you write by hand, clear the target dir first and run
-  `python -m every_eval_ever.check_duplicate_entries <files>` before submitting.
+  `uv run python -m every_eval_ever.check_duplicate_entries <files>` before submitting.
 - **Naive timestamps take the converter host's timezone.** A source datetime with no
   offset run through `.timestamp()` shifts by whatever TZ the machine has, so the same
   input converts differently on two machines — and `evaluation_id` moves with it. Attach
@@ -80,7 +80,7 @@
   fixture-based test possible without mocking HTTP.
 - **ruff is configured but not enforced by CI** — `pyproject.toml` selects E/F/I (E501
   and E402 ignored); no workflow runs it, so nothing will tell you but a reviewer. Run
-  `ruff check` yourself; fix import order, and use `# noqa: E402` after an
+  `uv run ruff check` yourself; fix import order, and use `# noqa: E402` after an
   `importorskip` block.
 - **Stale helpers** — `helpers.make_evaluation_log`/`make_evaluation_result` miss the
   now-required `eval_library`/per-result `source_data`; build the models by hand.

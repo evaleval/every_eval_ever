@@ -146,31 +146,31 @@ def _truncate(value: object, max_len: int = 80) -> str:
 
 
 def render_report_rich(report: ValidationReport, console: Console) -> None:
-    """Render one validation report as a terminal panel."""
+    """Render one validation report with visible errors and warnings."""
     if report.valid:
-        label = Text(' PASS ', style='bold white on green')
+        if report.warnings:
+            label = Text(' WARN ', style='bold black on yellow')
+            border_style = 'yellow'
+        else:
+            label = Text(' PASS ', style='bold white on green')
+            border_style = 'green'
         kind = (
             'Aggregate (EvaluationLog)'
             if report.file_type == 'aggregate'
             else f'Instance (InstanceLevelEvaluationLog, {report.line_count} lines)'
         )
-        console.print(
-            Panel(
-                Text.assemble(label, '  ', (kind, 'dim')),
-                title=f'[blue underline]{report.file_path}[/]',
-                title_align='left',
-                border_style='green',
-            )
+    else:
+        label = Text(' FAIL ', style='bold white on red')
+        border_style = 'red'
+        kind = (
+            'Aggregate (EvaluationLog)'
+            if report.file_type == 'aggregate'
+            else f'Instance (InstanceLevelEvaluationLog, {report.line_count} lines)'
         )
-        return
 
-    label = Text(' FAIL ', style='bold white on red')
-    kind = (
-        'Aggregate (EvaluationLog)'
-        if report.file_type == 'aggregate'
-        else 'Instance (InstanceLevelEvaluationLog)'
-    )
-    lines = [Text.assemble(label, '  ', (kind, 'dim')), Text('')]
+    lines = [Text.assemble(label, '  ', (kind, 'dim'))]
+    if report.errors or report.warnings:
+        lines.append(Text(''))
     for index, error in enumerate(report.errors, 1):
         lines.append(Text(f'  {index}. {error["loc"]}', style='cyan'))
         lines.append(Text(f'     {error["msg"]}'))
@@ -188,7 +188,7 @@ def render_report_rich(report: ValidationReport, console: Console) -> None:
             Text('\n').join(lines),
             title=f'[blue underline]{report.file_path}[/]',
             title_align='left',
-            border_style='red',
+            border_style=border_style,
         )
     )
 
@@ -196,19 +196,26 @@ def render_report_rich(report: ValidationReport, console: Console) -> None:
 def render_summary_rich(
     reports: list[ValidationReport], console: Console
 ) -> None:
-    """Render the aggregate pass/fail summary."""
-    passed = sum(1 for report in reports if report.valid)
-    failed = len(reports) - passed
+    """Render clean-pass, warning-only, and failure counts."""
+    passed = sum(
+        1 for report in reports if report.valid and not report.warnings
+    )
+    warned = sum(1 for report in reports if report.valid and report.warnings)
+    failed = sum(1 for report in reports if not report.valid)
     total_errors = sum(len(report.errors) for report in reports)
+    total_warnings = sum(len(report.warnings) for report in reports)
+    message = (
+        f'{passed} passed, {warned} warning-only, {failed} failed '
+        f'({total_errors} errors, {total_warnings} warnings)'
+    )
     if failed:
         style = 'bold red'
-        message = (
-            f'{failed} file(s) failed, {passed} passed '
-            f'({total_errors} total errors)'
-        )
+    elif warned:
+        style = 'bold yellow'
+        message += '\nValid locally, but not merge-ready. Fix all warnings.'
     else:
         style = 'bold green'
-        message = f'All {passed} file(s) passed validation'
+        message += '\nAll files passed validation.'
     console.print()
     console.print(
         Panel(Text(message, style=style), title='Summary', border_style='dim')
@@ -234,6 +241,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog='eee-validate',
         description='Validate EEE files using strict JSON and bundled schemas',
+        epilog='Exit codes: 0 clean, 1 errors, 2 warnings only.',
     )
     parser.add_argument(
         'paths',
@@ -267,9 +275,7 @@ def main(argv: list[str] | None = None) -> int:
         print('No files found to validate.', file=sys.stderr)
         return 1
 
-    local_contexts = [
-        (path, *_local_path_context(path)) for path in file_paths
-    ]
+    local_contexts = [(path, *_local_path_context(path)) for path in file_paths]
     reports = [
         validate_file(
             path,
@@ -294,7 +300,11 @@ def main(argv: list[str] | None = None) -> int:
             render_report_rich(report, console)
         render_summary_rich(reports, console)
 
-    return 1 if any(not report.valid for report in reports) else 0
+    if any(not report.valid for report in reports):
+        return 1
+    if any(report.warnings for report in reports):
+        return 2
+    return 0
 
 
 if __name__ == '__main__':
