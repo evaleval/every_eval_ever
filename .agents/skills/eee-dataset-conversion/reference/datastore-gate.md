@@ -5,7 +5,7 @@ field means; this file says what will reject it. Everything here is a hard error
 unless marked warning.*
 
 **Two gates run, and they can disagree.**
-1. **Local**: `python -m every_eval_ever validate <files>` — runs the schema plus the
+1. **Local**: `uv run python -m every_eval_ever validate <files>` — runs the schema plus the
    semantic checks (`validator/validation_core.py`, `REGISTERED_CHECKS`). The in-library
    `validate_file(path)` used by unit tests defaults to semantic checks off, so a
    green test does *not* mean the gate is green. Semantic checks also need the file at its
@@ -104,5 +104,5 @@ A source row you cannot represent must be accounted for, not dropped:
   benchmark that omits the judge's `model_info` fails every file — see `fields.md`
   §llm_scoring.
 - `source_data.url` needs ≥1 entry (`min_length=1`); an empty list fails.
-- Duplicates across a collection: `python -m every_eval_ever.check_duplicate_entries
+- Duplicates across a collection: `uv run python -m every_eval_ever.check_duplicate_entries
   <files>` before submitting a refresh.

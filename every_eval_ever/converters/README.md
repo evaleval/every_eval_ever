@@ -81,7 +81,7 @@ Example `supplemental_eval_details.json`:
 Use it with:
 
 ```bash
-uv run python3 -m eval_converters.inspect \
+uv run python -m eval_converters.inspect \
   --log_path tests/data/inspect/data_pubmedqa_gpt4o_mini.json \
   --supplemental_eval_details path/to/supplemental_eval_details.json
 ```

@@ -13,13 +13,13 @@
 Design agreed in:
 
 ## Checklist
-- [ ] `python -m every_eval_ever validate <files>` is clean — **no warnings either** —
+- [ ] `uv run python -m every_eval_ever validate <files>` is clean — **no warnings either** —
       run at the final `data/<collection>/<dev>/<model>/` path, where the semantic
       checks run
 - [ ] every unconvertible source row is in `adapter_reports/`, and the command exits
       non-zero (not a silent skip)
-- [ ] offline unit test added + full `pytest tests` green
-- [ ] `ruff check` clean
+- [ ] offline unit test added + full `uv run pytest tests` green
+- [ ] `uv run ruff check` clean
 - [ ] model/benchmark ids resolve in the registry (or an alias PR is prepared)
 - [ ] content spot-checked (no answer leak, not double-counted, stable `evaluation_id`)
 

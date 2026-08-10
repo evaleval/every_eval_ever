@@ -2,17 +2,22 @@
 
 from __future__ import annotations
 
+import io
 import json
 from pathlib import Path
 
 import pytest
+from rich.console import Console
 
 from every_eval_ever.schema import get_schema_version
 from every_eval_ever.validate import (
+    ValidationReport,
     expand_paths,
     main,
     render_report_github,
     render_report_json,
+    render_report_rich,
+    render_summary_rich,
 )
 from every_eval_ever.validate import (
     validate_aggregate as _validate_aggregate,
@@ -441,15 +446,137 @@ class TestOutputFormats:
         assert output == ''
 
 
+class TestWarningVisibility:
+    @staticmethod
+    def render(report: ValidationReport, *, color: bool = False) -> str:
+        stream = io.StringIO()
+        console = Console(
+            file=stream,
+            width=100,
+            no_color=not color,
+            force_terminal=color,
+            legacy_windows=False,
+        )
+        render_report_rich(report, console)
+        render_summary_rich([report], console)
+        return stream.getvalue()
+
+    @staticmethod
+    def passing_report(
+        warnings: list[dict[str, str]],
+    ) -> ValidationReport:
+        return ValidationReport(
+            file_path=Path('data/bench/dev/model/x.json'),
+            valid=True,
+            file_type='aggregate',
+            warnings=warnings,
+        )
+
+    def test_warning_only_file_is_visible_as_warn(self):
+        output = self.render(
+            self.passing_report(
+                [
+                    {
+                        'loc': 'evaluation_results[0].metric_config',
+                        'msg': 'something worth a second look',
+                        'type': 'semantic_warning',
+                    }
+                ]
+            )
+        )
+
+        assert 'WARN' in output
+        assert 'PASS' not in output
+        assert 'something worth a second look' in output
+        assert 'evaluation_results[0].metric_config' in output
+
+    def test_warning_summary_matches_local_validator_states(self):
+        output = self.render(
+            self.passing_report(
+                [{'loc': '', 'msg': 'first', 'type': 'semantic_warning'}]
+            )
+        )
+
+        assert '0 passed, 1 warning-only, 0 failed' in output
+        assert '1 warnings' in output
+        assert 'not merge-ready' in output
+
+    def test_clean_pass_stays_clean(self):
+        output = self.render(self.passing_report([]))
+
+        assert 'PASS' in output
+        assert 'WARN' not in output
+        assert '1 passed, 0 warning-only, 0 failed' in output
+
+    def test_failure_with_warning_stays_red(self):
+        report = ValidationReport(
+            file_path=Path('data/bench/dev/model/x.json'),
+            valid=False,
+            file_type='aggregate',
+            errors=[
+                {'loc': 'model_info', 'msg': 'boom', 'type': 'value_error'}
+            ],
+            warnings=[{'loc': '', 'msg': 'first', 'type': 'semantic_warning'}],
+        )
+
+        output = self.render(report, color=True)
+
+        assert 'FAIL' in output
+        assert '0 passed, 0 warning-only, 1 failed' in output
+        assert '1 warnings' in output
+        assert '\x1b[1;31m' in output
+        assert '\x1b[1;33m' not in output
+
+
 class TestExitCode:
-    def test_exit_code_0_on_pass(self, tmp_path: Path):
-        fp = _write_json(tmp_path, 'pass.json', VALID_AGGREGATE)
-        report = validate_file(fp)
-        assert report.valid is True
+    def test_exit_code_0_on_clean_pass(self, tmp_path: Path):
+        path = (
+            tmp_path
+            / 'data'
+            / 'benchmark'
+            / 'developer'
+            / 'model'
+            / 'f82b2807-fb31-4e42-a4a4-497d7d7a7e61.json'
+        )
+        path.parent.mkdir(parents=True)
+        payload = {
+            **VALID_AGGREGATE,
+            'model_info': {
+                'name': 'test-model',
+                'id': 'org/test-model',
+                'developer': 'org',
+                'additional_details': {
+                    'deployment_type': 'unknown',
+                    'model_availability': 'unknown',
+                },
+            },
+        }
+        path.write_text(json.dumps(payload), encoding='utf-8')
+
+        assert main([str(path), '--format', 'json']) == 0
+
+    def test_exit_code_2_on_warning_only(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        fp = _write_json(tmp_path, 'warning.json', VALID_AGGREGATE)
+        report = ValidationReport(
+            file_path=fp,
+            valid=True,
+            file_type='aggregate',
+            warnings=[
+                {'loc': 'model_info', 'msg': 'fix me', 'type': 'warning'}
+            ],
+        )
+        monkeypatch.setattr(
+            'every_eval_ever.validator.validate.validate_file',
+            lambda *args, **kwargs: report,
+        )
+
+        assert main([str(fp), '--format', 'json']) == 2
 
     def test_exit_code_1_on_failure(self, tmp_path: Path):
         data = {**VALID_AGGREGATE}
         del data['evaluation_id']
         fp = _write_json(tmp_path, 'fail.json', data)
-        report = validate_file(fp)
-        assert report.valid is False
+
+        assert main([str(fp), '--format', 'json']) == 1

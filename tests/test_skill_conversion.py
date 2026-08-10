@@ -3,7 +3,7 @@
 Two frozen artifacts, both re-checked through the CLI (semantic checks only run at a
 canonical ``data/<collection>/<developer>/<model>/`` path):
 
-* ``.claude/skills/eee-dataset-conversion/templates/`` — the code the skill tells a
+* ``.agents/skills/eee-dataset-conversion/templates/`` — the code the skill tells a
   contributor to copy. The tests below execute it.
 * ``tests/data/skill_reference_conversion/`` — one committed conversion produced by
   those templates.
@@ -14,7 +14,7 @@ reference conversion already satisfies leaves it green, so re-derive
 
 Regenerate the frozen conversion after a deliberate change:
 
-    python -c "from tests.test_skill_conversion import regenerate_frozen_reference as r; r()"
+    uv run python -c "from tests.test_skill_conversion import regenerate_frozen_reference as r; r()"
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ from every_eval_ever.validate import main as validate_main
 # --------------------------------------------------------------------------- setup
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SKILL_DIR = REPO_ROOT / '.claude' / 'skills' / 'eee-dataset-conversion'
+SKILL_DIR = REPO_ROOT / '.agents' / 'skills' / 'eee-dataset-conversion'
 TEMPLATE_DIR = SKILL_DIR / 'templates'
 FROZEN_DIR = REPO_ROOT / 'tests' / 'data' / 'skill_reference_conversion'
 
@@ -48,7 +48,7 @@ FROZEN_RETRIEVED_TS = '1750000001'
 SRC_SLUG = 'demo-source'
 
 REGENERATE_CMD = (
-    'python -c "from tests.test_skill_conversion import '
+    'uv run python -c "from tests.test_skill_conversion import '
     'regenerate_frozen_reference as r; r()"'
 )
 
@@ -148,7 +148,7 @@ def _assert_gate_clean(paths: list[Path], capsys) -> None:
         "The skill's own output no longer passes the merge gate:\n"
         + json.dumps(complaints, indent=2),
         where=(
-            'update the rule in .claude/skills/eee-dataset-conversion/reference/'
+            'update the rule in .agents/skills/eee-dataset-conversion/reference/'
             'datastore-gate.md and whichever templates/ file emits the field'
         ),
     )
@@ -170,7 +170,7 @@ def test_skill_records_the_current_schema_version():
         f'The skill is written against schema {recorded.group(1)} but the library is '
         f'at {SCHEMA_VERSION}.',
         where=(
-            're-verify .claude/skills/eee-dataset-conversion/reference/*.md against '
+            're-verify .agents/skills/eee-dataset-conversion/reference/*.md against '
             'the new schema, then bump the marker in SKILL.md'
         ),
     )
