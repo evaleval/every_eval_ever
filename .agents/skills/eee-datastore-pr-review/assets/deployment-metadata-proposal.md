@@ -10,6 +10,14 @@
 |---|---|---|---|---|
 | `<exact model_info.id>` | `<self_deployed / externally_managed / unknown>` | `<open_weights / closed_weights / unknown>` | `<D: high/medium/low; A: high/medium/low>` | `<D:S1; A:S2,S3>` |
 
+Repeat the exact model id with a scope tag such as `[G1]` only when its submitted files
+have distinct run evidence. Multiple citations or generation settings alone do not
+create a group.
+
+## Scope manifest
+
+- **G1** — `<exact evaluation_id(s) or repo-relative file path(s)>` — `<why this is a distinct evidence group>`
+
 ## Sources
 
 - **S1** — [`<source title>`](<URL>), `<revision or access date>` — `<what it establishes>`
@@ -35,3 +43,7 @@ methodology/leaderboard, `M` exact model card/release, `P` official provider/API
 
 Approve only the completed proposal's reported SHA-256 at the PR head above. Any
 change to the head, table, or evidence invalidates approval.
+
+After approval, preserve this file byte-for-byte at
+`data/<collection>/deployment-metadata-proposal-<first-12-SHA256>.md` and record the
+approval receipt in that collection's `REVIEW_DECISIONS.md`.

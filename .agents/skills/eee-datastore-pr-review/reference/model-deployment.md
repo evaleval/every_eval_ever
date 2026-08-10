@@ -11,6 +11,7 @@ Read `metadata-missingness.md` first. `unknown` is a schema value;
 
 - Classify what is missing
 - Keep the axes independent
+- Handle aggregators and repeated model ids
 - Evidence priority and confidence threshold
 - Decision signals
 - Research procedure
@@ -47,6 +48,32 @@ product access without downloadable weights is closed weights.
 Common valid combinations include hosted open-weight models and self-deployed
 open-weight models. Weight availability alone never proves how this evaluation served
 the model.
+
+## Handle aggregators and repeated model ids
+
+First decide whether the submitted source ran inference or aggregates scores reported
+elsewhere. A score matrix, leaderboard, or adapter marked as an aggregator does not
+inherit a deployment type: its repository can establish where citations came from but
+not who hosted each cited evaluation. Follow each result's `reference_url`, source
+notes, or equivalent citation to the evaluator's run artifacts and methods.
+
+Keep these tests separate:
+
+- Same model id and different generation parameters do not imply different deployment.
+- Different citations, benchmarks, harness labels, or evaluator relationships do not
+  alone prove different deployment.
+- The same model id can still be self-deployed in one run and accessed through a hosted
+  API in another. Require run evidence before grouping them.
+- `model_availability` remains an exact-model property and can be shared across runs
+  when the identity and dated evidence match; do not derive deployment from it.
+
+Before assigning the log-level `deployment_type`, inventory the run evidence for every
+result in that log. Assign one categorical value only when all results are
+evidence-equivalent. If results have proven conflicting serving methods, do not flatten
+them to a model-wide value: ask the operator whether to split the log by provenance or,
+after the missingness stop rule, retain an approval-gated `unknown`. Splitting records
+is structural and requires agreement. A multi-reference log with no contradiction is
+not itself a reason to split.
 
 ## Evidence priority
 
@@ -113,7 +140,9 @@ changed after the evaluation date as ambiguity requiring dated evidence.
    quantization. Do not substitute a nearby family member.
 4. Pin web evidence to a revision, release date, or retrieval date. Prefer official
    model cards, repositories, papers, and provider docs over aggregators.
-5. Record one row per evidence-equivalent model group:
+5. Record one row per evidence-equivalent model/run group. Repeat a model id when its
+   submitted files have distinct run evidence; keep a scope manifest so approved values
+   map deterministically back to files:
 
 | Raw label | Canonical id | Deployment | Availability | Evidence and revision | Confidence |
 |---|---|---|---|---|---|

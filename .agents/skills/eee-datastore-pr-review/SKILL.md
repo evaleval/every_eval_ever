@@ -37,6 +37,10 @@ not sufficient.
 - Before changing `deployment_type` or `model_availability` on the live PR, obtain
   explicit human approval of a proposal bound to the current PR head. Authorization
   to fix the PR is not approval of research-derived field values.
+- Preserve approved decisions with the data. After approval, copy the byte-identical
+  proposal into each affected collection root and append its receipt to that
+  collection's `REVIEW_DECISIONS.md`; do not leave provenance only in temporary run
+  notes or discussion history.
 - Ask the operator before a policy decision: minting a new canonical id, changing a
   schema/validator rule, dropping non-trivial data, choosing an ambiguous metric or
   bound, or making another structural change. Do not hide such a choice in a data
@@ -153,7 +157,11 @@ Inspect content even when the validator omits it. At minimum check suspicious ze
 score scale and bounds, metric identity, `source_data`, duplicate overall/subtask
 aggregates, stable `evaluation_id`, model identity, answer leakage, and companion
 pairing. An out-of-range score requires finding the source scale or source value; do
-not cap, clamp, or round it into validity.
+not cap, clamp, round it into validity, or widen the bounds around it. When a source
+publishes a normalized value, convert it to the metric's declared scale and preserve
+the raw value plus explicit conversion in `score_details.details` or the decision log.
+Serialize unbounded limits as the schema-supported JSON strings `"Infinity"` and
+`"-Infinity"`; replacing a bare non-finite token must not change its meaning.
 
 Inspect the raw JSON before constructing an `EvaluationLog`. The model layer may
 auto-fill absent deployment keys with `unknown`, hiding whether the contributor
@@ -174,11 +182,23 @@ to the submitted evaluation.
 
 Batch models only after proving that they share the same evidence.
 
+For an aggregate or leaderboard source, determine whether it ran inference or merely
+collected cited results. An aggregator's adapter and repository establish aggregation
+provenance, not the deployment used by every cited evaluation. Follow per-result
+citations to run evidence. Multiple citations, harness labels, or generation settings
+do not by themselves prove different deployments. Conversely, the same model id does
+not make separate runs deployment-equivalent. Use one proposal row only when every
+affected file in that row shares the evidence; otherwise use scoped repeated rows as
+defined in the proposal template. Ask before splitting records when one log contains
+proven conflicting deployments because that changes the contribution's structure.
+
 Before editing either deployment axis:
 
 1. Copy `assets/deployment-metadata-proposal.md` to run notes outside the datastore
-   repository and fill one row per exact submitted `model_info.id`. Do not substitute
-   a folder slug or an unapproved canonical id.
+   repository. Fill one row per exact submitted `model_info.id` when its affected files
+   are evidence-equivalent. If the same id has distinct run evidence, repeat the exact
+   id with scope tags and define those tags below the table. Do not substitute a folder
+   slug or an unapproved canonical id.
 2. Use only the five table columns in the template. Reference sources as `S1`, `S2`,
    and so on; list each full URL and pinned revision/date once below the table. Record
    deployment (`D`) and availability (`A`) confidence and sources separately inside
@@ -216,6 +236,17 @@ again. Record the approver and approval time in the decision log.
 - Treat `available_not_surfaced` as an extraction defect: backfill the approved value
   in the data repair and prepare an adapter/submission follow-up so regeneration does
   not erase it.
+- After approval, copy the proposal's exact bytes to every affected collection as
+  `data/<collection>/deployment-metadata-proposal-<first-12-SHA256>.md`. Never alter
+  that copy: its full digest must still equal the approved digest.
+- Create or append `data/<collection>/REVIEW_DECISIONS.md` using
+  `assets/collection-review-decision.md`. Record the PR and pre-edit head, full proposal
+  digest and relative path, approver/time, affected records, source-backed decisions,
+  validation receipt, and unresolved adapter/registry work. Append an entry for other
+  substantive content corrections such as score-scale, metric-identity, model-identity,
+  or data-drop decisions even when no deployment proposal exists. Do not require an
+  entry for formatting-only or byte-serialization-only repairs. Preserve existing
+  entries and never store private research notes, credentials, or inaccessible URLs.
 - Review the resulting diff for accidental deletion, unrelated churn, and a mechanical
   replacement applied to semantically different models.
 
@@ -227,6 +258,9 @@ or bot says “Ready to Merge.”
 
 Compare the final changed-path inventory with the initial inventory. Explain every
 new path, deletion, identity change, or source-value change in the decision log.
+Collection-root proposal and `REVIEW_DECISIONS.md` files are intentional new paths;
+verify their links, proposal digest, and append-only history even though the JSON
+validator ignores Markdown.
 
 ### 7. Update and monitor the existing PR
 
@@ -282,6 +316,8 @@ Return:
 - deployment/availability evidence table, including researched `unknown` values;
 - research proposal path or rendered table, SHA-256, approved head, approver, and
   approval time;
+- collection-root proposal copies and `REVIEW_DECISIONS.md` entries, including a digest
+  check proving each proposal copy is byte-identical to the approved artifact;
 - registry and adapter follow-ups with cross-links or candidate tables;
 - decision log and any unresolved blocker.
 
