@@ -27,6 +27,19 @@ Publishing for real needs `HF_TOKEN` with write access to both the datastore and
 the private raw dataset. `--no-archive-raw` keeps a local run from writing to the
 raw dataset at all.
 
+Check the credentials without running anything:
+
+```bash
+uv run python -m every_eval_ever.cron preflight
+```
+
+It reports the token identity, whether both destinations are reachable, creates
+the private raw dataset if it is missing, and names any adapter held back by a
+missing API key. The scheduled workflow runs this first, because the refresh
+fails closed — a token that cannot store raw data would otherwise fail every
+adapter at its last step. Note that a `--dry-run` refresh does not archive, so
+preflight is the only thing that exercises raw-dataset access without publishing.
+
 ## Adding an adapter to the schedule
 
 Add a `CronAdapter` to `CRON_ADAPTERS` in [`schedule.py`](schedule.py). An

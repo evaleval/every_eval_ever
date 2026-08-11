@@ -122,3 +122,20 @@ def test_a_no_op_refresh_does_not_fail_the_job(refresh_job: dict):
 def test_a_partial_refresh_is_annotated(refresh_job: dict):
     scripts = ' '.join(step.get('run', '') for step in refresh_job['steps'])
     assert '::warning' in scripts
+
+
+def test_credentials_are_checked_before_any_adapter_runs(workflow: dict):
+    # The refresh fails closed, so a token that cannot store raw data must be
+    # reported once up front rather than by every adapter failing at the end.
+    steps = workflow['jobs']['plan']['steps']
+    names = [step.get('name', '') for step in steps]
+    preflight = next(
+        index
+        for index, step in enumerate(steps)
+        if 'preflight' in step.get('run', '')
+    )
+    plan = next(
+        index for index, step in enumerate(steps) if step.get('id') == 'plan'
+    )
+    assert preflight < plan, f'preflight must run before planning: {names}'
+    assert 'HF_TOKEN' in steps[preflight]['env']

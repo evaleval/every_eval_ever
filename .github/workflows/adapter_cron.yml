@@ -49,6 +49,19 @@ jobs:
         env:
           UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/eee-venv
         run: uv sync --locked
+      # Runs first because the refresh fails closed: a token that cannot store
+      # raw data would otherwise fail every adapter at its last step.
+      - name: Check credentials and destinations
+        env:
+          UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/eee-venv
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          ARTIFICIAL_ANALYSIS_API_KEY: ${{ secrets.ARTIFICIAL_ANALYSIS_API_KEY }}
+          LLM_STATS_API_KEY: ${{ secrets.LLM_STATS_API_KEY }}
+        run: |
+          uv run python -m every_eval_ever.cron preflight \
+            --raw-repo-id "${{ vars.EEE_RAW_REPO_ID || 'evaleval/EEE_raw' }}" \
+            --markdown "$GITHUB_STEP_SUMMARY"
+
       - name: Decide which adapters to refresh
         id: plan
         env:

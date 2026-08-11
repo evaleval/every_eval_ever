@@ -28,6 +28,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from every_eval_ever.cron import archive as archive_module
+from every_eval_ever.cron import preflight as preflight_module
 from every_eval_ever.cron import publish as publish_module
 from every_eval_ever.cron.fingerprint import (
     output_fingerprint,
@@ -629,6 +630,27 @@ def main(argv: list[str] | None = None) -> int:
     subcommands.add_parser(
         'list', help='Print the adapters the schedule would run, as JSON'
     )
+    preflight_parser = subcommands.add_parser(
+        'preflight',
+        help='Check credentials and destinations before refreshing anything',
+    )
+    preflight_parser.add_argument(
+        '--repo-id', default=publish_module.DEFAULT_REPO_ID
+    )
+    preflight_parser.add_argument(
+        '--raw-repo-id', default=archive_module.DEFAULT_RAW_REPO_ID
+    )
+    preflight_parser.add_argument(
+        '--no-create-raw',
+        dest='create_raw',
+        action='store_false',
+        help='Report a missing raw dataset instead of creating it',
+    )
+    preflight_parser.add_argument(
+        '--markdown',
+        type=Path,
+        help='Append a checklist here as well (e.g. $GITHUB_STEP_SUMMARY)',
+    )
 
     args = parser.parse_args(argv)
     logging.basicConfig(
@@ -650,6 +672,18 @@ def main(argv: list[str] | None = None) -> int:
             )
         )
         return 0
+
+    if args.command == 'preflight':
+        checks = preflight_module.run_preflight(
+            environment=dict(os.environ),
+            repo_id=args.repo_id,
+            raw_repo_id=args.raw_repo_id,
+            create_raw=args.create_raw,
+        )
+        print(preflight_module.render(checks))
+        if args.markdown:
+            preflight_module.write_markdown(checks, args.markdown)
+        return EXIT_FAILED if preflight_module.failed(checks) else 0
 
     summary_path = args.summary or (args.work_dir / 'summary.json')
     try:
