@@ -34,6 +34,9 @@ ADAPTER_KEY = 'cron_adapter'
 RUN_URL_KEY = 'cron_run_url'
 UNKNOWN_FIELDS_KEY = 'cron_unknown_inferred_fields'
 
+#: Stem suffix that marks an instance-level companion, e.g. `<uuid>_samples`.
+SAMPLES_SUFFIX = '_samples'
+
 UNKNOWN = 'unknown'
 #: Axes that are almost never available to an adapter directly. Both are
 #: required by the schema and both admit 'unknown'.
@@ -168,12 +171,16 @@ def aggregate_records(root: str | Path) -> list[Path]:
     Instance-level ``*_samples.jsonl`` companions carry no ``source_metadata``;
     they are reachable from the aggregate that references them, which is what
     the stamp goes on.
+
+    A companion is recognised by its ``_samples`` stem rather than its full
+    filename, so widening the glob to ``*.json*`` — the pattern the validator
+    uses, and an easy edit to make here — cannot start pulling companions in.
     """
     data_root = Path(root)
     return sorted(
         path
         for path in data_root.glob('*/*/*/*.json')
-        if not path.name.endswith('_samples.json')
+        if path.suffix == '.json' and not path.stem.endswith(SAMPLES_SUFFIX)
     )
 
 

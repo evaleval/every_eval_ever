@@ -66,6 +66,9 @@ class RunSummary:
     records: int = 0
     raw_payloads: int = 0
     raw_bytes: int = 0
+    #: Payloads fetched but not stored, e.g. over the capture ceiling. They are
+    #: still recorded in the ledger so the gap is visible rather than silent.
+    raw_skipped: int = 0
     raw_policy: str = ''
     raw_archive: dict[str, object] = field(default_factory=dict)
     raw_fingerprint: str | None = None
@@ -251,6 +254,7 @@ def _archive_raw(
     raw_dir: Path,
     *,
     summary: RunSummary,
+    captured: int,
     run_id: str,
     run_url: str | None,
     gating_fingerprint: str | None,
@@ -259,8 +263,13 @@ def _archive_raw(
     dry_run: bool,
     token: str | None,
 ) -> dict[str, object]:
-    """Store this run's raw payloads permanently, or say why it did not."""
-    if not summary.raw_payloads:
+    """Store this run's raw payloads permanently, or say why it did not.
+
+    ``captured`` counts every manifest entry, not just the ones that landed on
+    disk: a payload too large to store still gets a ledger row, so a run that
+    only fetched an oversized payload must still be archived.
+    """
+    if not captured:
         return {
             'status': 'nothing_captured',
             'reason': (
@@ -270,12 +279,17 @@ def _archive_raw(
             ),
         }
     if not archive_raw:
-        return {'status': 'disabled', 'payloads': summary.raw_payloads}
+        return {
+            'status': 'disabled',
+            'payloads': summary.raw_payloads,
+            'skipped_payloads': summary.raw_skipped,
+        }
     if dry_run:
         return {
             'status': 'skipped_dry_run',
             'repo_id': raw_repo_id,
             'payloads': summary.raw_payloads,
+            'skipped_payloads': summary.raw_skipped,
         }
 
     result = archive_module.archive(
@@ -297,6 +311,7 @@ def _archive_raw(
         'uploaded': result.uploaded,
         'reused': result.reused,
         'uploaded_bytes': result.uploaded_bytes,
+        'ledger_rows': len(result.rows),
     }
 
 
@@ -353,8 +368,12 @@ def refresh(
 
     raw_capture.index_unlisted_payloads(raw_dir)
     manifest = raw_capture.read_manifest(raw_dir)
-    summary.raw_payloads = sum(1 for entry in manifest if entry.get('file'))
-    summary.raw_bytes = sum(entry.get('bytes') or 0 for entry in manifest)
+    stored = [entry for entry in manifest if entry.get('file')]
+    summary.raw_payloads = len(stored)
+    summary.raw_bytes = sum(entry.get('bytes') or 0 for entry in stored)
+    # Fetched but deliberately not stored, e.g. over the capture ceiling. These
+    # still belong in the ledger, so they must not read as "nothing captured".
+    summary.raw_skipped = len(manifest) - len(stored)
     # Only verbatim wire captures can say whether the source moved; a dump an
     # adapter wrote itself is archived but may carry its own fetch timestamp.
     summary.raw_fingerprint = raw_capture.fingerprint(
@@ -364,14 +383,21 @@ def refresh(
     if (
         adapter.raw_policy
         in {RawPolicy.VIA_FETCH_HELPERS, RawPolicy.VIA_ADAPTER_FLAG}
-        and not summary.raw_payloads
+        and not manifest
     ):
-        # Declared as archived but nothing landed: report it rather than let the
-        # run look like it saved raw data.
+        # Declared as archived but nothing was captured at all: report it rather
+        # than let the run look like it saved raw data.
         _logger.warning(
-            '%s declares raw policy %s but archived no payloads',
+            '%s declares raw policy %s but captured no payloads',
             adapter.name,
             adapter.raw_policy.value,
+        )
+    if summary.raw_skipped:
+        _logger.warning(
+            '%s fetched %d payload(s) that were not stored; the ledger records '
+            'them but the bytes are gone',
+            adapter.name,
+            summary.raw_skipped,
         )
 
     summary.records = len(list(data_root.glob('*/*/*/*.json')))
@@ -392,6 +418,7 @@ def refresh(
     summary.raw_archive = _archive_raw(
         raw_dir,
         summary=summary,
+        captured=len(manifest),
         run_id=run_id,
         run_url=run_url,
         gating_fingerprint=current,

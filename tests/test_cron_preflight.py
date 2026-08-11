@@ -68,7 +68,10 @@ def test_a_missing_token_fails_before_anything_else():
 
 def test_a_working_token_reports_who_it_is():
     api = _FakeApi(
-        identity={'name': 'eee-bot', 'auth': {'accessToken': {'role': 'write'}}},
+        identity={
+            'name': 'eee-bot',
+            'auth': {'accessToken': {'role': 'write'}},
+        },
         repos={DATASTORE: _Info(), RAW: _Info()},
     )
 

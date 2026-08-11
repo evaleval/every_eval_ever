@@ -250,3 +250,25 @@ def test_sample_companions_are_not_treated_as_aggregates(tmp_path: Path):
     found = aggregate_records(tmp_path / 'data')
 
     assert found == [path]
+
+
+def test_a_companion_named_with_a_json_extension_is_not_an_aggregate(
+    tmp_path: Path,
+):
+    # Recognised by the `_samples` stem, not the extension, so widening the glob
+    # to '*.json*' cannot start pulling companions into the stamp.
+    path = _write(tmp_path, _log())
+    companion = path.with_name(f'{path.stem}_samples.json')
+    companion.write_text('{}\n', encoding='utf-8')
+
+    assert aggregate_records(tmp_path / 'data') == [path]
+
+
+def test_stamping_a_tree_leaves_companions_untouched(tmp_path: Path):
+    path = _write(tmp_path, _log())
+    companion = path.with_name(f'{path.stem}_samples.jsonl')
+    companion.write_text('{"untouched": true}\n', encoding='utf-8')
+
+    stamp_tree(tmp_path / 'data', adapter='openeval', run_date=RUN_DATE)
+
+    assert companion.read_text(encoding='utf-8') == '{"untouched": true}\n'

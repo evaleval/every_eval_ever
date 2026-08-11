@@ -113,9 +113,11 @@ def _forget_recorded_payloads():
 
 @pytest.fixture(autouse=True)
 def _never_reach_the_hub(monkeypatch):
-    """Archiving talks to the Hub, so no test gets the real thing by default.
+    """Archiving, the ledger read and publishing all talk to the Hub.
 
-    Tests that care about archiving replace this with their own stub.
+    None of them may reach it from a test, so all three are stubbed by default.
+    Tests that care about one replace it with their own stub. Relying on each
+    test to remember is how a test suite starts making live API calls.
     """
     monkeypatch.setattr(
         runner.archive_module,
@@ -124,6 +126,22 @@ def _never_reach_the_hub(monkeypatch):
             repo_id='evaleval/EEE_raw',
             ledger_path='ledger/stub.jsonl',
             uploaded=1,
+        ),
+    )
+    monkeypatch.setattr(
+        runner.archive_module,
+        'last_gating_fingerprint',
+        lambda adapter, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        runner.publish_module,
+        'publish',
+        lambda data_root, **kwargs: publish.PublishResult(
+            pr_url='https://hf.invalid/discussions/0',
+            pr_number=0,
+            files=0,
+            commits=0,
+            reused_existing_pr=False,
         ),
     )
 
@@ -705,6 +723,7 @@ def test_a_dry_run_reports_the_archive_it_would_write(
         'status': 'skipped_dry_run',
         'repo_id': archive.DEFAULT_RAW_REPO_ID,
         'payloads': 1,
+        'skipped_payloads': 0,
     }
 
 
@@ -784,3 +803,92 @@ def test_a_dry_run_does_not_consult_the_ledger(
     _refresh(tmp_path, fingerprint_path=None, dry_run=True)
 
     assert consulted == []
+
+
+def test_an_oversized_payload_is_still_recorded_in_the_ledger(
+    tmp_path: Path, monkeypatch
+):
+    # Nothing lands on disk, but the fetch happened and the ledger has to say so.
+    # Guarding the archive on "did a payload land" skipped the row entirely.
+    archived = []
+
+    def run_adapter(adapter, *, work_dir, raw_dir, environment):
+        monkeypatch.setenv(raw_capture.RAW_CAPTURE_DIR_ENV, str(raw_dir))
+        monkeypatch.setenv(raw_capture.RAW_CAPTURE_MAX_BYTES_ENV, '4')
+        raw_capture.capture_response('https://vals.invalid/big', b'123456')
+        save_evaluation_log(
+            _log(),
+            base_dir=work_dir / 'data' / 'vals-ai',
+            developer='dev',
+            model_name='model',
+        )
+        return runner.AdapterOutcome(
+            invocations=[runner.Invocation(arguments=[], returncode=0)]
+        )
+
+    monkeypatch.setattr(runner, 'run_adapter', run_adapter)
+    monkeypatch.setattr(
+        runner.archive_module,
+        'archive',
+        lambda raw_dir, **kwargs: (
+            archived.append(raw_dir)
+            or archive.ArchiveResult(
+                repo_id='evaleval/EEE_raw',
+                ledger_path='ledger/vals_ai/x.jsonl',
+                rows=archive.ledger_rows(
+                    raw_dir,
+                    adapter='vals_ai',
+                    run_date='2026-08-11',
+                    run_id='1',
+                ),
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        runner.publish_module,
+        'publish',
+        lambda *a, **k: publish.PublishResult(
+            pr_url='u',
+            pr_number=1,
+            files=1,
+            commits=1,
+            reused_existing_pr=False,
+        ),
+    )
+
+    _, summary = _refresh(tmp_path, dry_run=False)
+
+    assert summary.raw_payloads == 0
+    assert summary.raw_skipped == 1
+    assert len(archived) == 1, 'the ledger row was never archived'
+    assert summary.raw_archive['status'] == 'archived'
+    assert summary.raw_archive['ledger_rows'] == 1
+
+
+def test_a_run_that_captured_nothing_reports_nothing_captured(
+    tmp_path: Path, stub_adapter, monkeypatch
+):
+    archived = []
+    monkeypatch.setattr(
+        runner.archive_module,
+        'archive',
+        lambda raw_dir, **kwargs: archived.append(raw_dir),
+    )
+    stub_adapter(raw=None)
+
+    _, summary = _refresh(tmp_path, dry_run=False)
+
+    assert summary.raw_payloads == 0
+    assert summary.raw_skipped == 0
+    assert summary.raw_archive['status'] == 'nothing_captured'
+    assert archived == []
+
+
+def test_raw_bytes_counts_only_what_was_stored(tmp_path: Path, stub_adapter):
+    stub_adapter(raw=b'{"rows": 7}', verbatim=True)
+
+    _, summary = _refresh(tmp_path)
+
+    assert summary.raw_payloads == 1
+    assert summary.raw_bytes == len(b'{"rows": 7}')
+    assert summary.raw_skipped == 0
