@@ -13,32 +13,39 @@ from every_eval_ever.helpers import raw_capture
 REPO = 'evaleval/EEE_raw'
 
 
-@pytest.fixture(autouse=True)
-def _forget_recorded_payloads():
-    raw_capture.reset_recorded_state()
-    yield
-    raw_capture.reset_recorded_state()
+class _Info:
+    def __init__(self, private: bool):
+        self.private = private
 
 
 class _FakeApi:
     """Stands in for the Hub, recording what a run would store."""
 
-    def __init__(self, existing: set[str] | None = None):
+    def __init__(self, existing: set[str] | None = None, private: bool = True):
         self.existing = existing or set()
         self.commits: list[dict] = []
         self.created: list[dict] = []
+        self.private = private
 
     def create_repo(self, **kwargs):
         self.created.append(kwargs)
 
-    def file_exists(self, *, repo_id, filename, repo_type):
-        return filename in self.existing
+    def repo_info(self, *, repo_id, repo_type):
+        return _Info(private=self.private)
+
+    def get_paths_info(self, *, repo_id, paths, repo_type):
+        return [_PathInfo(path) for path in paths if path in self.existing]
 
     def create_commit(self, **kwargs):
         self.commits.append(kwargs)
         for operation in kwargs['operations']:
             self.existing.add(operation.path_in_repo)
         return object()
+
+
+class _PathInfo:
+    def __init__(self, path: str):
+        self.path = path
 
 
 def _capture(monkeypatch, raw_dir: Path, url: str, body: bytes) -> None:
@@ -260,83 +267,96 @@ def test_adapter_written_dumps_are_archived_too(tmp_path: Path):
     assert result.rows[0]['capture_source'] == raw_capture.ADAPTER_FLAG_SOURCE
 
 
-def test_the_ledger_remembers_the_fingerprint_for_the_next_run(
-    monkeypatch, tmp_path: Path
-):
-    _capture(monkeypatch, tmp_path, 'https://x.invalid/a.json', b'{"a": 1}')
-    api = _FakeApi()
-    _archive(tmp_path, api, gating_fingerprint='today')
+def test_publish_state_round_trips(monkeypatch, tmp_path: Path):
+    written = {}
 
-    class _ReadBack(_FakeApi):
-        def list_repo_files(self, *, repo_id, repo_type):
-            return sorted(self.existing)
+    class _StateApi(_FakeApi):
+        def create_commit(self, **kwargs):
+            super().create_commit(**kwargs)
+            operation = kwargs['operations'][0]
+            written[operation.path_in_repo] = bytes(operation.path_or_fileobj)
+            return object()
 
-    read_back = _ReadBack(existing=api.existing)
-    ledger = next(
-        operation
-        for operation in api.commits[0]['operations']
-        if operation.path_in_repo.startswith('ledger/')
+    api = _StateApi()
+    archive.write_state(
+        'hle',
+        {'gating_fingerprint': 'abc', 'pr_number': 7, 'partial': False},
+        repo_id=REPO,
+        api=api,
     )
-    stored = tmp_path / 'stored.jsonl'
-    stored.write_bytes(bytes(ledger.path_or_fileobj))
+
+    stored = tmp_path / 'state.json'
+    stored.write_bytes(written[archive.state_path('hle')])
     monkeypatch.setattr(
         archive, 'hf_hub_download', lambda **kwargs: str(stored)
     )
 
-    assert (
-        archive.last_gating_fingerprint('hle', repo_id=REPO, api=read_back)
-        == 'today'
-    )
+    state = archive.read_state('hle', repo_id=REPO)
+    assert state == {
+        'gating_fingerprint': 'abc',
+        'pr_number': 7,
+        'partial': False,
+    }
 
 
-def test_the_most_recent_ledger_wins(monkeypatch, tmp_path: Path):
-    class _Api(_FakeApi):
-        def list_repo_files(self, *, repo_id, repo_type):
-            return [
-                'ledger/hle/2026-08-09-1-1.jsonl',
-                'ledger/hle/2026-08-11-9-1.jsonl',
-                'ledger/hle/2026-08-10-5-1.jsonl',
-                'ledger/vals_ai/2026-08-12-1-1.jsonl',
-            ]
+def test_missing_state_reads_as_none(monkeypatch):
+    from huggingface_hub.errors import EntryNotFoundError
 
-    requested = []
+    def missing(**kwargs):
+        raise EntryNotFoundError('no state yet')
 
-    def fake_download(**kwargs):
-        requested.append(kwargs['filename'])
-        path = tmp_path / 'row.jsonl'
-        path.write_text(
-            json.dumps({'gating_fingerprint': 'latest'}) + '\n',
-            encoding='utf-8',
-        )
-        return str(path)
+    monkeypatch.setattr(archive, 'hf_hub_download', missing)
 
-    monkeypatch.setattr(archive, 'hf_hub_download', fake_download)
-
-    result = archive.last_gating_fingerprint('hle', repo_id=REPO, api=_Api())
-
-    assert result == 'latest'
-    assert requested == ['ledger/hle/2026-08-11-9-1.jsonl']
+    assert archive.read_state('hle', repo_id=REPO) is None
 
 
-def test_no_ledger_yet_means_no_previous_fingerprint(tmp_path: Path):
-    class _Empty(_FakeApi):
-        def list_repo_files(self, *, repo_id, repo_type):
-            return []
-
-    assert (
-        archive.last_gating_fingerprint('hle', repo_id=REPO, api=_Empty())
-        is None
-    )
-
-
-def test_an_unreadable_ledger_does_not_stop_a_run(tmp_path: Path):
+def test_unreadable_state_reads_as_none(monkeypatch):
     # Failing closed here would mean never publishing; failing open can only
     # add a duplicate.
-    class _Broken(_FakeApi):
-        def list_repo_files(self, *, repo_id, repo_type):
-            raise RuntimeError('404 not found')
+    def broken(**kwargs):
+        raise RuntimeError('504 gateway timeout')
 
-    assert (
-        archive.last_gating_fingerprint('hle', repo_id=REPO, api=_Broken())
-        is None
-    )
+    monkeypatch.setattr(archive, 'hf_hub_download', broken)
+
+    assert archive.read_state('hle', repo_id=REPO) is None
+
+
+def test_a_public_raw_dataset_is_refused(monkeypatch, tmp_path: Path):
+    # Raw source payloads are stored on the promise of privacy; visibility is
+    # re-checked before every commit, not only at preflight.
+    _capture(monkeypatch, tmp_path, 'https://x.invalid/a.json', b'{}')
+    api = _FakeApi(private=False)
+
+    with pytest.raises(archive.ArchiveError, match='PUBLIC'):
+        _archive(tmp_path, api)
+
+    assert api.commits == []
+
+
+def test_one_url_serving_two_bodies_archives_both_correctly(
+    monkeypatch, tmp_path: Path
+):
+    # Regression: a URL-keyed capture filename let the second body overwrite
+    # the first while both manifest rows survived, so the archive stored one
+    # body under the other's hash.
+    import hashlib
+
+    monkeypatch.setenv(raw_capture.RAW_CAPTURE_DIR_ENV, str(tmp_path))
+    raw_capture.capture_response('https://x.invalid/a.json', b'{"a": 1}')
+    raw_capture.capture_response('https://x.invalid/a.json', b'{"a": 2}')
+    api = _FakeApi()
+
+    result = _archive(tmp_path, api)
+
+    assert result.uploaded == 2
+    blobs = {
+        operation.path_in_repo: operation
+        for operation in api.commits[0]['operations']
+        if operation.path_in_repo.startswith('blobs/')
+    }
+    assert len(blobs) == 2
+    for path_in_repo, operation in blobs.items():
+        body = Path(operation.path_or_fileobj).read_bytes()
+        digest = hashlib.sha256(body).hexdigest()
+        # The blob really contains the bytes its address promises.
+        assert Path(path_in_repo).stem == digest

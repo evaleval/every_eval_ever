@@ -107,16 +107,49 @@ def test_the_plan_job_feeds_the_matrix(workflow: dict):
     assert workflow['jobs']['refresh']['needs'] == 'plan'
 
 
+def _refresh_step(refresh_job: dict) -> dict:
+    return next(
+        step
+        for step in refresh_job['steps']
+        if 'every_eval_ever.cron run' in step.get('run', '')
+    )
+
+
 def test_a_no_op_refresh_does_not_fail_the_job(refresh_job: dict):
-    # The runner exits 2 when the source had not moved. The default shell is
+    # The runner exits 3 when the source had not moved. The default shell is
     # `bash -e`, which would abort the step before that code could be read, so
     # errexit has to be off around the call.
-    step = next(
-        step for step in refresh_job['steps'] if step.get('id') == 'refresh'
-    )
-    script = step['run']
+    script = _refresh_step(refresh_job)['run']
     assert 'set +e' in script
     assert 'code=$?' in script
+    assert '-ne 3' in script
+
+
+def test_a_usage_error_fails_the_job(refresh_job: dict):
+    # Argparse exits 2 on a bad flag. If 2 were the nothing-new code, a flag
+    # typo would silently disable the whole cron while every job stayed green.
+    from every_eval_ever.cron import runner
+
+    assert runner.EXIT_NOTHING_NEW != 2
+    script = _refresh_step(refresh_job)['run']
+    assert str(runner.EXIT_NOTHING_NEW) in script
+    assert '-ne 2' not in script
+
+
+def test_every_declared_adapter_credential_reaches_the_jobs(workflow: dict):
+    # requires_env in the schedule and the workflow env block drift silently:
+    # a secret named in one but not the other means an adapter is planned and
+    # then skipped forever as 'missing environment'.
+    from every_eval_ever.cron.schedule import CRON_ADAPTERS
+
+    env = workflow.get('env', {})
+    for adapter in CRON_ADAPTERS:
+        for name in adapter.requires_env:
+            assert name in env, (
+                f'{adapter.name} requires {name}, but the workflow-level env '
+                'block does not pass it; add it there (tests cannot check the '
+                'GitHub secret itself)'
+            )
 
 
 def test_a_partial_refresh_is_annotated(refresh_job: dict):
@@ -138,4 +171,5 @@ def test_credentials_are_checked_before_any_adapter_runs(workflow: dict):
         index for index, step in enumerate(steps) if step.get('id') == 'plan'
     )
     assert preflight < plan, f'preflight must run before planning: {names}'
-    assert 'HF_TOKEN' in steps[preflight]['env']
+    # Credentials come from the workflow-level env block.
+    assert 'HF_TOKEN' in workflow.get('env', {})

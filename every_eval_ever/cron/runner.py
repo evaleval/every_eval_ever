@@ -1,18 +1,23 @@
 """Run one adapter end to end for the daily refresh.
 
-    uv run python -m every_eval_ever.cron run vals_ai --dry-run
+    uv run python -m every_eval_ever.cron run vals_ai \\
+        --work-dir /tmp/cron-vals-ai --dry-run
 
 One invocation handles one adapter, which is what makes the schedule one
 workflow job and one datastore pull request per adapter. The stages are:
 
 1. run the adapter into a scratch tree;
 2. store what it fetched permanently, in the private raw dataset;
-3. stop if the source has not moved since the fingerprint the ledger recorded;
+3. stop if the source has not moved since the last successful publish (the
+   per-adapter state file in the raw dataset, written only after a publish);
 4. stamp every record as cron-produced;
 5. validate through the same CLI the datastore's pull request bot runs;
 6. commit the records to the adapter's pull request.
 
-Exit codes: ``0`` published, ``2`` nothing new to publish, ``1`` failed.
+Exit codes: ``0`` published, ``3`` nothing new to publish, ``1`` failed.
+(``2`` is argparse's usage-error exit and must keep meaning *failure*: the
+workflow treats the nothing-new code as success, and a flag typo that exited
+``2`` would silently disable the whole cron while every job stayed green.)
 """
 
 from __future__ import annotations
@@ -46,7 +51,9 @@ from every_eval_ever.helpers import raw_capture
 
 EXIT_PUBLISHED = 0
 EXIT_FAILED = 1
-EXIT_NOTHING_NEW = 2
+# Not 2: that is argparse's usage-error exit, and the workflow treats this
+# code as success.
+EXIT_NOTHING_NEW = 3
 
 _logger = logging.getLogger('every_eval_ever.cron')
 
@@ -115,12 +122,6 @@ class AdapterOutcome:
     @property
     def failed(self) -> list[Invocation]:
         return [item for item in self.invocations if not item.ok]
-
-    @property
-    def all_failed(self) -> bool:
-        return bool(self.invocations) and not any(
-            item.ok for item in self.invocations
-        )
 
 
 def run_adapter(
@@ -230,24 +231,37 @@ def _previous_fingerprint(
     *,
     fingerprint_path: Path | None,
     raw_repo_id: str,
-    consult_ledger: bool,
+    consult_state: bool,
     token: str | None,
 ) -> str | None:
     """Return the fingerprint to compare this run against.
 
     A local ``--fingerprint`` file wins when it has a value, which is what makes
-    a local run reproducible. Otherwise the raw dataset's ledger is the durable
-    memory: it survives the build cache, so an adapter cannot forget last night's
-    state and republish its whole set.
+    a local run reproducible. Otherwise the raw dataset's per-adapter state file
+    is the durable memory of the last *successful publish* — deliberately not
+    the ledger, which this run has already written and would only hand back its
+    own fingerprint.
+
+    A previous run recorded as partial returns ``None``: some of the source
+    failed to convert that day, so the next run must publish even if the source
+    has not moved, or the records that failed would never reach the datastore.
     """
     stored = read_fingerprint(fingerprint_path) if fingerprint_path else None
     if stored:
         return stored
-    if not consult_ledger:
+    if not consult_state:
         return None
-    return archive_module.last_gating_fingerprint(
-        adapter, repo_id=raw_repo_id, token=token
-    )
+    state = archive_module.read_state(adapter, repo_id=raw_repo_id, token=token)
+    if not state:
+        return None
+    if state.get('partial'):
+        _logger.info(
+            '%s: previous publish was partial; publishing regardless of the '
+            'fingerprint so the missing records get another attempt',
+            adapter,
+        )
+        return None
+    return state.get('gating_fingerprint')
 
 
 def _archive_raw(
@@ -325,7 +339,7 @@ def refresh(
     run_url: str | None,
     dry_run: bool,
     force: bool,
-    run_id: str = 'local',
+    run_id: str | None = None,
     raw_repo_id: str = archive_module.DEFAULT_RAW_REPO_ID,
     archive_raw: bool = True,
     environment: dict[str, str] | None = None,
@@ -333,6 +347,12 @@ def refresh(
     """Refresh one adapter. Returns its exit code and summary."""
     environment = dict(os.environ if environment is None else environment)
     adapter = get_adapter(name)
+    if run_id is None:
+        run_id = datetime.now(timezone.utc).strftime('local-%H%M%S')
+    # The adapter runs with the scratch tree as its cwd, so every path handed
+    # to it must already be absolute — a relative raw_dir would resolve inside
+    # the scratch tree and the runner would read an empty manifest.
+    work_dir = work_dir.resolve()
     run_date = utc_run_date()
     summary = RunSummary(
         adapter=adapter.name,
@@ -458,7 +478,7 @@ def refresh(
         adapter.name,
         fingerprint_path=fingerprint_path,
         raw_repo_id=raw_repo_id,
-        consult_ledger=archive_raw and not dry_run,
+        consult_state=archive_raw and not dry_run,
         token=environment.get('HF_TOKEN'),
     )
     summary.previous_fingerprint = previous
@@ -513,8 +533,35 @@ def refresh(
         f'{result.files} file(s) in {result.commits} commit(s) to '
         f'{result.pr_url}'
     )
+    # Only now, after the datastore has the records, is the fingerprint safe to
+    # persist: recording it any earlier would make a failed publish look
+    # 'unchanged' tomorrow and silently withhold the records forever.
     if fingerprint_path and current:
         write_fingerprint(fingerprint_path, current)
+    if archive_raw and current:
+        try:
+            archive_module.write_state(
+                adapter.name,
+                {
+                    'gating_fingerprint': current,
+                    'fingerprint_source': summary.fingerprint_source,
+                    'run_date': run_date,
+                    'run_id': run_id,
+                    'run_url': run_url,
+                    'partial': bool(summary.failed_invocations),
+                    'pr_number': result.pr_number,
+                    'pr_url': result.pr_url,
+                },
+                repo_id=raw_repo_id,
+                token=environment.get('HF_TOKEN'),
+            )
+        except archive_module.ArchiveError as error:
+            # The publish itself succeeded; stale state can only cause a
+            # duplicate publish tomorrow, never a loss. Say so loudly.
+            summary.detail += f' (WARNING: publish state not recorded: {error})'
+            _logger.error(
+                '%s: %s; tomorrow may republish this set', adapter.name, error
+            )
     summary.write(summary_path)
     _logger.info('%s: %s', adapter.name, summary.detail)
     return EXIT_PUBLISHED, summary
@@ -626,12 +673,15 @@ def _add_run_arguments(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         '--run-id',
-        default='local',
-        help='Identifier for this run, used in the ledger path',
+        default=None,
+        help=(
+            'Identifier for this run, used in the ledger path. Defaults to '
+            'local-<UTC time>, so two local runs on the same day do not share '
+            'a ledger file.'
+        ),
     )
     parser.add_argument(
         '--run-url',
-        default=os.environ.get('EEE_CRON_RUN_URL'),
         help='Workflow run URL recorded on each record and in the commit',
     )
     parser.add_argument(

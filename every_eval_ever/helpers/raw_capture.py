@@ -48,10 +48,6 @@ _EXTENSION_BY_CONTENT_TYPE = {
 
 _logger = logging.getLogger(__name__)
 _lock = threading.Lock()
-# (capture directory, filename) -> sha256 already recorded by this process.
-# Keyed by directory too: one process may capture into more than one directory,
-# and the same payload name in a different directory is a different payload.
-_recorded: dict[tuple[str, str], str] = {}
 
 
 def capture_dir() -> Path | None:
@@ -77,14 +73,22 @@ def max_capture_bytes() -> int:
     return parsed if parsed > 0 else DEFAULT_MAX_BYTES
 
 
-def payload_filename(url: str, content_type: str | None = None) -> str:
-    """Return a stable, filesystem-safe capture filename for ``url``.
+def payload_filename(
+    url: str,
+    content_type: str | None = None,
+    checksum: str | None = None,
+) -> str:
+    """Return a stable, filesystem-safe capture filename for a payload.
 
-    The name is a function of the URL alone, so re-fetching the same URL
-    overwrites its own payload instead of accumulating copies. The leading
-    digest keeps two URLs that share a last path segment apart.
+    The name is a function of the URL *and* the body: re-fetching identical
+    bytes maps to the same file (idempotent), while the same URL serving
+    different bytes gets a second file rather than overwriting the first —
+    each manifest row must keep pointing at exactly the bytes it hashed, or
+    the content-addressed archive would store one body under another's hash.
     """
     digest = hashlib.sha256(url.encode('utf-8')).hexdigest()[:12]
+    if checksum:
+        digest = f'{digest}-{checksum[:12]}'
     parsed = urlparse(url)
     stem, suffix = _split_last_segment(parsed.path)
     label = _UNSAFE_NAME.sub('-', stem or parsed.netloc).strip('-')
@@ -135,8 +139,8 @@ def _capture(
     body: bytes,
     content_type: str | None,
 ) -> Path | None:
-    filename = payload_filename(url, content_type)
     checksum = hashlib.sha256(body).hexdigest()
+    filename = payload_filename(url, content_type, checksum)
     ceiling = max_capture_bytes()
     entry: dict[str, Any] = {
         'url': url,
@@ -178,12 +182,19 @@ def _record(
     checksum: str,
     entry: dict[str, Any],
 ) -> None:
-    """Append ``entry`` to the manifest unless it is already recorded."""
-    key = (str(directory), filename)
+    """Append ``entry`` to the manifest unless it is already recorded.
+
+    Deduplication reads the manifest itself rather than any in-process memo, so
+    the record always agrees with the directory it describes — a cleared and
+    reused capture directory starts from a genuinely empty manifest.
+    """
     with _lock:
-        if _recorded.get(key) == checksum:
+        already = any(
+            item.get('file') == filename and item.get('sha256') == checksum
+            for item in read_manifest(directory)
+        )
+        if already:
             return
-        _recorded[key] = checksum
         directory.mkdir(parents=True, exist_ok=True)
         with (directory / MANIFEST_NAME).open('a', encoding='utf-8') as handle:
             handle.write(json.dumps(entry, ensure_ascii=False) + '\n')
@@ -224,16 +235,17 @@ def index_unlisted_payloads(directory: str | Path) -> list[str]:
             continue
         if path.name.endswith('.partial'):
             continue
-        body = path.read_bytes()
+        with path.open('rb') as handle:
+            checksum = hashlib.file_digest(handle, 'sha256').hexdigest()
         _record(
             root,
             path.name,
-            hashlib.sha256(body).hexdigest(),
+            checksum,
             {
                 'url': None,
                 'file': path.name,
-                'bytes': len(body),
-                'sha256': hashlib.sha256(body).hexdigest(),
+                'bytes': path.stat().st_size,
+                'sha256': checksum,
                 'source': ADAPTER_FLAG_SOURCE,
             },
         )
@@ -270,9 +282,3 @@ def fingerprint(
     if not lines:
         return None
     return hashlib.sha256('\n'.join(lines).encode('utf-8')).hexdigest()
-
-
-def reset_recorded_state() -> None:
-    """Forget which payloads this process already recorded (tests only)."""
-    with _lock:
-        _recorded.clear()

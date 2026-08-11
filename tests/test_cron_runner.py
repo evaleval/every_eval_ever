@@ -105,20 +105,17 @@ def stub_adapter(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def _forget_recorded_payloads():
-    raw_capture.reset_recorded_state()
-    yield
-    raw_capture.reset_recorded_state()
+def state_store(monkeypatch):
+    """Archiving, the state read/write and publishing all talk to the Hub.
 
-
-@pytest.fixture(autouse=True)
-def _never_reach_the_hub(monkeypatch):
-    """Archiving, the ledger read and publishing all talk to the Hub.
-
-    None of them may reach it from a test, so all three are stubbed by default.
-    Tests that care about one replace it with their own stub. Relying on each
-    test to remember is how a test suite starts making live API calls.
+    None of them may reach it from a test, so all are stubbed by default —
+    relying on each test to remember is how a test suite starts making live
+    API calls. The state stubs share a dict per test, so ``refresh()``'s real
+    coupling (gate reads the state a previous *successful publish* wrote) is
+    exercised rather than stubbed away; that stubbing is exactly what hid the
+    run-reads-its-own-fingerprint bug.
     """
+    store: dict[str, dict] = {}
     monkeypatch.setattr(
         runner.archive_module,
         'archive',
@@ -130,8 +127,13 @@ def _never_reach_the_hub(monkeypatch):
     )
     monkeypatch.setattr(
         runner.archive_module,
-        'last_gating_fingerprint',
-        lambda adapter, **kwargs: None,
+        'read_state',
+        lambda adapter, **kwargs: store.get(adapter),
+    )
+    monkeypatch.setattr(
+        runner.archive_module,
+        'write_state',
+        lambda adapter, state, **kwargs: store.__setitem__(adapter, state),
     )
     monkeypatch.setattr(
         runner.publish_module,
@@ -144,12 +146,13 @@ def _never_reach_the_hub(monkeypatch):
             reused_existing_pr=False,
         ),
     )
+    return store
 
 
 def _refresh(tmp_path: Path, **overrides):
     arguments = {
         'work_dir': tmp_path / 'work',
-        'fingerprint_path': tmp_path / 'fingerprint' / ADAPTER,
+        'fingerprint_path': None,
         'summary_path': tmp_path / 'summary.json',
         'repo_id': 'evaleval/EEE_datastore',
         'run_url': 'https://github.invalid/run/1',
@@ -305,7 +308,6 @@ def test_a_failing_invocation_does_not_stop_the_others(
     assert calls == ['HELM_Capabilities', 'HELM_Lite', 'HELM_MMLU']
     assert len(outcome.invocations) == 3
     assert [item.arguments[-1] for item in outcome.failed] == ['HELM_Lite']
-    assert not outcome.all_failed
 
 
 def test_records_from_a_partial_refresh_are_still_published(
@@ -418,7 +420,8 @@ def test_an_invalid_record_stops_the_refresh_and_names_the_file(
         directory = work_dir / 'data' / 'vals-ai' / 'dev' / 'model'
         directory.mkdir(parents=True)
         (directory / f'{"a" * 8}-0000-4000-8000-000000000000.json').write_text(
-            '{"schema_version": "0.3.0"}\n', encoding='utf-8'
+            json.dumps({'schema_version': SCHEMA_VERSION}) + '\n',
+            encoding='utf-8',
         )
         return runner.AdapterOutcome(
             invocations=[runner.Invocation(arguments=[], returncode=0)]
@@ -753,56 +756,161 @@ def test_the_output_fingerprint_is_the_same_before_and_after_stamping(
     assert output_fingerprint(tmp_path / 'data') == before
 
 
-def test_the_previous_fingerprint_comes_from_the_ledger(
-    tmp_path: Path, stub_adapter, monkeypatch
+def test_a_run_never_compares_against_its_own_fingerprint(
+    tmp_path: Path, stub_adapter, state_store
 ):
-    # No local fingerprint file and no build cache: the raw dataset's ledger is
-    # what stops a rerun from republishing everything.
-    stub_adapter(verbatim=True)
-    _, first = _refresh(
-        tmp_path, work_dir=tmp_path / 'first', fingerprint_path=None
-    )
-
-    monkeypatch.setattr(
-        runner.archive_module,
-        'last_gating_fingerprint',
-        lambda adapter, **kwargs: first.raw_fingerprint,
-    )
-    monkeypatch.setattr(
-        runner.publish_module,
-        'publish',
-        lambda *a, **k: publish.PublishResult(
-            pr_url='u', pr_number=1, files=1, commits=1, reused_existing_pr=True
-        ),
-    )
+    # The regression that shipped: the gate read the ledger this same run had
+    # just archived and concluded "unchanged" — every adapter published
+    # nothing, forever. The gate must only ever see what a previous successful
+    # publish recorded, so a first run over an empty store publishes.
     stub_adapter(verbatim=True)
 
+    code, summary = _refresh(tmp_path, dry_run=False)
+
+    assert code == runner.EXIT_PUBLISHED
+    assert summary.status == 'published'
+    assert summary.previous_fingerprint is None
+    # ...and only now, after the publish, is the fingerprint remembered.
+    assert state_store[ADAPTER]['gating_fingerprint'] == (
+        summary.raw_fingerprint
+    )
+
+
+def test_the_previous_fingerprint_comes_from_the_publish_state(
+    tmp_path: Path, stub_adapter, state_store
+):
+    # No local fingerprint file and no build cache: the state a successful
+    # publish wrote is what stops a rerun from republishing everything.
+    stub_adapter(verbatim=True)
+    _refresh(tmp_path, work_dir=tmp_path / 'first', dry_run=False)
+
+    stub_adapter(verbatim=True)
     code, second = _refresh(
-        tmp_path,
-        work_dir=tmp_path / 'second',
-        fingerprint_path=None,
-        dry_run=False,
+        tmp_path, work_dir=tmp_path / 'second', dry_run=False
     )
 
     assert code == runner.EXIT_NOTHING_NEW
     assert second.status == 'unchanged'
-    assert second.previous_fingerprint == first.raw_fingerprint
+    assert (
+        second.previous_fingerprint
+        == (state_store[ADAPTER]['gating_fingerprint'])
+    )
 
 
-def test_a_dry_run_does_not_consult_the_ledger(
-    tmp_path: Path, stub_adapter, monkeypatch
+def test_a_failed_publish_does_not_update_the_state(
+    tmp_path: Path, stub_adapter, state_store, monkeypatch
+):
+    # Recording the fingerprint before the publish succeeded would make the
+    # next run skip as "unchanged" and the records would never be published.
+    def failing_publish(data_root, **kwargs):
+        raise publish.PublishError('504 gateway timeout')
+
+    monkeypatch.setattr(runner.publish_module, 'publish', failing_publish)
+    stub_adapter(verbatim=True)
+
+    with pytest.raises(publish.PublishError):
+        _refresh(tmp_path, work_dir=tmp_path / 'first', dry_run=False)
+
+    assert ADAPTER not in state_store
+
+
+def test_the_run_after_a_failed_publish_publishes(
+    tmp_path: Path, stub_adapter, state_store, monkeypatch
+):
+    attempts = []
+
+    def flaky_publish(data_root, **kwargs):
+        attempts.append(1)
+        if len(attempts) == 1:
+            raise publish.PublishError('504 gateway timeout')
+        return publish.PublishResult(
+            pr_url='u', pr_number=1, files=1, commits=1, reused_existing_pr=True
+        )
+
+    monkeypatch.setattr(runner.publish_module, 'publish', flaky_publish)
+    stub_adapter(verbatim=True)
+
+    with pytest.raises(publish.PublishError):
+        _refresh(tmp_path, work_dir=tmp_path / 'first', dry_run=False)
+    stub_adapter(verbatim=True)
+    code, summary = _refresh(
+        tmp_path, work_dir=tmp_path / 'second', dry_run=False
+    )
+
+    assert code == runner.EXIT_PUBLISHED
+    assert summary.status == 'published'
+    assert len(attempts) == 2
+
+
+def test_a_zero_capture_adapter_still_skips_when_unchanged(
+    tmp_path: Path, stub_adapter, state_store
+):
+    # hal, lexam, mt_bench and the upstream-versioned adapters archive no raw
+    # payloads. Their output fingerprint must still be remembered, or they
+    # would republish their whole set every single day.
+    stub_adapter(raw=None)
+    first_code, first = _refresh(
+        tmp_path, work_dir=tmp_path / 'first', dry_run=False
+    )
+    stub_adapter(raw=None)
+    second_code, second = _refresh(
+        tmp_path, work_dir=tmp_path / 'second', dry_run=False
+    )
+
+    assert first_code == runner.EXIT_PUBLISHED
+    assert first.fingerprint_source == 'output'
+    assert second_code == runner.EXIT_NOTHING_NEW
+    assert second.status == 'unchanged'
+
+
+def test_a_partial_publish_forces_the_next_run_to_publish(
+    tmp_path: Path, stub_adapter, state_store, monkeypatch
+):
+    # A partial run published only what converted. Skipping the next run as
+    # "unchanged" would mean the records that failed never get another attempt.
+    def partial_run(adapter, *, work_dir, raw_dir, environment):
+        save_evaluation_log(
+            _log(),
+            base_dir=work_dir / 'data' / 'vals-ai',
+            developer='dev',
+            model_name='model',
+        )
+        return runner.AdapterOutcome(
+            invocations=[
+                runner.Invocation(arguments=['--benchmark', 'a'], returncode=0),
+                runner.Invocation(arguments=['--benchmark', 'b'], returncode=1),
+            ]
+        )
+
+    monkeypatch.setattr(runner, 'run_adapter', partial_run)
+    _refresh(tmp_path, work_dir=tmp_path / 'first', dry_run=False)
+    assert state_store[ADAPTER]['partial'] is True
+
+    stub_adapter(verbatim=True)
+    code, summary = _refresh(
+        tmp_path, work_dir=tmp_path / 'second', dry_run=False
+    )
+
+    assert code == runner.EXIT_PUBLISHED
+    assert summary.status == 'published'
+    assert summary.previous_fingerprint is None
+
+
+def test_a_dry_run_does_not_consult_the_state(
+    tmp_path: Path, stub_adapter, state_store, monkeypatch
 ):
     consulted = []
     monkeypatch.setattr(
         runner.archive_module,
-        'last_gating_fingerprint',
+        'read_state',
         lambda adapter, **kwargs: consulted.append(adapter),
     )
     stub_adapter()
 
-    _refresh(tmp_path, fingerprint_path=None, dry_run=True)
+    _refresh(tmp_path, dry_run=True)
 
     assert consulted == []
+    assert state_store == {}
 
 
 def test_an_oversized_payload_is_still_recorded_in_the_ledger(

@@ -26,6 +26,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from every_eval_ever.eval_types import EvaluationLog
+from every_eval_ever.helpers.io import serialize_evaluation_log
 
 TYPE_OF_ADDITION_KEY = 'type_of_addition'
 CRON_ADDITION_TYPE = 'cron'
@@ -124,17 +125,8 @@ def _note_unknown_inferred_fields(payload: dict[str, Any]) -> list[str]:
 
 
 def _serialize(payload: dict[str, Any]) -> str:
-    """Serialize exactly as ``helpers.io`` does, so the stamp is the only diff."""
-    validated = EvaluationLog.model_validate(payload)
-    return (
-        json.dumps(
-            validated.model_dump(mode='json', exclude_none=True),
-            indent=2,
-            ensure_ascii=False,
-            allow_nan=False,
-        )
-        + '\n'
-    )
+    """Serialize through the datastore's one serializer; the stamp is the only diff."""
+    return serialize_evaluation_log(EvaluationLog.model_validate(payload))
 
 
 def stamp_file(

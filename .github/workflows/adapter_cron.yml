@@ -30,6 +30,14 @@ on:
 permissions:
   contents: read
 
+env:
+  # One place for the credentials both planning and refreshing need. An
+  # adapter's requires_env name must appear here (tests enforce it).
+  HF_TOKEN: ${{ secrets.HF_TOKEN }}
+  ARTIFICIAL_ANALYSIS_API_KEY: ${{ secrets.ARTIFICIAL_ANALYSIS_API_KEY }}
+  LLM_STATS_API_KEY: ${{ secrets.LLM_STATS_API_KEY }}
+  EEE_RAW_REPO_ID: ${{ vars.EEE_RAW_REPO_ID || 'evaleval/EEE_raw' }}
+
 concurrency:
   # Never let two refreshes of the same adapter race for its pull request.
   group: adapter-cron
@@ -54,22 +62,15 @@ jobs:
       - name: Check credentials and destinations
         env:
           UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/eee-venv
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          ARTIFICIAL_ANALYSIS_API_KEY: ${{ secrets.ARTIFICIAL_ANALYSIS_API_KEY }}
-          LLM_STATS_API_KEY: ${{ secrets.LLM_STATS_API_KEY }}
         run: |
           uv run python -m every_eval_ever.cron preflight \
-            --raw-repo-id "${{ vars.EEE_RAW_REPO_ID || 'evaleval/EEE_raw' }}" \
+            --raw-repo-id "$EEE_RAW_REPO_ID" \
             --markdown "$GITHUB_STEP_SUMMARY"
 
       - name: Decide which adapters to refresh
         id: plan
         env:
           UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/eee-venv
-          # Present here only so the schedule can tell a credentialed adapter
-          # apart from an unconfigured one.
-          ARTIFICIAL_ANALYSIS_API_KEY: ${{ secrets.ARTIFICIAL_ANALYSIS_API_KEY }}
-          LLM_STATS_API_KEY: ${{ secrets.LLM_STATS_API_KEY }}
           REQUESTED: ${{ inputs.adapter }}
         run: |
           set -euo pipefail
@@ -115,32 +116,28 @@ jobs:
         run: uv sync --locked --all-extras
 
       - name: Refresh ${{ matrix.adapter }}
-        id: refresh
         env:
           UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/eee-venv
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          ARTIFICIAL_ANALYSIS_API_KEY: ${{ secrets.ARTIFICIAL_ANALYSIS_API_KEY }}
-          LLM_STATS_API_KEY: ${{ secrets.LLM_STATS_API_KEY }}
         run: |
           set -uo pipefail
-          # The default shell is `bash -e`, which would abort the step before the
-          # exit code can be read. Exit 2 is a successful no-op, not a failure.
+          # The default shell is `bash -e`, which would abort the step before
+          # the exit code can be read. Exit 3 is a successful no-op ("nothing
+          # new"); anything else non-zero — including argparse's usage-error
+          # exit 2 — must fail the job.
           set +e
           uv run python -m every_eval_ever.cron run "${{ matrix.adapter }}" \
             --work-dir "${{ runner.temp }}/cron-work" \
             --summary "${{ runner.temp }}/cron-work/summary.json" \
-            --raw-repo-id "${{ vars.EEE_RAW_REPO_ID || 'evaleval/EEE_raw' }}" \
+            --raw-repo-id "$EEE_RAW_REPO_ID" \
             --run-id "${{ github.run_id }}-${{ github.run_attempt }}" \
             --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
             ${{ inputs.dry_run && '--dry-run' || '' }} \
             ${{ inputs.force && '--force' || '' }}
           code=$?
           set -e
-          case "$code" in
-            0) echo 'published=true' >> "$GITHUB_OUTPUT" ;;
-            2) echo 'published=false' >> "$GITHUB_OUTPUT" ;;
-            *) echo 'published=false' >> "$GITHUB_OUTPUT"; exit "$code" ;;
-          esac
+          if [ "$code" -ne 0 ] && [ "$code" -ne 3 ]; then
+            exit "$code"
+          fi
 
       - name: Summarise the run
         if: always()

@@ -13,10 +13,11 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from huggingface_hub import HfApi
+from huggingface_hub.errors import RepositoryNotFoundError
 
 from every_eval_ever.cron.archive import DEFAULT_RAW_REPO_ID
 from every_eval_ever.cron.publish import DEFAULT_REPO_ID
-from every_eval_ever.cron.schedule import scheduled_adapters
+from every_eval_ever.cron.schedule import CRON_ADAPTERS
 
 
 @dataclass
@@ -35,7 +36,13 @@ class Check:
 
 
 def check_token(api: HfApi) -> Check:
-    """Confirm the Hugging Face token resolves to an identity."""
+    """Confirm the Hugging Face token resolves to an identity that can write.
+
+    A read-only token would sail through planning and fail every adapter at
+    its publish step, so a token whose role is definitively read-only fails
+    here. A fine-grained token whose scopes cannot be interpreted passes with
+    its role reported — only the datastore commit itself can prove those.
+    """
     try:
         identity = api.whoami()
     except Exception as error:
@@ -46,6 +53,13 @@ def check_token(api: HfApi) -> Check:
         )
     name = identity.get('name') or identity.get('fullname') or 'unknown'
     role = (identity.get('auth') or {}).get('accessToken', {}).get('role')
+    if role == 'read':
+        return Check(
+            'hugging face token',
+            False,
+            f'authenticated as {name}, but the token is read-only; publishing '
+            'and raw archiving both need write access',
+        )
     return Check(
         'hugging face token',
         True,
@@ -69,25 +83,38 @@ def check_datastore(api: HfApi, repo_id: str) -> Check:
 def check_raw_dataset(
     api: HfApi, repo_id: str, *, create: bool = True
 ) -> Check:
-    """Confirm the private raw dataset exists, creating it if it does not.
+    """Confirm the private raw dataset exists and is private.
 
     Creating it here rather than mid-refresh means a token that cannot create
-    repositories is reported before any adapter has run.
+    repositories is reported before any adapter has run. A dataset that exists
+    but is *public* is a hard failure: raw source payloads are archived there
+    on the promise of privacy, and visibility is a deliberate human decision —
+    the cron reports it rather than flipping it. (The archive itself re-checks
+    privacy before every commit, so this failing closed is defence in depth,
+    not the only line.)
     """
     try:
         info = api.repo_info(repo_id=repo_id, repo_type='dataset')
-    except Exception:
+    except RepositoryNotFoundError:
         info = None
+    except Exception as error:
+        # A transient error is not evidence the repo is missing; creating (or
+        # blessing) anything on that basis could mask a public dataset.
+        return Check(
+            'raw dataset',
+            False,
+            f'could not read {repo_id}: {error}',
+        )
 
     if info is not None:
-        visibility = 'private' if getattr(info, 'private', False) else 'public'
-        if visibility == 'public':
+        if not getattr(info, 'private', False):
             return Check(
                 'raw dataset',
-                True,
-                f'{repo_id} exists but is public; raw source data is meant to '
-                'be private. Not changing it automatically.',
-                required=False,
+                False,
+                f'{repo_id} exists but is PUBLIC; raw source data must stay '
+                'private. Make it private (or point at another repo) — the '
+                'cron will not change visibility itself, and archiving '
+                'refuses to write to a public dataset.',
             )
         return Check('raw dataset', True, f'{repo_id} exists and is private')
 
@@ -101,6 +128,7 @@ def check_raw_dataset(
             private=True,
             exist_ok=True,
         )
+        created = api.repo_info(repo_id=repo_id, repo_type='dataset')
     except Exception as error:
         return Check(
             'raw dataset',
@@ -109,31 +137,49 @@ def check_raw_dataset(
             'Create it by hand as a private dataset, or point '
             '--raw-repo-id at one that exists.',
         )
+    if not getattr(created, 'private', False):
+        return Check(
+            'raw dataset',
+            False,
+            f'{repo_id} was created but reads back as PUBLIC; refusing to '
+            'treat it as a raw-data destination.',
+        )
     return Check('raw dataset', True, f'created {repo_id} as a private dataset')
 
 
 def check_adapter_credentials(environment: dict[str, str]) -> list[Check]:
-    """Report which adapters are held back by a missing credential."""
-    runnable, skipped = scheduled_adapters(environment)
-    checks = [
+    """Report which adapters are held back by a missing credential.
+
+    Asks each adapter directly (``missing_env``) instead of parsing the prose
+    reason ``scheduled_adapters`` formats — rewording a message must never make
+    a credential problem invisible.
+    """
+    runnable = []
+    held_back: list[Check] = []
+    for adapter in CRON_ADAPTERS:
+        if not adapter.enabled:
+            continue
+        missing = adapter.missing_env(environment)
+        if missing:
+            held_back.append(
+                Check(
+                    f'credential for {adapter.name}',
+                    False,
+                    f'missing environment: {", ".join(missing)}',
+                    required=False,
+                )
+            )
+        else:
+            runnable.append(adapter)
+    return [
         Check(
             'scheduled adapters',
             bool(runnable),
             f'{len(runnable)} will run: '
             + ', '.join(adapter.name for adapter in runnable),
-        )
+        ),
+        *held_back,
     ]
-    for adapter, reason in skipped:
-        if reason.startswith('missing environment'):
-            checks.append(
-                Check(
-                    f'credential for {adapter.name}',
-                    False,
-                    reason,
-                    required=False,
-                )
-            )
-    return checks
 
 
 def run_preflight(

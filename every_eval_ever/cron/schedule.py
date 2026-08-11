@@ -226,11 +226,6 @@ EXCLUDED_ADAPTERS: dict[str, str] = {
 _BY_NAME = {adapter.name: adapter for adapter in CRON_ADAPTERS}
 
 
-def all_adapters() -> tuple[CronAdapter, ...]:
-    """Return every registered adapter, enabled or not."""
-    return CRON_ADAPTERS
-
-
 def get_adapter(name: str) -> CronAdapter:
     """Return the registry entry for ``name``."""
     try:

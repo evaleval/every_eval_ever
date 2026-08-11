@@ -32,13 +32,8 @@ from every_eval_ever.cron.stamp import (
     UNKNOWN_FIELDS_KEY,
     aggregate_records,
 )
-
-#: Record fields that differ on every run without the data differing.
-VOLATILE_RECORD_FIELDS = (
-    # Regenerated per run.
-    'retrieved_timestamp',
-    # Convention embeds retrieved_timestamp in the id.
-    'evaluation_id',
+from every_eval_ever.validator.check_duplicate_entries import (
+    strip_ignored_keys,
 )
 
 #: Stamp keys the cron itself adds; they must not make a run look changed.
@@ -52,10 +47,16 @@ VOLATILE_STAMP_KEYS = (
 
 
 def canonical_record(payload: dict[str, Any]) -> dict[str, Any]:
-    """Return ``payload`` without the values that change on every run."""
-    canonical = json.loads(json.dumps(payload))
-    for name in VOLATILE_RECORD_FIELDS:
-        canonical.pop(name, None)
+    """Return ``payload`` without the values that change on every run.
+
+    What counts as scrape noise (``retrieved_timestamp``, ``evaluation_id``) is
+    the *validator's* definition — ``check_duplicate_entries.IGNORE_KEYS``, the
+    same rule the datastore's duplicate checker applies — so the cron's
+    unchanged-source gate and the datastore's duplicate detection can never
+    disagree about what makes two records the same. This module adds only what
+    is cron-specific: the stamp keys, and the regenerated companion path.
+    """
+    canonical = strip_ignored_keys(payload)
 
     details = canonical.get('source_metadata', {}).get('additional_details')
     if isinstance(details, dict):

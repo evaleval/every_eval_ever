@@ -1,7 +1,7 @@
 """Permanent storage for the raw payloads a refresh fetched.
 
 Raw data lives in its own private Hugging Face dataset, separate from the
-records it produced. Two things go there:
+records it produced. Three things go there:
 
 - **blobs** — each payload stored under its own content hash, so a payload that
   has not changed since the last run costs nothing to keep. This is what makes a
@@ -11,8 +11,16 @@ records it produced. Two things go there:
   ``load_dataset('json', data_files='ledger/**/*.jsonl')`` over the repo answers
   "what did this source look like on that date".
 
+- **state** — one small JSON file per adapter, ``state/<adapter>.json``,
+  overwritten only after a successful publish. It is the durable answer to
+  "what did this adapter last publish": the gating fingerprint the next run
+  compares against, and the adapter's pull request number. The ledger cannot
+  play this role — it is written *before* publishing (so a run that fails to
+  publish must not update the gate) and by every run (so a run would read back
+  its own fingerprint and conclude nothing changed).
+
 Each run writes its own ledger file, so parallel adapter jobs never contend for
-the same path and nothing is ever rewritten.
+the same path.
 """
 
 from __future__ import annotations
@@ -24,6 +32,7 @@ from pathlib import Path
 from typing import Any
 
 from huggingface_hub import CommitOperationAdd, HfApi, hf_hub_download
+from huggingface_hub.errors import EntryNotFoundError, RepositoryNotFoundError
 
 from every_eval_ever.helpers import raw_capture
 
@@ -31,6 +40,7 @@ DEFAULT_RAW_REPO_ID = 'evaleval/EEE_raw'
 
 BLOB_PREFIX = 'blobs'
 LEDGER_PREFIX = 'ledger'
+STATE_PREFIX = 'state'
 
 _logger = logging.getLogger(__name__)
 
@@ -49,10 +59,6 @@ class ArchiveResult:
     reused: int = 0
     uploaded_bytes: int = 0
     rows: list[dict[str, Any]] = field(default_factory=list)
-
-    @property
-    def payloads(self) -> int:
-        return self.uploaded + self.reused
 
 
 def blob_path(checksum: str, filename: str) -> str:
@@ -167,11 +173,17 @@ def archive(
             raise ArchiveError(
                 f'could not reach or create the raw dataset {repo_id}: {error}'
             ) from error
+    _require_private(api, repo_id)
 
     destination = ledger_path(adapter, run_date, run_id)
     result = ArchiveResult(repo_id=repo_id, ledger_path=destination, rows=rows)
     operations: list[CommitOperationAdd] = []
     planned: set[str] = set()
+    stored = _already_stored(
+        api,
+        repo_id,
+        [row['blob_path'] for row in rows if row['blob_path']],
+    )
 
     for row in rows:
         path_in_repo = row['blob_path']
@@ -179,9 +191,7 @@ def archive(
             # Fetched but not stored (over the capture ceiling). The ledger row
             # still records that it happened, and says so.
             continue
-        if path_in_repo in planned or _already_stored(
-            api, repo_id, path_in_repo
-        ):
+        if path_in_repo in planned or path_in_repo in stored:
             result.reused += 1
             continue
         payload = raw_dir / row['file_name']
@@ -230,71 +240,118 @@ def archive(
     return result
 
 
-def _already_stored(api: HfApi, repo_id: str, path_in_repo: str) -> bool:
+def _require_private(api: HfApi, repo_id: str) -> None:
+    """Refuse to archive into a dataset the world can read.
+
+    Checked immediately before every commit, not only at preflight: visibility
+    can change between the two, and raw source payloads are stored here on the
+    promise of privacy.
+    """
     try:
-        return api.file_exists(
-            repo_id=repo_id, filename=path_in_repo, repo_type='dataset'
+        info = api.repo_info(repo_id=repo_id, repo_type='dataset')
+    except Exception as error:
+        raise ArchiveError(
+            f'could not verify that {repo_id} is private: {error}'
+        ) from error
+    if not getattr(info, 'private', False):
+        raise ArchiveError(
+            f'{repo_id} is PUBLIC; refusing to archive raw payloads into it. '
+            'Make it private or point --raw-repo-id at a private dataset.'
+        )
+
+
+def _already_stored(api: HfApi, repo_id: str, paths: list[str]) -> set[str]:
+    """Return which of ``paths`` the raw dataset already holds, in one call."""
+    if not paths:
+        return set()
+    try:
+        found = api.get_paths_info(
+            repo_id=repo_id, paths=paths, repo_type='dataset'
         )
     except Exception as error:
         raise ArchiveError(
-            f'could not check {path_in_repo} in {repo_id}: {error}'
+            f'could not check existing blobs in {repo_id}: {error}'
         ) from error
+    return {entry.path for entry in found}
 
 
-def last_gating_fingerprint(
+def state_path(adapter: str) -> str:
+    """Return the per-adapter state file path in the raw dataset."""
+    return f'{STATE_PREFIX}/{adapter}.json'
+
+
+def read_state(
     adapter: str,
     *,
     repo_id: str = DEFAULT_RAW_REPO_ID,
     token: str | None = None,
     api: HfApi | None = None,
-) -> str | None:
-    """Return the fingerprint this adapter's most recent run recorded.
+) -> dict[str, Any] | None:
+    """Return what this adapter's last successful publish recorded.
 
-    The ledger is the durable memory of what the source looked like last time.
-    Reading it here rather than a build cache means a run cannot forget and
-    republish an adapter's whole set because a cache entry was evicted.
-
-    Returns ``None`` when there is nothing to compare against — no ledger, no
-    repository, or no fingerprint recorded — which makes the run publish. That
-    is the safe direction: it can add a duplicate, never lose a record.
+    The state file is the durable memory of the last publish — the gating
+    fingerprint and the pull request number. Returns ``None`` when there is
+    nothing to compare against: no state yet, no repository, or an unreadable
+    file. That makes the run publish, the safe direction — it can add a
+    duplicate, never lose a record.
     """
-    api = api or HfApi(token=token)
-    prefix = f'{LEDGER_PREFIX}/{adapter}/'
+    del api  # hf_hub_download manages its own client.
     try:
-        files = api.list_repo_files(repo_id=repo_id, repo_type='dataset')
+        local = hf_hub_download(
+            repo_id=repo_id,
+            filename=state_path(adapter),
+            repo_type='dataset',
+            token=token,
+            force_download=True,
+        )
+        return json.loads(Path(local).read_text(encoding='utf-8'))
+    except (RepositoryNotFoundError, EntryNotFoundError):
+        return None
     except Exception as error:
         _logger.warning(
-            'could not read the ledger in %s (%s); treating this run as new',
+            'could not read %s from %s (%s); treating this run as new',
+            state_path(adapter),
             repo_id,
             error,
         )
         return None
 
-    # Ledger names start with the run date, so the last one sorted is the most
-    # recent.
-    ledgers = sorted(
-        name
-        for name in files
-        if name.startswith(prefix) and name.endswith('.jsonl')
-    )
-    for name in reversed(ledgers):
-        try:
-            local = hf_hub_download(
-                repo_id=repo_id,
-                filename=name,
-                repo_type='dataset',
-                token=token,
-            )
-            rows = [
-                json.loads(line)
-                for line in Path(local).read_text(encoding='utf-8').splitlines()
-                if line.strip()
-            ]
-        except Exception as error:
-            _logger.warning('could not read ledger %s: %s', name, error)
-            return None
-        for row in rows:
-            fingerprint = row.get('gating_fingerprint')
-            if fingerprint:
-                return fingerprint
-    return None
+
+def write_state(
+    adapter: str,
+    state: dict[str, Any],
+    *,
+    repo_id: str = DEFAULT_RAW_REPO_ID,
+    token: str | None = None,
+    api: HfApi | None = None,
+) -> None:
+    """Record a successful publish, for the next run to compare against.
+
+    Called only after the datastore commit succeeded: a run that failed to
+    publish must leave the previous state in place, or its records would be
+    skipped as "unchanged" tomorrow and silently never reach the datastore.
+
+    Raises:
+        ArchiveError: if the state cannot be written. The publish already
+            happened, so the caller reports this loudly rather than unwinding —
+            the worst outcome of stale state is a duplicate publish tomorrow.
+    """
+    api = api or HfApi(token=token)
+    body = json.dumps(state, indent=2, sort_keys=True) + '\n'
+    try:
+        api.create_commit(
+            repo_id=repo_id,
+            repo_type='dataset',
+            operations=[
+                CommitOperationAdd(
+                    path_in_repo=state_path(adapter),
+                    path_or_fileobj=body.encode('utf-8'),
+                )
+            ],
+            commit_message=f'{adapter}: record publish state',
+        )
+    except Exception as error:
+        raise ArchiveError(
+            f'could not record publish state for {adapter} in {repo_id}: '
+            f'{error}'
+        ) from error

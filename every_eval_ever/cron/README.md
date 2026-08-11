@@ -17,9 +17,11 @@ uv run python -m every_eval_ever.cron run vals_ai \
     --dry-run
 ```
 
-`--dry-run` does everything except the commit, which makes it the way to check
-an adapter before letting the schedule near it. Exit codes: `0` published, `2`
-nothing new to publish, `1` failed. Generated records go under
+`--dry-run` does everything except the commits, which makes it the way to check
+an adapter before letting the schedule near it. Exit codes: `0` published, `3`
+nothing new to publish, `1` failed. (`3` rather than `2`: argparse exits `2` on
+a usage error, and the workflow treats the nothing-new code as success — a flag
+typo must fail loudly, not read as a quiet day.) Generated records go under
 `<work-dir>/data/`, raw payloads under `<work-dir>/raw/`, and the run summary to
 `<work-dir>/summary.json`.
 
@@ -82,14 +84,19 @@ carries `type_of_addition: cron`, `cron_run_date`, `cron_adapter`, and
 name them in `cron_unknown_inferred_fields`, which is how a later pass finds the
 records still needing a real value.
 
-**Raw data is kept permanently.** Payloads go to a private dataset of their own,
-`evaleval/EEE_raw` (override with the `EEE_RAW_REPO_ID` repository variable), laid
-out as:
+**Raw data is kept permanently, and privately.** Payloads go to a private
+dataset of their own, `evaleval/EEE_raw` (override with the `EEE_RAW_REPO_ID`
+repository variable), laid out as:
 
 ```
 blobs/<ab>/<sha256>.<ext>              # one copy per distinct payload, ever
 ledger/<adapter>/<date>-<run>.jsonl    # one row per payload per run
+state/<adapter>.json                   # what the last successful publish was
 ```
+
+Privacy is enforced, not assumed: preflight fails if the raw dataset is public,
+and the archive re-checks visibility immediately before every commit and
+refuses to write to a public dataset.
 
 Payloads are **content-addressed**, so a source that has not changed since
 yesterday costs nothing but a ledger row — which is what makes keeping every day
@@ -124,11 +131,17 @@ produced or nothing at all, so no individual record is ever dropped.
 Record-level de-duplication is still open, and it is why the high-volume
 `hfopenllm_v2` adapter is not scheduled yet.
 
-The fingerprint is read back from the ledger, so the memory of what the source
-looked like last night is as durable as the raw data itself — not a build cache
-that can be evicted and take a whole adapter's set with it. If it cannot be read,
-the run publishes: the safe direction, since it can only add a duplicate, never
-lose a record.
+The previous fingerprint is read from `state/<adapter>.json`, which is written
+**only after a successful publish** — three properties hang off that one
+sentence. A run can never compare against a fingerprint it wrote itself (the
+ledger is written before publishing, which is why it cannot be the gate). A run
+that failed to publish leaves the old state, so its records are retried the
+next day instead of skipped as "unchanged" and silently lost. And a partial
+publish records `partial: true`, which the next run treats as "publish
+regardless", so the records that failed conversion get another attempt — at the
+cost of re-adding the ones that succeeded, which is the correct side of that
+trade. If the state cannot be read, the run publishes: the safe direction,
+since it can only add a duplicate, never lose a record.
 
 ## Known gaps
 

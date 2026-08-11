@@ -10,13 +10,6 @@ import pytest
 from every_eval_ever.helpers import fetch, raw_capture
 
 
-@pytest.fixture(autouse=True)
-def _forget_recorded_payloads():
-    raw_capture.reset_recorded_state()
-    yield
-    raw_capture.reset_recorded_state()
-
-
 class _Response:
     """The parts of a requests response the fetch helpers use."""
 
@@ -69,16 +62,40 @@ def test_capture_writes_the_body_verbatim_and_records_it(
     assert entry['sha256']
 
 
-def test_capture_filename_is_stable_for_a_url(monkeypatch, tmp_path: Path):
+def test_refetching_identical_bytes_reuses_the_same_file(
+    monkeypatch, tmp_path: Path
+):
     monkeypatch.setenv(raw_capture.RAW_CAPTURE_DIR_ENV, str(tmp_path))
     url = 'https://x.invalid/api/v1/leaderboard.json'
 
-    first = raw_capture.capture_response(url, b'a')
-    raw_capture.reset_recorded_state()
-    second = raw_capture.capture_response(url, b'bb')
+    first = raw_capture.capture_response(url, b'same')
+    second = raw_capture.capture_response(url, b'same')
 
     assert first == second
-    assert second.read_bytes() == b'bb'
+    assert len(raw_capture.read_manifest(tmp_path)) == 1
+
+
+def test_one_url_serving_two_bodies_keeps_both(monkeypatch, tmp_path: Path):
+    # Each manifest row must keep pointing at exactly the bytes it hashed:
+    # overwriting would let the archive store one body under the other's hash.
+    monkeypatch.setenv(raw_capture.RAW_CAPTURE_DIR_ENV, str(tmp_path))
+    url = 'https://x.invalid/api/v1/leaderboard.json'
+
+    first = raw_capture.capture_response(url, b'morning')
+    second = raw_capture.capture_response(url, b'evening')
+
+    assert first != second
+    assert first.read_bytes() == b'morning'
+    assert second.read_bytes() == b'evening'
+    rows = raw_capture.read_manifest(tmp_path)
+    assert len(rows) == 2
+    by_file = {row['file']: row['sha256'] for row in rows}
+    import hashlib
+
+    for path in (first, second):
+        assert (
+            by_file[path.name] == hashlib.sha256(path.read_bytes()).hexdigest()
+        )
 
 
 def test_two_urls_sharing_a_last_segment_do_not_collide(
@@ -158,7 +175,6 @@ def test_fingerprint_ignores_when_the_payload_was_retrieved(
     second = tmp_path / 'second'
     for directory in (first, second):
         monkeypatch.setenv(raw_capture.RAW_CAPTURE_DIR_ENV, str(directory))
-        raw_capture.reset_recorded_state()
         raw_capture.capture_response('https://x.invalid/a.json', b'{"a": 1}')
 
     assert raw_capture.fingerprint(first) == raw_capture.fingerprint(second)
@@ -172,7 +188,6 @@ def test_fingerprint_changes_when_the_payload_changes(
     bodies = [b'{"a": 1}', b'{"a": 2}']
     for directory, body in zip((first, second), bodies):
         monkeypatch.setenv(raw_capture.RAW_CAPTURE_DIR_ENV, str(directory))
-        raw_capture.reset_recorded_state()
         raw_capture.capture_response('https://x.invalid/a.json', body)
 
     assert raw_capture.fingerprint(first) != raw_capture.fingerprint(second)
@@ -206,7 +221,6 @@ def test_indexing_skips_the_manifest_itself(monkeypatch, tmp_path: Path):
     monkeypatch.setenv(raw_capture.RAW_CAPTURE_DIR_ENV, str(tmp_path))
     raw_capture.capture_response('https://x.invalid/a.json', b'{}')
 
-    raw_capture.reset_recorded_state()
     assert raw_capture.index_unlisted_payloads(tmp_path) == []
 
 
@@ -215,11 +229,11 @@ def test_an_unreadable_ceiling_falls_back_to_the_default(monkeypatch):
     assert raw_capture.max_capture_bytes() == raw_capture.DEFAULT_MAX_BYTES
 
 
-def test_the_same_filename_in_two_directories_is_recorded_in_both(
+def test_the_same_payload_in_two_directories_is_recorded_in_both(
     monkeypatch, tmp_path: Path
 ):
-    # One process can capture into several directories in turn; a payload name
-    # already seen elsewhere must not be skipped for the current directory.
+    # Dedup state lives in each directory's manifest, so one process capturing
+    # into several directories records the payload in each.
     first = tmp_path / 'first'
     second = tmp_path / 'second'
     for directory in (first, second):
@@ -229,6 +243,24 @@ def test_the_same_filename_in_two_directories_is_recorded_in_both(
     assert len(raw_capture.read_manifest(first)) == 1
     assert len(raw_capture.read_manifest(second)) == 1
     assert raw_capture.fingerprint(second) is not None
+
+
+def test_a_cleared_capture_directory_starts_from_an_empty_record(
+    monkeypatch, tmp_path: Path
+):
+    # The regression the manifest-based dedup exists for: clearing and reusing
+    # a directory must not leave phantom memory of the old contents.
+    import shutil
+
+    monkeypatch.setenv(raw_capture.RAW_CAPTURE_DIR_ENV, str(tmp_path / 'raw'))
+    raw_capture.capture_response('https://x.invalid/a.json', b'{"a": 1}')
+    shutil.rmtree(tmp_path / 'raw')
+
+    raw_capture.capture_response('https://x.invalid/a.json', b'{"a": 1}')
+
+    rows = raw_capture.read_manifest(tmp_path / 'raw')
+    assert len(rows) == 1
+    assert (tmp_path / 'raw' / rows[0]['file']).is_file()
 
 
 def test_an_adapter_written_dump_is_archived_but_not_fingerprinted(

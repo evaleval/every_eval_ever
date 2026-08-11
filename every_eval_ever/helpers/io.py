@@ -523,6 +523,25 @@ def save_evaluation_log(
     )[0]
 
 
+def serialize_evaluation_log(log: 'EvaluationLog') -> str:
+    """Serialize a validated log exactly as the datastore stores it.
+
+    The one definition of the on-disk record format. Anything that rewrites a
+    record in place (the cron's provenance stamp, for example) must use this
+    same serializer, or its rewrite touches every byte of the file instead of
+    only the fields it changed.
+    """
+    return (
+        json.dumps(
+            log.model_dump(mode='json', exclude_none=True),
+            indent=2,
+            ensure_ascii=False,
+            allow_nan=False,
+        )
+        + '\n'
+    )
+
+
 def _prepare_evaluation_logs(
     outputs: Iterable[EvaluationLogOutput],
 ) -> list[_PreparedEvaluationLog]:
@@ -557,14 +576,10 @@ def _prepare_evaluation_logs(
             raise FileExistsError(f'refusing to overwrite output file {path}')
         paths.add(path)
 
-        json_text = json.dumps(
-            validated.model_dump(mode='json', exclude_none=True),
-            indent=2,
-            ensure_ascii=False,
-            allow_nan=False,
-        )
         prepared.append(
-            _PreparedEvaluationLog(path=path, json_text=json_text + '\n')
+            _PreparedEvaluationLog(
+                path=path, json_text=serialize_evaluation_log(validated)
+            )
         )
     return prepared
 

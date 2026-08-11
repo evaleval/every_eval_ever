@@ -16,11 +16,15 @@ REPO = 'evaleval/EEE_datastore'
 class _Discussion:
     title: str
     num: int
+    author: str = 'eee-cron-bot'
 
 
 @dataclass
 class _CommitInfo:
     pr_url: str | None
+
+
+CRON_ACCOUNT = 'eee-cron-bot'
 
 
 class _FakeApi:
@@ -31,9 +35,19 @@ class _FakeApi:
         self.commits: list[dict] = []
         self.next_pr = 42
 
+    def whoami(self):
+        return {'name': CRON_ACCOUNT}
+
     def get_repo_discussions(self, **kwargs):
         self.query = kwargs
-        return iter(self.discussions)
+        author = kwargs.get('author')
+        return iter(
+            [
+                discussion
+                for discussion in self.discussions
+                if author is None or discussion.author == author
+            ]
+        )
 
     def create_commit(self, **kwargs):
         self.commits.append(kwargs)
@@ -143,7 +157,10 @@ def test_large_sets_are_split_across_commits(tmp_path: Path):
     ]
 
 
-def test_batched_commit_messages_say_the_set_is_incomplete(tmp_path: Path):
+def test_the_pr_creating_commit_carries_the_bare_title(tmp_path: Path):
+    # The Hub titles the PR from the first commit's message, and find_open_pr
+    # matches that title exactly tomorrow. A batch suffix here would title the
+    # PR '... (1/2)' and every later day would open a fresh PR.
     data_root = _records(tmp_path, 3)
     api = _FakeApi()
 
@@ -155,8 +172,46 @@ def test_batched_commit_messages_say_the_set_is_incomplete(tmp_path: Path):
         files_per_commit=2,
     )
 
-    assert api.commits[0]['commit_message'].endswith('(1/2)')
+    assert api.commits[0]['commit_message'] == publish.pr_title('vals_ai')
+    assert api.commits[0]['commit_description'].startswith('Batch 1/2')
     assert api.commits[1]['commit_message'].endswith('(2/2)')
+
+
+def test_a_batched_first_publish_is_found_again_the_next_day(tmp_path: Path):
+    data_root = _records(tmp_path, 3)
+    api = _FakeApi()
+    publish.publish(
+        data_root, adapter='vals_ai', repo_id=REPO, api=api, files_per_commit=2
+    )
+    # The Hub would have titled the PR from the first commit's message.
+    api.discussions.append(
+        _Discussion(title=api.commits[0]['commit_message'], num=42)
+    )
+
+    assert publish.find_open_pr(api, REPO, 'vals_ai') == 42
+
+
+def test_a_strangers_pr_with_the_cron_title_is_not_adopted(tmp_path: Path):
+    # The datastore is public: anyone can open a PR with any title. Committing
+    # onto it would hand them control of where the cron's records land.
+    data_root = _records(tmp_path, 1)
+    api = _FakeApi(
+        [
+            _Discussion(
+                title=publish.pr_title('vals_ai'),
+                num=7,
+                author='someone-else',
+            )
+        ]
+    )
+
+    result = publish.publish(
+        data_root, adapter='vals_ai', repo_id=REPO, api=api
+    )
+
+    assert result.reused_existing_pr is False
+    assert api.commits[0]['create_pr'] is True
+    assert api.query['author'] == CRON_ACCOUNT
 
 
 def test_records_keep_their_datastore_path(tmp_path: Path):

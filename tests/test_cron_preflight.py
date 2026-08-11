@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from huggingface_hub.errors import RepositoryNotFoundError
+
 from every_eval_ever.cron import preflight
 
 DATASTORE = 'evaleval/EEE_datastore'
@@ -35,7 +37,7 @@ class _FakeApi:
 
     def repo_info(self, *, repo_id, repo_type):
         if repo_id not in self.repos:
-            raise RuntimeError(f'404 {repo_id}')
+            raise RepositoryNotFoundError(f'404 {repo_id}')
         return self.repos[repo_id]
 
     def create_repo(self, *, repo_id, repo_type, private, exist_ok):
@@ -122,7 +124,9 @@ def test_a_token_that_cannot_create_the_raw_dataset_fails_early():
     assert raw in preflight.failed(checks)
 
 
-def test_a_public_raw_dataset_warns_but_does_not_block():
+def test_a_public_raw_dataset_fails_preflight():
+    # Raw source payloads are stored on the promise of privacy; a public
+    # destination blocks the whole refresh rather than warning past it.
     api = _FakeApi(
         identity={'name': 'bot'},
         repos={DATASTORE: _Info(), RAW: _Info(private=False)},
@@ -131,12 +135,48 @@ def test_a_public_raw_dataset_warns_but_does_not_block():
     checks = preflight.run_preflight(environment=_environment(), api=api)
 
     raw = _named(checks, 'raw dataset')
-    assert raw.ok
-    assert raw.required is False
-    assert 'public' in raw.detail
+    assert not raw.ok
+    assert 'PUBLIC' in raw.detail
     # Not flipped automatically: changing a repo's visibility is not ours to do.
     assert api.created == []
-    assert not preflight.failed(checks)
+    assert raw in preflight.failed(checks)
+
+
+def test_a_read_only_token_fails_preflight():
+    api = _FakeApi(
+        identity={
+            'name': 'bot',
+            'auth': {'accessToken': {'role': 'read'}},
+        },
+        repos={DATASTORE: _Info(), RAW: _Info()},
+    )
+
+    checks = preflight.run_preflight(environment=_environment(), api=api)
+
+    token = _named(checks, 'hugging face token')
+    assert not token.ok
+    assert 'read-only' in token.detail
+    assert preflight.failed(checks)
+
+
+def test_a_transient_error_is_not_treated_as_a_missing_raw_dataset():
+    # Creating (or blessing) a repo on the basis of a 500 could mask a public
+    # dataset behind a green check.
+    class _Flaky(_FakeApi):
+        def repo_info(self, *, repo_id, repo_type):
+            if repo_id == RAW:
+                raise RuntimeError('500 internal server error')
+            return super().repo_info(repo_id=repo_id, repo_type=repo_type)
+
+    api = _Flaky(identity={'name': 'bot'}, repos={DATASTORE: _Info()})
+
+    checks = preflight.run_preflight(environment=_environment(), api=api)
+
+    raw = _named(checks, 'raw dataset')
+    assert not raw.ok
+    assert 'could not read' in raw.detail
+    assert api.created == []
+    assert raw in preflight.failed(checks)
 
 
 def test_a_missing_raw_dataset_can_be_reported_without_creating_it():

@@ -78,13 +78,21 @@ def find_open_pr(
     repo_id: str,
     adapter: str,
 ) -> int | None:
-    """Return the number of this adapter's open cron pull request, if any."""
+    """Return the number of this adapter's open cron pull request, if any.
+
+    Matched by title *and* author: the datastore is public, so anyone can open
+    a pull request with any title, and committing onto a stranger's PR would
+    hand them control of where the cron's records land. Only PRs opened by the
+    account the cron authenticates as are candidates.
+    """
     title = pr_title(adapter)
+    author = api.whoami().get('name')
     for discussion in api.get_repo_discussions(
         repo_id=repo_id,
         repo_type='dataset',
         discussion_type='pull_request',
         discussion_status='open',
+        author=author,
     ):
         if discussion.title.strip() == title:
             return discussion.num
@@ -135,12 +143,23 @@ def publish(
         ]
         suffix = f' ({index}/{total})' if total > 1 else ''
         if pr_number is None:
+            # The Hub titles a created PR from this commit's message, and
+            # find_open_pr matches that title exactly tomorrow — so the
+            # PR-creating commit must carry the bare title, never the batch
+            # suffix. The suffix still marks the follow-up commits, which are
+            # ordinary commits on the PR ref.
+            description = commit_description
+            if total > 1:
+                description = (
+                    f'Batch 1/{total}; the set is incomplete until the last '
+                    f'batch lands.\n\n{commit_description}'
+                )
             info = api.create_commit(
                 repo_id=repo_id,
                 repo_type='dataset',
                 operations=operations,
-                commit_message=f'{pr_title(adapter)}{suffix}',
-                commit_description=commit_description,
+                commit_message=pr_title(adapter),
+                commit_description=description,
                 create_pr=True,
             )
             pr_url = info.pr_url
