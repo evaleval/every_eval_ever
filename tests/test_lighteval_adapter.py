@@ -121,6 +121,46 @@ def test_flatten_model_config_drops_credentials():
     assert 'timeout' not in flattened
 
 
+def test_inference_server_auth_is_redacted():
+    """The field lighteval's own fix named that this converter did not know about.
+
+    huggingface/lighteval#1326 made `api_key` a SecretStr and excluded BOTH
+    `api_key` and `inference_server_auth` at the dump site. We had only the first.
+    That fix does not make this redaction redundant: every results file written
+    before it still carries the value in cleartext, and archived results files are
+    precisely what a converter is pointed at.
+    """
+    flattened, redacted = flatten_model_config(
+        {
+            'model_name': 'local/llama',
+            'inference_server_address': 'http://10.0.0.4:8080',
+            'inference_server_auth': 'Bearer NOT-A-REAL-TOKEN-FIXTURE-ONLY',
+        }
+    )
+    assert 'inference_server_auth' in redacted
+    assert 'inference_server_auth' not in flattened
+    assert 'NOT-A-REAL-TOKEN-FIXTURE-ONLY' not in json.dumps(flattened)
+    # The address is provenance, not a credential, and must survive.
+    assert flattened['inference_server_address'] == 'http://10.0.0.4:8080'
+
+
+def test_auth_suffix_does_not_swallow_ordinary_settings():
+    """`_auth` must not become a wildcard for anything vaguely security-shaped."""
+    flattened, redacted = flatten_model_config(
+        {
+            'model_name': 'local/llama',
+            'requires_auth': True,
+            'authorized_users': 3,
+        }
+    )
+    # These are settings, not secrets; only an `_auth` SUFFIX redacts.
+    assert redacted == []
+    # flatten_model_config returns str values, so these arrive JSON-encoded. What
+    # matters is that they arrive at all rather than being redacted away.
+    assert flattened['requires_auth'] == 'true'
+    assert flattened['authorized_users'] == '3'
+
+
 # ── Adapter: transform_from_file ───────────────────────────────────────
 
 

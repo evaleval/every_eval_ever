@@ -23,9 +23,11 @@ SECRET_MODEL_CONFIG_KEYS = frozenset(
         'access_token',
         'api_key',
         'api_token',
+        'auth',
         'auth_token',
         'credentials',
         'hf_token',
+        'inference_server_auth',
         'key',
         'password',
         'secret',
@@ -33,16 +35,25 @@ SECRET_MODEL_CONFIG_KEYS = frozenset(
     }
 )
 
+# Sentinel for "no value supplied", since None is itself a value a caller may pass.
+_UNSET = object()
+
 # Suffixes that make a key credential-bearing whatever the provider prefix.
 # Nested `env_vars` mappings are where these actually appear: OPENAI_API_KEY,
 # AWS_SECRET_ACCESS_KEY, HUGGING_FACE_HUB_TOKEN. Anchoring on the suffix keeps
 # `tokenizer` and `max_tokens` out of the redaction set.
+#
+# `_auth` was added after lighteval's own fix (huggingface/lighteval#1326) excluded
+# BOTH `api_key` and `inference_server_auth`. We knew about the first and not the
+# second, which is the point: this list is a guess at someone else's field names, so
+# it should be widened whenever upstream tells us one we missed.
 _SECRET_KEY_SUFFIXES = (
     '_key',
     '_token',
     '_secret',
     '_password',
     '_credentials',
+    '_auth',
 )
 
 _DATE_ID_PATTERN = re.compile(
@@ -295,7 +306,7 @@ def resolve_metric_id(metric_name: str) -> tuple[str, str]:
     return f'{METRIC_ID_NAMESPACE}/{metric_name}', 'namespaced_unresolved'
 
 
-def _is_secret_key(key: Any) -> bool:
+def _is_secret_key(key: Any, value: Any = _UNSET) -> bool:
     """True if a config key names a credential.
 
     Exact names cover the common cases; the suffix rule catches the
@@ -309,8 +320,19 @@ def _is_secret_key(key: Any) -> bool:
     """
     lowered = str(key).lower()
     if lowered in SECRET_MODEL_CONFIG_KEYS:
+        # An exact name redacts whatever it holds. If a field called `api_key`
+        # carries something odd, that is still not worth publishing.
         return True
-    return lowered.endswith(_SECRET_KEY_SUFFIXES)
+    if not lowered.endswith(_SECRET_KEY_SUFFIXES):
+        return False
+    # A suffix is a weaker signal than a name, so require a value a credential
+    # could be. `requires_auth: True` ends in `_auth` but a boolean cannot carry
+    # a secret, and redacting it would delete provenance to no benefit. Anything
+    # not positively known to be harmless still redacts -- a missed credential in
+    # a published record is unrecoverable, while an over-redacted setting is not.
+    if value is _UNSET:
+        return True
+    return not isinstance(value, (bool, int, float))
 
 
 def _sanitize_config_value(
@@ -326,7 +348,7 @@ def _sanitize_config_value(
         cleaned: Dict[Any, Any] = {}
         for key, item in value.items():
             child_path = path + [str(key)]
-            if _is_secret_key(key):
+            if _is_secret_key(key, item):
                 redacted.append('.'.join(child_path))
                 continue
             cleaned[key] = _sanitize_config_value(item, child_path, redacted)
@@ -355,7 +377,7 @@ def flatten_model_config(
     for key, value in model_config.items():
         if value is None:
             continue
-        if _is_secret_key(key):
+        if _is_secret_key(key, value):
             redacted.append(str(key))
             continue
         if isinstance(value, str):
