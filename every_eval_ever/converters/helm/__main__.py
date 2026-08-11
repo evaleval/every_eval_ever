@@ -21,7 +21,7 @@ def parse_args():
     parser.add_argument(
         '--log_path',
         type=str,
-        default='tests/data/helm/mmlu:subject=philosophy,method=multiple_choice_joint,model=openai_gpt2',
+        default='tests/data/helm/mmlu-subject=philosophy,method=multiple_choice_joint,model=openai_gpt2',
         help='Path to directory with single evaluaion or multiple evaluations to convert',
     )
     parser.add_argument('--output_dir', type=str, default='data')

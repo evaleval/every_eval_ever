@@ -129,7 +129,7 @@ def test_mmlu_instance_level():
 
         converted_eval, instance_logs = _load_instance_level_data(
             adapter,
-            'tests/data/helm/mmlu:subject=philosophy,method=multiple_choice_joint,model=openai_gpt2',
+            'tests/data/helm/mmlu-subject=philosophy,method=multiple_choice_joint,model=openai_gpt2',
             metadata_args,
         )
 
@@ -193,7 +193,7 @@ def test_hellaswag_instance_level():
 
         _, instance_logs = _load_instance_level_data(
             adapter,
-            'tests/data/helm/commonsense:dataset=hellaswag,method=multiple_choice_joint,model=eleutherai_pythia-1b-v0',
+            'tests/data/helm/commonsense-dataset=hellaswag,method=multiple_choice_joint,model=eleutherai_pythia-1b-v0',
             metadata_args,
         )
 
@@ -238,7 +238,7 @@ def test_narrativeqa_instance_level():
 
         _, instance_logs = _load_instance_level_data(
             adapter,
-            'tests/data/helm/narrative_qa:model=openai_gpt2',
+            'tests/data/helm/narrative_qa-model=openai_gpt2',
             metadata_args,
         )
 
@@ -285,7 +285,7 @@ def test_per_sample_core_metric_rows_are_emitted():
         }
         _, instance_logs = _load_instance_level_data(
             adapter,
-            'tests/data/helm/mmlu:subject=philosophy,method=multiple_choice_joint,model=openai_gpt2',
+            'tests/data/helm/mmlu-subject=philosophy,method=multiple_choice_joint,model=openai_gpt2',
             metadata_args,
         )
         rows_for_id147 = [
@@ -316,7 +316,7 @@ def test_bookkeeping_stats_are_not_emitted_as_metric_rows():
         }
         _, instance_logs = _load_instance_level_data(
             adapter,
-            'tests/data/helm/mmlu:subject=philosophy,method=multiple_choice_joint,model=openai_gpt2',
+            'tests/data/helm/mmlu-subject=philosophy,method=multiple_choice_joint,model=openai_gpt2',
             metadata_args,
         )
 
@@ -354,7 +354,7 @@ def test_graded_core_metrics_are_not_binary_correctness():
         }
         _, narr_logs = _load_instance_level_data(
             adapter,
-            'tests/data/helm/narrative_qa:model=openai_gpt2',
+            'tests/data/helm/narrative_qa-model=openai_gpt2',
             metadata_args2,
         )
         # Graded generation metrics also should not be coerced into a
@@ -384,7 +384,7 @@ def test_is_correct_is_true_for_correct_exact_match_rows():
         }
         _, instance_logs = _load_instance_level_data(
             adapter,
-            'tests/data/helm/mmlu:subject=philosophy,method=multiple_choice_joint,model=openai_gpt2',
+            'tests/data/helm/mmlu-subject=philosophy,method=multiple_choice_joint,model=openai_gpt2',
             metadata_args,
         )
         # Correctness metrics are the exception: positive exact-match rows
@@ -447,7 +447,7 @@ def test_evaluation_result_id_helper_disambiguates_split_and_perturbation():
 
 def test_total_rows_matches_core_per_instance_stats():
     _require_helm()
-    fixture = 'tests/data/helm/mmlu:subject=philosophy,method=multiple_choice_joint,model=openai_gpt2'
+    fixture = 'tests/data/helm/mmlu-subject=philosophy,method=multiple_choice_joint,model=openai_gpt2'
     adapter = HELMAdapter()
     with tempfile.TemporaryDirectory() as tmpdir:
         metadata_args = {
@@ -485,7 +485,7 @@ def test_instance_evaluation_result_ids_join_to_aggregate_results():
         }
         converted_eval, instance_logs = _load_instance_level_data(
             adapter,
-            'tests/data/helm/mmlu:subject=philosophy,method=multiple_choice_joint,model=openai_gpt2',
+            'tests/data/helm/mmlu-subject=philosophy,method=multiple_choice_joint,model=openai_gpt2',
             metadata_args,
         )
 
@@ -519,7 +519,7 @@ def test_aggregate_evaluation_result_ids_are_unique_and_non_null():
         }
         converted_eval, _ = _load_instance_level_data(
             adapter,
-            'tests/data/helm/mmlu:subject=philosophy,method=multiple_choice_joint,model=openai_gpt2',
+            'tests/data/helm/mmlu-subject=philosophy,method=multiple_choice_joint,model=openai_gpt2',
             metadata_args,
         )
 
@@ -596,7 +596,7 @@ def test_reasoning_traces_none_does_not_break_conversion(monkeypatch):
         }
         _, instance_logs = _load_instance_level_data(
             adapter,
-            'tests/data/helm/mmlu:subject=philosophy,method=multiple_choice_joint,model=openai_gpt2',
+            'tests/data/helm/mmlu-subject=philosophy,method=multiple_choice_joint,model=openai_gpt2',
             metadata_args,
         )
         assert instance_logs
