@@ -14,6 +14,11 @@ re-validates those templates against the live validator, so they stay current.
 
 Each adapter is run with `uv run python -m every_eval_ever.adapters.<name>.adapter`.
 
+Most of these also run on a daily schedule, which archives what they fetch and
+sends each adapter's records to its own datastore pull request — see
+[`every_eval_ever/cron/README.md`](../cron/README.md). Adding an adapter here
+means deciding whether it belongs on that schedule; a test fails until you do.
+
 ## Adapters
 
 | Adapter | Data Source | Description |

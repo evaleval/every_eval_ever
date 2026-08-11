@@ -1,0 +1,101 @@
+# Daily adapter refresh
+
+A scheduled refresh of the source adapters. Each adapter runs on its own,
+archives what it fetched, marks its records as cron-produced, validates them,
+and commits them to that adapter's own pull request on the
+[datastore](https://huggingface.co/datasets/evaleval/EEE_datastore).
+
+Workflow: [`.github/workflows/adapter_cron.yml`](../../.github/workflows/adapter_cron.yml).
+
+## Running it by hand
+
+```bash
+uv run python -m every_eval_ever.cron list
+
+uv run python -m every_eval_ever.cron run vals_ai \
+    --work-dir /tmp/cron-vals-ai \
+    --dry-run
+```
+
+`--dry-run` does everything except the commit, which makes it the way to check
+an adapter before letting the schedule near it. Exit codes: `0` published, `2`
+nothing new to publish, `1` failed. Generated records go under
+`<work-dir>/data/`, raw payloads under `<work-dir>/raw/`, and the run summary to
+`<work-dir>/summary.json`.
+
+Publishing for real needs `HF_TOKEN` with write access to the datastore.
+
+## Adding an adapter to the schedule
+
+Add a `CronAdapter` to `CRON_ADAPTERS` in [`schedule.py`](schedule.py). An
+adapter directory that is in neither `CRON_ADAPTERS` nor `EXCLUDED_ADAPTERS`
+fails `tests/test_cron_schedule.py`, so a new adapter has to be a decision
+rather than an oversight.
+
+The runner invokes an adapter with the scratch tree as its working directory and
+lets it write to its own default `data/` path. It does not pass `--output-dir`,
+because adapters disagree about whether that flag names the base directory or
+the collection directory.
+
+Declare `raw_policy` honestly — it is what the run reports as archived:
+
+| Policy | Meaning |
+|---|---|
+| `VIA_FETCH_HELPERS` | Fetches through `helpers.fetch`, so the shared hook archives the response body as served |
+| `VIA_ADAPTER_FLAG` | Archived by the adapter's own `--save-raw-*` flag, named in `raw_args` |
+| `UPSTREAM_VERSIONED` | A HuggingFace dataset revision or a git commit; deliberately not re-archived |
+| `NOT_CAPTURED` | The adapter calls an HTTP client directly and exposes no flag — a gap |
+
+A `VIA_ADAPTER_FLAG` dump is archived but does **not** decide whether the source
+moved. Those files are derived: `hle`'s wraps the payload in a `fetched_at`
+timestamp and `vals_ai`'s is a normalized form, so comparing them across runs
+reports a change every single day. Only a body stored exactly as the server sent
+it counts, which in practice means the shared hook.
+
+## What the cron guarantees
+
+**One adapter cannot break another.** Every adapter is a separate workflow job
+with its own timeout, so a hang or a failure is confined to it. Within one
+adapter, an invocation that fails does not stop the remaining ones, and the
+records that did convert are still published — an adapter reports a *partial*
+conversion by writing every valid record and then exiting non-zero, so a
+non-zero exit is reported, never treated as a reason to discard data.
+
+**Every record says where it came from.** `source_metadata.additional_details`
+carries `type_of_addition: cron`, `cron_run_date`, `cron_adapter`, and
+`cron_run_url`. Records whose inferred deployment axes came out `unknown` also
+name them in `cron_unknown_inferred_fields`, which is how a later pass finds the
+records still needing a real value.
+
+**Raw data is kept.** Payloads land in the workflow run's artifact, which is
+where the run summary and any `adapter_reports/` go too. Artifacts expire after
+90 days — a durable home for raw data is the obvious next step, not something
+this solves.
+
+**An unchanged source publishes nothing.** A run fingerprints the source and
+stops if it matches the previous run — using the verbatim response bodies where
+it has them, and otherwise the generated records with per-run values
+(`retrieved_timestamp`, `evaluation_id`, the record UUID, the cron stamp)
+stripped out. This is run-level, not record-level: a run publishes everything it
+produced or nothing at all, so no individual record is ever dropped.
+Record-level de-duplication is still open, and it is why the high-volume
+`hfopenllm_v2` adapter is not scheduled yet.
+
+The fingerprint lives in the workflow's cache. A cache miss means the run
+publishes — the safe direction, since it can only ever add a duplicate, never
+lose a record.
+
+## Known gaps
+
+- Raw payloads expire with the workflow artifact after 90 days.
+- `hal`, `lexam`, and `mt_bench` archive no raw data: they call an HTTP client
+  directly and expose no raw-dump flag. They fall back to the output
+  fingerprint, so they still will not republish unchanged records.
+- `hle`, `terminal_bench_2`, and `vals_ai` archive raw data through their own
+  flags, which is enough to keep it but not to compare runs, so they are gated
+  on their output too. Routing them through `helpers.fetch` would fix that.
+- Records accumulate in each adapter's pull request until someone merges it.
+  Nothing here de-duplicates against what the datastore already holds.
+- The workflow installs `--all-extras` because three adapters read HuggingFace
+  datasets through `datasets`, which reaches the lock only via the `helm` extra.
+  A dedicated extra would be lighter.

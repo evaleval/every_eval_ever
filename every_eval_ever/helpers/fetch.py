@@ -6,6 +6,8 @@ from typing import Any, Dict, List, Optional
 
 import requests
 
+from every_eval_ever.helpers.raw_capture import capture_response
+
 DEFAULT_TIMEOUT = 60  # seconds
 
 
@@ -37,6 +39,12 @@ def fetch_json(
     try:
         response = requests.get(url, timeout=timeout, headers=headers)
         response.raise_for_status()
+        # Capture before parsing, so a malformed body is still archived.
+        capture_response(
+            url,
+            response.content,
+            content_type=response.headers.get('Content-Type'),
+        )
         return response.json()
     except requests.exceptions.RequestException as e:
         raise FetchError(f'Failed to fetch {url}: {e}') from e
@@ -68,6 +76,11 @@ def fetch_csv(
             url, timeout=timeout, headers=headers, allow_redirects=True
         )
         response.raise_for_status()
+        capture_response(
+            url,
+            response.content,
+            content_type=response.headers.get('Content-Type'),
+        )
         reader = csv.DictReader(io.StringIO(response.text))
         return list(reader)
     except requests.exceptions.RequestException as e:

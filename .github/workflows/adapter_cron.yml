@@ -1,0 +1,180 @@
+name: Daily adapter refresh
+
+# Refreshes each source adapter once a day and sends its records to that
+# adapter's own datastore pull request. One matrix job per adapter, so each has
+# its own 6-hour job budget, its own failure, and its own PR: a slow or broken
+# adapter cannot hold up the others.
+#
+# Design notes and how to add an adapter: every_eval_ever/cron/README.md
+
+on:
+  schedule:
+    # 04:17 UTC. Off the hour, where scheduled-workflow queues are shortest.
+    - cron: '17 4 * * *'
+  workflow_dispatch:
+    inputs:
+      adapter:
+        description: 'Single adapter to refresh (blank = every scheduled adapter)'
+        required: false
+        type: string
+      dry_run:
+        description: 'Run everything except the datastore commit'
+        type: boolean
+        default: false
+      force:
+        description: 'Publish even if the source has not changed since the last run'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  # Never let two refreshes of the same adapter race for its pull request.
+  group: adapter-cron
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    name: Plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      adapters: ${{ steps.plan.outputs.adapters }}
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - uses: astral-sh/setup-uv@v7.6.0
+      - name: Install dependencies
+        env:
+          UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/eee-venv
+        run: uv sync --locked
+      - name: Decide which adapters to refresh
+        id: plan
+        env:
+          UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/eee-venv
+          # Present here only so the schedule can tell a credentialed adapter
+          # apart from an unconfigured one.
+          ARTIFICIAL_ANALYSIS_API_KEY: ${{ secrets.ARTIFICIAL_ANALYSIS_API_KEY }}
+          LLM_STATS_API_KEY: ${{ secrets.LLM_STATS_API_KEY }}
+          REQUESTED: ${{ inputs.adapter }}
+        run: |
+          set -euo pipefail
+          if [ -n "${REQUESTED}" ]; then
+            printf 'adapters=["%s"]\n' "${REQUESTED}" >> "$GITHUB_OUTPUT"
+            echo "Refreshing only ${REQUESTED} (manual dispatch)." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          uv run python -m every_eval_ever.cron list > plan.json
+          jq -c '.adapters' plan.json | sed 's/^/adapters=/' >> "$GITHUB_OUTPUT"
+          {
+            echo '## Planned refresh'
+            echo
+            echo "Adapters: $(jq -r '.adapters | join(", ")' plan.json)"
+            echo
+            echo '### Not run today'
+            jq -r '.skipped | to_entries[] | "- **\(.key)**: \(.value)"' plan.json
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  refresh:
+    name: ${{ matrix.adapter }}
+    needs: plan
+    if: needs.plan.outputs.adapters != '[]'
+    runs-on: ubuntu-latest
+    # Well under the 6-hour job ceiling: an adapter that hangs should fail
+    # today rather than burn a runner and collide with tomorrow's run.
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      # Raise this to widen the daily wave; it only exists so a refresh leaves
+      # runner capacity for pull request CI.
+      max-parallel: 6
+      matrix:
+        adapter: ${{ fromJSON(needs.plan.outputs.adapters) }}
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - uses: astral-sh/setup-uv@v7.6.0
+      - name: Install dependencies
+        # --all-extras because three adapters read HuggingFace datasets through
+        # `datasets`, which reaches the lock only via the helm extra.
+        env:
+          UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/eee-venv
+        run: uv sync --locked --all-extras
+
+      - name: Restore the previous run fingerprint
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/fingerprint
+          key: eee-cron-fingerprint-${{ matrix.adapter }}-${{ github.run_id }}
+          restore-keys: |
+            eee-cron-fingerprint-${{ matrix.adapter }}-
+
+      - name: Refresh ${{ matrix.adapter }}
+        id: refresh
+        env:
+          UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/eee-venv
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          ARTIFICIAL_ANALYSIS_API_KEY: ${{ secrets.ARTIFICIAL_ANALYSIS_API_KEY }}
+          LLM_STATS_API_KEY: ${{ secrets.LLM_STATS_API_KEY }}
+        run: |
+          set -uo pipefail
+          # The default shell is `bash -e`, which would abort the step before the
+          # exit code can be read. Exit 2 is a successful no-op, not a failure.
+          set +e
+          uv run python -m every_eval_ever.cron run "${{ matrix.adapter }}" \
+            --work-dir "${{ runner.temp }}/cron-work" \
+            --fingerprint "${{ runner.temp }}/fingerprint/${{ matrix.adapter }}" \
+            --summary "${{ runner.temp }}/cron-work/summary.json" \
+            --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            ${{ inputs.dry_run && '--dry-run' || '' }} \
+            ${{ inputs.force && '--force' || '' }}
+          code=$?
+          set -e
+          case "$code" in
+            0) echo 'published=true' >> "$GITHUB_OUTPUT" ;;
+            2) echo 'published=false' >> "$GITHUB_OUTPUT" ;;
+            *) echo 'published=false' >> "$GITHUB_OUTPUT"; exit "$code" ;;
+          esac
+
+      - name: Summarise the run
+        if: always()
+        run: |
+          summary="${{ runner.temp }}/cron-work/summary.json"
+          [ -f "$summary" ] || { echo "No summary written." >> "$GITHUB_STEP_SUMMARY"; exit 0; }
+          {
+            echo "## ${{ matrix.adapter }}"
+            echo
+            jq -r '"- Status: **\(.status)** — \(.detail)",
+                   "- Records: \(.records) in \(.collections | join(", "))",
+                   "- Raw payloads archived: \(.raw_payloads) (\(.raw_bytes) bytes, policy \(.raw_policy))",
+                   "- Fingerprint source: \(.fingerprint_source // "n/a")"' "$summary"
+            jq -r 'if (.defaulted_fields | length) > 0
+                   then "- Defaulted to unknown: " + ([.defaulted_fields | to_entries[] | "\(.key) (\(.value))"] | join(", "))
+                   else empty end' "$summary"
+            jq -r 'if .pr_url then "- Pull request: \(.pr_url)" else empty end' "$summary"
+          } >> "$GITHUB_STEP_SUMMARY"
+          # A partial refresh publishes real data, so the job is green. Annotate
+          # it anyway, or a source that half-converts every day goes unnoticed.
+          jq -r 'if (.failed_invocations | length) > 0 then
+                   "::warning title=Partial refresh::\(.adapter): " +
+                   "\(.failed_invocations | length) of \(.invocations) " +
+                   "invocation(s) failed; published \(.records) record(s)"
+                 else empty end' "$summary"
+
+      - name: Upload raw data, reports, and summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cron-${{ matrix.adapter }}-${{ github.run_number }}
+          path: |
+            ${{ runner.temp }}/cron-work/raw/
+            ${{ runner.temp }}/cron-work/adapter_reports/
+            ${{ runner.temp }}/cron-work/summary.json
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Store the fingerprint for tomorrow
+        if: steps.refresh.outputs.published == 'true' && !inputs.dry_run
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/fingerprint
+          key: eee-cron-fingerprint-${{ matrix.adapter }}-${{ github.run_id }}
