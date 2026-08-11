@@ -8,13 +8,14 @@ from pathlib import Path
 import pytest
 
 import every_eval_ever.eval_types as ET
-from every_eval_ever.cron import publish, runner
+from every_eval_ever.cron import archive, publish, runner
 from every_eval_ever.cron.fingerprint import output_fingerprint
 from every_eval_ever.cron.schedule import CronAdapter, RawPolicy
 from every_eval_ever.cron.stamp import (
     CRON_ADDITION_TYPE,
     TYPE_OF_ADDITION_KEY,
     StampError,
+    stamp_tree,
 )
 from every_eval_ever.helpers import (
     SCHEMA_VERSION,
@@ -108,6 +109,23 @@ def _forget_recorded_payloads():
     raw_capture.reset_recorded_state()
     yield
     raw_capture.reset_recorded_state()
+
+
+@pytest.fixture(autouse=True)
+def _never_reach_the_hub(monkeypatch):
+    """Archiving talks to the Hub, so no test gets the real thing by default.
+
+    Tests that care about archiving replace this with their own stub.
+    """
+    monkeypatch.setattr(
+        runner.archive_module,
+        'archive',
+        lambda raw_dir, **kwargs: archive.ArchiveResult(
+            repo_id='evaleval/EEE_raw',
+            ledger_path='ledger/stub.jsonl',
+            uploaded=1,
+        ),
+    )
 
 
 def _refresh(tmp_path: Path, **overrides):
@@ -540,3 +558,229 @@ def test_force_publishes_even_when_the_source_is_unchanged(
     assert code == runner.EXIT_PUBLISHED
     assert summary.status == 'published'
     assert published == [ADAPTER, ADAPTER]
+
+
+def test_raw_data_is_archived_before_anything_is_published(
+    tmp_path: Path, stub_adapter, monkeypatch
+):
+    order = []
+
+    def fake_archive(raw_dir, **kwargs):
+        order.append('archive')
+        return archive.ArchiveResult(
+            repo_id='evaleval/EEE_raw',
+            ledger_path='ledger/vals_ai/2026-08-11-1-1.jsonl',
+            uploaded=1,
+            reused=0,
+            uploaded_bytes=11,
+        )
+
+    def fake_publish(data_root, **kwargs):
+        order.append('publish')
+        return publish.PublishResult(
+            pr_url='https://hf.invalid/discussions/7',
+            pr_number=7,
+            files=1,
+            commits=1,
+            reused_existing_pr=False,
+        )
+
+    monkeypatch.setattr(runner.archive_module, 'archive', fake_archive)
+    monkeypatch.setattr(runner.publish_module, 'publish', fake_publish)
+    stub_adapter()
+
+    _, summary = _refresh(tmp_path, dry_run=False)
+
+    # Records must not reach the datastore without their raw data stored.
+    assert order == ['archive', 'publish']
+    assert summary.raw_archive['status'] == 'archived'
+    assert summary.raw_archive['ledger_path'].startswith('ledger/vals_ai/')
+
+
+def test_a_failed_archive_stops_the_refresh_before_publishing(
+    tmp_path: Path, stub_adapter, monkeypatch
+):
+    published = []
+
+    def fake_archive(raw_dir, **kwargs):
+        raise archive.ArchiveError('403 forbidden')
+
+    monkeypatch.setattr(runner.archive_module, 'archive', fake_archive)
+    monkeypatch.setattr(
+        runner.publish_module,
+        'publish',
+        lambda *a, **k: published.append(1),
+    )
+    stub_adapter()
+
+    with pytest.raises(archive.ArchiveError):
+        _refresh(tmp_path, dry_run=False)
+
+    assert published == []
+
+
+def test_raw_data_is_archived_even_when_the_source_has_not_changed(
+    tmp_path: Path, stub_adapter, monkeypatch
+):
+    # The ledger's value is knowing what the source looked like on each date,
+    # and an unchanged payload costs nothing to keep.
+    calls = []
+    monkeypatch.setattr(
+        runner.archive_module,
+        'archive',
+        lambda raw_dir, **kwargs: (
+            calls.append(kwargs['run_date'])
+            or archive.ArchiveResult(repo_id='r', ledger_path='l', reused=1)
+        ),
+    )
+    monkeypatch.setattr(
+        runner.publish_module,
+        'publish',
+        lambda *a, **k: publish.PublishResult(
+            pr_url='u',
+            pr_number=1,
+            files=1,
+            commits=1,
+            reused_existing_pr=False,
+        ),
+    )
+    fingerprint = tmp_path / 'fingerprint' / ADAPTER
+    stub_adapter(verbatim=True)
+
+    _refresh(
+        tmp_path,
+        work_dir=tmp_path / 'first',
+        fingerprint_path=fingerprint,
+        dry_run=False,
+    )
+    _, second = _refresh(
+        tmp_path,
+        work_dir=tmp_path / 'second',
+        fingerprint_path=fingerprint,
+        dry_run=False,
+    )
+
+    assert second.status == 'unchanged'
+    assert len(calls) == 2
+
+
+def test_raw_data_is_archived_even_when_no_records_were_produced(
+    tmp_path: Path, monkeypatch
+):
+    calls = []
+
+    def run_adapter(adapter, *, work_dir, raw_dir, environment):
+        # What a crashing adapter leaves: the payload, and no records.
+        raw_dir.mkdir(parents=True, exist_ok=True)
+        (raw_dir / 'vals-ai.json').write_bytes(b'{"rows": 1}')
+        return runner.AdapterOutcome(
+            invocations=[runner.Invocation(arguments=[], returncode=1)]
+        )
+
+    monkeypatch.setattr(runner, 'run_adapter', run_adapter)
+    monkeypatch.setattr(
+        runner.archive_module,
+        'archive',
+        lambda raw_dir, **kwargs: (
+            calls.append(1)
+            or archive.ArchiveResult(repo_id='r', ledger_path='l', uploaded=1)
+        ),
+    )
+
+    code, summary = _refresh(tmp_path, dry_run=False)
+
+    assert code == runner.EXIT_FAILED
+    assert calls == [1]
+    assert summary.raw_archive['status'] == 'archived'
+
+
+def test_a_dry_run_reports_the_archive_it_would_write(
+    tmp_path: Path, stub_adapter
+):
+    stub_adapter()
+
+    _, summary = _refresh(tmp_path, dry_run=True)
+
+    assert summary.raw_archive == {
+        'status': 'skipped_dry_run',
+        'repo_id': archive.DEFAULT_RAW_REPO_ID,
+        'payloads': 1,
+    }
+
+
+def test_an_adapter_with_no_raw_data_records_that_fact(
+    tmp_path: Path, stub_adapter
+):
+    stub_adapter(raw=None)
+
+    _, summary = _refresh(tmp_path)
+
+    assert summary.raw_archive['status'] == 'nothing_captured'
+
+
+def test_the_output_fingerprint_is_the_same_before_and_after_stamping(
+    tmp_path: Path,
+):
+    # The runner computes it before stamping and archives it; the value has to
+    # be the one a later run will compare against.
+    base = tmp_path / 'data' / 'vals-ai'
+    save_evaluation_log(
+        _log(), base_dir=base, developer='dev', model_name='model'
+    )
+    before = output_fingerprint(tmp_path / 'data')
+
+    stamp_tree(tmp_path / 'data', adapter=ADAPTER, run_date='2026-08-11')
+
+    assert output_fingerprint(tmp_path / 'data') == before
+
+
+def test_the_previous_fingerprint_comes_from_the_ledger(
+    tmp_path: Path, stub_adapter, monkeypatch
+):
+    # No local fingerprint file and no build cache: the raw dataset's ledger is
+    # what stops a rerun from republishing everything.
+    stub_adapter(verbatim=True)
+    _, first = _refresh(
+        tmp_path, work_dir=tmp_path / 'first', fingerprint_path=None
+    )
+
+    monkeypatch.setattr(
+        runner.archive_module,
+        'last_gating_fingerprint',
+        lambda adapter, **kwargs: first.raw_fingerprint,
+    )
+    monkeypatch.setattr(
+        runner.publish_module,
+        'publish',
+        lambda *a, **k: publish.PublishResult(
+            pr_url='u', pr_number=1, files=1, commits=1, reused_existing_pr=True
+        ),
+    )
+    stub_adapter(verbatim=True)
+
+    code, second = _refresh(
+        tmp_path,
+        work_dir=tmp_path / 'second',
+        fingerprint_path=None,
+        dry_run=False,
+    )
+
+    assert code == runner.EXIT_NOTHING_NEW
+    assert second.status == 'unchanged'
+    assert second.previous_fingerprint == first.raw_fingerprint
+
+
+def test_a_dry_run_does_not_consult_the_ledger(
+    tmp_path: Path, stub_adapter, monkeypatch
+):
+    consulted = []
+    monkeypatch.setattr(
+        runner.archive_module,
+        'last_gating_fingerprint',
+        lambda adapter, **kwargs: consulted.append(adapter),
+    )
+    stub_adapter()
+
+    _refresh(tmp_path, fingerprint_path=None, dry_run=True)
+
+    assert consulted == []

@@ -1,9 +1,10 @@
 name: Daily adapter refresh
 
-# Refreshes each source adapter once a day and sends its records to that
-# adapter's own datastore pull request. One matrix job per adapter, so each has
-# its own 6-hour job budget, its own failure, and its own PR: a slow or broken
-# adapter cannot hold up the others.
+# Refreshes each source adapter once a day, stores what it fetched in the
+# private raw dataset, and sends its records to that adapter's own datastore
+# pull request. One matrix job per adapter, so each has its own 6-hour job
+# budget, its own failure, and its own PR: a slow or broken adapter cannot hold
+# up the others.
 #
 # Design notes and how to add an adapter: every_eval_ever/cron/README.md
 
@@ -100,14 +101,6 @@ jobs:
           UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/eee-venv
         run: uv sync --locked --all-extras
 
-      - name: Restore the previous run fingerprint
-        uses: actions/cache/restore@v4
-        with:
-          path: ${{ runner.temp }}/fingerprint
-          key: eee-cron-fingerprint-${{ matrix.adapter }}-${{ github.run_id }}
-          restore-keys: |
-            eee-cron-fingerprint-${{ matrix.adapter }}-
-
       - name: Refresh ${{ matrix.adapter }}
         id: refresh
         env:
@@ -122,8 +115,9 @@ jobs:
           set +e
           uv run python -m every_eval_ever.cron run "${{ matrix.adapter }}" \
             --work-dir "${{ runner.temp }}/cron-work" \
-            --fingerprint "${{ runner.temp }}/fingerprint/${{ matrix.adapter }}" \
             --summary "${{ runner.temp }}/cron-work/summary.json" \
+            --raw-repo-id "${{ vars.EEE_RAW_REPO_ID || 'evaleval/EEE_raw' }}" \
+            --run-id "${{ github.run_id }}-${{ github.run_attempt }}" \
             --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
             ${{ inputs.dry_run && '--dry-run' || '' }} \
             ${{ inputs.force && '--force' || '' }}
@@ -145,10 +139,12 @@ jobs:
             echo
             jq -r '"- Status: **\(.status)** — \(.detail)",
                    "- Records: \(.records) in \(.collections | join(", "))",
-                   "- Raw payloads archived: \(.raw_payloads) (\(.raw_bytes) bytes, policy \(.raw_policy))",
+                   "- Raw payloads captured: \(.raw_payloads) (\(.raw_bytes) bytes, policy \(.raw_policy))",
+                   "- Raw archive: \(.raw_archive.status)" +
+                     (if .raw_archive.ledger_path then " → `\(.raw_archive.repo_id)` `\(.raw_archive.ledger_path)` (\(.raw_archive.uploaded) new, \(.raw_archive.reused) reused)" else "" end),
                    "- Fingerprint source: \(.fingerprint_source // "n/a")"' "$summary"
-            jq -r 'if (.defaulted_fields | length) > 0
-                   then "- Defaulted to unknown: " + ([.defaulted_fields | to_entries[] | "\(.key) (\(.value))"] | join(", "))
+            jq -r 'if (.unknown_inferred_fields | length) > 0
+                   then "- Inferred axes still unknown: " + ([.unknown_inferred_fields | to_entries[] | "\(.key) (\(.value))"] | join(", "))
                    else empty end' "$summary"
             jq -r 'if .pr_url then "- Pull request: \(.pr_url)" else empty end' "$summary"
           } >> "$GITHUB_STEP_SUMMARY"
@@ -160,7 +156,9 @@ jobs:
                    "invocation(s) failed; published \(.records) record(s)"
                  else empty end' "$summary"
 
-      - name: Upload raw data, reports, and summary
+      # A short-lived convenience copy. Permanent retention is the raw dataset;
+      # this is here so a failed run's reports are one click away.
+      - name: Upload reports and summary
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -171,10 +169,3 @@ jobs:
             ${{ runner.temp }}/cron-work/summary.json
           if-no-files-found: warn
           retention-days: 90
-
-      - name: Store the fingerprint for tomorrow
-        if: steps.refresh.outputs.published == 'true' && !inputs.dry_run
-        uses: actions/cache/save@v4
-        with:
-          path: ${{ runner.temp }}/fingerprint
-          key: eee-cron-fingerprint-${{ matrix.adapter }}-${{ github.run_id }}

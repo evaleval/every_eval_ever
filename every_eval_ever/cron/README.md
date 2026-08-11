@@ -1,7 +1,7 @@
 # Daily adapter refresh
 
-A scheduled refresh of the source adapters. Each adapter runs on its own,
-archives what it fetched, marks its records as cron-produced, validates them,
+A scheduled refresh of the source adapters. Each adapter runs on its own, stores
+what it fetched permanently, marks its records as cron-produced, validates them,
 and commits them to that adapter's own pull request on the
 [datastore](https://huggingface.co/datasets/evaleval/EEE_datastore).
 
@@ -23,7 +23,9 @@ nothing new to publish, `1` failed. Generated records go under
 `<work-dir>/data/`, raw payloads under `<work-dir>/raw/`, and the run summary to
 `<work-dir>/summary.json`.
 
-Publishing for real needs `HF_TOKEN` with write access to the datastore.
+Publishing for real needs `HF_TOKEN` with write access to both the datastore and
+the private raw dataset. `--no-archive-raw` keeps a local run from writing to the
+raw dataset at all.
 
 ## Adding an adapter to the schedule
 
@@ -67,10 +69,38 @@ carries `type_of_addition: cron`, `cron_run_date`, `cron_adapter`, and
 name them in `cron_unknown_inferred_fields`, which is how a later pass finds the
 records still needing a real value.
 
-**Raw data is kept.** Payloads land in the workflow run's artifact, which is
-where the run summary and any `adapter_reports/` go too. Artifacts expire after
-90 days — a durable home for raw data is the obvious next step, not something
-this solves.
+**Raw data is kept permanently.** Payloads go to a private dataset of their own,
+`evaleval/EEE_raw` (override with the `EEE_RAW_REPO_ID` repository variable), laid
+out as:
+
+```
+blobs/<ab>/<sha256>.<ext>              # one copy per distinct payload, ever
+ledger/<adapter>/<date>-<run>.jsonl    # one row per payload per run
+```
+
+Payloads are **content-addressed**, so a source that has not changed since
+yesterday costs nothing but a ledger row — which is what makes keeping every day
+affordable. The ledger is the index, and it is a dataset in its own right:
+
+```python
+from datasets import load_dataset
+
+ledger = load_dataset(
+    'json', data_files='ledger/**/*.jsonl', ...  # from evaleval/EEE_raw
+)
+```
+
+Each row carries the adapter, run date, run URL, source URL, SHA-256, byte
+count, and the blob it landed in — so any record traces back to the exact bytes
+it came from. A row is written even for a payload too large to store, and even
+for a run that published nothing, so the ledger says what was fetched on every
+date rather than only on the days something changed.
+
+Archiving happens **before** anything is published, and a failure to archive
+stops the run. Records should not reach the datastore without their raw
+provenance stored. The workflow also uploads raw payloads and
+`adapter_reports/` as a 90-day artifact, but that is a convenience copy, not the
+retention mechanism.
 
 **An unchanged source publishes nothing.** A run fingerprints the source and
 stops if it matches the previous run — using the verbatim response bodies where
@@ -81,13 +111,14 @@ produced or nothing at all, so no individual record is ever dropped.
 Record-level de-duplication is still open, and it is why the high-volume
 `hfopenllm_v2` adapter is not scheduled yet.
 
-The fingerprint lives in the workflow's cache. A cache miss means the run
-publishes — the safe direction, since it can only ever add a duplicate, never
+The fingerprint is read back from the ledger, so the memory of what the source
+looked like last night is as durable as the raw data itself — not a build cache
+that can be evicted and take a whole adapter's set with it. If it cannot be read,
+the run publishes: the safe direction, since it can only add a duplicate, never
 lose a record.
 
 ## Known gaps
 
-- Raw payloads expire with the workflow artifact after 90 days.
 - `hal`, `lexam`, and `mt_bench` archive no raw data: they call an HTTP client
   directly and expose no raw-dump flag. They fall back to the output
   fingerprint, so they still will not republish unchanged records.

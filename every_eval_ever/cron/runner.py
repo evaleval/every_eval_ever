@@ -5,12 +5,12 @@
 One invocation handles one adapter, which is what makes the schedule one
 workflow job and one datastore pull request per adapter. The stages are:
 
-1. run the adapter into a scratch tree, archiving raw payloads it fetched;
-2. compare this run's fingerprint against the previous run's and stop if the
-   source has not moved;
-3. stamp every record as cron-produced;
-4. validate through the same CLI the datastore's pull request bot runs;
-5. commit the records to the adapter's pull request.
+1. run the adapter into a scratch tree;
+2. store what it fetched permanently, in the private raw dataset;
+3. stop if the source has not moved since the fingerprint the ledger recorded;
+4. stamp every record as cron-produced;
+5. validate through the same CLI the datastore's pull request bot runs;
+6. commit the records to the adapter's pull request.
 
 Exit codes: ``0`` published, ``2`` nothing new to publish, ``1`` failed.
 """
@@ -27,6 +27,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
+from every_eval_ever.cron import archive as archive_module
 from every_eval_ever.cron import publish as publish_module
 from every_eval_ever.cron.fingerprint import (
     output_fingerprint,
@@ -65,6 +66,7 @@ class RunSummary:
     raw_payloads: int = 0
     raw_bytes: int = 0
     raw_policy: str = ''
+    raw_archive: dict[str, object] = field(default_factory=dict)
     raw_fingerprint: str | None = None
     output_fingerprint: str | None = None
     previous_fingerprint: str | None = None
@@ -219,6 +221,84 @@ def collections_in(data_root: Path) -> list[str]:
     return sorted(entry.name for entry in data_root.iterdir() if entry.is_dir())
 
 
+def _previous_fingerprint(
+    adapter: str,
+    *,
+    fingerprint_path: Path | None,
+    raw_repo_id: str,
+    consult_ledger: bool,
+    token: str | None,
+) -> str | None:
+    """Return the fingerprint to compare this run against.
+
+    A local ``--fingerprint`` file wins when it has a value, which is what makes
+    a local run reproducible. Otherwise the raw dataset's ledger is the durable
+    memory: it survives the build cache, so an adapter cannot forget last night's
+    state and republish its whole set.
+    """
+    stored = read_fingerprint(fingerprint_path) if fingerprint_path else None
+    if stored:
+        return stored
+    if not consult_ledger:
+        return None
+    return archive_module.last_gating_fingerprint(
+        adapter, repo_id=raw_repo_id, token=token
+    )
+
+
+def _archive_raw(
+    raw_dir: Path,
+    *,
+    summary: RunSummary,
+    run_id: str,
+    run_url: str | None,
+    gating_fingerprint: str | None,
+    raw_repo_id: str,
+    archive_raw: bool,
+    dry_run: bool,
+    token: str | None,
+) -> dict[str, object]:
+    """Store this run's raw payloads permanently, or say why it did not."""
+    if not summary.raw_payloads:
+        return {
+            'status': 'nothing_captured',
+            'reason': (
+                'the adapter archives no raw data; see its raw policy'
+                if summary.raw_policy
+                else ''
+            ),
+        }
+    if not archive_raw:
+        return {'status': 'disabled', 'payloads': summary.raw_payloads}
+    if dry_run:
+        return {
+            'status': 'skipped_dry_run',
+            'repo_id': raw_repo_id,
+            'payloads': summary.raw_payloads,
+        }
+
+    result = archive_module.archive(
+        raw_dir,
+        adapter=summary.adapter,
+        run_date=summary.run_date,
+        run_id=run_id,
+        run_url=run_url,
+        raw_fingerprint=summary.raw_fingerprint,
+        output_fingerprint=summary.output_fingerprint,
+        gating_fingerprint=gating_fingerprint,
+        repo_id=raw_repo_id,
+        token=token,
+    )
+    return {
+        'status': 'archived',
+        'repo_id': result.repo_id,
+        'ledger_path': result.ledger_path,
+        'uploaded': result.uploaded,
+        'reused': result.reused,
+        'uploaded_bytes': result.uploaded_bytes,
+    }
+
+
 def refresh(
     name: str,
     *,
@@ -229,6 +309,9 @@ def refresh(
     run_url: str | None,
     dry_run: bool,
     force: bool,
+    run_id: str = 'local',
+    raw_repo_id: str = archive_module.DEFAULT_RAW_REPO_ID,
+    archive_raw: bool = True,
     environment: dict[str, str] | None = None,
 ) -> tuple[int, RunSummary]:
     """Refresh one adapter. Returns its exit code and summary."""
@@ -292,6 +375,31 @@ def refresh(
 
     summary.records = len(list(data_root.glob('*/*/*/*.json')))
     summary.collections = collections_in(data_root)
+
+    # Computed before stamping deliberately: the digest strips the cron stamp,
+    # so the value is the same either side of it, and archiving it here means
+    # the ledger row carries the fingerprint even for a run that fails later.
+    summary.output_fingerprint = output_fingerprint(data_root)
+    summary.fingerprint_source = 'raw' if summary.raw_fingerprint else 'output'
+    current = summary.raw_fingerprint or summary.output_fingerprint
+
+    # Archive before anything is published, and on every path that captured
+    # something — including a run that produced no records, whose payload is
+    # often the evidence for why. Records must never reach the datastore without
+    # their raw provenance stored somewhere permanent, so a failure here is
+    # fatal rather than a warning.
+    summary.raw_archive = _archive_raw(
+        raw_dir,
+        summary=summary,
+        run_id=run_id,
+        run_url=run_url,
+        gating_fingerprint=current,
+        raw_repo_id=raw_repo_id,
+        archive_raw=archive_raw,
+        dry_run=dry_run,
+        token=environment.get('HF_TOKEN'),
+    )
+
     if not summary.records:
         # No records and a failing adapter is a broken source; no records and a
         # clean exit just means the source had nothing to give today.
@@ -318,10 +426,13 @@ def refresh(
     )
     summary.unknown_inferred_fields = stamped.unknown_inferred
 
-    summary.output_fingerprint = output_fingerprint(data_root)
-    summary.fingerprint_source = 'raw' if summary.raw_fingerprint else 'output'
-    current = summary.raw_fingerprint or summary.output_fingerprint
-    previous = read_fingerprint(fingerprint_path) if fingerprint_path else None
+    previous = _previous_fingerprint(
+        adapter.name,
+        fingerprint_path=fingerprint_path,
+        raw_repo_id=raw_repo_id,
+        consult_ledger=archive_raw and not dry_run,
+        token=environment.get('HF_TOKEN'),
+    )
     summary.previous_fingerprint = previous
 
     if previous and current == previous and not force:
@@ -381,6 +492,18 @@ def refresh(
     return EXIT_PUBLISHED, summary
 
 
+def _raw_archive_lines(summary: RunSummary) -> list[str]:
+    """Point a reviewer at the permanently stored raw data for this run."""
+    archive = summary.raw_archive
+    if archive.get('status') != 'archived':
+        return []
+    return [
+        f'- Raw data kept in `{archive["repo_id"]}` (private): '
+        f'{archive["uploaded"]} new payload(s), {archive["reused"]} already '
+        f'stored. Ledger row: `{archive["ledger_path"]}`.'
+    ]
+
+
 def _partial_refresh_lines(summary: RunSummary) -> list[str]:
     """Say up front that a refresh was partial, and which part is missing."""
     if not summary.failed_invocations:
@@ -409,6 +532,7 @@ def _commit_description(summary: RunSummary, run_url: str | None) -> str:
         f'- Adapter invocations: {summary.invocations}',
         f'- Raw payloads archived: {summary.raw_payloads} '
         f'({summary.raw_policy})',
+        *_raw_archive_lines(summary),
         *_partial_refresh_lines(summary),
         f'- Every record carries `type_of_addition: cron` and '
         f'`cron_run_date: {summary.run_date}` in '
@@ -454,6 +578,28 @@ def _add_run_arguments(parser: argparse.ArgumentParser) -> None:
         '--repo-id',
         default=publish_module.DEFAULT_REPO_ID,
         help=f'Datastore repo (default: {publish_module.DEFAULT_REPO_ID})',
+    )
+    parser.add_argument(
+        '--raw-repo-id',
+        default=archive_module.DEFAULT_RAW_REPO_ID,
+        help=(
+            'Private dataset that permanently holds raw payloads and the '
+            f'ledger (default: {archive_module.DEFAULT_RAW_REPO_ID})'
+        ),
+    )
+    parser.add_argument(
+        '--no-archive-raw',
+        dest='archive_raw',
+        action='store_false',
+        help=(
+            'Do not store raw payloads permanently. They stay in --work-dir '
+            'only, so use this for local runs, not for the schedule.'
+        ),
+    )
+    parser.add_argument(
+        '--run-id',
+        default='local',
+        help='Identifier for this run, used in the ledger path',
     )
     parser.add_argument(
         '--run-url',
@@ -516,6 +662,9 @@ def main(argv: list[str] | None = None) -> int:
             run_url=args.run_url,
             dry_run=args.dry_run,
             force=args.force,
+            run_id=args.run_id,
+            raw_repo_id=args.raw_repo_id,
+            archive_raw=args.archive_raw,
         )
         return code
     except Exception as error:
