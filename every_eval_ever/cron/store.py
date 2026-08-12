@@ -38,6 +38,9 @@ MANIFEST_NAME = 'manifest.jsonl'
 RUN_REPORT_NAME = 'run.json'
 #: Payloads identical to the previous run are referenced, not re-uploaded.
 UNCHANGED_MARKER = 'same_as'
+#: How many times a state commit re-reads the head and tries again when
+#: another adapter's job moved the branch first.
+COMMIT_ATTEMPTS = 5
 
 
 class StoreError(RuntimeError):
@@ -208,23 +211,58 @@ class RawStore:
         message: str,
         parent_commit: str | None,
     ) -> Any:
-        """Commit to the store, refusing to clobber a concurrent write."""
+        """Commit to the store, retrying when another adapter got there first.
+
+        Every adapter job reads one shared head and writes back to the same
+        branch, so a daily matrix of twenty adapters races on every run. The
+        loser of that race has already published its records to the datastore
+        by this point, and dropping its state commit would leave those
+        records with no fingerprints, so the next run would publish them
+        again under fresh paths.
+
+        Retrying is safe rather than a lost update because a job only ever
+        writes files it owns: ``state/<adapter>.*`` and this adapter's raw
+        snapshot directory. The workflow's per-adapter concurrency group is
+        what guarantees no second job is writing the same ones. A failure
+        that is not a moved head is re-raised untouched, so a permission or
+        transport error still fails the job.
+        """
         if not operations:
             return None
+        parent = parent_commit
+        for remaining in reversed(range(COMMIT_ATTEMPTS)):
+            try:
+                return self.api.create_commit(
+                    repo_id=self.repo_id,
+                    repo_type='dataset',
+                    revision=self.revision,
+                    operations=operations,
+                    commit_message=message,
+                    parent_commit=parent,
+                )
+            except Exception as exc:  # noqa: BLE001 - re-raised with context
+                moved = self._moved_head(parent) if remaining else None
+                if moved is None:
+                    raise StoreError(
+                        f'could not write to {self.repo_id}: '
+                        f'{type(exc).__name__}: {exc}'
+                    ) from exc
+                parent = moved
+        return None
+
+    def _moved_head(self, parent: str | None) -> str | None:
+        """Return the branch head if it moved under us, else ``None``.
+
+        A commit that was rejected while the head is exactly where we left it
+        was not a race, so there is nothing to retry against.
+        """
+        if parent is None:
+            return None
         try:
-            return self.api.create_commit(
-                repo_id=self.repo_id,
-                repo_type='dataset',
-                revision=self.revision,
-                operations=operations,
-                commit_message=message,
-                parent_commit=parent_commit,
-            )
-        except Exception as exc:  # noqa: BLE001 - re-raised with context
-            raise StoreError(
-                f'could not write to {self.repo_id}: '
-                f'{type(exc).__name__}: {exc}'
-            ) from exc
+            current = self.head_commit()
+        except StoreError:
+            return None
+        return current if current and current != parent else None
 
 
 def plan_raw_upload(
@@ -335,6 +373,7 @@ def state_operations(state: AdapterState) -> list[CommitOperationAdd]:
 
 
 __all__ = [
+    'COMMIT_ATTEMPTS',
     'DEFAULT_RAW_REPO',
     'MANIFEST_NAME',
     'RAW_DIR',

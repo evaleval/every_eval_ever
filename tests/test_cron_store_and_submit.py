@@ -340,6 +340,63 @@ def test_an_unchanged_payload_is_referenced_not_re_uploaded(
     )
 
 
+def test_two_adapters_from_one_head_both_record_their_state() -> None:
+    """The loser of the race has already published; it must still be recorded.
+
+    Every job in the daily matrix reads the same raw-store head. Dropping the
+    second one's state commit would leave the records it just put in the
+    datastore with no fingerprints, so the next run would publish them again.
+    """
+    hub = FakeHub(sha='headsha')
+    first = store.RawStore(hub)
+    second = store.RawStore(hub)
+    first_state = first.read_state('hle')
+    second_state = second.read_state('mt_bench')
+    assert first_state.parent_commit == second_state.parent_commit
+
+    real_create_commit = hub.create_commit
+
+    def reject_a_stale_parent(**kwargs):
+        if kwargs.get('parent_commit') != hub.sha:
+            raise RuntimeError('412 Precondition Failed')
+        result = real_create_commit(**kwargs)
+        hub.sha = f'{hub.sha}-moved'
+        return result
+
+    hub.create_commit = reject_a_stale_parent
+
+    first_state.fingerprints.add('a')
+    first.commit(
+        store.state_operations(first_state),
+        message='hle',
+        parent_commit=first_state.parent_commit,
+    )
+    second_state.fingerprints.add('b')
+    second.commit(
+        store.state_operations(second_state),
+        message='mt_bench',
+        parent_commit=second_state.parent_commit,
+    )
+
+    assert hub.files['state/hle.fingerprints'].split() == ['a']
+    assert hub.files['state/mt_bench.fingerprints'].split() == ['b']
+
+
+def test_a_rejected_commit_that_is_not_a_race_still_fails() -> None:
+    """A permission or transport error must not be retried into silence."""
+    hub = FakeHub(sha='headsha')
+    raw_store = store.RawStore(hub)
+    state = raw_store.read_state('hle')
+    hub.commit_error = RuntimeError('403 Forbidden')
+
+    with pytest.raises(store.StoreError, match='403'):
+        raw_store.commit(
+            store.state_operations(state),
+            message='hle',
+            parent_commit=state.parent_commit,
+        )
+
+
 def test_a_reference_survives_a_run_of_unchanged_days(tmp_path) -> None:
     """Day three must point at day one, the only day that stored the bytes.
 
