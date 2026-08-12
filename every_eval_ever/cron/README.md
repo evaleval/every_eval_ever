@@ -36,9 +36,17 @@ reach another adapter's pull request.
 |---|---|---|
 | `completed` | Clean refresh | green |
 | `partial` | Adapter exited non-zero but accounted for every dropped row in a provenance report; its valid records are published | green, annotated |
-| `skipped_missing_credential` | The adapter's API key is not configured | green |
+| `skipped_missing_credential` | The adapter's API key is not configured | red |
 | `skipped_missing_dependency` | An optional package (e.g. `datasets`) is not installed | green |
 | `failed` | Crash, timeout, misplaced output, failed validation, duplicate records, or an empty refresh | red |
+
+A missing credential is red because the adapter is in today's matrix only
+because the catalog says it should run. Green, it is indistinguishable from an
+unchanged leaderboard, which is how an adapter goes missing for a month. An
+adapter that should not run at all is `runnable=False` in the catalog instead,
+and never reaches a job. A missing *package* stays green: `with_packages` is
+installed by the workflow from the matrix, so an absent one is a packaging
+problem rather than a secret nobody added.
 
 An empty refresh is deliberately a failure. "0 valid, 0 invalid" is what a
 broken output directory looks like, not an up-to-date leaderboard.
@@ -115,9 +123,10 @@ records produced, dropped, skipped as unchanged, uploaded.
 2. Add a `cron` environment to the GitHub repository with an `HF_TOKEN`
    secret that can write to the raw store and open pull requests on the
    datastore.
-3. Optional per-adapter credentials as secrets — `uv run python -m
-   every_eval_ever.cron list` shows which adapters want one. A missing
-   credential is reported as a skip, not a failure.
+3. Per-adapter credentials as secrets — `uv run python -m
+   every_eval_ever.cron list` shows which adapters want one. Every adapter
+   that names one needs it: without it that adapter's job fails, naming the
+   variable, while the rest of the matrix carries on.
 4. Optional `EEE_DATASTORE_REPO_ID` / `EEE_RAW_REPO_ID` repository variables
    to point a rehearsal at throwaway repositories.
 

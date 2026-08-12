@@ -125,8 +125,8 @@ jobs:
           FORCE_FULL: ${{ inputs.force_full }}
           DRY_RUN: ${{ inputs.dry_run }}
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          # Per-adapter credentials. An absent one is reported as a skip, not
-          # a failure; the runner hands each adapter only its own.
+          # Per-adapter credentials. An absent one fails that adapter's job
+          # and no other; the runner hands each adapter only its own.
           ARTIFICIAL_ANALYSIS_API_KEY: ${{ secrets.ARTIFICIAL_ANALYSIS_API_KEY }}
           LLM_STATS_API_KEY: ${{ secrets.LLM_STATS_API_KEY }}
           # Empty when unset, which the CLI treats as "use the default".

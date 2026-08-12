@@ -520,10 +520,18 @@ def test_an_adapter_that_forbids_partial_runs_publishes_nothing(
     )
 
 
-# --- configuration gaps are not failures ---------------------------------
+# --- configuration gaps --------------------------------------------------
 
 
-def test_a_missing_credential_is_its_own_outcome(tmp_path) -> None:
+def test_a_missing_credential_fails_the_job_and_names_the_variable(
+    tmp_path,
+) -> None:
+    """An enabled adapter with no key is broken configuration, not a skip.
+
+    Green, this is indistinguishable from an unchanged leaderboard, which is
+    how an adapter goes missing for a month. An adapter that should not run at
+    all is ``runnable=False`` in the catalog and never reaches a job.
+    """
     spec = AdapterSpec(
         key='needs-key',
         module='every_eval_ever.adapters.hle.adapter',
@@ -536,7 +544,8 @@ def test_a_missing_credential_is_its_own_outcome(tmp_path) -> None:
     )
 
     assert outcome.status == 'skipped_missing_credential'
-    assert outcome.ok and not outcome.has_upload
+    assert not outcome.ok
+    assert not outcome.has_upload
     assert 'DEMO_API_KEY' in outcome.messages[0]
     assert outcome.process is None
 

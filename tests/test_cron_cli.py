@@ -340,13 +340,29 @@ def test_a_failed_run_records_evidence_and_exits_non_zero(tmp_path) -> None:
     assert json.loads(hub.files['state/hle.json'])['last_status'] == 'failed'
 
 
-def test_a_skipped_run_is_healthy(tmp_path) -> None:
+def test_a_missing_package_is_healthy(tmp_path) -> None:
+    """with_packages is installed from the matrix, so this is a build gap."""
+    hub = FakeHub()
+    outcome = make_outcome(
+        tmp_path, status='skipped_missing_dependency', uploaded=0
+    )
+
+    assert finish(outcome, hub) == 0
+
+
+def test_a_missing_credential_exits_non_zero(tmp_path) -> None:
+    """A green job here is indistinguishable from an unchanged leaderboard."""
     hub = FakeHub()
     outcome = make_outcome(
         tmp_path, status='skipped_missing_credential', uploaded=0
     )
 
-    assert finish(outcome, hub) == 0
+    assert finish(outcome, hub) == 1
+
+    assert (
+        json.loads(hub.files['state/hle.json'])['last_status']
+        == 'skipped_missing_credential'
+    )
 
 
 def test_a_dry_run_touches_neither_repository(tmp_path, capsys) -> None:

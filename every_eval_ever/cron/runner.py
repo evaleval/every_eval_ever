@@ -157,10 +157,19 @@ class RunOutcome:
     coverage: dict[str, Any] | None = None
     messages: list[str] = field(default_factory=list)
 
+    #: Statuses that make the scheduled job red. A missing credential is one
+    #: of them: an adapter is only in today's matrix because the catalog says
+    #: it should run, so an absent key is broken configuration, not a quiet
+    #: day. Reported green, it looks exactly like an unchanged leaderboard,
+    #: which is how an adapter goes missing for a month without anyone
+    #: noticing. Adapters that should not run at all are marked
+    #: ``runnable=False`` in the catalog and never reach a job.
+    UNHEALTHY = frozenset({'failed', 'skipped_missing_credential'})
+
     @property
     def ok(self) -> bool:
         """Whether the scheduled job should be considered healthy."""
-        return self.status != 'failed'
+        return self.status not in self.UNHEALTHY
 
     @property
     def has_upload(self) -> bool:
@@ -643,7 +652,9 @@ def run(
     if absent:
         outcome.status = 'skipped_missing_credential'
         outcome.messages.append(
-            f'not run: {", ".join(absent)} is not configured'
+            f'not run: {", ".join(absent)} is not configured. Add it as a '
+            'secret, or mark this adapter runnable=False in the catalog if '
+            'it should not run at all.'
         )
         return outcome
 
