@@ -145,19 +145,12 @@ class DatastoreSubmitter:
         self.api = api
         self.repo_id = repo_id
         self.batch_size = batch_size
-        self._author: str | None = None
+        self._identity: dict[str, Any] | None = None
 
-    @property
-    def author(self) -> str:
-        """Return the account this run publishes as, resolved once.
-
-        Nothing this cron did not open is a candidate for reuse. A token
-        without a resolvable identity is an error rather than an empty filter,
-        because an empty filter is how every open pull request on a public
-        datastore becomes adoptable.
-        """
-        if self._author is not None:
-            return self._author
+    def _resolve_identity(self) -> dict[str, Any]:
+        """Return who this token is, asked once and cached."""
+        if self._identity is not None:
+            return self._identity
         try:
             identity = self.api.whoami()
         except Exception as exc:  # noqa: BLE001 - re-raised with context
@@ -165,14 +158,55 @@ class DatastoreSubmitter:
                 'could not resolve the account this token publishes as: '
                 f'{type(exc).__name__}: {exc}'
             ) from exc
-        name = (identity or {}).get('name')
-        if not name:
+        if not isinstance(identity, dict) or not identity.get('name'):
             raise SubmissionError(
                 'the Hub reported no username for this token; refusing to '
                 'reuse a pull request without knowing who opened it'
             )
-        self._author = name
-        return name
+        self._identity = identity
+        return identity
+
+    @property
+    def author(self) -> str:
+        """Return the account this run publishes as.
+
+        Nothing this cron did not open is a candidate for reuse. A token
+        without a resolvable identity is an error rather than an empty filter,
+        because an empty filter is how every open pull request on a public
+        datastore becomes adoptable.
+        """
+        return self._resolve_identity()['name']
+
+    def ensure_writable(self) -> None:
+        """Check what can be checked before an adapter spends an hour.
+
+        Both failures this catches are already caught, at the publish step, an
+        adapter run later. Catching them here costs two requests and turns
+        "scraped a leaderboard for forty-five minutes, then could not commit"
+        into a job that fails in seconds and says which setting is wrong.
+
+        A role the Hub does not report is not treated as read-only. Only a
+        commit proves a fine-grained token's scopes, so an uninterpretable
+        role passes here and fails later if it has to.
+        """
+        identity = self._resolve_identity()
+        auth = identity.get('auth')
+        token = auth.get('accessToken') if isinstance(auth, dict) else None
+        role = token.get('role') if isinstance(token, dict) else None
+        if role == 'read':
+            raise SubmissionError(
+                f'the token authenticates as {identity["name"]} but is '
+                f'read-only. Opening a pull request on {self.repo_id} and '
+                'writing the raw store both need write access.'
+            )
+        try:
+            self.api.repo_info(repo_id=self.repo_id, repo_type='dataset')
+        except Exception as exc:  # noqa: BLE001 - re-raised with context
+            raise SubmissionError(
+                f'could not reach the datastore {self.repo_id}: '
+                f'{type(exc).__name__}: {exc}. Check EEE_DATASTORE_REPO_ID '
+                'and that this token may read it.'
+            ) from exc
 
     def _open_pull_requests(self) -> list[Any]:
         """Return the open pull requests this account opened, and no others."""
@@ -544,6 +578,7 @@ __all__ = [
     'PullRequest',
     'Submission',
     'SubmissionError',
+    'SAMPLES_SUFFIX',
     'marker',
     'pull_request_description',
     'pull_request_title',

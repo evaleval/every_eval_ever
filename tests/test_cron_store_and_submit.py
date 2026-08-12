@@ -39,6 +39,7 @@ class FakeHub:
         user: str = CRON_USER,
         private: bool = True,
         exists: bool = True,
+        token_role: str | None = None,
     ) -> None:
         self.files = dict(files or {})
         self.sha = sha
@@ -46,6 +47,9 @@ class FakeHub:
         self.user = user
         self.private = private
         self.exists = exists
+        self.token_role = token_role
+        #: Repo ids this Hub refuses to resolve, whatever `exists` says.
+        self.unreachable: set[str] = set()
         self.commits: list[dict[str, Any]] = []
         self.created: list[dict[str, Any]] = []
         self.download_error: Exception | None = None
@@ -62,6 +66,8 @@ class FakeHub:
         return type('Info', (), {'sha': self.sha})()
 
     def repo_info(self, repo_id=None, **kwargs):
+        if repo_id in self.unreachable:
+            raise RepositoryNotFoundError(f'{repo_id} not found')
         if self.repo_info_error is not None:
             raise self.repo_info_error
         if not self.exists:
@@ -71,7 +77,10 @@ class FakeHub:
     def whoami(self):
         if self.whoami_error is not None:
             raise self.whoami_error
-        return {'name': self.user}
+        identity = {'name': self.user}
+        if self.token_role is not None:
+            identity['auth'] = {'accessToken': {'role': self.token_role}}
+        return identity
 
     def hf_hub_download(self, *, filename, **kwargs):
         if self.download_error is not None:
@@ -725,6 +734,41 @@ def test_an_unrelated_open_pull_request_is_never_claimed() -> None:
     )
 
     assert sub.find_by_marker('hle') is None
+
+
+def test_a_read_only_token_is_refused_before_any_work(tmp_path) -> None:
+    """It would pass every read and die on the first commit, an hour later."""
+    hub = FakeHub(token_role='read')
+
+    with pytest.raises(submit.SubmissionError, match='read-only'):
+        submit.DatastoreSubmitter(hub).ensure_writable()
+
+
+def test_a_token_whose_role_the_hub_does_not_report_is_allowed() -> None:
+    """Only a commit proves a fine-grained token's scopes."""
+    submit.DatastoreSubmitter(FakeHub(token_role=None)).ensure_writable()
+    submit.DatastoreSubmitter(FakeHub(token_role='write')).ensure_writable()
+
+
+def test_an_unreachable_datastore_is_reported_before_any_work() -> None:
+    hub = FakeHub()
+    hub.unreachable.add('evaleval/EEE_datastore')
+
+    with pytest.raises(submit.SubmissionError, match='could not reach'):
+        submit.DatastoreSubmitter(hub).ensure_writable()
+
+
+def test_the_identity_is_asked_for_once(tmp_path) -> None:
+    calls = []
+    hub = FakeHub()
+    real_whoami = hub.whoami
+    hub.whoami = lambda: (calls.append(1), real_whoami())[1]
+    sub = submit.DatastoreSubmitter(hub)
+
+    sub.ensure_writable()
+    sub.find_by_marker('hle')
+
+    assert len(calls) == 1
 
 
 def test_a_marker_from_another_account_is_never_claimed() -> None:

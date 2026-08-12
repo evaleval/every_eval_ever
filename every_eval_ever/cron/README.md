@@ -188,13 +188,21 @@ records produced, dropped, skipped as unchanged, uploaded.
    absent.
 2. Add a `cron` environment to the GitHub repository with an `HF_TOKEN`
    secret that can write to the raw store and open pull requests on the
-   datastore.
+   datastore. A read-only token is rejected before the adapter starts, as is
+   a datastore this token cannot read.
 3. Per-adapter credentials as secrets. `uv run python -m
    every_eval_ever.cron list` shows which adapters want one. Every adapter
    that names one needs it: without it that adapter's job fails, naming the
    variable, while the rest of the matrix carries on.
 4. Optional `EEE_DATASTORE_REPO_ID` / `EEE_RAW_REPO_ID` repository variables
    to point a rehearsal at throwaway repositories.
+
+Everything answerable without running the adapter is answered first: the
+token resolves to an account and is not read-only, the datastore is readable,
+and the raw store exists and is private. All of it would surface later anyway,
+at the publish step, but by then a leaderboard has been scraped for
+forty-five minutes for nothing. A role the Hub does not report is not treated
+as read-only, since only a commit proves a fine-grained token's scopes.
 
 ## Adding an adapter to the schedule
 

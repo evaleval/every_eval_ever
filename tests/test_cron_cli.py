@@ -195,6 +195,37 @@ def test_a_public_raw_store_stops_the_run_before_the_adapter(
     assert hub.commits == []
 
 
+@pytest.mark.parametrize(
+    ('hub_kwargs', 'unreachable', 'expected'),
+    [
+        ({'token_role': 'read'}, None, 'read-only'),
+        ({}, 'evaleval/EEE_datastore', 'could not reach'),
+    ],
+)
+def test_a_token_that_cannot_publish_stops_the_run_before_the_adapter(
+    monkeypatch, tmp_path, capsys, hub_kwargs, unreachable, expected
+) -> None:
+    """Both of these already fail at the publish step, an adapter run later."""
+    hub = FakeHub(**hub_kwargs)
+    if unreachable:
+        hub.unreachable.add(unreachable)
+    monkeypatch.setattr('huggingface_hub.HfApi', lambda *a, **k: hub)
+    monkeypatch.setenv('HF_TOKEN', 'a-token')
+    started = []
+    monkeypatch.setattr(cli.runner, 'run', lambda *a, **k: started.append(True))
+
+    exit_code = cli.main(
+        ['run', '--adapter', 'hle', '--workdir', str(tmp_path)]
+    )
+
+    assert exit_code == 1
+    assert started == []
+    assert expected in capsys.readouterr().err
+    # Nothing was created either, so a bad token cannot leave a repo behind.
+    assert hub.created == []
+    assert hub.commits == []
+
+
 # --- what a finished run commits -----------------------------------------
 
 
