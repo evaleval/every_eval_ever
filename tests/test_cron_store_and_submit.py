@@ -20,6 +20,8 @@ from every_eval_ever.cron import store, submit
 
 RUN_DATE = date(2026, 8, 10)
 YESTERDAY = date(2026, 8, 9)
+#: The account the cron publishes as, in these tests.
+CRON_USER = 'eee-cron'
 
 
 class FakeHub:
@@ -31,20 +33,29 @@ class FakeHub:
         *,
         sha: str = 'headsha',
         discussions: list[Any] | None = None,
+        user: str = CRON_USER,
     ) -> None:
         self.files = dict(files or {})
         self.sha = sha
         self.discussions = list(discussions or [])
+        self.user = user
         self.commits: list[dict[str, Any]] = []
         self.download_error: Exception | None = None
         self.commit_error: Exception | None = None
         self.details_error: Exception | None = None
+        self.whoami_error: Exception | None = None
+        self.discussion_queries: list[dict[str, Any]] = []
         self.next_pr = 41
 
     # -- reads ----------------------------------------------------------
 
     def dataset_info(self, repo_id, revision=None, **kwargs):
         return type('Info', (), {'sha': self.sha})()
+
+    def whoami(self):
+        if self.whoami_error is not None:
+            raise self.whoami_error
+        return {'name': self.user}
 
     def hf_hub_download(self, *, filename, **kwargs):
         if self.download_error is not None:
@@ -61,7 +72,15 @@ class FakeHub:
         return handle.name
 
     def get_repo_discussions(self, **kwargs):
-        return iter(self.discussions)
+        self.discussion_queries.append(kwargs)
+        author = kwargs.get('author')
+        return iter(
+            [
+                discussion
+                for discussion in self.discussions
+                if author is None or discussion.author == author
+            ]
+        )
 
     def get_discussion_details(self, *, discussion_num, **kwargs):
         if self.details_error is not None:
@@ -114,12 +133,14 @@ class FakeDiscussion:
         status: str = 'open',
         is_pull_request: bool = True,
         body: str = '',
+        author: str = CRON_USER,
     ) -> None:
         self.num = num
         self.title = title
         self.status = status
         self.is_pull_request = is_pull_request
         self.body = body
+        self.author = author
         self.url = (
             'https://huggingface.co/datasets/evaleval/EEE_datastore/'
             f'discussions/{num}'
@@ -582,6 +603,36 @@ def test_an_unrelated_open_pull_request_is_never_claimed() -> None:
     )
 
     assert sub.find_by_marker('hle') is None
+
+
+def test_a_marker_from_another_account_is_never_claimed() -> None:
+    """The datastore is public, so the marker is not proof of ownership.
+
+    Anyone can open a pull request whose first comment carries
+    ``eee-cron-adapter: hle``. Adopting it would commit records onto a branch
+    and a description a stranger controls.
+    """
+    sub, _ = submitter([cron_pr(12, author='someone-else')])
+
+    assert sub.resolve_known('hle', 12) is None
+    assert sub.find_by_marker('hle') is None
+
+
+def test_the_lookup_asks_the_hub_for_this_accounts_pull_requests() -> None:
+    sub, hub = submitter([cron_pr(12)])
+
+    sub.find_by_marker('hle')
+
+    assert hub.discussion_queries[0]['author'] == CRON_USER
+
+
+def test_a_token_with_no_resolvable_account_stops_the_run() -> None:
+    """An unknown author would filter nothing, which is the wrong default."""
+    sub, hub = submitter([cron_pr(12)])
+    hub.whoami_error = RuntimeError('401 unauthorized')
+
+    with pytest.raises(submit.SubmissionError, match='publishes as'):
+        sub.find_by_marker('hle')
 
 
 def test_an_unreadable_pull_request_body_stops_the_run() -> None:

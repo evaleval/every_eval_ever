@@ -4,8 +4,14 @@ The rule the ticket asks for is one pull request per adapter, reused across
 runs. Getting that wrong is expensive in both directions: opening a fresh
 pull request every day buries reviewers, and guessing at which existing one
 to reuse can push a scrape into somebody else's submission. So the pull
-request is remembered by number, re-checked before use, and identified by a
-marker the cron itself wrote — never by "the newest open one".
+request is remembered by number, re-checked before use, and identified by two
+things the cron itself controls — never by "the newest open one".
+
+Those two are the account that opened it and the ``eee-cron-adapter`` line in
+its body. The account matters most: the datastore is public, so anyone can
+open a pull request whose first comment carries our marker, and a run that
+adopted it would commit records onto a branch a stranger controls. The marker
+then says which adapter it belongs to.
 
 An ambiguous match is an error. There is no safe guess.
 """
@@ -136,15 +142,46 @@ class DatastoreSubmitter:
         self.api = api
         self.repo_id = repo_id
         self.batch_size = batch_size
+        self._author: str | None = None
+
+    @property
+    def author(self) -> str:
+        """Return the account this run publishes as, resolved once.
+
+        Nothing this cron did not open is a candidate for reuse. A token
+        without a resolvable identity is an error rather than an empty filter,
+        because an empty filter is how every open pull request on a public
+        datastore becomes adoptable.
+        """
+        if self._author is not None:
+            return self._author
+        try:
+            identity = self.api.whoami()
+        except Exception as exc:  # noqa: BLE001 - re-raised with context
+            raise SubmissionError(
+                'could not resolve the account this token publishes as: '
+                f'{type(exc).__name__}: {exc}'
+            ) from exc
+        name = (identity or {}).get('name')
+        if not name:
+            raise SubmissionError(
+                'the Hub reported no username for this token; refusing to '
+                'reuse a pull request without knowing who opened it'
+            )
+        self._author = name
+        return name
 
     def _open_pull_requests(self) -> list[Any]:
+        """Return the open pull requests this account opened, and no others."""
+        author = self.author
         try:
-            return list(
+            discussions = list(
                 self.api.get_repo_discussions(
                     repo_id=self.repo_id,
                     repo_type='dataset',
                     discussion_type='pull_request',
                     discussion_status='open',
+                    author=author,
                 )
             )
         except Exception as exc:  # noqa: BLE001 - re-raised with context
@@ -152,16 +189,27 @@ class DatastoreSubmitter:
                 f'could not list open pull requests on {self.repo_id}: '
                 f'{type(exc).__name__}: {exc}'
             ) from exc
+        # The server-side filter is the cheap part. This is the check that has
+        # to hold, so a Hub that ignores the parameter cannot widen the set.
+        return [
+            discussion
+            for discussion in discussions
+            if getattr(discussion, 'author', None) == author
+        ]
 
     def carries_marker(self, number: int, adapter: str) -> bool:
         """Return whether a pull request body claims this adapter.
 
-        Ownership is the ``eee-cron-adapter`` line the cron wrote into the
-        body, not the title. A title is display metadata: anyone can edit it
-        to something that looks like ours, and a reviewer renaming ours does
-        not hand it to somebody else. A body that cannot be read is an error
-        rather than a "no", because silently treating it as unowned opens a
-        second pull request for the same adapter.
+        Which adapter a pull request belongs to is the ``eee-cron-adapter``
+        line the cron wrote into the body, not the title. A title is display
+        metadata: anyone can edit it to something that looks like ours, and a
+        reviewer renaming ours does not hand it to somebody else. A body that
+        cannot be read is an error rather than a "no", because silently
+        treating it as unowned opens a second pull request for the same
+        adapter.
+
+        Callers reach this only for pull requests :attr:`author` opened, so
+        the marker answers "which adapter", not "is this ours".
         """
         try:
             details = self.api.get_discussion_details(
@@ -179,10 +227,12 @@ class DatastoreSubmitter:
     def resolve_known(self, adapter: str, number: int) -> PullRequest | None:
         """Return the remembered pull request if it is still usable.
 
-        Usable means: still open, still a pull request, and still carrying
-        this adapter's marker in its body. A merged, closed, or repurposed
-        discussion is treated as gone, so the next run opens a fresh one
-        rather than pushing into something a reviewer has finished with.
+        Usable means: opened by this account, still open, still a pull
+        request, and still carrying this adapter's marker in its body. A
+        merged, closed, or repurposed discussion is treated as gone, so the
+        next run opens a fresh one rather than pushing into something a
+        reviewer has finished with. A remembered number that now points at
+        somebody else's pull request is treated as gone for the same reason.
         """
         for discussion in self._open_pull_requests():
             if _discussion_number(discussion) != number:
@@ -202,11 +252,11 @@ class DatastoreSubmitter:
     def find_by_marker(self, adapter: str) -> PullRequest | None:
         """Find this adapter's pull request when no number is remembered.
 
-        Every open pull request is checked for the marker, including ones
-        whose title no longer looks like ours, because a title edit must not
-        strand the pull request the cron has been publishing into. Two
-        matches is an error rather than a choice: picking one would mean
-        appending a scrape to a pull request nobody expected it in.
+        Every open pull request this account opened is checked for the marker,
+        including ones whose title no longer looks like ours, because a title
+        edit must not strand the pull request the cron has been publishing
+        into. Two matches is an error rather than a choice: picking one would
+        mean appending a scrape to a pull request nobody expected it in.
         """
         matches = []
         for discussion in self._open_pull_requests():

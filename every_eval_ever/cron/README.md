@@ -104,13 +104,20 @@ silently overwriting the other.
 ## The pull request
 
 One per adapter, titled `[Submission] cron: <adapter> — automated ingestion`,
-with `eee-cron-adapter: <adapter>` in the body. That body marker is what
-identifies it: the number is remembered in the ledger, and both it and any
-cold-start lookup are confirmed against the marker before anything is
-uploaded. The title is display metadata, so renaming a pull request does not
-strand it and titling one to look like ours does not hand it our records.
-Merged or closed means a fresh one is opened. If two open pull requests claim
-the same adapter the run stops rather than guessing.
+with `eee-cron-adapter: <adapter>` in the body.
+
+Two things identify it, and neither is the title. Only pull requests opened by
+the account the token resolves to are candidates at all — the datastore is
+public, so anyone can open one carrying our marker, and adopting it would
+commit records onto a branch and a description a stranger controls. Among
+those, the body marker says which adapter it belongs to. The number is
+remembered in the ledger, and both it and any cold-start lookup are confirmed
+against both checks before anything is uploaded.
+
+So renaming a pull request does not strand it, and titling one to look like
+ours does not hand it our records. Merged or closed means a fresh one is
+opened. If two open pull requests claim the same adapter the run stops rather
+than guessing.
 
 The description is rewritten each run with the coverage line — source rows,
 records produced, dropped, skipped as unchanged, uploaded.
