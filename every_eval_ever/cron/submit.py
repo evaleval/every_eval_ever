@@ -19,7 +19,7 @@ An ambiguous match is an error. There is no safe guess.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Iterable, Sequence
+from typing import Any, Sequence
 
 from huggingface_hub import CommitOperationAdd
 
@@ -29,6 +29,9 @@ MARKER_PREFIX = 'eee-cron-adapter:'
 #: A single commit of thousands of files can 504 with the commit still
 #: landing server-side, so batches are kept small.
 DEFAULT_BATCH_SIZE = 300
+#: How an instance-level sidecar is named after its aggregate. The two are
+#: one record and are committed together.
+SAMPLES_SUFFIX = '_samples.jsonl'
 
 
 class SubmissionError(RuntimeError):
@@ -343,7 +346,7 @@ class DatastoreSubmitter:
         """Add records to an existing pull request, in bounded batches."""
         return self._upload_batches(
             pull_request,
-            batches=list(_chunks(operations, self.batch_size)),
+            batches=_batches(operations, self.batch_size),
             message=message,
             committed=[],
         )
@@ -400,11 +403,14 @@ class DatastoreSubmitter:
         exempting it from the batch size aimed the ambiguous-timeout problem
         at exactly the run most likely to hit it.
 
+        Batches are whole records (see :func:`_batches`), so every commit
+        either publishes a record completely or not at all.
+
         A failure after something landed raises
         :class:`PartialSubmissionError` carrying what did, so the caller can
         record it and retry the remainder instead of publishing it twice.
         """
-        batches = list(_chunks(operations, self.batch_size))
+        batches = _batches(operations, self.batch_size)
         committed: list[str] = []
         if pull_request is None:
             first = batches[0] if batches else []
@@ -429,9 +435,49 @@ class DatastoreSubmitter:
         )
 
 
-def _chunks(items: Sequence[Any], size: int) -> Iterable[Sequence[Any]]:
-    for start in range(0, len(items), size):
-        yield items[start : start + size]
+def _record_key(path_in_repo: str) -> str:
+    """Return the aggregate a staged datastore path belongs to."""
+    if path_in_repo.endswith(SAMPLES_SUFFIX):
+        return path_in_repo[: -len(SAMPLES_SUFFIX)] + '.json'
+    return path_in_repo
+
+
+def _batches(
+    operations: Sequence[CommitOperationAdd], size: int
+) -> list[list[CommitOperationAdd]]:
+    """Split operations into commits, never splitting one record across two.
+
+    A record is its aggregate plus, sometimes, an instance-level sidecar named
+    after it, and a Hub commit is atomic. Keeping both files in one commit is
+    therefore what makes "this record landed" a question with an answer.
+
+    Chunking the flat file list could put an aggregate in one commit and its
+    sidecar in the next. When the second failed, the first was already on the
+    pull request, the record could not be recorded as published because half
+    of it had not arrived, and the retry sent the whole record again under a
+    fresh UUID. The abandoned half stayed on the pull request declaring a
+    companion file that does not exist, which a human then has to clear out
+    before it can be merged.
+
+    A record larger than ``size`` gets a commit to itself rather than being
+    split, since splitting is the thing this exists to prevent.
+    """
+    grouped: dict[str, list[CommitOperationAdd]] = {}
+    for operation in operations:
+        grouped.setdefault(_record_key(operation.path_in_repo), []).append(
+            operation
+        )
+
+    batches: list[list[CommitOperationAdd]] = []
+    current: list[CommitOperationAdd] = []
+    for group in grouped.values():
+        if current and len(current) + len(group) > size:
+            batches.append(current)
+            current = []
+        current.extend(group)
+    if current:
+        batches.append(current)
+    return batches
 
 
 def upload_operations(upload_dir: Any) -> list[CommitOperationAdd]:

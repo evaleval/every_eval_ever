@@ -721,6 +721,45 @@ def test_a_large_batch_is_split_and_numbered(tmp_path) -> None:
     ]
 
 
+def test_a_record_and_its_sidecar_are_never_split_across_commits(
+    tmp_path,
+) -> None:
+    """A commit is atomic, so a whole record in one commit lands or does not.
+
+    Split across two, a failure on the second leaves the aggregate public,
+    unrecordable (its companion never arrived), and republished under a fresh
+    UUID next run — with the abandoned half still on the pull request naming
+    a sidecar that does not exist.
+    """
+    upload = tmp_path / 'upload' / 'data' / 'hle' / 'org' / 'model'
+    upload.mkdir(parents=True)
+    for index in range(4):
+        (upload / f'{index}.json').write_text('{}', encoding='utf-8')
+        (upload / f'{index}_samples.jsonl').write_text(
+            '{}\n', encoding='utf-8'
+        )
+    hub = FakeHub()
+    sub = submit.DatastoreSubmitter(hub, batch_size=3)
+
+    sub.upload(
+        submit.PullRequest(12, 'https://x/12', 'refs/pr/12', 'cron: hle'),
+        operations=submit.upload_operations(tmp_path / 'upload'),
+        message='hle 2026-08-10',
+    )
+
+    for commit in hub.commits:
+        stems = {
+            operation.path_in_repo.removesuffix('_samples.jsonl').removesuffix(
+                '.json'
+            )
+            for operation in commit['operations']
+        }
+        # Every stem in this commit brought both of its files with it.
+        assert len(commit['operations']) == 2 * len(stems)
+    # Two files per record and a cap of three means one record per commit.
+    assert len(hub.commits) == 4
+
+
 def _upload_tree(tmp_path, count: int) -> Path:
     upload = tmp_path / 'upload' / 'data' / 'hle' / 'org' / 'model'
     upload.mkdir(parents=True)

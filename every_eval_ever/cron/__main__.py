@@ -138,9 +138,11 @@ def _landed_fingerprints(
 ) -> list[str]:
     """Return fingerprints for records whose every file reached the Hub.
 
-    A record with an instance sidecar spans two files, and a batch boundary
-    can fall between them. Remembering such a record on the strength of half
-    of it would leave the sidecar permanently unpublished.
+    A record with an instance sidecar spans two files. ``submit`` commits both
+    in the same batch, so in practice they land together or not at all; this
+    still checks every file rather than trusting that, because remembering a
+    record on the strength of half of it would leave the other half
+    permanently unpublished and invisible.
     """
     landed = set(committed_paths)
     fingerprints = []
