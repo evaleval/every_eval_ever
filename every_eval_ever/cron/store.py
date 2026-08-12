@@ -250,11 +250,20 @@ def plan_raw_upload(
     previous: dict[str, str] = {}
     if previous_manifest and previous_date:
         for entry in previous_manifest:
-            stored = entry.get('path')
-            if entry.get('kind') == 'payload' and stored:
-                previous[entry['sha256']] = (
-                    f'{RAW_DIR}/{adapter}/{previous_date}/{stored}'
-                )
+            if entry.get('kind') != 'payload':
+                continue
+            # An entry that was itself unchanged names a file the previous
+            # day did not write, because that day referenced an earlier copy
+            # instead of storing one. Following its target keeps every
+            # reference pointing at bytes that exist, however many unchanged
+            # days have passed.
+            target = entry.get(UNCHANGED_MARKER)
+            if not target:
+                stored = entry.get('path')
+                if not stored:
+                    continue
+                target = f'{RAW_DIR}/{adapter}/{previous_date}/{stored}'
+            previous[entry['sha256']] = target
 
     prefix = raw_prefix(adapter, run_date)
     operations: list[CommitOperationAdd] = []

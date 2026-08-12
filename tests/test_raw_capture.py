@@ -80,6 +80,33 @@ def test_environment_sink_follows_a_changed_directory(
     assert second.root == tmp_path / 'two'
 
 
+def test_the_same_bytes_under_two_content_types_name_one_file(
+    tmp_path,
+) -> None:
+    """The manifest must never name a file the sink did not write.
+
+    A source served as JSON and again as HTML hashes identically, but the
+    second sighting would have taken a .html name while only the .json file
+    exists, leaving a manifest line pointing at nothing.
+    """
+    sink = raw_capture.activate(tmp_path / 'raw')
+
+    sink.record(url='https://x', content=b'{}', content_type='application/json')
+    sink.record(url='https://y', content=b'{}', content_type='text/html')
+
+    entries = [
+        json.loads(line)
+        for line in (tmp_path / 'raw' / raw_capture.MANIFEST_NAME)
+        .read_text(encoding='utf-8')
+        .splitlines()
+    ]
+    paths = {entry['path'] for entry in entries}
+    assert len(paths) == 1
+    stored = paths.pop()
+    assert (tmp_path / 'raw' / stored).is_file()
+    assert entries[1]['duplicate'] is True
+
+
 @pytest.mark.parametrize('value', ['not-a-number', '0', '-5', '1.5'])
 def test_an_unusable_size_cap_falls_back_instead_of_raising(
     tmp_path, monkeypatch, capsys, value

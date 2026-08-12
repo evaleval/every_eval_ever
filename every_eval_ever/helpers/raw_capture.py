@@ -80,7 +80,10 @@ class RawSink:
         self.max_total_bytes = max_total_bytes
         self.total_bytes = 0
         self.errors: list[str] = []
-        self._seen: set[str] = set()
+        #: digest -> the filename actually written for it, so a second
+        #: sighting under another content type points at the file that
+        #: exists rather than the one its own extension would name.
+        self._seen: dict[str, str] = {}
 
     @property
     def manifest_path(self) -> Path:
@@ -126,14 +129,19 @@ class RawSink:
                 entry, f'run exceeds {self.max_total_bytes} bytes of raw data'
             )
 
-        name = f'{digest}{extension_for(content_type)}'
-        entry['path'] = name
-        if digest in self._seen:
+        stored = self._seen.get(digest)
+        if stored is not None:
             # Same bytes, already stored. Keep the line so the manifest still
-            # records that this URL served them.
+            # records that this URL served them, but point it at the name the
+            # bytes were written under. The same payload served as JSON and
+            # again as HTML would otherwise name a .html file nobody wrote.
+            entry['path'] = stored
             entry['duplicate'] = True
             self._append(entry)
             return digest
+
+        name = f'{digest}{extension_for(content_type)}'
+        entry['path'] = name
 
         try:
             self.root.mkdir(parents=True, exist_ok=True)
@@ -143,7 +151,7 @@ class RawSink:
         except OSError as exc:
             return self._drop(entry, f'could not write snapshot: {exc}')
 
-        self._seen.add(digest)
+        self._seen[digest] = name
         self.total_bytes += len(content)
         self._append(entry)
         return digest

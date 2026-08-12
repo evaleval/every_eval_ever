@@ -340,6 +340,50 @@ def test_an_unchanged_payload_is_referenced_not_re_uploaded(
     )
 
 
+def test_a_reference_survives_a_run_of_unchanged_days(tmp_path) -> None:
+    """Day three must point at day one, the only day that stored the bytes.
+
+    Pointing at day two instead names a file day two never wrote, because
+    day two referenced day one rather than storing a second copy. The
+    manifest would then describe a snapshot that cannot be fetched.
+    """
+    raw_dir = tmp_path / 'raw'
+    write_capture(
+        raw_dir,
+        [
+            {
+                'kind': 'payload',
+                'sha256': 'aaa',
+                'path': 'aaa.json',
+                'url': 'https://x',
+            }
+        ],
+        {'aaa.json': b'{}'},
+    )
+    day_one = 'raw/hle/2026-08-08/aaa.json'
+    day_two = [
+        {
+            'kind': 'payload',
+            'sha256': 'aaa',
+            'path': 'aaa.json',
+            store.UNCHANGED_MARKER: day_one,
+        }
+    ]
+
+    operations, manifest = store.plan_raw_upload(
+        raw_dir,
+        adapter='hle',
+        run_date=RUN_DATE,
+        previous_manifest=day_two,
+        previous_date=YESTERDAY.isoformat(),
+    )
+
+    assert [operation.path_in_repo for operation in operations] == [
+        'raw/hle/2026-08-10/manifest.jsonl'
+    ]
+    assert manifest[0][store.UNCHANGED_MARKER] == day_one
+
+
 def test_a_changed_payload_is_uploaded_even_when_one_is_unchanged(
     tmp_path,
 ) -> None:
