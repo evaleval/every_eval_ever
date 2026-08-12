@@ -357,8 +357,9 @@ def test_a_records_sample_uuid_does_not_change_its_fingerprint(
     """
     first, first_samples = record_with_samples(UUID_A)
     second, second_samples = record_with_samples(UUID_B)
-    assert first['detailed_evaluation_results']['file_path'] != (
-        second['detailed_evaluation_results']['file_path']
+    assert (
+        first['detailed_evaluation_results']['file_path']
+        != (second['detailed_evaluation_results']['file_path'])
     )
     assert first_samples == second_samples
 
@@ -373,9 +374,7 @@ def test_a_records_sample_uuid_does_not_change_its_fingerprint(
             f'demo-org\\demo-model\\{UUID_B}.json': second,
             f'demo-org/demo-model/{UUID_B}_samples.jsonl': second_samples,
         },
-        run_kwargs={
-            'known_fingerprints': {yesterday.records[0].fingerprint}
-        },
+        run_kwargs={'known_fingerprints': {yesterday.records[0].fingerprint}},
     )
 
     assert today.status == 'completed', today.messages

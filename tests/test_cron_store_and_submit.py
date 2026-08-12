@@ -857,9 +857,7 @@ def test_a_record_and_its_sidecar_are_never_split_across_commits(
     upload.mkdir(parents=True)
     for index in range(4):
         (upload / f'{index}.json').write_text('{}', encoding='utf-8')
-        (upload / f'{index}_samples.jsonl').write_text(
-            '{}\n', encoding='utf-8'
-        )
+        (upload / f'{index}_samples.jsonl').write_text('{}\n', encoding='utf-8')
     hub = FakeHub()
     sub = submit.DatastoreSubmitter(hub, batch_size=3)
 
@@ -917,9 +915,7 @@ def test_a_cold_start_is_batched_like_any_other_upload(tmp_path) -> None:
     assert [len(commit['operations']) for commit in hub.commits] == [3, 3, 1]
     assert hub.commits[0]['create_pr'] is True
     assert all('create_pr' not in commit for commit in hub.commits[1:])
-    assert all(
-        commit['revision'] == 'refs/pr/42' for commit in hub.commits[1:]
-    )
+    assert all(commit['revision'] == 'refs/pr/42' for commit in hub.commits[1:])
     assert len(submission.committed_paths) == 7
 
 

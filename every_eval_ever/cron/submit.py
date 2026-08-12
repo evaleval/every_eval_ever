@@ -382,9 +382,7 @@ class DatastoreSubmitter:
                     pull_request=pull_request,
                     committed_paths=committed,
                 ) from exc
-            committed.extend(
-                operation.path_in_repo for operation in batch
-            )
+            committed.extend(operation.path_in_repo for operation in batch)
         return commits
 
     def publish(

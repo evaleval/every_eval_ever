@@ -183,9 +183,7 @@ def test_a_public_raw_store_stops_the_run_before_the_adapter(
     monkeypatch.setattr('huggingface_hub.HfApi', lambda *a, **k: hub)
     monkeypatch.setenv('HF_TOKEN', 'a-token')
     started = []
-    monkeypatch.setattr(
-        cli.runner, 'run', lambda *a, **k: started.append(True)
-    )
+    monkeypatch.setattr(cli.runner, 'run', lambda *a, **k: started.append(True))
 
     exit_code = cli.main(
         ['run', '--adapter', 'hle', '--workdir', str(tmp_path)]

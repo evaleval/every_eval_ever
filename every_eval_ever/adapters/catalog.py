@@ -216,7 +216,12 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         cadence='weekly',
         weekday=4,
         timeout_minutes=45,
-        notes='4500+ models per refresh.',
+        notes=(
+            'Around 4,576 models per refresh. Weekly rather than daily '
+            'because of that: the cold start is a single pull request of '
+            'that size, and every leaderboard re-run of a model changes its '
+            'fingerprint and republishes it.'
+        ),
     ),
     AdapterSpec(
         key='hle',
