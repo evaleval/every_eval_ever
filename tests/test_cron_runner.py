@@ -119,6 +119,7 @@ def state_store(monkeypatch):
     run-reads-its-own-fingerprint bug.
     """
     store: dict[str, dict] = {}
+    attempts: dict[str, dict] = {}
     monkeypatch.setattr(
         runner.archive_module,
         'archive',
@@ -133,11 +134,26 @@ def state_store(monkeypatch):
         'read_state',
         lambda adapter, **kwargs: store.get(adapter),
     )
+
+    def write_state(adapter, state, **kwargs):
+        store[adapter] = state
+        if kwargs.get('clear_attempt'):
+            attempts.pop(adapter, None)
+
+    monkeypatch.setattr(runner.archive_module, 'write_state', write_state)
     monkeypatch.setattr(
         runner.archive_module,
-        'write_state',
-        lambda adapter, state, **kwargs: store.__setitem__(adapter, state),
+        'read_attempt',
+        lambda adapter, **kwargs: attempts.get(adapter),
     )
+    monkeypatch.setattr(
+        runner.archive_module,
+        'write_attempt',
+        lambda adapter, attempt, **kwargs: attempts.__setitem__(
+            adapter, attempt
+        ),
+    )
+    store['__attempts__'] = attempts  # visible to tests that need them
     monkeypatch.setattr(
         runner.publish_module,
         'publish',
@@ -259,7 +275,9 @@ def test_an_adapter_that_produces_no_records_is_not_a_failure(
     assert summary.status == 'nothing_produced'
 
 
-def test_missing_credentials_skip_rather_than_fail(tmp_path: Path):
+def test_missing_credentials_fail_the_adapters_own_run(tmp_path: Path):
+    # An enabled adapter without its credential is broken configuration, not a
+    # quiet day: its job fails in isolation while the others proceed.
     code, summary = runner.refresh(
         'llm_stats',
         work_dir=tmp_path / 'work',
@@ -272,8 +290,8 @@ def test_missing_credentials_skip_rather_than_fail(tmp_path: Path):
         environment={},
     )
 
-    assert code == runner.EXIT_NOTHING_NEW
-    assert summary.status == 'skipped'
+    assert code == runner.EXIT_FAILED
+    assert summary.status == 'missing_credentials'
     assert 'LLM_STATS_API_KEY' in summary.detail
 
 
@@ -996,7 +1014,7 @@ def test_a_dry_run_does_not_consult_the_state(
     _refresh(tmp_path, dry_run=True)
 
     assert consulted == []
-    assert state_store == {}
+    assert not {k: v for k, v in state_store.items() if k != '__attempts__'}
 
 
 def test_an_oversized_payload_is_still_recorded_in_the_ledger(
@@ -1174,3 +1192,278 @@ def test_an_oversized_only_capture_still_publishes(
     assert code == runner.EXIT_PUBLISHED
     assert summary.raw_skipped == 1
     assert summary.capture_errors == []
+
+
+def test_the_write_token_never_reaches_the_adapter_subprocess(
+    tmp_path: Path, monkeypatch
+):
+    # The cron's HF token can write to the datastore and the private raw
+    # dataset; adapter code and its dependencies must never hold it.
+    seen = {}
+
+    class Completed:
+        returncode = 0
+
+    def fake_run(argv, *, cwd, env, check):
+        seen.update(env)
+        return Completed()
+
+    monkeypatch.setattr(runner.subprocess, 'run', fake_run)
+    adapter = CronAdapter(name=ADAPTER, raw_policy=RawPolicy.NOT_CAPTURED)
+
+    runner.run_adapter(
+        adapter,
+        work_dir=tmp_path / 'work',
+        raw_dir=tmp_path / 'raw',
+        environment={
+            'HF_TOKEN': 'write-capable',
+            'HUGGING_FACE_HUB_TOKEN': 'write-capable',
+            'HF_HUB_TOKEN': 'write-capable',
+            'LLM_STATS_API_KEY': 'source-key',
+            'PATH': '/usr/bin',
+        },
+    )
+
+    for name in runner.WRITE_TOKEN_ENV_NAMES:
+        assert name not in seen
+    # Source-specific credentials and ordinary variables still pass through.
+    assert seen['LLM_STATS_API_KEY'] == 'source-key'
+    assert seen['PATH'] == '/usr/bin'
+
+
+def test_a_source_hf_token_is_forwarded_only_when_declared(
+    tmp_path: Path, monkeypatch
+):
+    seen = {}
+
+    class Completed:
+        returncode = 0
+
+    def fake_run(argv, *, cwd, env, check):
+        seen.update(env)
+        return Completed()
+
+    monkeypatch.setattr(runner.subprocess, 'run', fake_run)
+    environment = {
+        'HF_TOKEN': 'write-capable',
+        runner.SOURCE_HF_TOKEN_ENV: 'read-only-source-token',
+    }
+
+    plain = CronAdapter(name=ADAPTER, raw_policy=RawPolicy.NOT_CAPTURED)
+    runner.run_adapter(
+        plain,
+        work_dir=tmp_path / 'a',
+        raw_dir=tmp_path / 'a-raw',
+        environment=environment,
+    )
+    assert 'HF_TOKEN' not in seen
+
+    seen.clear()
+    declared = CronAdapter(
+        name=ADAPTER,
+        raw_policy=RawPolicy.NOT_CAPTURED,
+        source_hf_token=True,
+    )
+    runner.run_adapter(
+        declared,
+        work_dir=tmp_path / 'b',
+        raw_dir=tmp_path / 'b-raw',
+        environment=environment,
+    )
+    # The forwarded value is the separate read token, never the cron's own.
+    assert seen['HF_TOKEN'] == 'read-only-source-token'
+
+
+def test_a_failed_publish_leaves_the_attempt_for_reconciliation(
+    tmp_path: Path, stub_adapter, state_store, monkeypatch
+):
+    attempts = state_store['__attempts__']
+    stale_seen = []
+
+    calls = []
+
+    def flaky_publish(data_root, *, stale_paths=None, **kwargs):
+        calls.append(1)
+        stale_seen.append(stale_paths)
+        if len(calls) == 1:
+            raise publish.PublishError('batch 2 of 3 failed')
+        return publish.PublishResult(
+            pr_url='u', pr_number=1, files=1, commits=1, reused_existing_pr=True
+        )
+
+    monkeypatch.setattr(runner.publish_module, 'publish', flaky_publish)
+    stub_adapter(verbatim=True)
+
+    with pytest.raises(publish.PublishError):
+        _refresh(tmp_path, work_dir=tmp_path / 'first', dry_run=False)
+
+    # The attempt record survives the failure — it is what the next run uses.
+    assert ADAPTER in attempts
+    left_behind = attempts[ADAPTER]['paths']
+    assert left_behind and all(p.startswith('data/') for p in left_behind)
+
+    stub_adapter(verbatim=True)
+    code, summary = _refresh(
+        tmp_path, work_dir=tmp_path / 'second', dry_run=False
+    )
+
+    assert code == runner.EXIT_PUBLISHED
+    # The retry handed the incomplete attempt's paths to publish() for removal,
+    # and success cleared the attempt in the same commit as the state.
+    assert stale_seen[1] == left_behind
+    assert ADAPTER not in attempts
+
+
+def test_a_dangling_attempt_forces_a_publish_even_when_unchanged(
+    tmp_path: Path, stub_adapter, state_store
+):
+    # Fingerprint equality must not skip while half an old attempt sits on the
+    # PR: the reconciliation is the point of the run.
+    attempts = state_store['__attempts__']
+    stub_adapter(verbatim=True)
+    _refresh(tmp_path, work_dir=tmp_path / 'first', dry_run=False)
+    attempts[ADAPTER] = {'run_id': 'ghost', 'paths': ['data/x/y/z/a.json']}
+
+    stub_adapter(verbatim=True)
+    code, summary = _refresh(
+        tmp_path, work_dir=tmp_path / 'second', dry_run=False
+    )
+
+    assert code == runner.EXIT_PUBLISHED
+    assert summary.status == 'published'
+    assert ADAPTER not in attempts
+
+
+def test_a_persistent_state_write_failure_fails_the_run_keeping_the_pr(
+    tmp_path: Path, stub_adapter, state_store, monkeypatch
+):
+    def broken_write(adapter, state, **kwargs):
+        raise archive.ArchiveError('503 service unavailable')
+
+    monkeypatch.setattr(runner.archive_module, 'write_state', broken_write)
+    stub_adapter(verbatim=True)
+
+    code, summary = _refresh(tmp_path, dry_run=False)
+
+    assert code == runner.EXIT_FAILED
+    assert summary.status == 'published_state_unrecorded'
+    # The publish DID happen; the URL must stay in view.
+    assert summary.pr_url == 'https://hf.invalid/discussions/0'
+    assert '503' in summary.detail
+
+
+def test_a_transient_state_write_failure_is_retried(
+    tmp_path: Path, stub_adapter, state_store, monkeypatch
+):
+    attempts = []
+    real_write = runner.archive_module.write_state
+
+    def flaky_write(adapter, state, **kwargs):
+        attempts.append(1)
+        if len(attempts) == 1:
+            raise archive.ArchiveError('503 service unavailable')
+        return real_write(adapter, state, **kwargs)
+
+    monkeypatch.setattr(runner.archive_module, 'write_state', flaky_write)
+    stub_adapter(verbatim=True)
+
+    code, summary = _refresh(tmp_path, dry_run=False)
+
+    assert code == runner.EXIT_PUBLISHED
+    assert summary.status == 'published'
+    assert len(attempts) == 2
+
+
+def test_capture_failure_evidence_is_archived_before_the_run_fails(
+    tmp_path: Path, monkeypatch, state_store
+):
+    # The successful sibling capture and the error row must be permanent
+    # before the failure returns; the work directory is ephemeral.
+    archived = []
+
+    def recording_archive(raw_dir, **kwargs):
+        archived.append(
+            {
+                'rows': archive.ledger_rows(
+                    raw_dir, adapter='vals_ai', run_date='d', run_id='r'
+                ),
+                'reports': kwargs.get('reports'),
+            }
+        )
+        return archive.ArchiveResult(repo_id='r', ledger_path='l', uploaded=1)
+
+    monkeypatch.setattr(runner.archive_module, 'archive', recording_archive)
+
+    def run_adapter(adapter, *, work_dir, raw_dir, environment):
+        save_evaluation_log(
+            _log(),
+            base_dir=work_dir / 'data' / 'vals-ai',
+            developer='dev',
+            model_name='model',
+        )
+        reports = work_dir / 'adapter_reports'
+        reports.mkdir(parents=True)
+        (reports / 'vals-ai_failures.json').write_text('{}', encoding='utf-8')
+        monkeypatch.setenv(raw_capture.RAW_CAPTURE_DIR_ENV, str(raw_dir))
+        raw_capture.capture_response('https://vals.invalid/ok', b'{"a": 1}')
+
+        def broken(directory, url, body, content_type):
+            raise OSError('disk full')
+
+        monkeypatch.setattr(raw_capture, '_capture', broken)
+        raw_capture.capture_response('https://vals.invalid/broken', b'{}')
+        return runner.AdapterOutcome(
+            invocations=[runner.Invocation(arguments=[], returncode=0)]
+        )
+
+    monkeypatch.setattr(runner, 'run_adapter', run_adapter)
+
+    code, summary = _refresh(tmp_path, dry_run=False)
+
+    assert code == runner.EXIT_FAILED
+    assert len(archived) == 1
+    rows = archived[0]['rows']
+    assert any(row['error'] for row in rows), 'the error row must be archived'
+    assert any(row['file_name'] for row in rows), 'the sibling capture too'
+    assert [r.name for r in archived[0]['reports']] == ['vals-ai_failures.json']
+    assert ADAPTER not in state_store
+
+
+def test_failure_reports_are_archived_even_with_no_captures(
+    tmp_path: Path, monkeypatch, state_store
+):
+    # NOT_CAPTURED adapters still produce failure reports, which embed raw
+    # source rows and must land in the private dataset, not a public artifact.
+    archived = []
+    monkeypatch.setattr(
+        runner.archive_module,
+        'archive',
+        lambda raw_dir, **kwargs: (
+            archived.append(kwargs.get('reports'))
+            or archive.ArchiveResult(repo_id='r', ledger_path='l')
+        ),
+    )
+
+    def run_adapter(adapter, *, work_dir, raw_dir, environment):
+        save_evaluation_log(
+            _log(),
+            base_dir=work_dir / 'data' / 'vals-ai',
+            developer='dev',
+            model_name='model',
+        )
+        reports = work_dir / 'adapter_reports'
+        reports.mkdir(parents=True)
+        (reports / 'report.json').write_text('{}', encoding='utf-8')
+        return runner.AdapterOutcome(
+            invocations=[runner.Invocation(arguments=[], returncode=0)]
+        )
+
+    monkeypatch.setattr(runner, 'run_adapter', run_adapter)
+
+    code, summary = _refresh(
+        tmp_path, dry_run=False, adapter=ZERO_CAPTURE_ADAPTER
+    )
+
+    assert code == runner.EXIT_PUBLISHED
+    assert [r.name for r in archived[0]] == ['report.json']
+    assert summary.raw_archive['reports'] == 1

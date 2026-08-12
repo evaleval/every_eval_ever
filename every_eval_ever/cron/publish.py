@@ -16,7 +16,7 @@ import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from huggingface_hub import CommitOperationAdd, HfApi
+from huggingface_hub import CommitOperationAdd, CommitOperationDelete, HfApi
 
 DEFAULT_REPO_ID = 'evaleval/EEE_datastore'
 DEFAULT_FILES_PER_COMMIT = 300
@@ -59,6 +59,15 @@ class PublishResult:
 def pr_title(adapter: str) -> str:
     """Return the pull request title that identifies an adapter's cron output."""
     return PR_TITLE_TEMPLATE.format(adapter=adapter)
+
+
+def repo_paths(data_root: str | Path) -> list[str]:
+    """Return the datastore paths a publish of ``data_root`` would add."""
+    root = Path(data_root)
+    return [
+        f'data/{path.relative_to(root).as_posix()}'
+        for path in collect_files(root)
+    ]
 
 
 def collect_files(data_root: str | Path) -> list[Path]:
@@ -106,6 +115,29 @@ def _pr_number_from_url(pr_url: str | None) -> int | None:
     return int(tail) if tail.isdigit() else None
 
 
+def _paths_on_revision(
+    api: HfApi, repo_id: str, revision: str, paths: list[str]
+) -> list[str]:
+    """Return which of ``paths`` exist at ``revision``, in one call.
+
+    Deleting a path that does not exist fails the whole commit, so stale paths
+    are filtered against the pull request's actual tree first.
+    """
+    try:
+        found = api.get_paths_info(
+            repo_id=repo_id,
+            paths=paths,
+            repo_type='dataset',
+            revision=revision,
+        )
+    except Exception as error:
+        raise PublishError(
+            f'could not inspect {revision} of {repo_id} to reconcile an '
+            f'incomplete attempt: {error}'
+        ) from error
+    return [entry.path for entry in found]
+
+
 def _batched(items: list[Path], size: int) -> list[list[Path]]:
     return [items[index : index + size] for index in range(0, len(items), size)]
 
@@ -118,9 +150,16 @@ def publish(
     token: str | None = None,
     commit_description: str = '',
     files_per_commit: int = DEFAULT_FILES_PER_COMMIT,
+    stale_paths: list[str] | None = None,
     api: HfApi | None = None,
 ) -> PublishResult:
-    """Commit every record under ``data_root`` to this adapter's pull request."""
+    """Commit every record under ``data_root`` to this adapter's pull request.
+
+    ``stale_paths`` names datastore paths a previous *incomplete* attempt
+    committed before failing; whichever of them exist on the adopted pull
+    request are deleted in the first commit, so a retry replaces the broken
+    attempt instead of stacking a second copy of the set beside it.
+    """
     files = collect_files(data_root)
     if not files:
         raise PublishError(f'no record files found under {data_root}')
@@ -131,16 +170,34 @@ def publish(
     batches = _batched(files, max(1, files_per_commit))
     total = len(batches)
 
+    removals: list[CommitOperationDelete] = []
+    if stale_paths and existing is not None:
+        removals = [
+            CommitOperationDelete(path_in_repo=path)
+            for path in _paths_on_revision(
+                api, repo_id, f'refs/pr/{existing}', stale_paths
+            )
+        ]
+        if removals:
+            _logger.info(
+                'removing %d file(s) left by an incomplete attempt from '
+                'PR %d before republishing',
+                len(removals),
+                existing,
+            )
+
     pr_number = existing
     pr_url = None
     for index, batch in enumerate(batches, start=1):
-        operations = [
+        operations: list[CommitOperationAdd | CommitOperationDelete] = [
             CommitOperationAdd(
                 path_in_repo=f'data/{path.relative_to(root).as_posix()}',
                 path_or_fileobj=str(path),
             )
             for path in batch
         ]
+        if index == 1 and removals:
+            operations = [*removals, *operations]
         suffix = f' ({index}/{total})' if total > 1 else ''
         if pr_number is None:
             # The Hub titles a created PR from this commit's message, and

@@ -56,6 +56,12 @@ EXIT_FAILED = 1
 # code as success.
 EXIT_NOTHING_NEW = 3
 
+#: The cron's write-capable Hugging Face credentials, in every spelling the
+#: hub client reads. Never forwarded to adapter subprocesses.
+WRITE_TOKEN_ENV_NAMES = ('HF_TOKEN', 'HUGGING_FACE_HUB_TOKEN', 'HF_HUB_TOKEN')
+#: A separate read-only token for sources that need authenticated HF access.
+SOURCE_HF_TOKEN_ENV = 'EEE_SOURCE_HF_TOKEN'
+
 _logger = logging.getLogger('every_eval_ever.cron')
 
 
@@ -149,10 +155,33 @@ def run_adapter(
     """
     work_dir.mkdir(parents=True, exist_ok=True)
     child_environment = {
-        **environment,
-        raw_capture.RAW_CAPTURE_DIR_ENV: str(raw_dir),
-        'PYTHONUNBUFFERED': '1',
+        name: value
+        for name, value in environment.items()
+        # The cron's Hugging Face token can write to the datastore and the
+        # private raw dataset. Adapter code and its dependencies have no
+        # business holding that authority: it stays in the parent, which does
+        # all archiving, state and publication itself.
+        if name not in WRITE_TOKEN_ENV_NAMES
     }
+    child_environment.update(
+        {
+            raw_capture.RAW_CAPTURE_DIR_ENV: str(raw_dir),
+            'PYTHONUNBUFFERED': '1',
+        }
+    )
+    if adapter.source_hf_token:
+        # A source that needs authenticated Hugging Face *read* access gets a
+        # separate least-privilege token, never the cron's own.
+        source_token = (environment.get(SOURCE_HF_TOKEN_ENV) or '').strip()
+        if source_token:
+            child_environment['HF_TOKEN'] = source_token
+        else:
+            _logger.warning(
+                '%s declares source_hf_token but %s is not set; the source '
+                'fetch will run unauthenticated',
+                adapter.name,
+                SOURCE_HF_TOKEN_ENV,
+            )
     outcome = AdapterOutcome()
     for run in adapter.runs:
         argv = [sys.executable, *adapter.argv_for(run, raw_dir)]
@@ -295,11 +324,24 @@ def _unchanged_since(
     )
 
 
+def _failure_reports(work_dir: Path) -> list[Path]:
+    """Return the failure reports the adapter left under ``adapter_reports/``.
+
+    These embed raw source rows, so they are archived into the private raw
+    dataset — never uploaded as a public workflow artifact.
+    """
+    reports_dir = work_dir / 'adapter_reports'
+    if not reports_dir.is_dir():
+        return []
+    return sorted(path for path in reports_dir.iterdir() if path.is_file())
+
+
 def _archive_raw(
     raw_dir: Path,
     *,
     summary: RunSummary,
     captured: int,
+    reports: list[Path],
     run_id: str,
     run_url: str | None,
     gating_fingerprint: str | None,
@@ -308,13 +350,13 @@ def _archive_raw(
     dry_run: bool,
     token: str | None,
 ) -> dict[str, object]:
-    """Store this run's raw payloads permanently, or say why it did not.
+    """Store this run's raw payloads and reports permanently, or say why not.
 
     ``captured`` counts every manifest entry, not just the ones that landed on
-    disk: a payload too large to store still gets a ledger row, so a run that
-    only fetched an oversized payload must still be archived.
+    disk: a payload too large to store still gets a ledger row, and a capture
+    *failure* row is precisely the evidence worth keeping.
     """
-    if not captured:
+    if not captured and not reports:
         return {
             'status': 'nothing_captured',
             'reason': (
@@ -346,6 +388,7 @@ def _archive_raw(
         raw_fingerprint=summary.raw_fingerprint,
         output_fingerprint=summary.output_fingerprint,
         gating_fingerprint=gating_fingerprint,
+        reports=reports,
         repo_id=raw_repo_id,
         token=token,
     )
@@ -357,6 +400,7 @@ def _archive_raw(
         'reused': result.reused,
         'uploaded_bytes': result.uploaded_bytes,
         'ledger_rows': len(result.rows),
+        'reports': len(reports),
     }
 
 
@@ -393,11 +437,14 @@ def refresh(
 
     missing = adapter.missing_env(environment)
     if missing:
-        summary.status = 'skipped'
+        # An enabled adapter without its credential is a broken configuration,
+        # not a quiet day: the job must fail visibly, in isolation, while the
+        # other adapters' jobs proceed.
+        summary.status = 'missing_credentials'
         summary.detail = f'missing environment: {", ".join(missing)}'
         summary.write(summary_path)
-        _logger.warning('%s: %s', adapter.name, summary.detail)
-        return EXIT_NOTHING_NEW, summary
+        _logger.error('%s: %s', adapter.name, summary.detail)
+        return EXIT_FAILED, summary
 
     data_root = work_dir / 'data'
     raw_dir = work_dir / 'raw'
@@ -448,31 +495,6 @@ def refresh(
     summary.records = len(list(data_root.glob('*/*/*/*.json')))
     summary.collections = collections_in(data_root)
 
-    if summary.records and declares_capture:
-        # Records without their source bytes archived must not be published:
-        # a swallowed capture exception, or an adapter that fetched without
-        # its declared capture route, would otherwise erode provenance one
-        # quiet day at a time. Deliberate ceiling skips are not errors.
-        problems = []
-        if summary.capture_errors:
-            problems.append(
-                f'{len(summary.capture_errors)} capture failure(s): '
-                + ', '.join(summary.capture_errors[:5])
-            )
-        if not manifest:
-            problems.append(
-                f'raw policy {adapter.raw_policy.value} captured nothing'
-            )
-        if problems:
-            summary.status = 'failed'
-            summary.detail = (
-                'records were produced but their raw source was not '
-                'archived (' + '; '.join(problems) + '); nothing published'
-            )
-            summary.write(summary_path)
-            _logger.error('%s: %s', adapter.name, summary.detail)
-            return EXIT_FAILED, summary
-
     # Computed before stamping deliberately: the digest strips the cron stamp,
     # so the value is the same either side of it, and archiving it here means
     # the ledger row carries the fingerprint even for a run that fails later.
@@ -489,6 +511,7 @@ def refresh(
         raw_dir,
         summary=summary,
         captured=len(manifest),
+        reports=_failure_reports(work_dir),
         run_id=run_id,
         run_url=run_url,
         gating_fingerprint=current,
@@ -497,6 +520,34 @@ def refresh(
         dry_run=dry_run,
         token=environment.get('HF_TOKEN'),
     )
+
+    if summary.records and declares_capture:
+        # Records without their source bytes archived must not be published: a
+        # swallowed capture exception, or an adapter that fetched without its
+        # declared capture route, would erode provenance one quiet day at a
+        # time. Checked *after* archiving, so the successful sibling captures
+        # and the error rows themselves are already stored permanently.
+        # Deliberate ceiling skips are not errors.
+        problems = []
+        if summary.capture_errors:
+            problems.append(
+                f'{len(summary.capture_errors)} capture failure(s): '
+                + ', '.join(summary.capture_errors[:5])
+            )
+        if not manifest:
+            problems.append(
+                f'raw policy {adapter.raw_policy.value} captured nothing'
+            )
+        if problems:
+            summary.status = 'failed'
+            summary.detail = (
+                'records were produced but their raw source was not fully '
+                'captured (' + '; '.join(problems) + '); nothing published. '
+                'What was captured, and the error rows, are archived.'
+            )
+            summary.write(summary_path)
+            _logger.error('%s: %s', adapter.name, summary.detail)
+            return EXIT_FAILED, summary
 
     if not summary.records:
         # No records and a failing adapter is a broken source; no records and a
@@ -536,8 +587,34 @@ def refresh(
     )
     current_failures = failure_identity(summary.failed_invocations)
 
-    if not force and _unchanged_since(
-        previous, current=current, current_failures=current_failures
+    # A dangling attempt record means a previous publish died between batches:
+    # its partial file set is sitting on the pull request. That forces a
+    # publish (never a skip, even on a matching fingerprint), and hands the
+    # attempt's paths to publish() so the broken half-set is removed first.
+    dangling = (
+        archive_module.read_attempt(
+            adapter.name,
+            repo_id=raw_repo_id,
+            token=environment.get('HF_TOKEN'),
+        )
+        if archive_raw and not dry_run
+        else None
+    )
+    if dangling:
+        _logger.warning(
+            '%s: a previous publish left an incomplete attempt (%d file(s), '
+            'run %s); reconciling it instead of gating on the fingerprint',
+            adapter.name,
+            len(dangling.get('paths') or []),
+            dangling.get('run_id'),
+        )
+
+    if (
+        not force
+        and not dangling
+        and _unchanged_since(
+            previous, current=current, current_failures=current_failures
+        )
     ):
         summary.status = 'unchanged'
         summary.detail = (
@@ -578,12 +655,29 @@ def refresh(
             len(summary.failed_invocations),
         )
 
+    # Recorded before the first batch: a publish that dies between batches
+    # leaves this durable list of exactly what its incomplete attempt added,
+    # which is what lets the next run replace it instead of stacking a copy.
+    if archive_raw:
+        archive_module.write_attempt(
+            adapter.name,
+            {
+                'run_id': run_id,
+                'run_date': run_date,
+                'gating_fingerprint': current,
+                'paths': publish_module.repo_paths(data_root),
+            },
+            repo_id=raw_repo_id,
+            token=environment.get('HF_TOKEN'),
+        )
+
     result = publish_module.publish(
         data_root,
         adapter=adapter.name,
         repo_id=repo_id,
         token=environment.get('HF_TOKEN'),
         commit_description=_commit_description(summary, run_url),
+        stale_paths=(dangling or {}).get('paths'),
     )
     summary.status = (
         'published_partial' if summary.failed_invocations else 'published'
@@ -596,37 +690,72 @@ def refresh(
     )
     # Only now, after the datastore has the records, is the fingerprint safe to
     # persist: recording it any earlier would make a failed publish look
-    # 'unchanged' tomorrow and silently withhold the records forever.
+    # 'unchanged' tomorrow and silently withhold the records forever. The same
+    # commit clears the attempt record, so the two can never disagree.
     if fingerprint_path and current:
         write_fingerprint(fingerprint_path, current)
     if archive_raw and current:
-        try:
-            archive_module.write_state(
-                adapter.name,
-                {
-                    'gating_fingerprint': current,
-                    'fingerprint_source': summary.fingerprint_source,
-                    'run_date': run_date,
-                    'run_id': run_id,
-                    'run_url': run_url,
-                    'partial': bool(summary.failed_invocations),
-                    'failure_identity': current_failures,
-                    'pr_number': result.pr_number,
-                    'pr_url': result.pr_url,
-                },
-                repo_id=raw_repo_id,
-                token=environment.get('HF_TOKEN'),
+        state = {
+            'gating_fingerprint': current,
+            'fingerprint_source': summary.fingerprint_source,
+            'run_date': run_date,
+            'run_id': run_id,
+            'run_url': run_url,
+            'partial': bool(summary.failed_invocations),
+            'failure_identity': current_failures,
+            'pr_number': result.pr_number,
+            'pr_url': result.pr_url,
+        }
+        error = _write_state_with_retry(
+            adapter.name,
+            state,
+            raw_repo_id=raw_repo_id,
+            token=environment.get('HF_TOKEN'),
+        )
+        if error is not None:
+            # The records ARE on the pull request; only the gate is stale. A
+            # green exit here would hide that tomorrow will republish the set
+            # (and, with the attempt record still standing, first delete and
+            # re-add these very files). Fail, keeping the PR URL in view.
+            summary.status = 'published_state_unrecorded'
+            summary.detail = (
+                f'published {result.files} file(s) to {result.pr_url}, but '
+                f'the publish state could not be recorded after retrying: '
+                f'{error}. The next run will reconcile this attempt.'
             )
-        except archive_module.ArchiveError as error:
-            # The publish itself succeeded; stale state can only cause a
-            # duplicate publish tomorrow, never a loss. Say so loudly.
-            summary.detail += f' (WARNING: publish state not recorded: {error})'
-            _logger.error(
-                '%s: %s; tomorrow may republish this set', adapter.name, error
-            )
+            summary.write(summary_path)
+            _logger.error('%s: %s', adapter.name, summary.detail)
+            return EXIT_FAILED, summary
     summary.write(summary_path)
     _logger.info('%s: %s', adapter.name, summary.detail)
     return EXIT_PUBLISHED, summary
+
+
+def _write_state_with_retry(
+    adapter: str,
+    state: dict[str, object],
+    *,
+    raw_repo_id: str,
+    token: str | None,
+) -> archive_module.ArchiveError | None:
+    """Record the publish state, retrying once. Returns the final error."""
+    error: archive_module.ArchiveError | None = None
+    for _ in range(2):
+        try:
+            archive_module.write_state(
+                adapter,
+                state,
+                repo_id=raw_repo_id,
+                token=token,
+                clear_attempt=True,
+            )
+            return None
+        except archive_module.ArchiveError as exc:
+            error = exc
+            _logger.warning(
+                '%s: state write failed, retrying: %s', adapter, exc
+            )
+    return error
 
 
 def _raw_archive_lines(summary: RunSummary) -> list[str]:
@@ -668,7 +797,14 @@ def _commit_description(summary: RunSummary, run_url: str | None) -> str:
         f'collection(s): {", ".join(summary.collections)}',
         f'- Adapter invocations: {summary.invocations}',
         f'- Raw payloads archived: {summary.raw_payloads} '
-        f'({summary.raw_policy})',
+        f'({summary.raw_policy}'
+        + (
+            f'; {summary.raw_skipped} fetched but over the capture ceiling, '
+            'recorded in the ledger only'
+            if summary.raw_skipped
+            else ''
+        )
+        + ')',
         *_raw_archive_lines(summary),
         *_partial_refresh_lines(summary),
         f'- Every record carries `type_of_addition: cron` and '

@@ -118,36 +118,24 @@ def test_excluded_adapter_reports_why_it_is_excluded():
         get_adapter(name)
 
 
-def test_scheduling_skips_adapters_missing_credentials():
-    runnable, skipped = scheduled_adapters({})
+def test_uncredentialed_enabled_adapters_stay_scheduled():
+    # They must fail their own job visibly, not vanish from the matrix behind
+    # a green run — so scheduling ignores credentials entirely.
+    runnable, _ = scheduled_adapters({})
     needs_credentials = {
         adapter.name
         for adapter in CRON_ADAPTERS
         if adapter.requires_env and adapter.enabled
     }
     assert needs_credentials
-    assert not needs_credentials & {adapter.name for adapter in runnable}
-    reasons = {adapter.name: reason for adapter, reason in skipped}
-    for name in needs_credentials:
-        assert 'missing environment' in reasons[name]
-
-
-def test_scheduling_includes_a_credentialed_adapter_once_configured():
-    adapter = next(
-        item for item in CRON_ADAPTERS if item.requires_env and item.enabled
-    )
-    environment = {name: 'token' for name in adapter.requires_env}
-    runnable, _ = scheduled_adapters(environment)
-    assert adapter.name in {item.name for item in runnable}
+    assert needs_credentials <= {adapter.name for adapter in runnable}
 
 
 def test_blank_credentials_count_as_missing():
     adapter = next(
         item for item in CRON_ADAPTERS if item.requires_env and item.enabled
     )
-    environment = {name: '   ' for name in adapter.requires_env}
-    runnable, _ = scheduled_adapters(environment)
-    assert adapter.name not in {item.name for item in runnable}
+    assert adapter.missing_env({name: '   ' for name in adapter.requires_env})
 
 
 def test_disabled_adapters_are_never_scheduled():

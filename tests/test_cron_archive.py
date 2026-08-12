@@ -220,7 +220,7 @@ def test_a_payload_too_large_to_store_still_gets_a_ledger_row(
 
 
 def test_archiving_nothing_is_an_error(tmp_path: Path):
-    with pytest.raises(archive.ArchiveError, match='no raw payloads'):
+    with pytest.raises(archive.ArchiveError, match='nothing to archive'):
         _archive(tmp_path, _FakeApi())
 
 
@@ -372,3 +372,104 @@ def test_one_url_serving_two_bodies_archives_both_correctly(
         digest = hashlib.sha256(body).hexdigest()
         # The blob really contains the bytes its address promises.
         assert Path(path_in_repo).stem == digest
+
+
+def test_the_attempt_record_round_trips(monkeypatch, tmp_path: Path):
+    written = {}
+
+    class _StateApi(_FakeApi):
+        def create_commit(self, **kwargs):
+            super().create_commit(**kwargs)
+            operation = kwargs['operations'][0]
+            written[operation.path_in_repo] = bytes(operation.path_or_fileobj)
+            return object()
+
+    archive.write_attempt(
+        'hle',
+        {'run_id': '9-1', 'paths': ['data/hle/dev/m/a.json']},
+        repo_id=REPO,
+        api=_StateApi(),
+    )
+    stored = tmp_path / 'attempt.json'
+    stored.write_bytes(written[archive.attempt_path('hle')])
+    monkeypatch.setattr(
+        archive, 'hf_hub_download', lambda **kwargs: str(stored)
+    )
+
+    attempt = archive.read_attempt('hle', repo_id=REPO)
+    assert attempt == {'run_id': '9-1', 'paths': ['data/hle/dev/m/a.json']}
+
+
+def test_a_missing_attempt_reads_as_none(monkeypatch):
+    from huggingface_hub.errors import EntryNotFoundError
+
+    def missing(**kwargs):
+        raise EntryNotFoundError('none')
+
+    monkeypatch.setattr(archive, 'hf_hub_download', missing)
+    assert archive.read_attempt('hle', repo_id=REPO) is None
+
+
+def test_writing_state_clears_the_attempt_in_the_same_commit(tmp_path: Path):
+    from huggingface_hub import CommitOperationDelete
+
+    api = _FakeApi()
+    archive.write_state(
+        'hle',
+        {'gating_fingerprint': 'abc'},
+        repo_id=REPO,
+        api=api,
+        clear_attempt=True,
+    )
+
+    operations = api.commits[0]['operations']
+    assert any(
+        isinstance(op, CommitOperationDelete)
+        and op.path_in_repo == archive.attempt_path('hle')
+        for op in operations
+    ), 'the state and the attempt must change atomically'
+
+
+def test_failure_reports_are_archived_under_the_run(
+    monkeypatch, tmp_path: Path
+):
+    _capture(monkeypatch, tmp_path, 'https://x.invalid/a.json', b'{}')
+    report = tmp_path / 'hle_failures.json'
+    report.write_text('{"failed_records": []}', encoding='utf-8')
+    api = _FakeApi()
+
+    _archive(tmp_path, api, reports=[report])
+
+    assert 'reports/hle/2026-08-11-1234-1/hle_failures.json' in _operations(api)
+
+
+def test_reports_alone_are_enough_to_archive(monkeypatch, tmp_path: Path):
+    # A NOT_CAPTURED adapter has no payloads, but its failure report still
+    # embeds raw source rows and needs the private dataset.
+    report = tmp_path / 'report.json'
+    report.write_text('{}', encoding='utf-8')
+    api = _FakeApi()
+
+    result = _archive(tmp_path, api, reports=[report])
+
+    assert result.uploaded == 0
+    paths = list(_operations(api))
+    assert paths == ['reports/hle/2026-08-11-1234-1/report.json']
+
+
+def test_ledger_rows_carry_capture_errors(monkeypatch, tmp_path: Path):
+    monkeypatch.setenv(raw_capture.RAW_CAPTURE_DIR_ENV, str(tmp_path))
+
+    def broken(directory, url, body, content_type):
+        raise OSError('disk full')
+
+    monkeypatch.setattr(raw_capture, '_capture', broken)
+    raw_capture.capture_response('https://x.invalid/a.json', b'{}')
+
+    rows = archive.ledger_rows(
+        tmp_path, adapter='hle', run_date='2026-08-11', run_id='1'
+    )
+
+    assert len(rows) == 1
+    assert 'disk full' in rows[0]['error']
+    assert rows[0]['blob_path'] is None

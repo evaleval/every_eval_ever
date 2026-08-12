@@ -69,10 +69,6 @@ jobs:
         env:
           UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/eee-venv
           REQUESTED: ${{ inputs.adapter }}
-          # Presence-only: the schedule uses these to tell a credentialed
-          # adapter apart from an unconfigured one.
-          ARTIFICIAL_ANALYSIS_API_KEY: ${{ secrets.ARTIFICIAL_ANALYSIS_API_KEY }}
-          LLM_STATS_API_KEY: ${{ secrets.LLM_STATS_API_KEY }}
         run: |
           set -euo pipefail
           if [ -n "${REQUESTED}" ]; then
@@ -162,7 +158,7 @@ jobs:
             echo
             jq -r '"- Status: **\(.status)** — \(.detail)",
                    "- Records: \(.records) in \(.collections | join(", "))",
-                   "- Raw payloads captured: \(.raw_payloads) (\(.raw_bytes) bytes, policy \(.raw_policy))",
+                   "- Raw payloads captured: \(.raw_payloads) (\(.raw_bytes) bytes, policy \(.raw_policy); \(.raw_skipped) over-ceiling, \(.capture_errors | length) capture error(s))",
                    "- Raw archive: \(.raw_archive.status)" +
                      (if .raw_archive.ledger_path then " → `\(.raw_archive.repo_id)` `\(.raw_archive.ledger_path)` (\(.raw_archive.uploaded) new, \(.raw_archive.reused) reused)" else "" end),
                    "- Fingerprint source: \(.fingerprint_source // "n/a")"' "$summary"
@@ -179,16 +175,15 @@ jobs:
                    "invocation(s) failed; published \(.records) record(s)"
                  else empty end' "$summary"
 
-      # Reports and the run summary only — never cron-work/raw: artifacts on a
-      # public repository are downloadable by anyone signed in, and raw source
-      # bodies belong solely in the private raw dataset.
-      - name: Upload reports and summary
+      # The run summary only. Raw bodies live solely in the private raw
+      # dataset, and adapter failure reports go there too — they embed raw
+      # source rows, and artifacts on a public repository are downloadable by
+      # anyone signed in.
+      - name: Upload the run summary
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: cron-${{ matrix.adapter }}-${{ github.run_number }}
-          path: |
-            ${{ runner.temp }}/cron-work/adapter_reports/
-            ${{ runner.temp }}/cron-work/summary.json
+          path: ${{ runner.temp }}/cron-work/summary.json
           if-no-files-found: warn
           retention-days: 90

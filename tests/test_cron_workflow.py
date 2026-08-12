@@ -75,26 +75,27 @@ def test_the_daily_run_is_not_serialised_behind_one_adapter(refresh_job: dict):
     assert refresh_job['strategy'].get('max-parallel', 2) > 1
 
 
-def test_reports_are_uploaded_even_when_the_refresh_fails(refresh_job: dict):
+def test_the_summary_is_uploaded_even_when_the_refresh_fails(
+    refresh_job: dict,
+):
     upload = next(
         step
         for step in refresh_job['steps']
         if str(step.get('uses', '')).startswith('actions/upload-artifact')
     )
     assert upload['if'] == 'always()'
-    paths = upload['with']['path']
-    assert 'adapter_reports/' in paths
-    assert 'summary.json' in paths
+    assert 'summary.json' in upload['with']['path']
 
 
-def test_raw_payloads_never_reach_a_public_artifact(refresh_job: dict):
-    # Artifacts on a public repository are downloadable by anyone signed in;
-    # raw source bodies belong solely in the private raw dataset.
+def test_no_raw_data_reaches_a_public_artifact(refresh_job: dict):
+    # Artifacts on a public repository are downloadable by anyone signed in.
+    # Raw bodies AND adapter failure reports (which embed raw source rows)
+    # belong solely in the private raw dataset.
     for step in refresh_job['steps']:
         if str(step.get('uses', '')).startswith('actions/upload-artifact'):
-            assert '/raw' not in step['with']['path'], (
-                'the artifact must not include captured raw payloads'
-            )
+            paths = step['with']['path']
+            assert '/raw' not in paths
+            assert 'adapter_reports' not in paths
 
 
 def test_two_publishes_of_one_adapter_never_run_at_once(refresh_job: dict):
@@ -177,22 +178,22 @@ def test_every_declared_adapter_credential_reaches_the_command_steps(
     from every_eval_ever.cron.schedule import CRON_ADAPTERS
 
     plan_steps = workflow['jobs']['plan']['steps']
-    plan_env = next(
-        step
-        for step in plan_steps
-        if 'every_eval_ever.cron list' in step.get('run', '')
+    preflight_env = next(
+        step for step in plan_steps if 'cron preflight' in step.get('run', '')
     )['env']
     refresh_env = _refresh_step(workflow['jobs']['refresh'])['env']
     for adapter in CRON_ADAPTERS:
         for name in adapter.requires_env:
-            assert name in plan_env, (
-                f'{adapter.name} requires {name}; the plan step must see it '
-                'to know the adapter is credentialed'
+            assert name in preflight_env, (
+                f'{adapter.name} requires {name}; preflight must see it to '
+                'report credential coverage'
             )
             assert name in refresh_env, (
                 f'{adapter.name} requires {name}; the refresh step must '
                 'receive it (scoped to matrix.adapter)'
             )
+            # Scoped: only the matching matrix job receives the key.
+            assert 'matrix.adapter ==' in refresh_env[name]
 
 
 def test_secrets_are_scoped_away_from_non_command_steps(workflow: dict):

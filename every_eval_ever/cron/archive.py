@@ -31,7 +31,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from huggingface_hub import CommitOperationAdd, HfApi, hf_hub_download
+from huggingface_hub import (
+    CommitOperationAdd,
+    CommitOperationDelete,
+    HfApi,
+    hf_hub_download,
+)
 from huggingface_hub.errors import EntryNotFoundError, RepositoryNotFoundError
 
 from every_eval_ever.helpers import raw_capture
@@ -114,6 +119,8 @@ def ledger_rows(
                 ),
                 # Set when a payload was fetched but deliberately not stored.
                 'skipped': entry.get('skipped'),
+                # Set when the capture itself failed; the bytes never existed.
+                'error': entry.get('error'),
             }
         )
     return rows
@@ -129,12 +136,13 @@ def archive(
     raw_fingerprint: str | None = None,
     output_fingerprint: str | None = None,
     gating_fingerprint: str | None = None,
+    reports: list[Path] | None = None,
     repo_id: str = DEFAULT_RAW_REPO_ID,
     token: str | None = None,
     api: HfApi | None = None,
     create_if_missing: bool = True,
 ) -> ArchiveResult:
-    """Store a run's raw payloads and its ledger row permanently.
+    """Store a run's raw payloads, failure reports and ledger permanently.
 
     A payload already present under its content hash is not re-uploaded, so a
     source that has not changed costs one small ledger file per run.
@@ -157,8 +165,9 @@ def archive(
         output_fingerprint=output_fingerprint,
         gating_fingerprint=gating_fingerprint,
     )
-    if not rows:
-        raise ArchiveError(f'no raw payloads to archive under {raw_dir}')
+    reports = list(reports or [])
+    if not rows and not reports:
+        raise ArchiveError(f'nothing to archive under {raw_dir}')
 
     if create_if_missing:
         try:
@@ -208,12 +217,27 @@ def archive(
         result.uploaded += 1
         result.uploaded_bytes += row['bytes'] or 0
 
-    body = '\n'.join(json.dumps(row, ensure_ascii=False) for row in rows) + '\n'
-    operations.append(
-        CommitOperationAdd(
-            path_in_repo=destination, path_or_fileobj=body.encode('utf-8')
+    if rows:
+        body = (
+            '\n'.join(json.dumps(row, ensure_ascii=False) for row in rows)
+            + '\n'
         )
-    )
+        operations.append(
+            CommitOperationAdd(
+                path_in_repo=destination, path_or_fileobj=body.encode('utf-8')
+            )
+        )
+    for report in reports:
+        # Failure reports embed raw source rows, so they belong here — in the
+        # private dataset — not in a public workflow artifact.
+        operations.append(
+            CommitOperationAdd(
+                path_in_repo=(
+                    f'reports/{adapter}/{run_date}-{run_id}/{report.name}'
+                ),
+                path_or_fileobj=str(report),
+            )
+        )
 
     try:
         api.create_commit(
@@ -280,6 +304,89 @@ def state_path(adapter: str) -> str:
     return f'{STATE_PREFIX}/{adapter}.json'
 
 
+def attempt_path(adapter: str) -> str:
+    """Return the per-adapter in-flight publish attempt record path."""
+    return f'{STATE_PREFIX}/{adapter}.attempt.json'
+
+
+def write_attempt(
+    adapter: str,
+    attempt: dict[str, Any],
+    *,
+    repo_id: str = DEFAULT_RAW_REPO_ID,
+    token: str | None = None,
+    api: HfApi | None = None,
+) -> None:
+    """Record the datastore paths a publish is about to commit.
+
+    Written *before* the first batch, so a publish that dies between batches
+    leaves a durable list of exactly the paths its incomplete attempt added.
+    The next run deletes those from the pull request before republishing —
+    without this, every retry of a multi-batch publish stacks a fresh copy of
+    the full set under new UUID filenames.
+
+    Raises:
+        ArchiveError: if the record cannot be written; publishing without it
+            would make a mid-publish failure unrecoverable without duplicates.
+    """
+    api = api or HfApi(token=token)
+    body = json.dumps(attempt, indent=2, sort_keys=True) + '\n'
+    try:
+        api.create_commit(
+            repo_id=repo_id,
+            repo_type='dataset',
+            operations=[
+                CommitOperationAdd(
+                    path_in_repo=attempt_path(adapter),
+                    path_or_fileobj=body.encode('utf-8'),
+                )
+            ],
+            commit_message=f'{adapter}: record publish attempt',
+        )
+    except Exception as error:
+        raise ArchiveError(
+            f'could not record the publish attempt for {adapter} in '
+            f'{repo_id}: {error}'
+        ) from error
+
+
+def read_attempt(
+    adapter: str,
+    *,
+    repo_id: str = DEFAULT_RAW_REPO_ID,
+    token: str | None = None,
+    api: HfApi | None = None,
+) -> dict[str, Any] | None:
+    """Return the in-flight attempt a previous run left behind, if any.
+
+    ``None`` means no unfinished attempt (confirmed absent). Like
+    :func:`read_state`, any other failure raises: guessing here risks either
+    duplicating a set or deleting the wrong files.
+    """
+    del api
+    try:
+        local = hf_hub_download(
+            repo_id=repo_id,
+            filename=attempt_path(adapter),
+            repo_type='dataset',
+            token=token,
+            force_download=True,
+        )
+    except (RepositoryNotFoundError, EntryNotFoundError):
+        return None
+    except Exception as error:
+        raise ArchiveError(
+            f'could not read {attempt_path(adapter)} from {repo_id}: {error}'
+        ) from error
+    try:
+        attempt = json.loads(Path(local).read_text(encoding='utf-8'))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ArchiveError(
+            f'{attempt_path(adapter)} in {repo_id} is unreadable: {error}'
+        ) from error
+    return attempt if isinstance(attempt, dict) else None
+
+
 def read_state(
     adapter: str,
     *,
@@ -338,6 +445,7 @@ def write_state(
     repo_id: str = DEFAULT_RAW_REPO_ID,
     token: str | None = None,
     api: HfApi | None = None,
+    clear_attempt: bool = False,
 ) -> None:
     """Record a successful publish, for the next run to compare against.
 
@@ -352,16 +460,23 @@ def write_state(
     """
     api = api or HfApi(token=token)
     body = json.dumps(state, indent=2, sort_keys=True) + '\n'
+    operations: list[Any] = [
+        CommitOperationAdd(
+            path_in_repo=state_path(adapter),
+            path_or_fileobj=body.encode('utf-8'),
+        )
+    ]
+    if clear_attempt:
+        # Same repository, same commit: the attempt record and the state can
+        # never disagree about whether the publish completed.
+        operations.append(
+            CommitOperationDelete(path_in_repo=attempt_path(adapter))
+        )
     try:
         api.create_commit(
             repo_id=repo_id,
             repo_type='dataset',
-            operations=[
-                CommitOperationAdd(
-                    path_in_repo=state_path(adapter),
-                    path_or_fileobj=body.encode('utf-8'),
-                )
-            ],
+            operations=operations,
             commit_message=f'{adapter}: record publish state',
         )
     except Exception as error:

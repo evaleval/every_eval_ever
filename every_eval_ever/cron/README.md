@@ -91,14 +91,24 @@ repository variable), laid out as:
 ```
 blobs/<ab>/<sha256>.<ext>              # one copy per distinct payload, ever
 ledger/<adapter>/<date>-<run>.jsonl    # one row per payload per run
+reports/<adapter>/<date>-<run>/…       # adapter failure reports (raw rows)
 state/<adapter>.json                   # what the last successful publish was
+state/<adapter>.attempt.json           # a publish in flight (cleared on success)
 ```
 
 Privacy is enforced, not assumed: preflight fails if the raw dataset is public,
 the archive re-checks visibility immediately before every commit and refuses to
-write to a public dataset, and the workflow's artifact carries only reports and
-the run summary — never captured payloads, which on a public repository anyone
-signed in could download.
+write to a public dataset, and the workflow's artifact carries only the run
+summary. Captured payloads *and adapter failure reports* — which embed raw
+source rows — go exclusively to the private dataset (`reports/<adapter>/…`),
+because artifacts on a public repository are downloadable by anyone signed in.
+
+The adapter subprocess never holds the cron's write-capable `HF_TOKEN`: it is
+scrubbed from the child environment, which does all its fetching with source
+credentials only. A source that genuinely needs authenticated Hugging Face
+*read* access declares `source_hf_token` in the schedule and receives the
+separate `EEE_SOURCE_HF_TOKEN` — a least-privilege read token — as its
+`HF_TOKEN`.
 
 Payloads are **content-addressed**, so a source that has not changed since
 yesterday costs nothing but a ledger row — which is what makes keeping every day
@@ -153,7 +163,24 @@ simply retries tomorrow.
 Every record published without its raw source archived is a provenance gap, so
 a declared-capture adapter whose run produced records but recorded a capture
 failure — or captured nothing at all — fails before publishing. Capture
-failures survive the adapter subprocess as error rows in the manifest.
+failures survive the adapter subprocess as error rows in the manifest, and the
+archive happens *before* the failure returns, so the successful sibling
+captures and the error evidence are already permanent when the job goes red.
+
+A publish is batched, and a batch can die midway with earlier batches already
+on the pull request. Before the first batch, the run records the exact paths it
+is about to add (`state/<adapter>.attempt.json`); a later run finds that
+dangling attempt, deletes whichever of its files reached the pull request, and
+republishes — one copy of each record, not a stack of retries. The attempt
+record is cleared in the same commit that records the publish state, so the two
+can never disagree. If recording the state fails even after a retry, the run
+exits non-zero with the pull request URL in the summary: the records are
+published, only the gate is stale, and the next run reconciles.
+
+An enabled adapter missing its credential **fails its own job** rather than
+being quietly dropped from the matrix — a red job names the missing variable,
+while the other adapters' jobs proceed. Quiet skips are reserved for adapters
+deliberately declared disabled.
 
 ## Known gaps
 

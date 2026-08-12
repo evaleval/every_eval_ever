@@ -254,3 +254,123 @@ def test_a_missing_pull_request_url_stops_before_the_next_batch(
 
     # Stopped rather than sending the rest to the main branch.
     assert len(api.commits) == 1
+
+
+class _PersistentTreeApi(_FakeApi):
+    """A fake Hub keeping one PR file tree across publish attempts."""
+
+    def __init__(self, *, fail_at_commit: int | None = None):
+        super().__init__()
+        self.tree: set[str] = set()
+        self.fail_at_commit = fail_at_commit
+        self._commit_count = 0
+
+    def get_paths_info(self, *, repo_id, paths, repo_type, revision=None):
+        return [
+            type('Info', (), {'path': path})()
+            for path in paths
+            if path in self.tree
+        ]
+
+    def create_commit(self, **kwargs):
+        self._commit_count += 1
+        if self._commit_count == self.fail_at_commit:
+            raise RuntimeError('504 gateway timeout')
+        info = super().create_commit(**kwargs)
+        from huggingface_hub import CommitOperationAdd
+
+        for operation in kwargs['operations']:
+            if isinstance(operation, CommitOperationAdd):
+                self.tree.add(operation.path_in_repo)
+            else:  # CommitOperationDelete
+                self.tree.discard(operation.path_in_repo)
+        return info
+
+
+def test_a_failed_later_batch_retried_leaves_one_copy_of_each_record(
+    tmp_path: Path,
+):
+    # Attempt 1: batch 2 of 3 dies after batch 1 landed on the PR.
+    first_attempt = _records(tmp_path / 'first', 5)
+    api = _PersistentTreeApi(fail_at_commit=2)
+    with pytest.raises(RuntimeError, match='504'):
+        publish.publish(
+            first_attempt,
+            adapter='vals_ai',
+            repo_id=REPO,
+            api=api,
+            files_per_commit=2,
+        )
+    assert len(api.tree) == 2, 'batch 1 landed before the failure'
+    api.discussions.append(
+        _Discussion(title=publish.pr_title('vals_ai'), num=42)
+    )
+
+    # Attempt 2: a fresh work directory (fresh UUID-equivalent names) retries
+    # against the same PR, reconciling the incomplete attempt's paths.
+    second_attempt = tmp_path / 'second' / 'data'
+    for index in range(5):
+        directory = second_attempt / 'vals-ai' / 'dev' / f'model{index}'
+        directory.mkdir(parents=True)
+        (directory / f'retry{index}.json').write_text('{}', encoding='utf-8')
+    api.fail_at_commit = None
+
+    result = publish.publish(
+        second_attempt,
+        adapter='vals_ai',
+        repo_id=REPO,
+        api=api,
+        files_per_commit=2,
+        stale_paths=publish.repo_paths(first_attempt),
+    )
+
+    assert result.reused_existing_pr is True
+    # One copy of each logical record: the five retry files, nothing from the
+    # dead attempt.
+    assert api.tree == {
+        f'data/vals-ai/dev/model{index}/retry{index}.json' for index in range(5)
+    }
+
+
+def test_stale_paths_absent_from_the_pr_are_not_deleted(tmp_path: Path):
+    # Deleting a missing path fails the whole commit, so stale paths are
+    # filtered against the PR's actual tree.
+    data_root = _records(tmp_path, 1)
+    api = _PersistentTreeApi()
+    api.discussions.append(
+        _Discussion(title=publish.pr_title('vals_ai'), num=42)
+    )
+
+    publish.publish(
+        data_root,
+        adapter='vals_ai',
+        repo_id=REPO,
+        api=api,
+        stale_paths=['data/vals-ai/dev/ghost/never-landed.json'],
+    )
+
+    from huggingface_hub import CommitOperationDelete
+
+    deletes = [
+        operation
+        for operation in api.commits[0]['operations']
+        if isinstance(operation, CommitOperationDelete)
+    ]
+    assert deletes == []
+
+
+def test_stale_paths_without_an_open_pr_are_ignored(tmp_path: Path):
+    # The failed attempt's PR was closed or merged by a human; deleting its
+    # paths from a fresh PR would be meaningless (and they are not there).
+    data_root = _records(tmp_path, 1)
+    api = _PersistentTreeApi()
+
+    result = publish.publish(
+        data_root,
+        adapter='vals_ai',
+        repo_id=REPO,
+        api=api,
+        stale_paths=['data/vals-ai/dev/model0/old.json'],
+    )
+
+    assert result.reused_existing_pr is False

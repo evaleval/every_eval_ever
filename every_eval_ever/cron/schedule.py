@@ -55,10 +55,14 @@ class CronAdapter:
     runs: tuple[tuple[str, ...], ...] = ((),)
     #: Extra argv appended to every run, with RAW_DIR_PLACEHOLDER substituted.
     raw_args: tuple[str, ...] = ()
-    #: Environment variables the source requires. A run is skipped, not failed,
-    #: when one is missing, so an unconfigured credential does not read as a
-    #: broken adapter.
+    #: Environment variables the source requires. An enabled adapter missing
+    #: one fails its run visibly rather than being quietly dropped.
     requires_env: tuple[str, ...] = ()
+    #: True only when the source itself needs an authenticated Hugging Face
+    #: read. The child then receives EEE_SOURCE_HF_TOKEN — a separate,
+    #: least-privilege read token — as HF_TOKEN. The cron's own write-capable
+    #: token is never forwarded to adapter code.
+    source_hf_token: bool = False
     enabled: bool = True
     notes: str = ''
 
@@ -245,24 +249,20 @@ def get_adapter(name: str) -> CronAdapter:
 def scheduled_adapters(
     environment: dict[str, str],
 ) -> tuple[list[CronAdapter], list[tuple[CronAdapter, str]]]:
-    """Split the enabled adapters into runnable ones and skipped ones.
+    """Split the adapters into scheduled ones and quietly skipped ones.
 
-    Returns ``(runnable, skipped)`` where each skipped entry carries the reason
-    it was left out, so a caller can report it instead of failing silently.
+    Every *enabled* adapter is scheduled, credentialed or not: an enabled
+    adapter with a missing credential must fail its own job visibly, not
+    vanish from the matrix behind a green run. Only adapters deliberately
+    declared disabled are skipped quietly, with their reason.
     """
-    runnable: list[CronAdapter] = []
-    skipped: list[tuple[CronAdapter, str]] = []
-    for adapter in CRON_ADAPTERS:
-        if not adapter.enabled:
-            skipped.append((adapter, adapter.notes or 'disabled'))
-            continue
-        missing = adapter.missing_env(environment)
-        if missing:
-            skipped.append(
-                (adapter, f'missing environment: {", ".join(missing)}')
-            )
-            continue
-        runnable.append(adapter)
+    del environment  # Credentials are checked (and failed) per run.
+    runnable = [adapter for adapter in CRON_ADAPTERS if adapter.enabled]
+    skipped = [
+        (adapter, adapter.notes or 'disabled')
+        for adapter in CRON_ADAPTERS
+        if not adapter.enabled
+    ]
     return runnable, skipped
 
 
