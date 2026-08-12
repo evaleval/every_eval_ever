@@ -612,7 +612,15 @@ def run(
     cwd: Path | None = None,
     executable: str | None = None,
 ) -> RunOutcome:
-    """Produce one adapter's upload tree, or explain why there isn't one."""
+    """Produce one adapter's upload tree, or explain why there isn't one.
+
+    ``base_env`` carries the same contract as in :func:`adapter_environment`:
+    it is the complete environment to derive from, not an overlay, so the
+    credentials a run sees are exactly the ones a caller named. Passing a
+    partial mapping is therefore how a test says "this adapter runs with
+    nothing else", and it is why a missing credential is detected against
+    that mapping rather than against the machine's environment.
+    """
     workdir = Path(workdir)
     staging_dir = workdir / 'staging'
     upload_dir = workdir / 'upload'
