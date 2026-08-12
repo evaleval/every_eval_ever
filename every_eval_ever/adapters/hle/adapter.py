@@ -68,6 +68,7 @@ from every_eval_ever.helpers import (
     SourceRecordFailure,
     default_failure_report_path,
     get_model_id,
+    raw_capture,
     require_finite_number,
     require_identity,
     sanitize_filename,
@@ -197,6 +198,11 @@ def fetch_html(url: str) -> str:
 
     response = requests.get(url, timeout=120)
     response.raise_for_status()
+    raw_capture.record(
+        url=response.url,
+        content=response.content,
+        content_type=response.headers.get('Content-Type'),
+    )
     return response.text
 
 

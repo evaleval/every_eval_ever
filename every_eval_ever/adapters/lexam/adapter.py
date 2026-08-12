@@ -51,6 +51,7 @@ from every_eval_ever.eval_types import (
     StandardError,
     Uncertainty,
 )
+from every_eval_ever.helpers import raw_capture
 from every_eval_ever.helpers.developer import get_developer
 from every_eval_ever.helpers.io import (
     SourceConversionResult,
@@ -709,6 +710,11 @@ def _fetch_html(url: str = LEADERBOARD_URL) -> str:
     """Download leaderboard HTML from *url*."""
     resp = requests.get(url, timeout=30)
     resp.raise_for_status()
+    raw_capture.record(
+        url=resp.url,
+        content=resp.content,
+        content_type=resp.headers.get('Content-Type'),
+    )
     return resp.text
 
 

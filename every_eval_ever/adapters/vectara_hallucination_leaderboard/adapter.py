@@ -43,6 +43,7 @@ from every_eval_ever.helpers import (
     fetch_json,
     make_model_info,
     make_source_metadata,
+    raw_capture,
     save_evaluation_logs,
     save_failure_report,
 )
@@ -539,6 +540,12 @@ def load_rows(input_json: Path | None, save_raw_json: Path | None) -> dict:
         return rows
 
     print(f"Listing {SOURCE_REPO} result files at {SOURCE_COMMIT}...")
+    raw_capture.record_pointer(
+        kind="hf_dataset",
+        reference=SOURCE_REPO,
+        revision=SOURCE_COMMIT,
+        url=SOURCE_DATASET_URL,
+    )
     paths = list_result_files()
     print(f"Fetching {len(paths)} result files...")
     rows = fetch_source_rows(paths)

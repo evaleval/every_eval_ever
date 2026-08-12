@@ -50,6 +50,7 @@ from every_eval_ever.helpers import (
     default_failure_report_path,
     get_developer,
     get_model_id,
+    raw_capture,
     save_evaluation_logs,
     save_failure_report,
 )
@@ -329,6 +330,7 @@ def main(argv: list[str] | None = None):
         ) from e
 
     retrieved_timestamp = str(time.time())
+    raw_capture.record_hf_dataset('SWE-bench/SWE-bench_Verified')
     ds = load_dataset('SWE-bench/SWE-bench_Verified', split='test')
     total_instances = len(ds)
     if total_instances == 0:
@@ -345,6 +347,7 @@ def main(argv: list[str] | None = None):
             ['git', 'clone', '--depth=1', SWE_BENCH_REPO, tmpdir],
             check=True,
         )
+        raw_capture.record_git_checkout(SWE_BENCH_REPO, tmpdir)
 
         swe_bench_path = Path(tmpdir) / SWE_BENCH_SUBDIR
         submissions = sorted(d for d in swe_bench_path.iterdir() if d.is_dir())

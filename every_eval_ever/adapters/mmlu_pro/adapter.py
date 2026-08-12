@@ -56,6 +56,7 @@ from every_eval_ever.helpers import (
     default_failure_report_path,
     get_developer,
     get_model_id,
+    raw_capture,
     sanitize_filename,
     save_evaluation_logs,
     save_failure_report,
@@ -161,6 +162,11 @@ def fetch_csv(url: str) -> str:
 
     response = requests.get(url, timeout=120)
     response.raise_for_status()
+    raw_capture.record(
+        url=response.url,
+        content=response.content,
+        content_type=response.headers.get('Content-Type'),
+    )
     return response.text
 
 

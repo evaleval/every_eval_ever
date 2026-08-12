@@ -53,6 +53,7 @@ from every_eval_ever.helpers import (
     default_failure_report_path,
     get_developer,
     get_model_id,
+    raw_capture,
     save_evaluation_logs,
     save_failure_report,
 )
@@ -278,6 +279,7 @@ def main(argv: list[str] | None = None):
             env={**os.environ, 'GIT_LFS_SKIP_SMUDGE': '1'},
             check=True,
         )
+        raw_capture.record_git_checkout(MULTI_SWE_REPO, tmpdir)
 
         source_submissions = []
         source_failures = []

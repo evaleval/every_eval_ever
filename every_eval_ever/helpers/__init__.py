@@ -1,5 +1,6 @@
 """Shared utilities for evaluation data adapters."""
 
+from . import raw_capture
 from .developer import get_developer, get_model_id
 from .fetch import FetchError, fetch_csv, fetch_json
 from .io import (
@@ -57,4 +58,6 @@ __all__ = [
     'make_source_metadata',
     'make_model_info',
     'make_evaluation_log',
+    # raw_capture.py
+    'raw_capture',
 ]

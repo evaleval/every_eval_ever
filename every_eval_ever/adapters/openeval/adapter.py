@@ -60,6 +60,7 @@ from every_eval_ever.helpers import (
     datastore_repo_file_path,
     get_developer,
     get_model_id,
+    raw_capture,
     require_identity,
     sanitize_filename,
 )
@@ -339,6 +340,14 @@ def fetch_payload(
 
     api = HfApi()
     info = api.dataset_info(HF_REPO_ID, revision=revision)
+    # Parquet shards are already durably addressable at this commit, so
+    # record the reference instead of re-hosting hundreds of megabytes.
+    raw_capture.record_pointer(
+        kind='hf_dataset',
+        reference=HF_REPO_ID,
+        revision=getattr(info, 'sha', None) or revision,
+        url=HF_DATASET_URL,
+    )
     files = api.list_repo_files(
         HF_REPO_ID, repo_type='dataset', revision=revision
     )

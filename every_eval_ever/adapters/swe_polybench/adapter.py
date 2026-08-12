@@ -57,6 +57,7 @@ from every_eval_ever.helpers import (
     default_failure_report_path,
     get_developer,
     get_model_id,
+    raw_capture,
     save_evaluation_logs,
     save_failure_report,
 )
@@ -202,6 +203,7 @@ def load_hf_instance_maps(ds: str) -> tuple[dict[str, str], Counter]:
 
     hf_repo = DATASETS[ds]
     print(f'  Loading HF dataset {hf_repo} ...')
+    raw_capture.record_hf_dataset(hf_repo, label=ds)
     dataset = load_dataset(hf_repo, split='test')
     id_to_lang: dict[str, str] = {}
     lang_counts: Counter = Counter()
@@ -451,6 +453,7 @@ def main(argv: list[str] | None = None):
             ],
             check=True,
         )
+        raw_capture.record_git_checkout(POLY_REPO, tmpdir, ref=POLY_BRANCH)
 
         outputs = []
         failures = []

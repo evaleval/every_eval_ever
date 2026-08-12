@@ -50,6 +50,7 @@ from every_eval_ever.helpers import (
     SourceConversionResult,
     SourceRecordFailure,
     default_failure_report_path,
+    raw_capture,
     save_evaluation_logs,
     save_failure_report,
 )
@@ -284,6 +285,7 @@ def load_results_from_hf() -> list[dict]:
         )
         sys.exit(1)
 
+    raw_capture.record_hf_dataset(HF_DATASET)
     ds = load_dataset(HF_DATASET, split='train')
     return list(ds)
 
