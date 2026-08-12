@@ -306,3 +306,45 @@ def test_a_changed_adapter_dump_does_not_change_the_verbatim_fingerprint(
         )
 
     assert fingerprints[0] == fingerprints[1]
+
+
+def test_a_capture_failure_leaves_a_durable_error_row(
+    monkeypatch, tmp_path: Path
+):
+    # The warning log dies with the subprocess; the manifest row is what lets
+    # the runner refuse to publish records whose source bytes are missing.
+    monkeypatch.setenv(raw_capture.RAW_CAPTURE_DIR_ENV, str(tmp_path))
+
+    def broken(directory, url, body, content_type):
+        raise OSError('disk full')
+
+    monkeypatch.setattr(raw_capture, '_capture', broken)
+    result = raw_capture.capture_response('https://x.invalid/a.json', b'{}')
+
+    assert result is None
+    errors = raw_capture.capture_errors(tmp_path)
+    assert len(errors) == 1
+    assert errors[0]['url'] == 'https://x.invalid/a.json'
+    assert 'disk full' in errors[0]['error']
+    assert errors[0]['file'] is None
+
+
+def test_error_rows_do_not_count_as_captured_payloads(
+    monkeypatch, tmp_path: Path
+):
+    monkeypatch.setenv(raw_capture.RAW_CAPTURE_DIR_ENV, str(tmp_path))
+    raw_capture.capture_response('https://x.invalid/good.json', b'{"a": 1}')
+
+    def broken(directory, url, body, content_type):
+        raise OSError('disk full')
+
+    monkeypatch.setattr(raw_capture, '_capture', broken)
+    raw_capture.capture_response('https://x.invalid/bad.json', b'{}')
+
+    assert len(raw_capture.capture_errors(tmp_path)) == 1
+    stored = [
+        entry
+        for entry in raw_capture.read_manifest(tmp_path)
+        if entry.get('file')
+    ]
+    assert len(stored) == 1

@@ -24,6 +24,9 @@ from every_eval_ever.helpers import (
 )
 
 ADAPTER = 'vals_ai'
+# An adapter whose registry entry declares NO capture route, for scenarios
+# where producing records without raw payloads must be legitimate.
+ZERO_CAPTURE_ADAPTER = 'mt_bench'
 
 
 def _log(model_id: str = 'dev/model', score: float = 0.5):
@@ -160,8 +163,9 @@ def _refresh(tmp_path: Path, **overrides):
         'force': False,
         'environment': {},
     }
+    adapter = overrides.pop('adapter', ADAPTER)
     arguments.update(overrides)
-    return runner.refresh(ADAPTER, **arguments)
+    return runner.refresh(adapter, **arguments)
 
 
 def test_a_dry_run_stamps_validates_and_reports_without_publishing(
@@ -230,7 +234,7 @@ def test_output_fingerprint_is_used_when_no_raw_data_was_archived(
 ):
     stub_adapter(raw=None)
 
-    _, summary = _refresh(tmp_path)
+    _, summary = _refresh(tmp_path, adapter=ZERO_CAPTURE_ADAPTER)
 
     assert summary.raw_payloads == 0
     assert summary.raw_fingerprint is None
@@ -322,6 +326,8 @@ def test_records_from_a_partial_refresh_are_still_published(
             developer='dev',
             model_name='model',
         )
+        raw_dir.mkdir(parents=True, exist_ok=True)
+        (raw_dir / 'vals-ai.json').write_bytes(b'{"rows": 1}')
         return runner.AdapterOutcome(
             invocations=[
                 runner.Invocation(arguments=['--benchmark', 'a'], returncode=0),
@@ -430,7 +436,7 @@ def test_an_invalid_record_stops_the_refresh_and_names_the_file(
     monkeypatch.setattr(runner, 'run_adapter', run_adapter)
 
     with pytest.raises(StampError, match='not a valid EvaluationLog'):
-        _refresh(tmp_path)
+        _refresh(tmp_path, adapter=ZERO_CAPTURE_ADAPTER)
 
 
 def test_output_fingerprint_ignores_the_regenerated_uuid_and_timestamp(
@@ -735,7 +741,7 @@ def test_an_adapter_with_no_raw_data_records_that_fact(
 ):
     stub_adapter(raw=None)
 
-    _, summary = _refresh(tmp_path)
+    _, summary = _refresh(tmp_path, adapter=ZERO_CAPTURE_ADAPTER)
 
     assert summary.raw_archive['status'] == 'nothing_captured'
 
@@ -850,11 +856,17 @@ def test_a_zero_capture_adapter_still_skips_when_unchanged(
     # would republish their whole set every single day.
     stub_adapter(raw=None)
     first_code, first = _refresh(
-        tmp_path, work_dir=tmp_path / 'first', dry_run=False
+        tmp_path,
+        work_dir=tmp_path / 'first',
+        dry_run=False,
+        adapter=ZERO_CAPTURE_ADAPTER,
     )
     stub_adapter(raw=None)
     second_code, second = _refresh(
-        tmp_path, work_dir=tmp_path / 'second', dry_run=False
+        tmp_path,
+        work_dir=tmp_path / 'second',
+        dry_run=False,
+        adapter=ZERO_CAPTURE_ADAPTER,
     )
 
     assert first_code == runner.EXIT_PUBLISHED
@@ -863,37 +875,111 @@ def test_a_zero_capture_adapter_still_skips_when_unchanged(
     assert second.status == 'unchanged'
 
 
-def test_a_partial_publish_forces_the_next_run_to_publish(
-    tmp_path: Path, stub_adapter, state_store, monkeypatch
-):
-    # A partial run published only what converted. Skipping the next run as
-    # "unchanged" would mean the records that failed never get another attempt.
-    def partial_run(adapter, *, work_dir, raw_dir, environment):
+def _partial_run_adapter(*, failures, raw=b'{"rows": 1}'):
+    """A run_adapter producing one record, a raw payload, and given failures."""
+
+    def run_adapter(adapter, *, work_dir, raw_dir, environment):
         save_evaluation_log(
             _log(),
             base_dir=work_dir / 'data' / 'vals-ai',
             developer='dev',
             model_name='model',
         )
+        raw_dir.mkdir(parents=True, exist_ok=True)
+        (raw_dir / 'vals-ai.json').write_bytes(raw)
         return runner.AdapterOutcome(
             invocations=[
                 runner.Invocation(arguments=['--benchmark', 'a'], returncode=0),
-                runner.Invocation(arguments=['--benchmark', 'b'], returncode=1),
+                *(
+                    runner.Invocation(
+                        arguments=['--benchmark', name], returncode=code
+                    )
+                    for name, code in failures
+                ),
             ]
         )
 
-    monkeypatch.setattr(runner, 'run_adapter', partial_run)
-    _refresh(tmp_path, work_dir=tmp_path / 'first', dry_run=False)
-    assert state_store[ADAPTER]['partial'] is True
+    return run_adapter
 
-    stub_adapter(verbatim=True)
+
+def test_an_identical_partial_run_is_not_republished(
+    tmp_path: Path, state_store, monkeypatch
+):
+    # Same records converted, same invocations failed the same way:
+    # republishing would duplicate the successes without recovering anything.
+    monkeypatch.setattr(
+        runner, 'run_adapter', _partial_run_adapter(failures=[('b', 1)])
+    )
+    first_code, first = _refresh(
+        tmp_path, work_dir=tmp_path / 'first', dry_run=False
+    )
+    second_code, second = _refresh(
+        tmp_path, work_dir=tmp_path / 'second', dry_run=False
+    )
+
+    assert first_code == runner.EXIT_PUBLISHED
+    assert first.status == 'published_partial'
+    assert state_store[ADAPTER]['partial'] is True
+    assert second_code == runner.EXIT_NOTHING_NEW
+    assert second.status == 'unchanged'
+
+
+def test_a_changed_failure_set_publishes_again(
+    tmp_path: Path, state_store, monkeypatch
+):
+    monkeypatch.setattr(
+        runner, 'run_adapter', _partial_run_adapter(failures=[('b', 1)])
+    )
+    _refresh(tmp_path, work_dir=tmp_path / 'first', dry_run=False)
+
+    monkeypatch.setattr(
+        runner,
+        'run_adapter',
+        _partial_run_adapter(failures=[('b', 1), ('c', 2)]),
+    )
+    code, summary = _refresh(
+        tmp_path, work_dir=tmp_path / 'second', dry_run=False
+    )
+
+    assert code == runner.EXIT_PUBLISHED
+    assert summary.status == 'published_partial'
+
+
+def test_a_recovered_partial_run_publishes(
+    tmp_path: Path, stub_adapter, state_store, monkeypatch
+):
+    # The failed invocation now converts: its records exist only in this run,
+    # so the fingerprint differs and the run publishes.
+    monkeypatch.setattr(
+        runner, 'run_adapter', _partial_run_adapter(failures=[('b', 1)])
+    )
+    _refresh(tmp_path, work_dir=tmp_path / 'first', dry_run=False)
+
+    def recovered(adapter, *, work_dir, raw_dir, environment):
+        for model in ('model', 'second'):
+            save_evaluation_log(
+                _log(model_id=f'dev/{model}'),
+                base_dir=work_dir / 'data' / 'vals-ai',
+                developer='dev',
+                model_name=model,
+            )
+        raw_dir.mkdir(parents=True, exist_ok=True)
+        (raw_dir / 'vals-ai.json').write_bytes(b'{"rows": 2}')
+        return runner.AdapterOutcome(
+            invocations=[
+                runner.Invocation(arguments=['--benchmark', 'a'], returncode=0),
+                runner.Invocation(arguments=['--benchmark', 'b'], returncode=0),
+            ]
+        )
+
+    monkeypatch.setattr(runner, 'run_adapter', recovered)
     code, summary = _refresh(
         tmp_path, work_dir=tmp_path / 'second', dry_run=False
     )
 
     assert code == runner.EXIT_PUBLISHED
     assert summary.status == 'published'
-    assert summary.previous_fingerprint is None
+    assert state_store[ADAPTER]['partial'] is False
 
 
 def test_a_dry_run_does_not_consult_the_state(
@@ -984,7 +1070,7 @@ def test_a_run_that_captured_nothing_reports_nothing_captured(
     )
     stub_adapter(raw=None)
 
-    _, summary = _refresh(tmp_path, dry_run=False)
+    _, summary = _refresh(tmp_path, dry_run=False, adapter=ZERO_CAPTURE_ADAPTER)
 
     assert summary.raw_payloads == 0
     assert summary.raw_skipped == 0
@@ -1000,3 +1086,91 @@ def test_raw_bytes_counts_only_what_was_stored(tmp_path: Path, stub_adapter):
     assert summary.raw_payloads == 1
     assert summary.raw_bytes == len(b'{"rows": 7}')
     assert summary.raw_skipped == 0
+
+
+def test_a_capture_failure_stops_publication(
+    tmp_path: Path, monkeypatch, state_store
+):
+    # Records without their source bytes archived must not be published.
+    def run_adapter(adapter, *, work_dir, raw_dir, environment):
+        save_evaluation_log(
+            _log(),
+            base_dir=work_dir / 'data' / 'vals-ai',
+            developer='dev',
+            model_name='model',
+        )
+        monkeypatch.setenv(raw_capture.RAW_CAPTURE_DIR_ENV, str(raw_dir))
+        raw_capture.capture_response('https://vals.invalid/ok', b'{"a": 1}')
+
+        def broken(directory, url, body, content_type):
+            raise OSError('disk full')
+
+        monkeypatch.setattr(raw_capture, '_capture', broken)
+        raw_capture.capture_response('https://vals.invalid/broken', b'{}')
+        return runner.AdapterOutcome(
+            invocations=[runner.Invocation(arguments=[], returncode=0)]
+        )
+
+    monkeypatch.setattr(runner, 'run_adapter', run_adapter)
+
+    code, summary = _refresh(tmp_path, dry_run=False)
+
+    # One capture succeeded — the mixed case must still fail.
+    assert code == runner.EXIT_FAILED
+    assert summary.status == 'failed'
+    assert 'capture failure' in summary.detail
+    assert summary.capture_errors == ['https://vals.invalid/broken']
+    assert ADAPTER not in state_store
+
+
+def test_records_without_any_captured_payload_stop_publication(
+    tmp_path: Path, monkeypatch, state_store
+):
+    # vals_ai declares a capture route; records with an empty manifest mean
+    # the route silently did not run — an unexplained provenance gap.
+    def run_adapter(adapter, *, work_dir, raw_dir, environment):
+        save_evaluation_log(
+            _log(),
+            base_dir=work_dir / 'data' / 'vals-ai',
+            developer='dev',
+            model_name='model',
+        )
+        return runner.AdapterOutcome(
+            invocations=[runner.Invocation(arguments=[], returncode=0)]
+        )
+
+    monkeypatch.setattr(runner, 'run_adapter', run_adapter)
+
+    code, summary = _refresh(tmp_path, dry_run=False)
+
+    assert code == runner.EXIT_FAILED
+    assert 'captured nothing' in summary.detail
+    assert ADAPTER not in state_store
+
+
+def test_an_oversized_only_capture_still_publishes(
+    tmp_path: Path, monkeypatch, state_store
+):
+    # A deliberate ceiling skip is recorded, not an error: the ledger row says
+    # what happened and the run proceeds.
+    def run_adapter(adapter, *, work_dir, raw_dir, environment):
+        save_evaluation_log(
+            _log(),
+            base_dir=work_dir / 'data' / 'vals-ai',
+            developer='dev',
+            model_name='model',
+        )
+        monkeypatch.setenv(raw_capture.RAW_CAPTURE_DIR_ENV, str(raw_dir))
+        monkeypatch.setenv(raw_capture.RAW_CAPTURE_MAX_BYTES_ENV, '4')
+        raw_capture.capture_response('https://vals.invalid/big', b'123456')
+        return runner.AdapterOutcome(
+            invocations=[runner.Invocation(arguments=[], returncode=0)]
+        )
+
+    monkeypatch.setattr(runner, 'run_adapter', run_adapter)
+
+    code, summary = _refresh(tmp_path, dry_run=False)
+
+    assert code == runner.EXIT_PUBLISHED
+    assert summary.raw_skipped == 1
+    assert summary.capture_errors == []

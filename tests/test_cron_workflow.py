@@ -75,7 +75,7 @@ def test_the_daily_run_is_not_serialised_behind_one_adapter(refresh_job: dict):
     assert refresh_job['strategy'].get('max-parallel', 2) > 1
 
 
-def test_raw_data_is_uploaded_even_when_the_refresh_fails(refresh_job: dict):
+def test_reports_are_uploaded_even_when_the_refresh_fails(refresh_job: dict):
     upload = next(
         step
         for step in refresh_job['steps']
@@ -83,16 +83,38 @@ def test_raw_data_is_uploaded_even_when_the_refresh_fails(refresh_job: dict):
     )
     assert upload['if'] == 'always()'
     paths = upload['with']['path']
-    assert 'raw/' in paths
     assert 'adapter_reports/' in paths
     assert 'summary.json' in paths
 
 
-def test_two_refreshes_never_run_at_once(workflow: dict):
-    concurrency = workflow['concurrency']
-    assert concurrency['group']
+def test_raw_payloads_never_reach_a_public_artifact(refresh_job: dict):
+    # Artifacts on a public repository are downloadable by anyone signed in;
+    # raw source bodies belong solely in the private raw dataset.
+    for step in refresh_job['steps']:
+        if str(step.get('uses', '')).startswith('actions/upload-artifact'):
+            assert '/raw' not in step['with']['path'], (
+                'the artifact must not include captured raw payloads'
+            )
+
+
+def test_two_publishes_of_one_adapter_never_run_at_once(refresh_job: dict):
+    # Scoped to the job and keyed by adapter: a workflow-wide group would
+    # serialize unrelated adapters AND silently replace an older pending run
+    # (GitHub keeps one pending item per group).
+    assert 'concurrency' not in refresh_job.get('strategy', {})
+    concurrency = refresh_job['concurrency']
+    assert 'matrix.adapter' in concurrency['group']
+    assert 'concurrency' not in refresh_job.get('workflow', {})
     # Cancelling mid-refresh could abandon a half-committed pull request.
     assert concurrency['cancel-in-progress'] is False
+
+
+def test_dry_runs_do_not_queue_behind_publishes(refresh_job: dict):
+    assert 'dry_run' in refresh_job['concurrency']['group']
+
+
+def test_no_workflow_wide_concurrency_group(workflow: dict):
+    assert 'concurrency' not in workflow
 
 
 def test_the_workflow_asks_for_no_write_access_to_the_repository(
@@ -136,20 +158,54 @@ def test_a_usage_error_fails_the_job(refresh_job: dict):
     assert '-ne 2' not in script
 
 
-def test_every_declared_adapter_credential_reaches_the_jobs(workflow: dict):
-    # requires_env in the schedule and the workflow env block drift silently:
-    # a secret named in one but not the other means an adapter is planned and
+def test_no_secrets_at_workflow_scope(workflow: dict):
+    # Workflow-level env hands every secret to checkout, setup, install and
+    # artifact steps that have no business seeing them.
+    for name, value in workflow.get('env', {}).items():
+        assert 'secrets.' not in str(value), (
+            f'workflow-level env {name} references a secret; scope it to the '
+            'command steps that use it'
+        )
+
+
+def test_every_declared_adapter_credential_reaches_the_command_steps(
+    workflow: dict,
+):
+    # requires_env in the schedule and the step env blocks drift silently: a
+    # secret named in one but not the other means an adapter is planned and
     # then skipped forever as 'missing environment'.
     from every_eval_ever.cron.schedule import CRON_ADAPTERS
 
-    env = workflow.get('env', {})
+    plan_steps = workflow['jobs']['plan']['steps']
+    plan_env = next(
+        step
+        for step in plan_steps
+        if 'every_eval_ever.cron list' in step.get('run', '')
+    )['env']
+    refresh_env = _refresh_step(workflow['jobs']['refresh'])['env']
     for adapter in CRON_ADAPTERS:
         for name in adapter.requires_env:
-            assert name in env, (
-                f'{adapter.name} requires {name}, but the workflow-level env '
-                'block does not pass it; add it there (tests cannot check the '
-                'GitHub secret itself)'
+            assert name in plan_env, (
+                f'{adapter.name} requires {name}; the plan step must see it '
+                'to know the adapter is credentialed'
             )
+            assert name in refresh_env, (
+                f'{adapter.name} requires {name}; the refresh step must '
+                'receive it (scoped to matrix.adapter)'
+            )
+
+
+def test_secrets_are_scoped_away_from_non_command_steps(workflow: dict):
+    for job_name, job in workflow['jobs'].items():
+        for step in job['steps']:
+            runs_cron = 'every_eval_ever' in step.get('run', '')
+            if runs_cron:
+                continue
+            for name, value in step.get('env', {}).items():
+                assert 'secrets.' not in str(value), (
+                    f'{job_name} step {step.get("name", step.get("uses"))} '
+                    f'receives secret env {name} but runs no cron command'
+                )
 
 
 def test_a_partial_refresh_is_annotated(refresh_job: dict):
@@ -171,5 +227,5 @@ def test_credentials_are_checked_before_any_adapter_runs(workflow: dict):
         index for index, step in enumerate(steps) if step.get('id') == 'plan'
     )
     assert preflight < plan, f'preflight must run before planning: {names}'
-    # Credentials come from the workflow-level env block.
-    assert 'HF_TOKEN' in workflow.get('env', {})
+    # The preflight command step itself carries the token, scoped to it.
+    assert 'HF_TOKEN' in steps[preflight]['env']

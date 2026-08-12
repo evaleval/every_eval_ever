@@ -128,8 +128,27 @@ def capture_response(
         return None
     try:
         return _capture(directory, url, body, content_type)
-    except Exception as error:  # pragma: no cover - defensive
+    except Exception as error:
+        # The fetch still returns, but the failure must not evaporate with the
+        # subprocess: a manifest error row is the durable signal the runner
+        # uses to refuse publication without archived source bytes.
         _logger.warning('could not capture raw payload for %s: %s', url, error)
+        try:
+            _record(
+                directory,
+                f'error:{url}',
+                'capture-failed',
+                {
+                    'url': url,
+                    'file': None,
+                    'sha256': None,
+                    'content_type': content_type,
+                    'source': VERBATIM_SOURCE,
+                    'error': f'{type(error).__name__}: {error}',
+                },
+            )
+        except Exception:  # pragma: no cover - the log line above remains
+            pass
         return None
 
 
@@ -198,6 +217,11 @@ def _record(
         directory.mkdir(parents=True, exist_ok=True)
         with (directory / MANIFEST_NAME).open('a', encoding='utf-8') as handle:
             handle.write(json.dumps(entry, ensure_ascii=False) + '\n')
+
+
+def capture_errors(directory: str | Path) -> list[dict[str, Any]]:
+    """Return the manifest rows recording a failed capture."""
+    return [entry for entry in read_manifest(directory) if entry.get('error')]
 
 
 def read_manifest(directory: str | Path) -> list[dict[str, Any]]:

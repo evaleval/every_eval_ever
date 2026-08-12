@@ -290,10 +290,16 @@ def read_state(
     """Return what this adapter's last successful publish recorded.
 
     The state file is the durable memory of the last publish — the gating
-    fingerprint and the pull request number. Returns ``None`` when there is
-    nothing to compare against: no state yet, no repository, or an unreadable
-    file. That makes the run publish, the safe direction — it can add a
-    duplicate, never lose a record.
+    fingerprint and the pull request number. Returns ``None`` only when the
+    state is *confirmed* absent (no file yet, or no repository), which is a
+    genuine first run.
+
+    Any other failure — a transient download error, a malformed file — raises:
+    guessing "first run" there would republish an entire unchanged record set
+    into the adapter's pull request, and a failed run simply retries tomorrow.
+
+    Raises:
+        ArchiveError: when the state exists but cannot be read or parsed.
     """
     del api  # hf_hub_download manages its own client.
     try:
@@ -304,17 +310,25 @@ def read_state(
             token=token,
             force_download=True,
         )
-        return json.loads(Path(local).read_text(encoding='utf-8'))
     except (RepositoryNotFoundError, EntryNotFoundError):
         return None
     except Exception as error:
-        _logger.warning(
-            'could not read %s from %s (%s); treating this run as new',
-            state_path(adapter),
-            repo_id,
-            error,
+        raise ArchiveError(
+            f'could not read {state_path(adapter)} from {repo_id}: {error}. '
+            'Not treating this as a first run — that would republish the '
+            'whole set; the run fails and retries instead.'
+        ) from error
+    try:
+        state = json.loads(Path(local).read_text(encoding='utf-8'))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ArchiveError(
+            f'{state_path(adapter)} in {repo_id} is unreadable: {error}'
+        ) from error
+    if not isinstance(state, dict):
+        raise ArchiveError(
+            f'{state_path(adapter)} in {repo_id} does not hold a JSON object'
         )
-        return None
+    return state
 
 
 def write_state(

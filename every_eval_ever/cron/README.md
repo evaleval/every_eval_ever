@@ -95,8 +95,10 @@ state/<adapter>.json                   # what the last successful publish was
 ```
 
 Privacy is enforced, not assumed: preflight fails if the raw dataset is public,
-and the archive re-checks visibility immediately before every commit and
-refuses to write to a public dataset.
+the archive re-checks visibility immediately before every commit and refuses to
+write to a public dataset, and the workflow's artifact carries only reports and
+the run summary — never captured payloads, which on a public repository anyone
+signed in could download.
 
 Payloads are **content-addressed**, so a source that has not changed since
 yesterday costs nothing but a ledger row — which is what makes keeping every day
@@ -118,9 +120,9 @@ date rather than only on the days something changed.
 
 Archiving happens **before** anything is published, and a failure to archive
 stops the run. Records should not reach the datastore without their raw
-provenance stored. The workflow also uploads raw payloads and
-`adapter_reports/` as a 90-day artifact, but that is a convenience copy, not the
-retention mechanism.
+provenance stored. The workflow also uploads `adapter_reports/` and the run summary as a 90-day
+artifact for debugging; raw payloads deliberately never leave the private
+dataset.
 
 **An unchanged source publishes nothing.** A run fingerprints the source and
 stops if it matches the previous run — using the verbatim response bodies where
@@ -138,10 +140,20 @@ ledger is written before publishing, which is why it cannot be the gate). A run
 that failed to publish leaves the old state, so its records are retried the
 next day instead of skipped as "unchanged" and silently lost. And a partial
 publish records `partial: true`, which the next run treats as "publish
-regardless", so the records that failed conversion get another attempt — at the
-cost of re-adding the ones that succeeded, which is the correct side of that
-trade. If the state cannot be read, the run publishes: the safe direction,
-since it can only add a duplicate, never lose a record.
+regardless", so the records that failed conversion get another attempt. A
+*persistently identical* partial run — same output fingerprint **and** same
+failure identity — is skipped, so a source that is half-broken for a month does
+not re-add its successful records daily; any change on either side publishes.
+
+State that is confirmed absent means a first run and publishes. State that
+exists but cannot be read or parsed **fails the run** instead: guessing "first
+run" there would republish an entire unchanged record set, and a failed run
+simply retries tomorrow.
+
+Every record published without its raw source archived is a provenance gap, so
+a declared-capture adapter whose run produced records but recorded a capture
+failure — or captured nothing at all — fails before publishing. Capture
+failures survive the adapter subprocess as error rows in the manifest.
 
 ## Known gaps
 

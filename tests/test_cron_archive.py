@@ -310,15 +310,27 @@ def test_missing_state_reads_as_none(monkeypatch):
     assert archive.read_state('hle', repo_id=REPO) is None
 
 
-def test_unreadable_state_reads_as_none(monkeypatch):
-    # Failing closed here would mean never publishing; failing open can only
-    # add a duplicate.
+def test_a_transient_state_read_error_raises(monkeypatch):
+    # Guessing "first run" on a 504 would republish an entire unchanged record
+    # set; a failed run just retries tomorrow.
     def broken(**kwargs):
         raise RuntimeError('504 gateway timeout')
 
     monkeypatch.setattr(archive, 'hf_hub_download', broken)
 
-    assert archive.read_state('hle', repo_id=REPO) is None
+    with pytest.raises(archive.ArchiveError, match='504'):
+        archive.read_state('hle', repo_id=REPO)
+
+
+def test_a_malformed_state_file_raises(monkeypatch, tmp_path: Path):
+    stored = tmp_path / 'state.json'
+    stored.write_text('not json', encoding='utf-8')
+    monkeypatch.setattr(
+        archive, 'hf_hub_download', lambda **kwargs: str(stored)
+    )
+
+    with pytest.raises(archive.ArchiveError, match='unreadable'):
+        archive.read_state('hle', repo_id=REPO)
 
 
 def test_a_public_raw_dataset_is_refused(monkeypatch, tmp_path: Path):

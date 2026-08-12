@@ -31,17 +31,9 @@ permissions:
   contents: read
 
 env:
-  # One place for the credentials both planning and refreshing need. An
-  # adapter's requires_env name must appear here (tests enforce it).
-  HF_TOKEN: ${{ secrets.HF_TOKEN }}
-  ARTIFICIAL_ANALYSIS_API_KEY: ${{ secrets.ARTIFICIAL_ANALYSIS_API_KEY }}
-  LLM_STATS_API_KEY: ${{ secrets.LLM_STATS_API_KEY }}
+  # Not a secret; safe at workflow scope. Secrets are deliberately passed only
+  # to the command steps that use them, never to checkout/setup/artifact steps.
   EEE_RAW_REPO_ID: ${{ vars.EEE_RAW_REPO_ID || 'evaleval/EEE_raw' }}
-
-concurrency:
-  # Never let two refreshes of the same adapter race for its pull request.
-  group: adapter-cron
-  cancel-in-progress: false
 
 jobs:
   plan:
@@ -62,6 +54,11 @@ jobs:
       - name: Check credentials and destinations
         env:
           UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/eee-venv
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          # Adapter keys are present so preflight reports which adapters are
+          # held back. requires_env names must appear here (tests enforce it).
+          ARTIFICIAL_ANALYSIS_API_KEY: ${{ secrets.ARTIFICIAL_ANALYSIS_API_KEY }}
+          LLM_STATS_API_KEY: ${{ secrets.LLM_STATS_API_KEY }}
         run: |
           uv run python -m every_eval_ever.cron preflight \
             --raw-repo-id "$EEE_RAW_REPO_ID" \
@@ -72,6 +69,10 @@ jobs:
         env:
           UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/eee-venv
           REQUESTED: ${{ inputs.adapter }}
+          # Presence-only: the schedule uses these to tell a credentialed
+          # adapter apart from an unconfigured one.
+          ARTIFICIAL_ANALYSIS_API_KEY: ${{ secrets.ARTIFICIAL_ANALYSIS_API_KEY }}
+          LLM_STATS_API_KEY: ${{ secrets.LLM_STATS_API_KEY }}
         run: |
           set -euo pipefail
           if [ -n "${REQUESTED}" ]; then
@@ -94,6 +95,14 @@ jobs:
     name: ${{ matrix.adapter }}
     needs: plan
     if: needs.plan.outputs.adapters != '[]'
+    # Scoped to one adapter and one mode: two publishes of the same adapter
+    # must never race for its pull request, but unrelated adapters, and dry
+    # runs against publishes, should not queue behind each other — GitHub also
+    # keeps only one pending run per group and silently replaces the older one,
+    # so a wide group can drop a refresh entirely.
+    concurrency:
+      group: adapter-cron-${{ matrix.adapter }}-${{ inputs.dry_run && 'dry-run' || 'publish' }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     # Well under the 6-hour job ceiling: an adapter that hangs should fail
     # today rather than burn a runner and collide with tomorrow's run.
@@ -118,6 +127,10 @@ jobs:
       - name: Refresh ${{ matrix.adapter }}
         env:
           UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/eee-venv
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          # Each adapter job receives only its own source credential.
+          ARTIFICIAL_ANALYSIS_API_KEY: ${{ matrix.adapter == 'artificial_analysis' && secrets.ARTIFICIAL_ANALYSIS_API_KEY || '' }}
+          LLM_STATS_API_KEY: ${{ matrix.adapter == 'llm_stats' && secrets.LLM_STATS_API_KEY || '' }}
         run: |
           set -uo pipefail
           # The default shell is `bash -e`, which would abort the step before
@@ -166,15 +179,15 @@ jobs:
                    "invocation(s) failed; published \(.records) record(s)"
                  else empty end' "$summary"
 
-      # A short-lived convenience copy. Permanent retention is the raw dataset;
-      # this is here so a failed run's reports are one click away.
+      # Reports and the run summary only — never cron-work/raw: artifacts on a
+      # public repository are downloadable by anyone signed in, and raw source
+      # bodies belong solely in the private raw dataset.
       - name: Upload reports and summary
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: cron-${{ matrix.adapter }}-${{ github.run_number }}
           path: |
-            ${{ runner.temp }}/cron-work/raw/
             ${{ runner.temp }}/cron-work/adapter_reports/
             ${{ runner.temp }}/cron-work/summary.json
           if-no-files-found: warn

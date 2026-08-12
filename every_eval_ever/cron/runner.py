@@ -23,6 +23,7 @@ workflow treats the nothing-new code as success, and a flag typo that exited
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import logging
 import os
@@ -76,6 +77,8 @@ class RunSummary:
     #: Payloads fetched but not stored, e.g. over the capture ceiling. They are
     #: still recorded in the ledger so the gap is visible rather than silent.
     raw_skipped: int = 0
+    #: Source URLs whose capture failed; fatal for a declared-capture adapter.
+    capture_errors: list[str] = field(default_factory=list)
     raw_policy: str = ''
     raw_archive: dict[str, object] = field(default_factory=dict)
     raw_fingerprint: str | None = None
@@ -226,42 +229,70 @@ def collections_in(data_root: Path) -> list[str]:
     return sorted(entry.name for entry in data_root.iterdir() if entry.is_dir())
 
 
-def _previous_fingerprint(
+def failure_identity(failed_invocations: list[dict[str, object]]) -> str | None:
+    """Digest which invocations failed and how, order-independently.
+
+    Lets a *persistently* partial run be recognised: identical output plus an
+    identical failure set means republishing would only duplicate the records
+    that already made it in, while the failed ones would fail again.
+    """
+    if not failed_invocations:
+        return None
+    lines = sorted(
+        f'{item["arguments"]} {item["returncode"]}'
+        for item in failed_invocations
+    )
+    return hashlib.sha256('\n'.join(lines).encode('utf-8')).hexdigest()
+
+
+def _previous_state(
     adapter: str,
     *,
     fingerprint_path: Path | None,
     raw_repo_id: str,
     consult_state: bool,
     token: str | None,
-) -> str | None:
-    """Return the fingerprint to compare this run against.
+) -> dict[str, object] | None:
+    """Return what the last successful publish recorded, or ``None``.
 
     A local ``--fingerprint`` file wins when it has a value, which is what makes
     a local run reproducible. Otherwise the raw dataset's per-adapter state file
     is the durable memory of the last *successful publish* — deliberately not
     the ledger, which this run has already written and would only hand back its
     own fingerprint.
-
-    A previous run recorded as partial returns ``None``: some of the source
-    failed to convert that day, so the next run must publish even if the source
-    has not moved, or the records that failed would never reach the datastore.
     """
     stored = read_fingerprint(fingerprint_path) if fingerprint_path else None
     if stored:
-        return stored
+        return {'gating_fingerprint': stored, 'partial': False}
     if not consult_state:
         return None
-    state = archive_module.read_state(adapter, repo_id=raw_repo_id, token=token)
-    if not state:
-        return None
-    if state.get('partial'):
-        _logger.info(
-            '%s: previous publish was partial; publishing regardless of the '
-            'fingerprint so the missing records get another attempt',
-            adapter,
-        )
-        return None
-    return state.get('gating_fingerprint')
+    return archive_module.read_state(adapter, repo_id=raw_repo_id, token=token)
+
+
+def _unchanged_since(
+    previous: dict[str, object] | None,
+    *,
+    current: str | None,
+    current_failures: str | None,
+) -> bool:
+    """Decide whether this run repeats what the last publish already sent.
+
+    A non-partial previous publish is repeated when the fingerprint matches. A
+    *partial* one is repeated only when the failure identity also matches: the
+    same records converted and the same invocations failed the same way, so
+    republishing would duplicate the successes without recovering anything.
+    Any change on either side — the source moved, a failure recovered, a new
+    failure appeared — publishes.
+    """
+    if not previous or not current:
+        return False
+    if current != previous.get('gating_fingerprint'):
+        return False
+    if not previous.get('partial'):
+        return True
+    return current_failures is not None and current_failures == previous.get(
+        'failure_identity'
+    )
 
 
 def _archive_raw(
@@ -388,30 +419,24 @@ def refresh(
 
     raw_capture.index_unlisted_payloads(raw_dir)
     manifest = raw_capture.read_manifest(raw_dir)
+    errors = raw_capture.capture_errors(raw_dir)
     stored = [entry for entry in manifest if entry.get('file')]
     summary.raw_payloads = len(stored)
     summary.raw_bytes = sum(entry.get('bytes') or 0 for entry in stored)
     # Fetched but deliberately not stored, e.g. over the capture ceiling. These
     # still belong in the ledger, so they must not read as "nothing captured".
-    summary.raw_skipped = len(manifest) - len(stored)
+    summary.raw_skipped = len(manifest) - len(stored) - len(errors)
+    summary.capture_errors = [entry.get('url') or '?' for entry in errors]
     # Only verbatim wire captures can say whether the source moved; a dump an
     # adapter wrote itself is archived but may carry its own fetch timestamp.
     summary.raw_fingerprint = raw_capture.fingerprint(
         raw_dir, verbatim_only=True
     )
 
-    if (
-        adapter.raw_policy
-        in {RawPolicy.VIA_FETCH_HELPERS, RawPolicy.VIA_ADAPTER_FLAG}
-        and not manifest
-    ):
-        # Declared as archived but nothing was captured at all: report it rather
-        # than let the run look like it saved raw data.
-        _logger.warning(
-            '%s declares raw policy %s but captured no payloads',
-            adapter.name,
-            adapter.raw_policy.value,
-        )
+    declares_capture = adapter.raw_policy in {
+        RawPolicy.VIA_FETCH_HELPERS,
+        RawPolicy.VIA_ADAPTER_FLAG,
+    }
     if summary.raw_skipped:
         _logger.warning(
             '%s fetched %d payload(s) that were not stored; the ledger records '
@@ -422,6 +447,31 @@ def refresh(
 
     summary.records = len(list(data_root.glob('*/*/*/*.json')))
     summary.collections = collections_in(data_root)
+
+    if summary.records and declares_capture:
+        # Records without their source bytes archived must not be published:
+        # a swallowed capture exception, or an adapter that fetched without
+        # its declared capture route, would otherwise erode provenance one
+        # quiet day at a time. Deliberate ceiling skips are not errors.
+        problems = []
+        if summary.capture_errors:
+            problems.append(
+                f'{len(summary.capture_errors)} capture failure(s): '
+                + ', '.join(summary.capture_errors[:5])
+            )
+        if not manifest:
+            problems.append(
+                f'raw policy {adapter.raw_policy.value} captured nothing'
+            )
+        if problems:
+            summary.status = 'failed'
+            summary.detail = (
+                'records were produced but their raw source was not '
+                'archived (' + '; '.join(problems) + '); nothing published'
+            )
+            summary.write(summary_path)
+            _logger.error('%s: %s', adapter.name, summary.detail)
+            return EXIT_FAILED, summary
 
     # Computed before stamping deliberately: the digest strips the cron stamp,
     # so the value is the same either side of it, and archiving it here means
@@ -474,20 +524,31 @@ def refresh(
     )
     summary.unknown_inferred_fields = stamped.unknown_inferred
 
-    previous = _previous_fingerprint(
+    previous = _previous_state(
         adapter.name,
         fingerprint_path=fingerprint_path,
         raw_repo_id=raw_repo_id,
         consult_state=archive_raw and not dry_run,
         token=environment.get('HF_TOKEN'),
     )
-    summary.previous_fingerprint = previous
+    summary.previous_fingerprint = (
+        previous.get('gating_fingerprint') if previous else None
+    )
+    current_failures = failure_identity(summary.failed_invocations)
 
-    if previous and current == previous and not force:
+    if not force and _unchanged_since(
+        previous, current=current, current_failures=current_failures
+    ):
         summary.status = 'unchanged'
         summary.detail = (
             f'{summary.fingerprint_source} fingerprint matches the previous '
-            'run; nothing published'
+            'publish'
+            + (
+                ' (including its failure set)'
+                if previous.get('partial')
+                else ''
+            )
+            + '; nothing published'
         )
         summary.write(summary_path)
         _logger.info('%s: %s', adapter.name, summary.detail)
@@ -549,6 +610,7 @@ def refresh(
                     'run_id': run_id,
                     'run_url': run_url,
                     'partial': bool(summary.failed_invocations),
+                    'failure_identity': current_failures,
                     'pr_number': result.pr_number,
                     'pr_url': result.pr_url,
                 },
