@@ -319,3 +319,82 @@ def test_resolve_api_key_fails_when_missing(monkeypatch):
 
     with pytest.raises(ValueError, match=adapter.API_KEY_ENV):
         adapter.resolve_api_key(None)
+
+
+def _api_down(*args, **kwargs):
+    import requests
+
+    raise requests.ConnectionError('name resolution failed')
+
+
+def test_an_unreachable_api_is_the_source_being_unavailable(monkeypatch):
+    """Transport failures are Mercor being down, not the adapter crashing."""
+    monkeypatch.setattr(adapter.requests, 'get', _api_down)
+
+    with pytest.raises(adapter.SourceUnavailableError):
+        adapter.request_json(
+            f'{adapter.DEFAULT_BASE_URL}/benchmarks', headers={}
+        )
+
+
+def test_a_non_json_body_is_the_source_being_unavailable(monkeypatch):
+    """A failing API serving an HTML error page is still an outage."""
+
+    class HtmlResponse:
+        url = f'{adapter.DEFAULT_BASE_URL}/benchmarks'
+        content = b'<html>502</html>'
+        headers = {'Content-Type': 'text/html'}
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            raise ValueError('not json')
+
+    monkeypatch.setattr(adapter.requests, 'get', lambda *a, **k: HtmlResponse())
+
+    with pytest.raises(adapter.SourceUnavailableError):
+        adapter.request_json(
+            f'{adapter.DEFAULT_BASE_URL}/benchmarks', headers={}
+        )
+
+
+def test_an_unavailable_api_exits_with_the_outage_code(monkeypatch, capsys):
+    """Exit 75 is what lets a scheduled run report an outage, not a crash.
+
+    The schema-contract failures deliberately do not take this path: an API
+    that answers with the wrong shape needs a person, and stays a hard error
+    (see test_unsupported_schema_version_fails).
+    """
+    monkeypatch.setenv(adapter.API_KEY_ENV, 'a-key')
+    monkeypatch.setattr(adapter.requests, 'get', _api_down)
+    monkeypatch.setattr(
+        adapter.sys, 'argv', ['every_eval_ever.adapters.mercor_eval.adapter']
+    )
+
+    with pytest.raises(SystemExit) as caught:
+        adapter.main()
+
+    assert caught.value.code == adapter.SOURCE_UNAVAILABLE_EXIT == 75
+    assert 'Mercor API unavailable' in capsys.readouterr().err
+
+
+def test_a_rejected_key_is_a_hard_error_not_an_outage(monkeypatch):
+    """An expired secret reported as "source down" would stay green for as
+    long as nobody looked. Credentials are this side's configuration."""
+    import requests
+
+    class Rejected:
+        status_code = 401
+
+        def raise_for_status(self):
+            error = requests.HTTPError('401 Unauthorized')
+            error.response = self
+            raise error
+
+    monkeypatch.setattr(adapter.requests, 'get', lambda *a, **k: Rejected())
+
+    with pytest.raises(RuntimeError, match=adapter.API_KEY_ENV):
+        adapter.request_json(
+            f'{adapter.DEFAULT_BASE_URL}/benchmarks', headers={}
+        )

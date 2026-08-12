@@ -11,12 +11,12 @@ from every_eval_ever.validate import validate_file
 
 def _result(**overrides):
     result = {
-        "model_name": "openai/Azure/gpt-5.2",
-        "benchmark_name": "SWE-bench",
-        "agent_name": "Claude Code",
-        "agent": "claude-code",
-        "benchmark_score": 0.75,
-        "total_sessions": 4,
+        'model_name': 'openai/Azure/gpt-5.2',
+        'benchmark_name': 'SWE-bench',
+        'agent_name': 'Claude Code',
+        'agent': 'claude-code',
+        'benchmark_score': 0.75,
+        'total_sessions': 4,
     }
     result.update(overrides)
     return result
@@ -24,29 +24,27 @@ def _result(**overrides):
 
 def test_convert_results_retains_valid_rows_and_raw_failure(tmp_path):
     good = _result()
-    bad = _result(model_name="unmapped/model")
+    bad = _result(model_name='unmapped/model')
 
     result = convert_results(
         [good, bad],
-        retrieved_timestamp="1234",
-        output_dir=str(tmp_path / "data" / "exgentic"),
+        retrieved_timestamp='1234',
+        output_dir=str(tmp_path / 'data' / 'exgentic'),
     )
 
     assert len(result.records) == 1
     assert result.failures[0].source_record == bad
     output = result.records[0]
-    assert output.developer == "openai"
-    assert output.model_name == "gpt-5.2"
-    assert validate_file(
-        _write_for_validation(tmp_path, output.eval_log)
-    ).valid
+    assert output.developer == 'openai'
+    assert output.model_name == 'gpt-5.2'
+    assert validate_file(_write_for_validation(tmp_path, output.eval_log)).valid
 
 
 def _write_for_validation(tmp_path, eval_log):
-    path = tmp_path / "evaluation.json"
+    path = tmp_path / 'evaluation.json'
     path.write_text(
         json.dumps(
-            eval_log.model_dump(mode="json", exclude_none=True),
+            eval_log.model_dump(mode='json', exclude_none=True),
             allow_nan=False,
         )
     )
@@ -54,17 +52,17 @@ def _write_for_validation(tmp_path, eval_log):
 
 
 def test_local_loader_preserves_good_results_when_one_config_is_bad(tmp_path):
-    good_dir = tmp_path / "good"
+    good_dir = tmp_path / 'good'
     good_dir.mkdir()
-    (good_dir / "config.json").write_text(json.dumps({"run_id": "run-1"}))
-    run_dir = good_dir / "run-1"
+    (good_dir / 'config.json').write_text(json.dumps({'run_id': 'run-1'}))
+    run_dir = good_dir / 'run-1'
     run_dir.mkdir()
     good = _result()
-    (run_dir / "results.json").write_text(json.dumps(good))
+    (run_dir / 'results.json').write_text(json.dumps(good))
 
-    bad_dir = tmp_path / "bad"
+    bad_dir = tmp_path / 'bad'
     bad_dir.mkdir()
-    (bad_dir / "config.json").write_text(json.dumps({}))
+    (bad_dir / 'config.json').write_text(json.dumps({}))
 
     result = collect_results_from_dir(str(tmp_path))
 
@@ -77,4 +75,32 @@ def test_local_loader_preserves_good_results_when_one_config_is_bad(tmp_path):
     except SourceRecordsError:
         pass
     else:
-        raise AssertionError("strict loader should signal the incomplete load")
+        raise AssertionError('strict loader should signal the incomplete load')
+
+
+def test_every_model_family_on_the_live_board_resolves_a_developer():
+    """Exgentic/results (the live board) carries these five families; a
+    prefix the map does not know drops that model's rows every run."""
+    from every_eval_ever.adapters.exgentic import adapter
+
+    assert adapter.HF_DATASET == 'Exgentic/results'
+    resolved = {
+        name: adapter.parse_model_info(name)
+        for name in (
+            'openai/Azure/gpt-5.2-2025-12-11',
+            'openai/aws/claude-opus-4-5',
+            'openai/azure/DeepSeek-V3.2',
+            'openai/azure/Kimi-K2.5',
+            'openai/gcp/gemini-3-pro-preview',
+        )
+    }
+    assert resolved['openai/azure/DeepSeek-V3.2'] == (
+        'DeepSeek',
+        'deepseek',
+        'DeepSeek-V3.2',
+    )
+    assert resolved['openai/azure/Kimi-K2.5'] == (
+        'Moonshot AI',
+        'moonshot',
+        'Kimi-K2.5',
+    )

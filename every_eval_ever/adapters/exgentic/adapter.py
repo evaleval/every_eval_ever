@@ -11,7 +11,7 @@ results and converts them to EEE-conformant JSON files.
 
 Data source:
 - Exgentic experiments output: results.json files produced by `exgentic batch aggregate`
-- HuggingFace dataset: https://huggingface.co/datasets/Exgentic/open-agent-leaderboard-results
+- HuggingFace dataset: https://huggingface.co/datasets/Exgentic/results
 
 Usage:
     # From local experiment results
@@ -57,13 +57,15 @@ from every_eval_ever.helpers import (
 from every_eval_ever.helpers.io import require_identity
 
 OUTPUT_DIR = 'data/exgentic'
-HF_DATASET = 'Exgentic/open-agent-leaderboard-results'
+HF_DATASET = 'Exgentic/results'
 
 # Map model name prefixes to developer organizations
 MODEL_DEVELOPER_MAP = {
     'claude': ('Anthropic', 'anthropic'),
     'gpt': ('OpenAI', 'openai'),
     'gemini': ('Google', 'google'),
+    'deepseek': ('DeepSeek', 'deepseek'),
+    'kimi': ('Moonshot AI', 'moonshot'),
 }
 
 

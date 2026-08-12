@@ -37,7 +37,7 @@ ADAPTER_MODULE_PREFIX = 'every_eval_ever.adapters.'
 #: Adapter packages deliberately excluded from automation. Their upstream
 #: sources are no longer usable for an active refresh; see the "Legacy
 #: integrations" section of ``every_eval_ever/adapters/README.md``.
-LEGACY_ADAPTERS = frozenset({'arc_agi', 'livecodebenchpro', 'mercor_eval'})
+LEGACY_ADAPTERS = frozenset({'arc_agi', 'livecodebenchpro'})
 
 
 @dataclass(frozen=True)
@@ -72,6 +72,15 @@ class AdapterSpec:
     #: files and have nothing to snapshot, so the exemption is a reviewed
     #: catalog fact rather than whatever the run happened to write.
     captures_raw: bool = True
+    #: Whether an adapter exit of 75 (``EX_TEMPFAIL``) is reported as the
+    #: source being unavailable rather than as a failed job. For sources
+    #: known to go down for stretches, a nightly red job says nothing new;
+    #: the run stays green and the report says the source was down. The
+    #: adapter must exit 75 deliberately and stage nothing for it to apply,
+    #: so a crash cannot dress itself up as an outage. Grant it only while
+    #: an outage is expected, and take it back once the source is stable,
+    #: so a real regression goes red again.
+    allow_source_outage: bool = False
     notes: str = ''
 
     def __post_init__(self) -> None:
@@ -183,10 +192,9 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         collections=('exgentic',),
         extra_args=('--from-hf',),
         with_packages=('datasets',),
-        runnable=False,
-        unrunnable_reason=(
-            'Exgentic/open-agent-leaderboard-results no longer resolves on '
-            'the Hub (checked 2026-08-10); re-enable when it returns'
+        notes=(
+            'Reads Exgentic/results, the successor to the retired '
+            'open-agent-leaderboard-results dataset (repointed 2026-08-12).'
         ),
     ),
     AdapterSpec(
@@ -224,11 +232,15 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         cadence='weekly',
         weekday=4,
         timeout_minutes=45,
+        runnable=False,
+        unrunnable_reason=(
+            'the Open LLM Leaderboard is no longer maintained upstream '
+            '(space discussion 1135); the archive is frozen, so a scheduled '
+            'refresh has nothing new to fetch'
+        ),
         notes=(
-            'Around 4,576 models per refresh. Weekly rather than daily '
-            'because of that: the cold start is a single pull request of '
-            'that size, and every leaderboard re-run of a model changes its '
-            'fingerprint and republishes it.'
+            'The adapter still works for a one-off manual conversion of the '
+            'frozen archive (around 4,576 models).'
         ),
     ),
     AdapterSpec(
@@ -248,6 +260,22 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         collections=('llm-stats',),
         required_env=('LLM_STATS_API_KEY',),
         timeout_minutes=30,
+    ),
+    AdapterSpec(
+        key='mercor_eval',
+        module='every_eval_ever.adapters.mercor_eval.adapter',
+        # One collection per Mercor benchmark slug. A new benchmark on their
+        # API shows up as a StagingError naming the undeclared collection,
+        # which makes adding it here a decision rather than a surprise.
+        collections=('apex-agents',),
+        output_scope='data_root',
+        required_env=('MERCOR_EVAL_API_EVALEVAL_KEY',),
+        allow_source_outage=True,
+        notes=(
+            'The exports API is failing upstream as of 2026-08-12, so an '
+            'outage is tolerated (exit 75 reports it without failing the '
+            'job). Remove allow_source_outage once Mercor is stable again.'
+        ),
     ),
     AdapterSpec(
         key='mmlu_pro',

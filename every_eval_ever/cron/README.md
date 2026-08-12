@@ -257,10 +257,16 @@ unchanged leaderboard until somebody goes looking.
 This is a deliberate MVP.
 
 - `bfcl`, `cocoabench` and `sciarena` are registered but not schedulable:
-  they need a local input file and have no live fetch path. `exgentic` is
-  also parked, because its upstream Hugging Face dataset no longer resolves.
-  `uv run python -m every_eval_ever.cron list` shows each reason; re-enabling
-  one is a single field in the catalog.
+  they need a local input file and have no live fetch path. `hfopenllm_v2`
+  is parked because the Open LLM Leaderboard is no longer maintained
+  upstream, so a refresh of its frozen archive would fetch nothing new.
+  `uv run python -m every_eval_ever.cron list` shows each reason;
+  re-enabling one is a single field in the catalog.
+- `mercor_eval` is scheduled while its API is failing upstream: its catalog
+  entry sets `allow_source_outage`, so the adapter's deliberate exit `75`
+  reads as "source unavailable" in the run report instead of a red job.
+  The grant is meant to be withdrawn once Mercor is stable, so a later
+  regression fails loudly again.
 - Most adapters key `evaluation_id` on the scrape time, so a changed record
   arrives as a new file rather than an update to the previous one. The
   fingerprint ledger stops unchanged records piling up; reconciling genuine

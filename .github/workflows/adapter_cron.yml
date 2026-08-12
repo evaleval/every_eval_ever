@@ -130,6 +130,7 @@ jobs:
           # and no other; the runner hands each adapter only its own.
           ARTIFICIAL_ANALYSIS_API_KEY: ${{ secrets.ARTIFICIAL_ANALYSIS_API_KEY }}
           LLM_STATS_API_KEY: ${{ secrets.LLM_STATS_API_KEY }}
+          MERCOR_EVAL_API_EVALEVAL_KEY: ${{ secrets.MERCOR_EVAL_API_EVALEVAL_KEY }}
           # Empty when unset, which the CLI treats as "use the default".
           EEE_DATASTORE_REPO_ID: ${{ vars.EEE_DATASTORE_REPO_ID }}
           EEE_RAW_REPO_ID: ${{ vars.EEE_RAW_REPO_ID }}

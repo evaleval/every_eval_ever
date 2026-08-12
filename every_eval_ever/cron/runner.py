@@ -44,8 +44,15 @@ Status = Literal[
     'partial',
     'skipped_missing_credential',
     'skipped_missing_dependency',
+    'skipped_source_unavailable',
     'failed',
 ]
+
+#: The exit code (``EX_TEMPFAIL``) an adapter uses to say its upstream
+#: source is down, as opposed to crashing on it. Honoured only when the
+#: catalog entry sets ``allow_source_outage`` and the adapter staged
+#: nothing, so neither a crash nor a partial conversion can ride on it.
+SOURCE_UNAVAILABLE_EXIT = 75
 
 #: Credentials any adapter might need. A run is given only its own.
 ALL_CREDENTIAL_ENV = frozenset(
@@ -762,6 +769,23 @@ def run(
 
     outcome.coverage = read_coverage(staging_dir)
 
+    if (
+        spec.allow_source_outage
+        and not outcome.process.timed_out
+        and outcome.process.returncode == SOURCE_UNAVAILABLE_EXIT
+        and not outcome.records
+    ):
+        # The adapter looked, found its source down, and said so with the
+        # designated exit code. The catalog granted this adapter that
+        # outcome, so tonight is a quiet skip rather than a red job; the
+        # grant is meant to be withdrawn once the source is stable.
+        outcome.status = 'skipped_source_unavailable'
+        outcome.messages.append(
+            'not run: the source reported itself unavailable. Adapter '
+            f'output tail:\n{outcome.process.tail()}'
+        )
+        return outcome
+
     if not outcome.process.ok:
         partial = bool(outcome.records) and outcome.coverage is not None
         if not partial:
@@ -872,6 +896,7 @@ __all__ = [
     'ALLOWED_STAGING_DIRS',
     'ALL_CREDENTIAL_ENV',
     'PUBLICATION_ENV',
+    'SOURCE_UNAVAILABLE_EXIT',
     'AdapterProcess',
     'RunOutcome',
     'StagedRecord',

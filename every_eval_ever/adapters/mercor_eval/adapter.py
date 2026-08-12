@@ -16,6 +16,7 @@ import argparse
 import json
 import os
 import re
+import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -45,6 +46,7 @@ from every_eval_ever.eval_types import (
 )
 from every_eval_ever.helpers import (
     SCHEMA_VERSION,
+    raw_capture,
     sanitize_filename,
     save_evaluation_log,
 )
@@ -56,6 +58,24 @@ API_KEY_ENV = 'MERCOR_EVAL_API_EVALEVAL_KEY'
 API_SCHEMA_VERSION = '1.0'
 DEFAULT_TIMEOUT = 60
 DEFAULT_PAGE_SIZE = 500
+#: EX_TEMPFAIL. The cron treats this exit as "the source is down" for
+#: adapters whose catalog entry says an outage is expected; anything else
+#: non-zero stays a real failure. See ``cron.runner.SOURCE_UNAVAILABLE_EXIT``.
+SOURCE_UNAVAILABLE_EXIT = 75
+
+
+class SourceUnavailableError(RuntimeError):
+    """Raised when the Mercor API cannot be reached or is not serving JSON.
+
+    Transport failures, server errors and non-JSON bodies are the source
+    being down, and exit with :data:`SOURCE_UNAVAILABLE_EXIT` so a scheduled
+    run can report an outage instead of a crash. Two failures deliberately
+    stay hard errors: a 401/403, because a rejected key is this side's
+    configuration and an outage report would hide an expired secret for as
+    long as nobody looked; and a response that parses but breaks the schema
+    contract, because that is the API changing under the adapter.
+    """
+
 
 PROVIDER_ALIASES = {
     'anthropic': 'anthropic',
@@ -214,15 +234,31 @@ def request_json(
         )
         response.raise_for_status()
         payload = response.json()
+    except requests.HTTPError as exc:
+        status = getattr(exc.response, 'status_code', None)
+        if status in (401, 403):
+            raise RuntimeError(
+                f'Mercor rejected the API key ({status}) at {url}. Check '
+                f'{API_KEY_ENV}; a bad credential is not an outage.'
+            ) from exc
+        raise SourceUnavailableError(
+            f'Failed to fetch Mercor endpoint {url}: {exc}'
+        ) from exc
     except requests.RequestException as exc:
-        raise RuntimeError(
+        raise SourceUnavailableError(
             f'Failed to fetch Mercor endpoint {url}: {exc}'
         ) from exc
     except ValueError as exc:
-        raise RuntimeError(
+        raise SourceUnavailableError(
             f'Failed to parse JSON from Mercor endpoint {url}: {exc}'
         ) from exc
 
+    # The key travels in a header, so the captured URL holds no secret.
+    raw_capture.record(
+        url=response.url,
+        content=response.content,
+        content_type=response.headers.get('Content-Type'),
+    )
     if not isinstance(payload, dict):
         raise ValueError(
             f'Mercor endpoint {url} returned a non-object payload.'
@@ -685,11 +721,15 @@ def main() -> None:
     if args.input_json:
         payload = load_payload(args.input_json)
     else:
-        payload = fetch_payload(
-            resolve_api_key(args.api_key),
-            base_url=args.base_url,
-            page_size=args.page_size,
-        )
+        try:
+            payload = fetch_payload(
+                resolve_api_key(args.api_key),
+                base_url=args.base_url,
+                page_size=args.page_size,
+            )
+        except SourceUnavailableError as exc:
+            print(f'Mercor API unavailable: {exc}', file=sys.stderr)
+            raise SystemExit(SOURCE_UNAVAILABLE_EXIT) from exc
 
     bundles = make_bundles(payload, base_url=args.base_url)
     paths = export_bundles(bundles, args.output_dir)

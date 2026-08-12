@@ -60,7 +60,7 @@ re-hosting bytes that are already durably stored.
 | `bfcl` | BFCL leaderboard CSV | Converts BFCL leaderboard data with per-metric evaluation names and bounded continuous scores. |
 | `sciarena` | SciArena leaderboard API | Converts SciArena leaderboard results. |
 | `global_mmlu_lite` | Kaggle API | Fetches Global MMLU Lite leaderboard results from Kaggle. |
-| `hfopenllm_v2` | HuggingFace Spaces API | Fetches the Open LLM Leaderboard v2 (4576+ models). |
+| `hfopenllm_v2` | HuggingFace Spaces API | Fetches the Open LLM Leaderboard v2 (4576+ models). The leaderboard is no longer maintained upstream, so this converts a frozen archive and is not scheduled. |
 | `helm` | HELM leaderboard | Converts HELM leaderboard data. Supports `--leaderboard_name` for Capabilities/Lite/Classic/Instruct/MMLU. |
 | `llm_stats` | LLM Stats API | Converts LLM Stats model, benchmark, and score API data into `data/llm-stats/`. |
 | `mercor_eval` | Mercor Evaluation Exports API | Fetches authenticated Mercor benchmark leaderboards and writes aggregate EEE records. |
@@ -153,11 +153,17 @@ single `create_commit`.
 
 ### Legacy integrations
 
-`arc_agi`, `livecodebenchpro`, and `mercor_eval` are retained for historical
-and offline use, but their upstream sources are no longer usable for an active
-refresh (`mercor_eval` currently returns an empty response). They are excluded
-from active-adapter migration and compliance requirements. Deterministic
-offline tests for their existing behavior may remain in the test suite.
+`arc_agi` and `livecodebenchpro` are retained for historical and offline use,
+but their upstream sources are no longer usable for an active refresh. They
+are excluded from active-adapter migration and compliance requirements.
+Deterministic offline tests for their existing behavior may remain in the
+test suite.
+
+`mercor_eval` is scheduled again: the Exports API is live data, though it is
+failing upstream at the time of writing, so its catalog entry sets
+`allow_source_outage` and the adapter exits `75` on an unreachable API. That
+reads as "source down" in the run report instead of a failed job; the flag
+comes back off once Mercor is stable.
 
 ### Partial conversions and provenance
 

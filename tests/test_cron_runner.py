@@ -362,6 +362,55 @@ def test_the_catalog_can_exempt_an_adapter_with_nothing_to_snapshot(
     assert runner.capture_problems(outcome.raw_dir) == []
 
 
+# --- a source that is down ------------------------------------------------
+
+
+def test_a_declared_source_outage_is_a_quiet_skip(pipeline) -> None:
+    """An adapter the catalog says may hit an outage exits 75 to report one.
+
+    A nightly red job for a source known to be down says nothing new; the
+    run stays green and the report says why nothing was fetched.
+    """
+    outcome = pipeline(
+        {},
+        captures=[],
+        exit_code=runner.SOURCE_UNAVAILABLE_EXIT,
+        spec_kwargs={'allow_source_outage': True},
+    )
+
+    assert outcome.status == 'skipped_source_unavailable'
+    assert outcome.ok
+    assert outcome.uploaded == []
+    assert any('unavailable' in m for m in outcome.messages)
+
+
+def test_an_outage_exit_without_the_grant_is_still_a_failure(
+    pipeline,
+) -> None:
+    """Exit 75 is a claim, and only the catalog can decide to honour it."""
+    outcome = pipeline(
+        {}, captures=[], exit_code=runner.SOURCE_UNAVAILABLE_EXIT
+    )
+
+    assert outcome.status == 'failed'
+    assert not outcome.ok
+
+
+def test_an_outage_exit_with_staged_records_is_not_an_outage(
+    pipeline,
+) -> None:
+    """A source that served records was not down; whatever went wrong after
+    that is a real failure and must not hide behind the outage code."""
+    outcome = pipeline(
+        {f'demo-org/demo-model/{UUID_A}.json': record_without_samples()},
+        exit_code=runner.SOURCE_UNAVAILABLE_EXIT,
+        spec_kwargs={'allow_source_outage': True},
+    )
+
+    assert outcome.status != 'skipped_source_unavailable'
+    assert not outcome.ok
+
+
 # --- de-duplication ------------------------------------------------------
 
 
