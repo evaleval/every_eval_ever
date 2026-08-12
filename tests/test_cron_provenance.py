@@ -56,6 +56,52 @@ def test_stamp_records_type_date_adapter_and_run(record) -> None:
     assert provenance.is_cron_record(stamped)
 
 
+def test_a_record_that_knows_both_inferred_fields_says_nothing(record) -> None:
+    stamped = provenance.stamp_cron_provenance(
+        record, adapter='hle', run_date=RUN_DATE
+    )
+
+    assert provenance.UNKNOWN_INFERRED_KEY not in details(stamped)
+
+
+@pytest.mark.parametrize(
+    ('known', 'expected'),
+    [
+        ({}, 'deployment_type,model_availability'),
+        (
+            {'deployment_type': 'externally_managed'},
+            'model_availability',
+        ),
+        (
+            {'model_availability': 'open_weights'},
+            'deployment_type',
+        ),
+        (
+            {
+                'deployment_type': 'unknown',
+                'model_availability': 'open_weights',
+            },
+            'deployment_type',
+        ),
+    ],
+)
+def test_the_inferred_fields_left_unknown_are_named(
+    record, known, expected
+) -> None:
+    """The ticket defers these two, so a back-fill needs to find them.
+
+    Both default to ``unknown`` in the model, so a record that omits one says
+    the same thing as one that spells it out.
+    """
+    record['model_info']['additional_details'] = dict(known)
+
+    stamped = provenance.stamp_cron_provenance(
+        record, adapter='hle', run_date=RUN_DATE
+    )
+
+    assert details(stamped)[provenance.UNKNOWN_INFERRED_KEY] == expected
+
+
 def test_run_url_is_omitted_when_not_running_in_ci(record) -> None:
     stamped = provenance.stamp_cron_provenance(
         record, adapter='hle', run_date=RUN_DATE

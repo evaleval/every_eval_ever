@@ -19,7 +19,8 @@ runner    run the adapter into a private staging tree, with a timeout
           → the packaged validator must pass, with no warnings
           → fingerprint each record BEFORE stamping it
    ↓
-provenance  mark survivors: type_of_addition=cron, run date, adapter, run URL
+provenance  mark survivors: type_of_addition=cron, run date, adapter, run URL,
+            and which inferred model fields came out unknown
    ↓
 store     snapshot the raw source and update this adapter's ledger
    ↓
@@ -50,6 +51,23 @@ problem rather than a secret nobody added.
 
 An empty refresh is deliberately a failure. "0 valid, 0 invalid" is what a
 broken output directory looks like, not an up-to-date leaderboard.
+
+## What a published record carries
+
+In `source_metadata.additional_details`:
+
+| Key | Value |
+|---|---|
+| `type_of_addition` | `cron` |
+| `cron_run_date` | UTC date the source was pulled, `2026-08-10` |
+| `cron_adapter` | the catalog key that produced it |
+| `cron_run_url` | link to the workflow run, when there is one |
+| `cron_unknown_inferred_fields` | which of `deployment_type` and `model_availability` came out `unknown`, comma-separated; absent when both are known |
+
+The ticket asks for those last two to stay `unknown` for now and be fixed
+later. Naming them per record is what makes later a filter rather than a
+re-read of the whole datastore. Both default to `unknown` in the schema, so a
+record that omits one is saying the same thing as one that spells it out.
 
 ## De-duplication
 

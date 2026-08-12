@@ -738,16 +738,20 @@ def test_an_adapter_is_not_handed_the_publication_token(tmp_path) -> None:
         raw_dir=tmp_path / 'raw',
         base_env={
             'LLM_STATS_API_KEY': 'mine',
-            'HF_TOKEN': 'write-token',
-            'HUGGING_FACE_HUB_TOKEN': 'write-token',
-            'HUGGINGFACEHUB_API_TOKEN': 'write-token',
             'PATH': '/usr/bin',
+            # Every spelling the Hub client and its dependencies read.
+            # Removing three of four leaves the credential in place.
+            **dict.fromkeys(runner.PUBLICATION_ENV, 'write-token'),
         },
     )
 
-    assert 'HF_TOKEN' not in env
-    assert 'HUGGING_FACE_HUB_TOKEN' not in env
-    assert 'HUGGINGFACEHUB_API_TOKEN' not in env
+    assert not runner.PUBLICATION_ENV & set(env)
+    assert {
+        'HF_TOKEN',
+        'HF_HUB_TOKEN',
+        'HUGGING_FACE_HUB_TOKEN',
+        'HUGGINGFACEHUB_API_TOKEN',
+    } <= runner.PUBLICATION_ENV
     assert env['LLM_STATS_API_KEY'] == 'mine'
 
 

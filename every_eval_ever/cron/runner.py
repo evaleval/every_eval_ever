@@ -57,8 +57,15 @@ ALL_CREDENTIAL_ENV = frozenset(
 #: token that can open pull requests on the datastore widens the blast radius
 #: of any adapter or transitive dependency for no gain. Removed unless a
 #: catalog entry asks for one by name.
+#: All four spellings the Hub client and its dependencies read, because
+#: removing three of them leaves the credential in the environment.
 PUBLICATION_ENV = frozenset(
-    {'HF_TOKEN', 'HUGGING_FACE_HUB_TOKEN', 'HUGGINGFACEHUB_API_TOKEN'}
+    {
+        'HF_TOKEN',
+        'HF_HUB_TOKEN',
+        'HUGGING_FACE_HUB_TOKEN',
+        'HUGGINGFACEHUB_API_TOKEN',
+    }
 )
 
 _UUID = r'[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}'
