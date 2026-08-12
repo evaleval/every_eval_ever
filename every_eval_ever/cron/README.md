@@ -38,7 +38,7 @@ reach another adapter's pull request.
 | `partial` | Adapter exited non-zero but accounted for every dropped row in a provenance report; its valid records are published | green, annotated |
 | `skipped_missing_credential` | The adapter's API key is not configured | red |
 | `skipped_missing_dependency` | An optional package (e.g. `datasets`) is not installed | green |
-| `failed` | Crash, timeout, misplaced output, failed validation, duplicate records, or an empty refresh | red |
+| `failed` | Crash, timeout, misplaced output, failed validation, duplicate records, an unsnapshotted source, or an empty refresh | red |
 
 A missing credential is red because the adapter is in today's matrix only
 because the catalog says it should run. Green, it is indistinguishable from an
@@ -92,8 +92,20 @@ adapters behave identically when run by hand.
 
 Payloads are content-addressed (`<sha256><ext>`) with a `manifest.jsonl`
 beside them. A payload unchanged since the previous run is referenced, not
-re-uploaded. Capture never fails a conversion: an unwritable or oversized
-capture degrades and records that it did.
+re-uploaded.
+
+Capture never fails a conversion — an unwritable or oversized payload is
+recorded as a `dropped` manifest line and the adapter carries on — but it does
+fail the *run*. Records whose source was not kept cannot be checked against it
+later, which is the whole reason for keeping it, and the case that hides is
+the mixed one: two sources, the first snapshotted, the second over a cap, and
+records that look complete from the outside. The manifest is still uploaded,
+so the reason survives.
+
+The caps are 64 MB per payload and 512 MB per run, overridable with
+`EEE_RAW_CAPTURE_MAX_PAYLOAD_MB` and `EEE_RAW_CAPTURE_MAX_TOTAL_MB`. A source
+that outgrows one turns that adapter's job red until the cap is raised, which
+is the intended trade: a loud stop rather than a quiet gap in the archive.
 
 ## The raw store
 

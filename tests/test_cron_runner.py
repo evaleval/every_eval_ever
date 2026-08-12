@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import sys
 import textwrap
 from datetime import date
@@ -59,6 +60,14 @@ def parse_args(argv=None):
 def main(argv=None):
     args = parse_args(argv)
     staging = args.output_dir.parent.parent
+    for capture in BEHAVIOUR.get('captures', []):
+        from every_eval_ever.helpers import raw_capture
+
+        raw_capture.record(
+            url=capture['url'],
+            content=b'x' * capture['bytes'],
+            content_type='application/json',
+        )
     for name, encoded in FILES.items():
         target = args.output_dir / name
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -151,7 +160,7 @@ def pipeline(tmp_path, monkeypatch):
     )
     runs = 0
 
-    def go(files, *, run_kwargs=None, **behaviour):
+    def go(files, *, run_kwargs=None, env=None, **behaviour):
         nonlocal runs
         runs += 1
         (package / 'files.json').write_text(
@@ -171,7 +180,19 @@ def pipeline(tmp_path, monkeypatch):
             spec,
             tmp_path / f'work{runs}',
             run_date=RUN_DATE,
-            base_env={'PYTHONPATH': str(tmp_path)},
+            base_env={
+                'PYTHONPATH': str(tmp_path),
+                # Importing this package pulls in asyncio, whose Windows
+                # selector needs SystemRoot to load winsock. The real runner
+                # passes the whole environment; only these tests hand the
+                # subprocess an otherwise empty one.
+                **{
+                    name: value
+                    for name in ('SYSTEMROOT', 'SystemRoot')
+                    if (value := os.environ.get(name))
+                },
+                **(env or {}),
+            },
             **(run_kwargs or {}),
         )
 
@@ -263,6 +284,54 @@ def test_a_samples_sidecar_is_published_byte_for_byte(pipeline) -> None:
         ).read_bytes()
         == payload
     )
+
+
+# --- raw capture is a precondition, not a side effect --------------------
+
+
+def test_a_dropped_snapshot_stops_the_records_it_belongs_to(pipeline) -> None:
+    """Records whose source was not kept cannot be checked later.
+
+    The sink never fails the adapter, on purpose. Somebody has to notice, and
+    the run that would publish those records is the place.
+    """
+    outcome = pipeline(
+        {f'demo-org/demo-model/{UUID_A}.json': record_without_samples()},
+        env={'EEE_RAW_CAPTURE_MAX_PAYLOAD_MB': '1'},
+        captures=[
+            {'url': 'https://example/small.json', 'bytes': 16},
+            {'url': 'https://example/huge.json', 'bytes': 2 * 1024 * 1024},
+        ],
+    )
+
+    assert outcome.status == 'failed'
+    assert not outcome.ok
+    assert outcome.uploaded == []
+    assert any('raw source capture failed' in m for m in outcome.messages)
+    assert any('huge.json' in m for m in outcome.messages)
+    # The manifest still records both lines, so the failure is durable once
+    # the raw snapshot is uploaded.
+    assert 'dropped' in (outcome.raw_dir / 'manifest.jsonl').read_text('utf-8')
+
+
+def test_a_snapshot_that_was_stored_does_not_block_the_run(pipeline) -> None:
+    outcome = pipeline(
+        {f'demo-org/demo-model/{UUID_A}.json': record_without_samples()},
+        captures=[{'url': 'https://example/board.json', 'bytes': 16}],
+    )
+
+    assert outcome.status == 'completed', outcome.messages
+    assert outcome.has_upload
+
+
+def test_an_adapter_that_captures_nothing_is_not_penalised(pipeline) -> None:
+    """Not every adapter has capture wiring yet; absence is not a failure."""
+    outcome = pipeline(
+        {f'demo-org/demo-model/{UUID_A}.json': record_without_samples()}
+    )
+
+    assert outcome.status == 'completed', outcome.messages
+    assert runner.capture_problems(outcome.raw_dir) == []
 
 
 # --- de-duplication ------------------------------------------------------

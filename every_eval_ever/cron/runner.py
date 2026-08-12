@@ -35,6 +35,7 @@ from every_eval_ever.adapters.catalog import ADAPTERS as _ALL_ADAPTERS
 from every_eval_ever.adapters.catalog import AdapterSpec
 from every_eval_ever.cron.provenance import stamp_cron_provenance
 from every_eval_ever.helpers.raw_capture import CAPTURE_DIR_ENV
+from every_eval_ever.helpers.raw_capture import MANIFEST_NAME as RAW_MANIFEST
 from every_eval_ever.validator.check_duplicate_entries import normalized_hash
 from every_eval_ever.validator.json_utils import strict_json_loads
 
@@ -572,6 +573,42 @@ def check_duplicates(staging_dir: Path) -> str | None:
     return (stdout + stderr).strip()
 
 
+def capture_problems(raw_dir: Path) -> list[str]:
+    """Return one line per source payload the sink could not store.
+
+    The sink runs inside the adapter's own process and never raises, because
+    losing a snapshot is not worth losing the refresh that produced it. It
+    records what it dropped instead, and this is the parent side of that
+    bargain: a run publishes records only when the bytes they were converted
+    from were kept.
+
+    The mixed case is the one that matters. An adapter that reads two sources
+    where the first is snapshotted and the second is over a size cap looks
+    completely normal from the outside — the records are all there and the
+    validator passes — while half the evidence behind them is gone. That is
+    exactly when a later correction needs the source and cannot get it.
+
+    An adapter with no capture wiring writes no manifest, which is not a
+    problem and is not treated as one.
+    """
+    manifest = Path(raw_dir) / RAW_MANIFEST
+    if not manifest.is_file():
+        return []
+    problems = []
+    for line in manifest.read_text(encoding='utf-8').splitlines():
+        if not line.strip():
+            continue
+        try:
+            entry = json.loads(line)
+        except json.JSONDecodeError:
+            problems.append(f'unreadable capture manifest line: {line[:200]}')
+            continue
+        if isinstance(entry, dict) and entry.get('kind') == 'dropped':
+            source = entry.get('url') or entry.get('label') or 'unnamed source'
+            problems.append(f'{source}: {entry.get("reason", "not stored")}')
+    return problems
+
+
 def read_coverage(staging_dir: Path) -> dict[str, Any] | None:
     """Summarise the adapter's own provenance reports, if it wrote any."""
     reports_dir = Path(staging_dir) / 'adapter_reports'
@@ -752,6 +789,16 @@ def run(
         )
         return outcome
 
+    uncaptured = capture_problems(raw_dir)
+    if uncaptured:
+        outcome.status = 'failed'
+        outcome.messages.append(
+            'raw source capture failed, so these records could not be traced '
+            'back to what they were converted from:'
+        )
+        outcome.messages.extend(uncaptured[:20])
+        return outcome
+
     outcome.validation = validate_staging(staging_dir)
     if not outcome.validation.publishable:
         outcome.status = 'failed'
@@ -808,6 +855,7 @@ __all__ = [
     'ValidationSummary',
     'adapter_environment',
     'build_upload_tree',
+    'capture_problems',
     'check_duplicates',
     'discover_records',
     'missing_credentials',
