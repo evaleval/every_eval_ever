@@ -215,6 +215,159 @@ def _cmd_convert_lm_eval(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_convert_lighteval(args: argparse.Namespace) -> int:
+    from every_eval_ever.converters.lighteval.adapter import LightevalAdapter
+    from every_eval_ever.converters.lighteval.instance_level_adapter import (
+        LightevalInstanceLevelAdapter,
+    )
+
+    adapter = LightevalAdapter()
+    metadata = _common_metadata(args)
+    for name in (
+        'inference_platform',
+        'inference_engine',
+        'inference_engine_version',
+    ):
+        value = getattr(args, name, None)
+        if value:
+            metadata[name] = value
+
+    log_path = Path(args.log_path)
+    input_result: SourceConversionResult[Any] | None = None
+    if log_path.is_file():
+        # Via the result path, so a parse or conversion error reaches the
+        # failure report before it is raised. The directory branch already
+        # behaved this way, so the same failure class was reported differently
+        # depending on which entry mode you used.
+        input_result = adapter.transform_from_file_result(log_path, metadata)
+        logs = input_result.records
+    elif log_path.is_dir():
+        input_result = adapter.transform_from_directory_result(
+            log_path, metadata
+        )
+        logs = input_result.records
+    else:
+        raise FileNotFoundError(f'Path is not a file or directory: {log_path}')
+
+    if not logs and input_result is None:
+        raise ValueError(
+            f'lighteval conversion produced no logs from {log_path}'
+        )
+
+    output_dir = Path(args.output_dir)
+    eval_uuids = [str(uuid.uuid4()) for _ in logs]
+    include_details = getattr(args, 'include_details', False)
+    details_result: SourceConversionResult[Any] | None = None
+    with tempfile.TemporaryDirectory(prefix='eee-lighteval-') as staging:
+        staging_dir = Path(staging)
+        details_successes = []
+        details_failures = []
+        for log, eval_uuid in zip(logs, eval_uuids, strict=True):
+            if not include_details:
+                continue
+            meta: dict[str, Any] = {}
+            try:
+                meta = adapter.get_eval_metadata(log.evaluation_id)
+                details_file = _lighteval_details_file(log, meta)
+                detailed = LightevalInstanceLevelAdapter().transform_and_save(
+                    details_path=details_file,
+                    evaluation_id=log.evaluation_id,
+                    model_id=log.model_info.id,
+                    task_key=meta['task_key'],
+                    output_dir=str(_output_dir_for_log(staging_dir, log)),
+                    file_uuid=eval_uuid,
+                    collection=log.evaluation_results[
+                        0
+                    ].source_data.dataset_name,
+                    developer=log.model_info.developer,
+                )
+                if detailed is None:
+                    raise ValueError(
+                        '--include-details was requested, but the details '
+                        f'file for task {meta["task_key"]!r} contained no '
+                        'usable rows'
+                    )
+                log.detailed_evaluation_results = detailed
+                details_successes.append(log)
+            except Exception as exc:
+                details_failures.append(
+                    SourceRecordFailure(
+                        source_ref=(
+                            f'lighteval evaluation {log.evaluation_id!r}'
+                        ),
+                        reason=str(exc),
+                        source_record={
+                            'evaluation_id': log.evaluation_id,
+                            'searched_directory': meta.get('parent_dir'),
+                            'task_key': meta.get('task_key'),
+                        },
+                    )
+                )
+        if include_details:
+            details_result = SourceConversionResult(
+                source_name='lighteval requested details conversions',
+                total_records=len(logs),
+                records=details_successes,
+                failures=details_failures,
+            )
+        paths = (
+            publish_evaluation_logs(
+                logs,
+                output_dir,
+                eval_uuids,
+                staged_output_dir=staging_dir,
+            )
+            if logs
+            else []
+        )
+    for path in paths:
+        print(path)
+
+    _save_partial_conversion_report(
+        input_result, output_dir, 'lighteval_inputs'
+    )
+    _save_partial_conversion_report(
+        details_result, output_dir, 'lighteval_details'
+    )
+    if input_result is not None:
+        input_result.raise_if_incomplete()
+    if details_result is not None:
+        details_result.raise_if_incomplete()
+    print(f'Converted {len(paths)} evaluation log(s).')
+    return 0
+
+
+def _lighteval_details_file(log: Any, meta: dict[str, Any]) -> Path:
+    """Locate the details parquet for one converted lighteval task."""
+    from every_eval_ever.converters.lighteval.utils import (
+        details_file_name,
+        find_details_file,
+        results_file_date_id,
+    )
+
+    parent_dir = meta.get('parent_dir')
+    task_key = meta.get('task_key')
+    results_file = meta.get('results_file')
+    if not parent_dir or not task_key or not results_file:
+        raise RuntimeError(
+            'lighteval converter lost the source location or task key for '
+            f'evaluation {log.evaluation_id!r}'
+        )
+    details_file = find_details_file(
+        Path(results_file), task_key, meta.get('model_name')
+    )
+    if details_file is None:
+        date_id = results_file_date_id(Path(results_file)) or '<date_id>'
+        raise FileNotFoundError(
+            '--include-details was requested, but no details file was found '
+            f'for task {task_key!r}: expected '
+            f'{details_file_name(task_key, date_id)} under a details/ '
+            f'directory above {parent_dir}. lighteval only writes these when '
+            'the run set save_details.'
+        )
+    return details_file
+
+
 def _cmd_convert_inspect(args: argparse.Namespace) -> int:
     from every_eval_ever.converters.inspect.adapter import (
         InspectAIAdapter,
@@ -535,7 +688,7 @@ def build_parser() -> argparse.ArgumentParser:
         dest='source', required=True
     )
 
-    for source in ['lm_eval', 'inspect', 'helm', 'alpaca_eval']:
+    for source in ['lm_eval', 'inspect', 'helm', 'alpaca_eval', 'lighteval']:
         source_parser = convert_subparsers.add_parser(
             source,
             help=f'Convert {source} logs',
@@ -621,6 +774,36 @@ def build_parser() -> argparse.ArgumentParser:
                 default=None,
                 help='Inference engine version to record in model_info.inference_engine.version.',
             )
+        if source == 'lighteval':
+            source_parser.add_argument(
+                '--include_details',
+                '--include-details',
+                action='store_true',
+                help='Also convert lighteval details parquet into '
+                'instance-level output. Needs a run made with save_details '
+                'and the lighteval extra installed.',
+            )
+            source_parser.add_argument(
+                '--inference_platform',
+                '--inference-platform',
+                default=None,
+                help='Inference platform to record when the model config does '
+                'not name one (e.g. together, openai).',
+            )
+            source_parser.add_argument(
+                '--inference_engine',
+                '--inference-engine',
+                default=None,
+                help='Inference engine to record. lighteval dumps its model '
+                'config without a backend discriminator, so this cannot be '
+                'read from the logs.',
+            )
+            source_parser.add_argument(
+                '--inference_engine_version',
+                '--inference-engine-version',
+                default=None,
+                help='Inference engine version to record in model_info.inference_engine.version.',
+            )
         if source == 'inspect':
             source_parser.add_argument(
                 '--supplemental_eval_details_path',
@@ -667,6 +850,8 @@ def main(argv: list[str] | None = None) -> int:
             return _cmd_convert_helm(args)
         if args.source == 'alpaca_eval':
             return _cmd_convert_alpaca_eval(args)
+        if args.source == 'lighteval':
+            return _cmd_convert_lighteval(args)
 
     parser.print_help()
     return 1

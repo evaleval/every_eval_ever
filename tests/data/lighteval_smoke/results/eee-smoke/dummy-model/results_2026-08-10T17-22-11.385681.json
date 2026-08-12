@@ -1,0 +1,187 @@
+{
+  "config_general": {
+    "lighteval_sha": "?",
+    "num_fewshot_seeds": 1,
+    "max_samples": 2,
+    "job_id": "0",
+    "start_time": 208188.223990458,
+    "end_time": 208192.57978675,
+    "total_evaluation_time_secondes": "4.3557962919876445",
+    "model_config": {
+      "model_name": "eee-smoke/dummy-model",
+      "generation_parameters": {
+        "num_blocks": null,
+        "block_size": null,
+        "early_stopping": null,
+        "repetition_penalty": null,
+        "frequency_penalty": null,
+        "length_penalty": null,
+        "presence_penalty": null,
+        "max_new_tokens": null,
+        "min_new_tokens": null,
+        "seed": null,
+        "stop_tokens": null,
+        "temperature": 0,
+        "top_k": null,
+        "min_p": null,
+        "top_p": null,
+        "truncate_prompt": null,
+        "cache_implementation": null,
+        "response_format": null
+      },
+      "system_prompt": null,
+      "cache_dir": "~/.cache/huggingface/lighteval",
+      "seed": 42
+    },
+    "model_name": "eee-smoke/dummy-model"
+  },
+  "results": {
+    "squad_v2|0": {
+      "em": 0.0,
+      "em_stderr": 0.0
+    },
+    "anli:r1|0": {
+      "acc": 0.0,
+      "acc_stderr": 0.0
+    },
+    "all": {
+      "em": 0.0,
+      "em_stderr": 0.0,
+      "acc": 0.0,
+      "acc_stderr": 0.0
+    }
+  },
+  "versions": {},
+  "config_tasks": {
+    "squad_v2|0": {
+      "name": "squad_v2",
+      "prompt_function": "prompt_fn",
+      "hf_repo": "rajpurkar/squad_v2",
+      "hf_subset": "squad_v2",
+      "metrics": [
+        {
+          "metric_name": "em",
+          "higher_is_better": true,
+          "category": "GENERATIVE",
+          "sample_level_fn": "ExactMatches(aggregation_function=max, normalize_gold=None, normalize_pred=None, strip_strings=True, type_exact_match=full)",
+          "corpus_level_fn": "mean",
+          "batched_compute": false
+        }
+      ],
+      "solver": null,
+      "scorer": null,
+      "sample_fields": null,
+      "sample_to_fewshot": null,
+      "filter": null,
+      "hf_revision": null,
+      "hf_filter": "<lambda>",
+      "hf_avail_splits": [
+        "train",
+        "validation",
+        "test"
+      ],
+      "evaluation_splits": [
+        "validation"
+      ],
+      "few_shots_split": "train",
+      "few_shots_select": null,
+      "generation_size": 200,
+      "generation_grammar": null,
+      "stop_sequence": [
+        "\n",
+        "Question:",
+        "question:"
+      ],
+      "num_samples": null,
+      "original_num_docs": -1,
+      "effective_num_docs": -1,
+      "must_remove_duplicate_docs": false,
+      "num_fewshots": 0,
+      "version": 1
+    },
+    "anli:r1|0": {
+      "name": "anli:r1",
+      "prompt_function": "anli_prompt",
+      "hf_repo": "facebook/anli",
+      "hf_subset": "plain_text",
+      "metrics": [
+        {
+          "metric_name": "acc",
+          "higher_is_better": true,
+          "category": "LOGPROBS",
+          "sample_level_fn": "LoglikelihoodAcc(logprob_normalization=None)",
+          "corpus_level_fn": "mean",
+          "batched_compute": false
+        }
+      ],
+      "solver": [
+        "solve"
+      ],
+      "scorer": "score",
+      "sample_fields": "record_to_sample",
+      "sample_to_fewshot": null,
+      "filter": null,
+      "hf_revision": null,
+      "hf_filter": null,
+      "hf_avail_splits": [
+        "train_r1",
+        "dev_r1",
+        "test_r1"
+      ],
+      "evaluation_splits": [
+        "test_r1"
+      ],
+      "few_shots_split": "train_r1",
+      "few_shots_select": "random_sampling_from_train",
+      "generation_size": 1,
+      "generation_grammar": null,
+      "stop_sequence": [
+        "\n"
+      ],
+      "num_samples": null,
+      "original_num_docs": -1,
+      "effective_num_docs": -1,
+      "must_remove_duplicate_docs": false,
+      "num_fewshots": 0,
+      "version": 0
+    }
+  },
+  "summary_tasks": {
+    "squad_v2|0": {
+      "hashes": {
+        "hash_examples": "2b9b3fc409da0190",
+        "hash_full_prompts": "ef46db3751d8e999",
+        "hash_input_tokens": "dcd4184164a682cb",
+        "hash_cont_tokens": "dcd4184164a682cb"
+      },
+      "truncated": 0,
+      "non_truncated": 0,
+      "padded": 0,
+      "non_padded": 0
+    },
+    "anli:r1|0": {
+      "hashes": {
+        "hash_examples": "72b7003df17fd7c3",
+        "hash_full_prompts": "ef46db3751d8e999",
+        "hash_input_tokens": "dcd4184164a682cb",
+        "hash_cont_tokens": "dcd4184164a682cb"
+      },
+      "truncated": 0,
+      "non_truncated": 0,
+      "padded": 0,
+      "non_padded": 0
+    }
+  },
+  "summary_general": {
+    "hashes": {
+      "hash_examples": "a0403618ed3b8c9f",
+      "hash_full_prompts": "86aad2f7ee3a0869",
+      "hash_input_tokens": "185dedf5ca00043c",
+      "hash_cont_tokens": "185dedf5ca00043c"
+    },
+    "truncated": 0,
+    "non_truncated": 0,
+    "padded": 0,
+    "non_padded": 0
+  }
+}

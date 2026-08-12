@@ -1,0 +1,40 @@
+name: Upstream smoke
+
+# Asks the *current* upstream release to produce a run, then converts it. The
+# committed fixtures pin a past release, so only this can tell us that a new one
+# renamed a field or moved a file.
+#
+# Deliberately not on pull_request: an upstream release should not turn an
+# unrelated PR red, and a scheduled failure names the version that broke it.
+on:
+  schedule:
+    # Mondays, 06:37 UTC.
+    - cron: '37 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lighteval:
+    name: lighteval
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - uses: astral-sh/setup-uv@v7.6.0
+      - name: Run lighteval's fake model, convert it, validate it
+        # lighteval is installed ad hoc and never enters the project or the
+        # lockfile: it requires datasets>=4 while crfm-helm pins datasets~=3.1,
+        # so a locked dependency would make the whole resolution unsatisfiable.
+        # The `lighteval` extra here is only pyarrow, which does not conflict.
+        #
+        # UV_TORCH_BACKEND=cpu keeps a CUDA torch off a CPU runner; the model is
+        # fake, so no torch device is used at all.
+        env:
+          UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/eee-venv
+          UV_TORCH_BACKEND: cpu
+          HF_HUB_DISABLE_PROGRESS_BARS: '1'
+        run: >-
+          uv run -p 3.12 --extra lighteval --with lighteval
+          python scripts/upstream_smoke/lighteval_smoke.py
