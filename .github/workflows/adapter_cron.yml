@@ -7,7 +7,8 @@
 #
 # Setup this workflow needs, once:
 #   - a `cron` environment holding `HF_TOKEN`, with write access to the raw
-#     store and permission to open pull requests on the datastore;
+#     store (or permission to create it, which the first run does, private)
+#     and permission to open pull requests on the datastore;
 #   - optional per-adapter credentials as secrets (see `cron list`);
 #   - optional `EEE_DATASTORE_REPO_ID` / `EEE_RAW_REPO_ID` repository
 #     variables to point a rehearsal run at throwaway repositories.

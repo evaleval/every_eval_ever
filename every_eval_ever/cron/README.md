@@ -127,14 +127,22 @@ is the intended trade: a loud stop rather than a quiet gap in the archive.
 
 ## The raw store
 
+This layout is the contract. Post-fix tooling and any later de-duplication
+work read these paths, so treat a change to them as a change other things
+depend on.
+
 ```
-evaleval/EEE_raw   (dataset, main)
+evaleval/EEE_raw   (private dataset, main)
   raw/<adapter>/<YYYY-MM-DD>/<sha256><ext>    payload bytes
   raw/<adapter>/<YYYY-MM-DD>/manifest.jsonl   one line per capture
   raw/<adapter>/<YYYY-MM-DD>/run.json         outcome, coverage, PR link
   state/<adapter>.json                        PR number, last run, last status
   state/<adapter>.fingerprints                one sha256 per published record
 ```
+
+`<adapter>` is the catalog key, which is also the job name and the name on the
+adapter's datastore pull request. Nothing has ever been published here, so the
+first run that does is the one that sets this in stone.
 
 Everything one run writes lands in a single commit, guarded by the commit the
 state was read at, so two overlapping runs collide loudly instead of one
@@ -163,9 +171,21 @@ records produced, dropped, skipped as unchanged, uploaded.
 
 ## Setup
 
-1. Create the raw store dataset (default `evaleval/EEE_raw`), private. It holds
-   whole source payloads, so it is not meant to be browsable; the token in the
-   next step needs access to it.
+1. Nothing, if the token in the next step can create datasets: the first run
+   creates the raw store (default `evaleval/EEE_raw`) as a **private** dataset
+   and reads it back to confirm. Create it by hand if you would rather, but
+   create it private.
+
+   Privacy is enforced, not requested. The store holds whole source payloads,
+   kept so a published record can be checked against what it was converted
+   from — republishing them is a different thing that nobody agreed to. Every
+   run checks before it starts and again immediately before each commit, and
+   refuses to write to a public dataset. It never changes a repository's
+   visibility for you: that decision has consequences for anyone already
+   reading it, and making it silently at 03:17 is not the cron's call. A
+   `repo_info` call that fails for any reason other than "not found" also
+   stops the run, because a 500 is not evidence that a public dataset is
+   absent.
 2. Add a `cron` environment to the GitHub repository with an `HF_TOKEN`
    secret that can write to the raw store and open pull requests on the
    datastore.

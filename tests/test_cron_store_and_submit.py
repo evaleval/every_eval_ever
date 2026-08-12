@@ -14,7 +14,10 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from huggingface_hub.errors import EntryNotFoundError
+from huggingface_hub.errors import (
+    EntryNotFoundError,
+    RepositoryNotFoundError,
+)
 
 from every_eval_ever.cron import store, submit
 
@@ -34,16 +37,22 @@ class FakeHub:
         sha: str = 'headsha',
         discussions: list[Any] | None = None,
         user: str = CRON_USER,
+        private: bool = True,
+        exists: bool = True,
     ) -> None:
         self.files = dict(files or {})
         self.sha = sha
         self.discussions = list(discussions or [])
         self.user = user
+        self.private = private
+        self.exists = exists
         self.commits: list[dict[str, Any]] = []
+        self.created: list[dict[str, Any]] = []
         self.download_error: Exception | None = None
         self.commit_error: Exception | None = None
         self.details_error: Exception | None = None
         self.whoami_error: Exception | None = None
+        self.repo_info_error: Exception | None = None
         self.discussion_queries: list[dict[str, Any]] = []
         self.next_pr = 41
 
@@ -51,6 +60,13 @@ class FakeHub:
 
     def dataset_info(self, repo_id, revision=None, **kwargs):
         return type('Info', (), {'sha': self.sha})()
+
+    def repo_info(self, repo_id=None, **kwargs):
+        if self.repo_info_error is not None:
+            raise self.repo_info_error
+        if not self.exists:
+            raise RepositoryNotFoundError(f'{repo_id} not found')
+        return type('Info', (), {'sha': self.sha, 'private': self.private})()
 
     def whoami(self):
         if self.whoami_error is not None:
@@ -92,6 +108,12 @@ class FakeHub:
         raise EntryNotFoundError(f'discussion {discussion_num} not found')
 
     # -- writes ---------------------------------------------------------
+
+    def create_repo(self, **kwargs):
+        self.created.append(kwargs)
+        self.exists = True
+        self.private = kwargs.get('private', False)
+        return type('RepoUrl', (), {'url': f'https://x/{kwargs["repo_id"]}'})()
 
     def create_commit(self, **kwargs):
         if self.commit_error is not None:
@@ -146,6 +168,106 @@ class FakeDiscussion:
             f'discussions/{num}'
         )
         self.git_reference = f'refs/pr/{num}' if is_pull_request else None
+
+
+# --- the store is private, and the code checks ---------------------------
+
+
+def test_a_private_store_that_already_exists_is_left_alone() -> None:
+    hub = FakeHub(private=True)
+
+    store.RawStore(hub).ensure_private()
+
+    assert hub.created == []
+
+
+def test_a_public_store_stops_the_run_before_anything_is_written() -> None:
+    """Raw payloads are kept as evidence, not republished."""
+    hub = FakeHub(private=False)
+
+    with pytest.raises(store.StoreError, match='is public'):
+        store.RawStore(hub).ensure_private()
+
+    assert hub.commits == []
+    # Visibility is somebody else's decision to make, and undoing it does not
+    # un-publish what was readable in the meantime.
+    assert hub.created == []
+
+
+def test_a_missing_store_is_created_private_and_read_back() -> None:
+    hub = FakeHub(exists=False)
+
+    store.RawStore(hub, repo_id='evaleval/EEE_raw').ensure_private()
+
+    assert hub.created[0]['private'] is True
+    assert hub.created[0]['repo_type'] == 'dataset'
+    assert hub.private is True
+
+
+def test_a_store_that_reads_back_public_after_creation_is_refused() -> None:
+    """The create call reporting success is not the same as it being private."""
+    hub = FakeHub(exists=False)
+    real_create_repo = hub.create_repo
+
+    def create_public(**kwargs):
+        result = real_create_repo(**kwargs)
+        hub.private = False
+        return result
+
+    hub.create_repo = create_public
+
+    with pytest.raises(store.StoreError, match='reads back as public'):
+        store.RawStore(hub).ensure_private()
+
+
+@pytest.mark.parametrize(
+    'error',
+    [
+        RuntimeError('500 Internal Server Error'),
+        ConnectionError('network is unreachable'),
+    ],
+)
+def test_an_unreadable_store_is_not_treated_as_a_missing_one(error) -> None:
+    """Creating on a 500 is how a public dataset gets blessed as private."""
+    hub = FakeHub(private=False)
+    hub.repo_info_error = error
+
+    with pytest.raises(store.StoreError, match='could not check'):
+        store.RawStore(hub).ensure_private()
+
+    assert hub.created == []
+
+
+def test_a_commit_re_checks_visibility_rather_than_trusting_startup() -> None:
+    """Runs are unattended and daily; the adapter ran in between."""
+    hub = FakeHub(private=True)
+    raw_store = store.RawStore(hub)
+    raw_store.ensure_private()
+
+    hub.private = False
+
+    with pytest.raises(store.StoreError, match='is public'):
+        raw_store.commit(
+            store.state_operations(store.AdapterState(adapter='hle')),
+            message='state',
+            parent_commit='headsha',
+        )
+
+    assert hub.commits == []
+
+
+def test_a_commit_whose_visibility_cannot_be_confirmed_is_refused() -> None:
+    hub = FakeHub()
+    hub.repo_info_error = RuntimeError('503')
+
+    with pytest.raises(store.StoreError, match='could not confirm'):
+        store.RawStore(hub).commit(
+            store.state_operations(store.AdapterState(adapter='hle')),
+            message='state',
+            parent_commit='headsha',
+        )
+
+    assert hub.commits == []
 
 
 # --- state ---------------------------------------------------------------

@@ -235,6 +235,9 @@ def cmd_run(args: argparse.Namespace) -> int:
 
         api = HfApi()
         raw_store = store.RawStore(api, repo_id=args.raw_repo)
+        # Before the adapter runs, not after: an hour of scraping is a poor
+        # way to discover that its snapshot has nowhere private to go.
+        raw_store.ensure_private()
         submitter = submit.DatastoreSubmitter(api, repo_id=args.datastore_repo)
 
     state = _resolve_state(raw_store, spec.key)

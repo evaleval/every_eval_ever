@@ -174,6 +174,29 @@ def test_an_unschedulable_adapter_is_rejected(capsys) -> None:
     assert 'not schedulable' in capsys.readouterr().err
 
 
+def test_a_public_raw_store_stops_the_run_before_the_adapter(
+    monkeypatch, tmp_path, capsys
+) -> None:
+    """An hour of scraping is a poor way to learn the snapshot has nowhere
+    private to go — and no adapter output should exist to be published."""
+    hub = FakeHub(private=False)
+    monkeypatch.setattr('huggingface_hub.HfApi', lambda *a, **k: hub)
+    monkeypatch.setenv('HF_TOKEN', 'a-token')
+    started = []
+    monkeypatch.setattr(
+        cli.runner, 'run', lambda *a, **k: started.append(True)
+    )
+
+    exit_code = cli.main(
+        ['run', '--adapter', 'hle', '--workdir', str(tmp_path)]
+    )
+
+    assert exit_code == 1
+    assert started == []
+    assert 'is public' in capsys.readouterr().err
+    assert hub.commits == []
+
+
 # --- what a finished run commits -----------------------------------------
 
 

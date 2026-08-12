@@ -17,6 +17,13 @@ Layout of ``evaleval/EEE_raw`` (``main``)::
 Fingerprints live in their own newline-delimited file: the set is cumulative
 and reaches thousands of lines for the larger leaderboards, and keeping it out
 of the JSON keeps the part a human reads small and the diffs meaningful.
+
+The store is private, and that is enforced rather than documented. It holds
+whole source payloads kept so a published record can be checked against what
+it was converted from; republishing them is a different thing that nobody
+agreed to. :meth:`RawStore.ensure_private` runs before a refresh starts and
+:meth:`RawStore._require_private` runs before every commit, and neither ever
+changes a repository's visibility.
 """
 
 from __future__ import annotations
@@ -28,7 +35,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from huggingface_hub import CommitOperationAdd
-from huggingface_hub.errors import EntryNotFoundError
+from huggingface_hub.errors import EntryNotFoundError, RepositoryNotFoundError
 
 #: Default home for raw snapshots and cron state.
 DEFAULT_RAW_REPO = 'evaleval/EEE_raw'
@@ -53,6 +60,10 @@ class HubClient(Protocol):
     def hf_hub_download(self, **kwargs: Any) -> str: ...
 
     def create_commit(self, **kwargs: Any) -> Any: ...
+
+    def repo_info(self, **kwargs: Any) -> Any: ...
+
+    def create_repo(self, **kwargs: Any) -> Any: ...
 
 
 @dataclass
@@ -122,6 +133,96 @@ class RawStore:
         self.api = api
         self.repo_id = repo_id
         self.revision = revision
+
+    # -- visibility ------------------------------------------------------
+
+    def _repo_info(self) -> Any:
+        return self.api.repo_info(repo_id=self.repo_id, repo_type='dataset')
+
+    def _public_error(self) -> StoreError:
+        return StoreError(
+            f'{self.repo_id} is public. It holds whole source payloads, kept '
+            'so a record can be checked against what it was converted from '
+            'and not so they can be republished, so nothing is written to it '
+            'while the world can read it. Make it private, or point '
+            'EEE_RAW_REPO_ID at a dataset that already is. Changing a '
+            'repository from public to private is a decision with '
+            'consequences for anyone already reading it, so this run reports '
+            'it rather than doing it.'
+        )
+
+    def ensure_private(self, *, create: bool = True) -> None:
+        """Check the store exists and is private, before a run does any work.
+
+        Privacy here is the difference between an archive and a republication.
+        Written down in a README it holds until the first time somebody
+        creates the dataset by hand, accepts the Hub's public default, and
+        gets a green run.
+
+        Only a genuine "not found" counts as missing. A 500 or a network
+        failure is not evidence that a public dataset is absent, and creating
+        or blessing anything on that basis is how a public repository gets
+        treated as a private one for the rest of its life.
+        """
+        try:
+            info = self._repo_info()
+        except RepositoryNotFoundError:
+            info = None
+        except Exception as exc:  # noqa: BLE001 - re-raised with context
+            raise StoreError(
+                f'could not check whether {self.repo_id} is private: '
+                f'{type(exc).__name__}: {exc}'
+            ) from exc
+
+        if info is not None:
+            if not getattr(info, 'private', False):
+                raise self._public_error()
+            return
+
+        if not create:
+            raise StoreError(
+                f'{self.repo_id} does not exist. Create it as a private '
+                'dataset, or point EEE_RAW_REPO_ID at one that does.'
+            )
+
+        try:
+            self.api.create_repo(
+                repo_id=self.repo_id,
+                repo_type='dataset',
+                private=True,
+                exist_ok=True,
+            )
+            created = self._repo_info()
+        except Exception as exc:  # noqa: BLE001 - re-raised with context
+            raise StoreError(
+                f'{self.repo_id} does not exist and could not be created: '
+                f'{type(exc).__name__}: {exc}. Create it by hand as a '
+                'private dataset, or point EEE_RAW_REPO_ID at one that '
+                'exists.'
+            ) from exc
+        if not getattr(created, 'private', False):
+            raise StoreError(
+                f'{self.repo_id} was created but reads back as public; '
+                'refusing to treat it as a home for raw source payloads.'
+            )
+
+    def _require_private(self) -> None:
+        """Refuse to write to a store the world can read.
+
+        Checked immediately before every commit rather than only at startup:
+        these runs are unattended and daily, and a repository that was private
+        in August can be public tonight because of a cleanup or an org-wide
+        settings sweep. An unanswerable check is a refusal, not a pass.
+        """
+        try:
+            info = self._repo_info()
+        except Exception as exc:  # noqa: BLE001 - re-raised with context
+            raise StoreError(
+                f'could not confirm that {self.repo_id} is still private: '
+                f'{type(exc).__name__}: {exc}'
+            ) from exc
+        if not getattr(info, 'private', False):
+            raise self._public_error()
 
     # -- reading ---------------------------------------------------------
 
@@ -226,9 +327,14 @@ class RawStore:
         what guarantees no second job is writing the same ones. A failure
         that is not a moved head is re-raised untouched, so a permission or
         transport error still fails the job.
+
+        Visibility is confirmed here rather than trusted from startup, because
+        the adapter has been running in between and a repository's visibility
+        can change under it.
         """
         if not operations:
             return None
+        self._require_private()
         parent = parent_commit
         for remaining in reversed(range(COMMIT_ATTEMPTS)):
             try:
