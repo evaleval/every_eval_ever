@@ -106,7 +106,9 @@ records produced, dropped, skipped as unchanged, uploaded.
 
 ## Setup
 
-1. Create the raw store dataset (default `evaleval/EEE_raw`).
+1. Create the raw store dataset (default `evaleval/EEE_raw`), private. It holds
+   whole source payloads, so it is not meant to be browsable; the token in the
+   next step needs access to it.
 2. Add a `cron` environment to the GitHub repository with an `HF_TOKEN`
    secret that can write to the raw store and open pull requests on the
    datastore.
