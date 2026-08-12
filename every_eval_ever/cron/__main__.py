@@ -4,7 +4,7 @@
     uv run python -m every_eval_ever.cron plan
     uv run python -m every_eval_ever.cron run --adapter hle --dry-run
 
-``plan`` prints the job matrix so the schedule lives in the registry rather
+``plan`` prints the job matrix so the schedule lives in the catalog rather
 than in workflow YAML. ``run`` does one adapter end to end and exits non-zero
 only when the run was actually unhealthy — a missing credential or an
 unchanged leaderboard is a clean outcome, a crash or a validation failure is
@@ -23,7 +23,7 @@ from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Sequence
 
-from every_eval_ever.adapters import registry
+from every_eval_ever.adapters import catalog
 from every_eval_ever.cron import runner, store, submit
 
 #: Overrides for the two Hub repositories, so no destination is hardcoded at
@@ -60,7 +60,7 @@ def _step_summary(text: str) -> None:
 
 def cmd_list(args: argparse.Namespace) -> int:
     rows = []
-    for spec in registry.ADAPTERS:
+    for spec in catalog.ADAPTERS:
         rows.append(
             {
                 'adapter': spec.key,
@@ -100,8 +100,8 @@ def cmd_plan(args: argparse.Namespace) -> int:
     run_date = args.date or _today()
     if args.adapter:
         try:
-            spec = registry.get(args.adapter)
-        except registry.UnknownAdapterError as exc:
+            spec = catalog.get(args.adapter)
+        except catalog.UnknownAdapterError as exc:
             print(str(exc), file=sys.stderr)
             return 1
         if not spec.runnable:
@@ -112,7 +112,7 @@ def cmd_plan(args: argparse.Namespace) -> int:
             return 1
         due = (spec,)
     else:
-        due = registry.scheduled_for(run_date)
+        due = catalog.scheduled_for(run_date)
     include = [
         {
             'adapter': spec.key,
@@ -156,7 +156,7 @@ def _landed_fingerprints(
 def _publish(
     outcome: runner.RunOutcome,
     *,
-    spec: registry.AdapterSpec,
+    spec: catalog.AdapterSpec,
     state: store.AdapterState,
     submitter: submit.DatastoreSubmitter,
     run_url: str | None,
@@ -200,8 +200,8 @@ def _publish(
 
 def cmd_run(args: argparse.Namespace) -> int:
     try:
-        spec = registry.get(args.adapter)
-    except registry.UnknownAdapterError as exc:
+        spec = catalog.get(args.adapter)
+    except catalog.UnknownAdapterError as exc:
         print(str(exc), file=sys.stderr)
         return 1
     if not spec.runnable:
@@ -269,7 +269,7 @@ def cmd_run(args: argparse.Namespace) -> int:
 def _finish(
     outcome: runner.RunOutcome,
     *,
-    spec: registry.AdapterSpec,
+    spec: catalog.AdapterSpec,
     state: store.AdapterState,
     raw_store: store.RawStore | None,
     submitter: submit.DatastoreSubmitter | None,
@@ -379,7 +379,7 @@ def _finish(
 def _report(
     outcome: runner.RunOutcome,
     *,
-    spec: registry.AdapterSpec,
+    spec: catalog.AdapterSpec,
     pull_request: submit.PullRequest | None,
     dry_run: bool,
 ) -> None:

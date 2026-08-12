@@ -12,7 +12,7 @@ uv run python -m every_eval_ever.cron run --adapter hle --dry-run
 ## What one run does
 
 ```
-registry  which adapters exist, their collections, argv, cadence and timeout
+catalog  which adapters exist, their collections, argv, cadence and timeout
    ↓
 runner    run the adapter into a private staging tree, with a timeout
           → only files at data/<collection>/<dev>/<model>/<uuid>.json count
@@ -123,9 +123,9 @@ records produced, dropped, skipped as unchanged, uploaded.
 
 ## Adding an adapter to the schedule
 
-Add an `AdapterSpec` to `every_eval_ever/adapters/registry.py`. The adapter
+Add an `AdapterSpec` to `every_eval_ever/adapters/catalog.py`. The adapter
 must accept `--output-dir` and expose `parse_args(argv)`;
-`tests/test_adapter_registry.py` checks the entry against the adapter's own
+`tests/test_adapter_catalog.py` checks the entry against the adapter's own
 parser and fails if any adapter package is neither registered nor listed as
 legacy.
 
@@ -161,7 +161,7 @@ This is a deliberate MVP.
   they need a local input file and have no live fetch path. `exgentic` is
   also parked — its upstream Hugging Face dataset no longer resolves.
   `uv run python -m every_eval_ever.cron list` shows each reason; re-enabling
-  one is a single field in the registry.
+  one is a single field in the catalog.
 - Most adapters key `evaluation_id` on the scrape time, so a changed record
   arrives as a new file rather than an update to the previous one. The
   fingerprint ledger stops unchanged records piling up; reconciling genuine

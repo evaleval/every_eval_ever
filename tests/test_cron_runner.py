@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from every_eval_ever.adapters.registry import AdapterSpec
+from every_eval_ever.adapters.catalog import AdapterSpec
 from every_eval_ever.cron import runner
 from every_eval_ever.cron.provenance import is_cron_record
 from every_eval_ever.validator.check_duplicate_entries import normalized_hash
@@ -623,7 +623,7 @@ def test_an_adapter_that_asks_for_a_hub_token_still_gets_it(tmp_path) -> None:
     """Stripping is by default, not by prohibition.
 
     No adapter needs one today. If one ever reads a gated dataset, declaring
-    it in the registry is the way to say so, and the declaration is what makes
+    it in the catalog is the way to say so, and the declaration is what makes
     the exception visible in review.
     """
     spec = AdapterSpec(

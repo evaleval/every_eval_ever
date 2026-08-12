@@ -2,8 +2,8 @@
 #
 # One isolated job per adapter, and one datastore pull request per adapter.
 # Which adapters run on a given day comes from
-# every_eval_ever/adapters/registry.py via `cron plan`, not from this file, so
-# adding an adapter to the schedule is a registry change with a test behind it.
+# every_eval_ever/adapters/catalog.py via `cron plan`, not from this file, so
+# adding an adapter to the schedule is a catalog change with a test behind it.
 #
 # Setup this workflow needs, once:
 #   - a `cron` environment holding `HF_TOKEN`, with write access to the raw

@@ -6,12 +6,15 @@ it write somewhere other than the checkout, and how long it may take. Parsing
 that back out of each adapter's ``argparse`` block is what an earlier
 scheduled-ingestion attempt did, and it silently mis-read adapters whose CLI
 conventions differed. This module is the declaration instead, and
-``tests/test_adapter_registry.py`` checks every entry against the adapter's own
+``tests/test_adapter_catalog.py`` checks every entry against the adapter's own
 parser, so an entry cannot drift from the code it describes.
 
 Every adapter package under ``every_eval_ever/adapters/`` must appear here or
-in :data:`LEGACY_ADAPTERS`. An adapter that cannot be scheduled is registered
-with ``runnable=False`` and a reason, so it stays visible.
+in :data:`LEGACY_ADAPTERS`. An adapter that cannot be scheduled is listed with
+``runnable=False`` and a reason, so it stays visible.
+
+Named catalog rather than registry because "the registry" already means
+``eval-card-registry`` throughout this project's docs and contribution flow.
 """
 
 from __future__ import annotations
@@ -28,7 +31,7 @@ Cadence = Literal['daily', 'weekly']
 _SAFE_COMPONENT = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._-]*$')
 _MODULE_PATH = re.compile(r'^[A-Za-z_]\w*(\.[A-Za-z_]\w*)+$')
 #: Every registered module must live here. Enforced over ``ADAPTERS`` by the
-#: registry test rather than by ``AdapterSpec``, so a test double can exist.
+#: catalog test rather than by ``AdapterSpec``, so a test double can exist.
 ADAPTER_MODULE_PREFIX = 'every_eval_ever.adapters.'
 
 #: Adapter packages deliberately excluded from automation. Their upstream
@@ -67,7 +70,7 @@ class AdapterSpec:
         if not _SAFE_COMPONENT.fullmatch(self.key):
             raise ValueError(f'adapter key is not a safe slug: {self.key!r}')
         # That a registered module is an in-tree adapter is checked over
-        # ADAPTERS in tests/test_adapter_registry.py, not here: this type is
+        # ADAPTERS in tests/test_adapter_catalog.py, not here: this type is
         # also how a test stands one in.
         if not _MODULE_PATH.fullmatch(self.module):
             raise ValueError(
@@ -116,7 +119,7 @@ class AdapterSpec:
 
         ``data_root`` is the staging tree's ``data`` directory. Adapters
         disagree about which level their ``--output-dir`` means, so the
-        registry records it rather than the caller guessing.
+        catalog records it rather than the caller guessing.
         """
         data_root = Path(data_root)
         if self.output_scope == 'data_root':
@@ -383,7 +386,7 @@ def scheduled_for(
 
 
 def registered_packages() -> frozenset[str]:
-    """Return every adapter package directory the registry accounts for."""
+    """Return every adapter package directory the catalog accounts for."""
     return frozenset(spec.package for spec in ADAPTERS) | LEGACY_ADAPTERS
 
 

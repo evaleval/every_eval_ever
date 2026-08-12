@@ -16,19 +16,20 @@ Each adapter is run with `uv run python -m every_eval_ever.adapters.<name>.adapt
 
 ## The automation contract
 
-[`registry.py`](registry.py) declares which adapters the daily ingestion run may
+[`catalog.py`](catalog.py) declares which adapters the daily ingestion run may
 execute, the datastore collections each may write, the exact argv that keeps its
 output out of the checkout, and how long it may take. Every adapter package must
-appear there or in `LEGACY_ADAPTERS`, and `tests/test_adapter_registry.py` checks
+appear there or in `LEGACY_ADAPTERS`, and `tests/test_adapter_catalog.py` checks
 each entry against the adapter's own parser — so a renamed flag fails a test rather
-than a scheduled run.
+than a scheduled run. It is called the catalog, not the registry, because "the
+registry" in this project is [`eval-card-registry`](https://github.com/evaleval/eval-card-registry).
 
 An adapter that automation runs must therefore:
 
 - expose `parse_args(argv: list[str] | None = None)` at module level;
 - accept `--output-dir`, and write **only** under it;
 - write records at `<output>/…/<developer>/<model>/{uuid4}.json` — the runner refuses
-  anything else, including a collection the registry did not declare;
+  anything else, including a collection the catalog did not declare;
 - account for dropped source rows through `SourceConversionResult` +
   `save_failure_report` + a non-zero exit, which is what lets a partial refresh be
   told apart from a crash.

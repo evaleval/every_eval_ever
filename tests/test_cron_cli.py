@@ -13,13 +13,13 @@ from pathlib import Path
 
 import pytest
 
-from every_eval_ever.adapters import registry
+from every_eval_ever.adapters import catalog
 from every_eval_ever.cron import __main__ as cli
 from every_eval_ever.cron import runner, store, submit
 from tests.test_cron_store_and_submit import FakeHub, cron_pr
 
 RUN_DATE = date(2026, 8, 10)  # a Monday
-SPEC = registry.get('hle')
+SPEC = catalog.get('hle')
 
 
 @pytest.fixture(autouse=True)

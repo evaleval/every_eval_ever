@@ -31,8 +31,8 @@ from datetime import date
 from pathlib import Path, PurePosixPath
 from typing import Any, Literal
 
-from every_eval_ever.adapters.registry import ADAPTERS as _ALL_ADAPTERS
-from every_eval_ever.adapters.registry import AdapterSpec
+from every_eval_ever.adapters.catalog import ADAPTERS as _ALL_ADAPTERS
+from every_eval_ever.adapters.catalog import AdapterSpec
 from every_eval_ever.cron.provenance import stamp_cron_provenance
 from every_eval_ever.helpers.raw_capture import CAPTURE_DIR_ENV
 from every_eval_ever.validator.check_duplicate_entries import normalized_hash
@@ -55,7 +55,7 @@ ALL_CREDENTIAL_ENV = frozenset(
 #: sources and never writes to the Hub itself, so handing its subprocess a
 #: token that can open pull requests on the datastore widens the blast radius
 #: of any adapter or transitive dependency for no gain. Removed unless a
-#: registry entry asks for one by name.
+#: catalog entry asks for one by name.
 PUBLICATION_ENV = frozenset(
     {'HF_TOKEN', 'HUGGING_FACE_HUB_TOKEN', 'HUGGINGFACEHUB_API_TOKEN'}
 )
@@ -351,7 +351,7 @@ def discover_records(
     This is what makes the per-adapter ``--output-dir`` contract enforceable
     instead of merely documented: whatever the adapter *meant* to do, only
     files at a canonical datastore path inside this run's own staging tree,
-    in a collection the registry declared, are eligible to be published.
+    in a collection the catalog declared, are eligible to be published.
     """
     staging_dir = Path(staging_dir)
     stray = sorted(
