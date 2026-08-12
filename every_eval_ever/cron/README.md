@@ -251,3 +251,8 @@ This is a deliberate MVP.
   updates against records already in the datastore is not attempted here.
 - Records already in the datastore are not backfilled with the cron marker.
 - The cron never merges its own pull requests.
+- A source that outgrows a capture cap fails its adapter until the cap is
+  raised. Nothing splits or streams a large payload.
+- The write token is checked for a reported read-only role, which a
+  fine-grained token need not report. Only a commit proves those scopes, so
+  such a token still fails at the publish step rather than up front.

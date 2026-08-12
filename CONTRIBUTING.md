@@ -101,6 +101,7 @@ carries, in `source_metadata.additional_details`:
 | `cron_run_date` | the UTC date the source was pulled |
 | `cron_adapter` | the adapter that produced it |
 | `cron_run_url` | the workflow run, when available |
+| `cron_unknown_inferred_fields` | which of `deployment_type` and `model_availability` came out `unknown`; absent when both are known |
 
 That is what turns a later correction, "redo everything this adapter published that
 day", into a query rather than a scan. Nothing else about the record differs from a
