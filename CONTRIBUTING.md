@@ -88,6 +88,29 @@ Note: each file can contain multiple individual results related to one model. Se
 
 Before opening the PR, validate locally — see [Data Validation](README.md#-data-validation).
 
+### Automated (cron) submissions
+
+Some data arrives without a person: a daily GitHub Actions run refreshes each
+supported adapter and opens **one pull request per adapter**, reused across days
+(`[Submission] cron: <adapter> — automated ingestion`). Every record it publishes
+carries, in `source_metadata.additional_details`:
+
+| Key | Value |
+|---|---|
+| `type_of_addition` | `cron` |
+| `cron_run_date` | the UTC date the source was pulled |
+| `cron_adapter` | the adapter that produced it |
+| `cron_run_url` | the workflow run, when available |
+
+That is what makes a later correction — "redo everything this adapter published that
+day" — a query rather than a scan. Nothing else about the record differs from a
+hand-submitted one, and the same validator gates it.
+
+The run keeps a snapshot of each source it fetched, so a record can be checked
+against the input it came from. Operating it, adding an adapter to the schedule, and
+its limitations are documented in
+[`every_eval_ever/cron/README.md`](every_eval_ever/cron/README.md).
+
 ## 🧾 Filling in the schema
 
 Conventions for authoring records. For what each field *means*, see [The Schema in Practice](README.md#-the-schema-in-practice) and [`eval.schema.json`](every_eval_ever/schemas/eval.schema.json); the schema is always the source of truth.

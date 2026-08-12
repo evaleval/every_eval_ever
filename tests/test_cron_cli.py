@@ -148,7 +148,8 @@ def test_plan_carries_the_timeout_and_extra_packages(capsys) -> None:
     matrix = json.loads(capsys.readouterr().out)
     entries = {entry['adapter']: entry for entry in matrix['include']}
     assert entries['openeval']['timeout_minutes'] == 45
-    assert entries['exgentic']['packages'] == 'datasets'
+    # swe_bench_verified is the Monday weekly that needs an optional package.
+    assert entries['swe_bench_verified']['packages'] == 'datasets'
 
 
 def test_an_adapter_without_credentials_stays_in_the_plan(capsys) -> None:

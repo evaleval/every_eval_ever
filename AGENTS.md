@@ -16,6 +16,15 @@ convert external eval sources into it.
 - `every_eval_ever/eval_types.py` + `eval.schema.json` — aggregate `EvaluationLog`.
 - `every_eval_ever/instance_level_types.py` + `instance_level_eval.schema.json` — instance log.
 - `every_eval_ever/adapters/<name>/adapter.py` — one-off source adapters (run via `uv run python -m every_eval_ever.adapters.<name>.adapter`).
+- `every_eval_ever/adapters/registry.py` — which adapters automation may run, their
+  collections, argv, cadence and timeout. Every adapter package must be registered here
+  or listed in `LEGACY_ADAPTERS`; `tests/test_adapter_registry.py` enforces both, and
+  checks each entry against the adapter's own `parse_args`.
+- `every_eval_ever/cron/` — the daily ingestion run (`uv run python -m
+  every_eval_ever.cron`): stage → validate → fingerprint → stamp → snapshot raw →
+  one datastore PR per adapter. See its `README.md`.
+- `every_eval_ever/helpers/raw_capture.py` — snapshots what an adapter fetched. Inert
+  unless a sink is active, so a manual run behaves exactly as before.
 - `every_eval_ever/converters/` — in-tree converters (`inspect`/`helm`/`lm_eval`, plus `alpaca_eval`; shared code in `common`), run via `uv run python -m every_eval_ever convert <inspect|helm|lm_eval> ...`.
 - `every_eval_ever/validator/` — the schema + **semantic** merge gate (path shape, UUID4 names,
   companion pairing, score bounds, deployment axes). `REGISTERED_CHECKS` is the list.

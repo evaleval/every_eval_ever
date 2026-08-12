@@ -264,6 +264,10 @@ def adapter_environment(
     for name in ALL_CREDENTIAL_ENV - set(spec.required_env):
         env.pop(name, None)
     env[CAPTURE_DIR_ENV] = str(raw_dir)
+    # Adapters print progress containing arrows and dashes. Piped output
+    # otherwise inherits the platform's console encoding, so an adapter that
+    # converts every record still dies on its closing summary line.
+    env['PYTHONIOENCODING'] = 'utf-8'
     return env
 
 
@@ -289,6 +293,8 @@ def run_adapter(
             argv,
             capture_output=True,
             text=True,
+            encoding='utf-8',
+            errors='replace',
             timeout=timeout,
             cwd=None if cwd is None else str(cwd),
             env=adapter_environment(spec, raw_dir=raw_dir, base_env=base_env),

@@ -587,6 +587,33 @@ def test_an_adapter_is_not_handed_another_adapters_credentials(
     assert env['EEE_RAW_CAPTURE_DIR'] == str(tmp_path / 'raw')
 
 
+def test_adapter_output_encoding_does_not_depend_on_the_platform(
+    tmp_path,
+) -> None:
+    """An adapter must not die on the arrow in its own summary line."""
+    package = tmp_path / 'unicode_pkg'
+    package.mkdir()
+    (package / '__init__.py').write_text('', encoding='utf-8')
+    (package / 'adapter.py').write_text(
+        "print('done \u2192 data/demo')\n", encoding='utf-8'
+    )
+    spec = AdapterSpec(
+        key='chatty',
+        module='unicode_pkg.adapter',
+        collections=(COLLECTION,),
+    )
+
+    process = runner.run_adapter(
+        spec,
+        data_root=tmp_path / 'data',
+        raw_dir=tmp_path / 'raw',
+        base_env={'PYTHONPATH': str(tmp_path)},
+    )
+
+    assert process.ok, process.stderr
+    assert 'done → data/demo' in process.stdout
+
+
 def test_raw_capture_is_pointed_at_this_runs_own_directory(pipeline) -> None:
     outcome = pipeline(
         {f'demo-org/demo-model/{UUID_A}.json': record_without_samples()}

@@ -14,6 +14,41 @@ re-validates those templates against the live validator, so they stay current.
 
 Each adapter is run with `uv run python -m every_eval_ever.adapters.<name>.adapter`.
 
+## The automation contract
+
+[`registry.py`](registry.py) declares which adapters the daily ingestion run may
+execute, the datastore collections each may write, the exact argv that keeps its
+output out of the checkout, and how long it may take. Every adapter package must
+appear there or in `LEGACY_ADAPTERS`, and `tests/test_adapter_registry.py` checks
+each entry against the adapter's own parser — so a renamed flag fails a test rather
+than a scheduled run.
+
+An adapter that automation runs must therefore:
+
+- expose `parse_args(argv: list[str] | None = None)` at module level;
+- accept `--output-dir`, and write **only** under it;
+- write records at `<output>/…/<developer>/<model>/{uuid4}.json` — the runner refuses
+  anything else, including a collection the registry did not declare;
+- account for dropped source rows through `SourceConversionResult` +
+  `save_failure_report` + a non-zero exit, which is what lets a partial refresh be
+  told apart from a crash.
+
+`bfcl`, `cocoabench` and `sciarena` are registered as `runnable=False`: they need a
+local input file and have no live fetch path.
+
+## Raw source snapshots
+
+[`helpers/raw_capture.py`](../helpers/raw_capture.py) keeps the bytes an adapter
+converted, so a later correction can be checked against the input. It is inert unless
+`EEE_RAW_CAPTURE_DIR` is set — which only the cron does — so a manual run is unchanged.
+
+Adapters that fetch through `helpers.fetch.fetch_json` / `fetch_csv` are captured
+without any adapter code. An adapter with its own HTTP call site calls
+`raw_capture.record(...)` there. A source already addressable at a revision — a
+Hugging Face dataset, a git clone — records a pointer with
+`raw_capture.record_hf_dataset(...)` / `record_git_checkout(...)` rather than
+re-hosting bytes that are already durably stored.
+
 ## Adapters
 
 | Adapter | Data Source | Description |

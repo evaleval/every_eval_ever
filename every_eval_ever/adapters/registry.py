@@ -172,6 +172,11 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         collections=('exgentic',),
         extra_args=('--from-hf',),
         with_packages=('datasets',),
+        runnable=False,
+        unrunnable_reason=(
+            'Exgentic/open-agent-leaderboard-results no longer resolves on '
+            'the Hub (checked 2026-08-10); re-enable when it returns'
+        ),
     ),
     AdapterSpec(
         key='global_mmlu_lite',
