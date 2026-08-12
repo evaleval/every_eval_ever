@@ -1,0 +1,174 @@
+# Daily adapter ingestion.
+#
+# One isolated job per adapter, and one datastore pull request per adapter.
+# Which adapters run on a given day comes from
+# every_eval_ever/adapters/registry.py via `cron plan`, not from this file, so
+# adding an adapter to the schedule is a registry change with a test behind it.
+#
+# Setup this workflow needs, once:
+#   - a `cron` environment holding `HF_TOKEN`, with write access to the raw
+#     store and permission to open pull requests on the datastore;
+#   - optional per-adapter credentials as secrets (see `cron list`);
+#   - optional `EEE_DATASTORE_REPO_ID` / `EEE_RAW_REPO_ID` repository
+#     variables to point a rehearsal run at throwaway repositories.
+
+name: Adapter ingestion
+
+on:
+  schedule:
+    # 03:17 UTC. Off the hour, because the hour is when everyone else runs.
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+    inputs:
+      adapter:
+        description: 'Run only this adapter (default: everything due today)'
+        required: false
+        type: string
+      force_full:
+        description: 'Publish every record, ignoring the de-duplication ledger'
+        required: false
+        type: boolean
+        default: false
+      dry_run:
+        description: 'Run and validate without publishing anything'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    name: Plan
+    # A fork inherits the schedule; it should not scrape on our behalf.
+    if: >-
+      github.event_name != 'schedule'
+      || github.repository == 'evaleval/every_eval_ever'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      count: ${{ steps.plan.outputs.count }}
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - uses: astral-sh/setup-uv@v7.6.0
+        with:
+          # pyproject allows >=3.12; an unpinned runner picked 3.14 and broke
+          # the adapters that depend on `datasets`.
+          python-version: '3.12'
+
+      - name: Install dependencies
+        env:
+          # Keep the environment outside the checkout; nltk's import guard
+          # blocks dependency imports resolved beneath the working directory.
+          UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/eee-venv
+        run: uv sync --locked
+
+      - name: Resolve today's adapters
+        id: plan
+        env:
+          UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/eee-venv
+          ADAPTER: ${{ inputs.adapter }}
+        run: |
+          set -euo pipefail
+          args=(plan)
+          if [ -n "${ADAPTER}" ]; then
+              args+=(--adapter "${ADAPTER}")
+          fi
+          matrix="$(uv run --locked python -m every_eval_ever.cron "${args[@]}")"
+          count="$(printf '%s' "${matrix}" | jq '.include | length')"
+          echo "matrix=${matrix}" >> "${GITHUB_OUTPUT}"
+          echo "count=${count}" >> "${GITHUB_OUTPUT}"
+          {
+              echo "## Planned ingestion"
+              echo
+              echo "${count} adapter(s) due."
+              echo
+              printf '%s' "${matrix}" | jq -r '.include[] | "- `\(.adapter)` (\(.timeout_minutes)m)"'
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+  run:
+    name: ${{ matrix.adapter }}
+    needs: plan
+    if: needs.plan.outputs.count != '0'
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ matrix.timeout_minutes }}
+    # Scopes the Hub token to this workflow.
+    environment: cron
+    # One run of one adapter at a time: two concurrent runs would read the
+    # same ledger and the second would overwrite the first's fingerprints.
+    concurrency:
+      group: adapter-cron-${{ matrix.adapter }}
+      cancel-in-progress: false
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - uses: astral-sh/setup-uv@v7.6.0
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        env:
+          UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/eee-venv
+        run: uv sync --locked
+
+      - name: Ingest
+        env:
+          UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/eee-venv
+          # Interpolate through the environment rather than into the script.
+          ADAPTER: ${{ matrix.adapter }}
+          PACKAGES: ${{ matrix.packages }}
+          FORCE_FULL: ${{ inputs.force_full }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          # Per-adapter credentials. An absent one is reported as a skip, not
+          # a failure; the runner hands each adapter only its own.
+          ARTIFICIAL_ANALYSIS_API_KEY: ${{ secrets.ARTIFICIAL_ANALYSIS_API_KEY }}
+          LLM_STATS_API_KEY: ${{ secrets.LLM_STATS_API_KEY }}
+          # Empty when unset, which the CLI treats as "use the default".
+          EEE_DATASTORE_REPO_ID: ${{ vars.EEE_DATASTORE_REPO_ID }}
+          EEE_RAW_REPO_ID: ${{ vars.EEE_RAW_REPO_ID }}
+        run: |
+          set -euo pipefail
+          with_args=()
+          for package in ${PACKAGES}; do
+              with_args+=(--with "${package}")
+          done
+          args=(run --adapter "${ADAPTER}")
+          if [ "${FORCE_FULL}" = "true" ]; then
+              args+=(--force-full)
+          fi
+          if [ "${DRY_RUN}" = "true" ]; then
+              args+=(--dry-run)
+          fi
+          uv run --locked ${with_args[@]+"${with_args[@]}"} \
+              python -m every_eval_ever.cron "${args[@]}"
+
+  summary:
+    name: Summary
+    needs: [plan, run]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # A green run has to mean a healthy run, so this job fails the workflow
+      # whenever any adapter crashed, failed validation, or could not publish.
+      - name: Fail if any adapter run failed
+        env:
+          PLAN_RESULT: ${{ needs.plan.result }}
+          RUN_RESULT: ${{ needs.run.result }}
+        run: |
+          set -euo pipefail
+          echo "plan: ${PLAN_RESULT}, run: ${RUN_RESULT}"
+          if [ "${PLAN_RESULT}" != "success" ] && [ "${PLAN_RESULT}" != "skipped" ]; then
+              echo "::error::could not plan today's ingestion"
+              exit 1
+          fi
+          if [ "${RUN_RESULT}" = "failure" ] || [ "${RUN_RESULT}" = "cancelled" ]; then
+              echo "::error::at least one adapter ingestion job failed; see the job summary"
+              exit 1
+          fi
