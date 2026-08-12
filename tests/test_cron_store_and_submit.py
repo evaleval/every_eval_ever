@@ -55,6 +55,7 @@ class FakeHub:
         self.download_error: Exception | None = None
         self.commit_error: Exception | None = None
         self.details_error: Exception | None = None
+        self.list_files_error: Exception | None = None
         self.whoami_error: Exception | None = None
         self.repo_info_error: Exception | None = None
         self.discussion_queries: list[dict[str, Any]] = []
@@ -113,8 +114,21 @@ class FakeHub:
         for discussion in self.discussions:
             if discussion.num == discussion_num:
                 comment = type('Comment', (), {'content': discussion.body})()
-                return type('Details', (), {'events': [comment]})()
+                return type(
+                    'Details',
+                    (),
+                    {
+                        'events': [comment],
+                        'status': discussion.status,
+                        'is_pull_request': discussion.is_pull_request,
+                    },
+                )()
         raise EntryNotFoundError(f'discussion {discussion_num} not found')
+
+    def list_repo_files(self, repo_id=None, **kwargs):
+        if self.list_files_error is not None:
+            raise self.list_files_error
+        return sorted(self.files)
 
     # -- writes ---------------------------------------------------------
 
@@ -302,6 +316,7 @@ def test_state_round_trips_through_the_store() -> None:
         last_raw_date='2026-08-09',
         last_status='completed',
         fingerprints={'bbb', 'aaa'},
+        pending_fingerprints={'ccc'},
     )
 
     raw_store.commit(
@@ -315,8 +330,13 @@ def test_state_round_trips_through_the_store() -> None:
     assert reloaded.pull_request_number == 7
     assert reloaded.last_status == 'completed'
     assert reloaded.fingerprints == {'aaa', 'bbb'}
+    # Pending fingerprints survive apart from the durable ones, because the
+    # two are settled differently when their pull request closes.
+    assert reloaded.pending_fingerprints == {'ccc'}
+    assert reloaded.known_fingerprints == {'aaa', 'bbb', 'ccc'}
     # Sorted, one per line, so a diff shows what actually changed.
     assert hub.files['state/hle.fingerprints'] == 'aaa\nbbb\n'
+    assert hub.files['state/hle.pending'] == 'ccc\n'
 
 
 @pytest.mark.parametrize(
@@ -999,6 +1019,113 @@ def test_a_failure_after_the_first_batch_reports_what_landed(
     assert all(
         path.startswith('data/hle/') for path in caught.value.committed_paths
     )
+
+
+def test_a_batch_that_landed_despite_the_error_is_counted_committed(
+    tmp_path,
+) -> None:
+    """The ambiguous timeout: the Hub accepted the commit, the client saw an
+    error. Reporting only the earlier batches would make the caller's ledger
+    forget this one, and the retry would republish it under fresh UUID paths.
+    The pull request ref is the arbiter of what actually landed."""
+    tree = _upload_tree(tmp_path, 7)
+    hub = FakeHub()
+    sub = submit.DatastoreSubmitter(hub, batch_size=3)
+    pull_request = submit.PullRequest(12, 'https://x/12', 'refs/pr/12', 'x')
+
+    real_create_commit = hub.create_commit
+
+    def land_then_time_out(**kwargs):
+        if len(hub.commits) >= 1:
+            real_create_commit(**kwargs)
+            raise RuntimeError('504 Gateway Timeout')
+        return real_create_commit(**kwargs)
+
+    hub.create_commit = land_then_time_out
+
+    with pytest.raises(submit.PartialSubmissionError) as caught:
+        sub.publish(
+            'hle',
+            pull_request=pull_request,
+            operations=submit.upload_operations(tree),
+            description='',
+            message='hle 2026-08-10',
+        )
+
+    # Both the clean first batch and the ambiguous second one are reported;
+    # only the never-attempted third is left for the retry.
+    assert len(caught.value.committed_paths) == 6
+    assert 'reached the pull request despite the error' in str(caught.value)
+
+
+def test_an_unanswerable_reconciliation_claims_nothing(tmp_path) -> None:
+    """When the ref cannot be read either, the batch is not guessed onto the
+    ledger; the error says the pull request needs a look before a retry."""
+    tree = _upload_tree(tmp_path, 7)
+    hub = FakeHub()
+    sub = submit.DatastoreSubmitter(hub, batch_size=3)
+    pull_request = submit.PullRequest(12, 'https://x/12', 'refs/pr/12', 'x')
+
+    real_create_commit = hub.create_commit
+
+    def fail_on_second(**kwargs):
+        if len(hub.commits) >= 1:
+            raise RuntimeError('504 Gateway Timeout')
+        return real_create_commit(**kwargs)
+
+    hub.create_commit = fail_on_second
+    hub.list_files_error = ConnectionError('network is unreachable')
+
+    with pytest.raises(submit.PartialSubmissionError) as caught:
+        sub.publish(
+            'hle',
+            pull_request=pull_request,
+            operations=submit.upload_operations(tree),
+            description='',
+            message='hle 2026-08-10',
+        )
+
+    assert len(caught.value.committed_paths) == 3
+    assert 'inspect https://x/12 before re-running' in str(caught.value)
+
+
+# --- what happened to the last pull request -------------------------------
+
+
+def test_the_status_of_an_open_pull_request_is_open() -> None:
+    sub, _ = submitter([cron_pr(12)])
+
+    assert sub.pull_request_status(12) == 'open'
+
+
+@pytest.mark.parametrize('status', ['merged', 'closed'])
+def test_a_finished_pull_requests_status_is_reported(status) -> None:
+    sub, _ = submitter([cron_pr(12, status=status)])
+
+    assert sub.pull_request_status(12) == status
+
+
+def test_a_draft_pull_request_counts_as_open() -> None:
+    sub, _ = submitter([cron_pr(12, status='draft')])
+
+    assert sub.pull_request_status(12) == 'open'
+
+
+def test_an_unreadable_pull_request_status_stops_the_run() -> None:
+    """Both wrong guesses lose data: "merged" buries rejected records for
+    good, "closed" republishes accepted ones."""
+    sub, hub = submitter([cron_pr(12)])
+    hub.details_error = ConnectionError('boom')
+
+    with pytest.raises(submit.SubmissionError, match='settle its records'):
+        sub.pull_request_status(12)
+
+
+def test_a_number_that_is_not_a_pull_request_stops_the_run() -> None:
+    sub, _ = submitter([cron_pr(12, is_pull_request=False)])
+
+    with pytest.raises(submit.SubmissionError, match='not a pull request'):
+        sub.pull_request_status(12)
 
 
 def test_upload_operations_use_repository_relative_posix_paths(

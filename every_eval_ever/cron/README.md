@@ -82,13 +82,19 @@ sidecar whose contents really changed still counts as a new record.
 naming different sample files are two records, and `check-duplicates` has to
 keep seeing that.
 
-Fingerprints already published are kept in `state/<adapter>.fingerprints` and
-skipped on later runs.
+Fingerprints are kept in two files with different meanings, and both are
+skipped on later runs. `state/<adapter>.pending` holds records committed to
+the adapter's open pull request; `state/<adapter>.fingerprints` holds records
+whose pull request was merged. Before each run the pending set is settled
+against that pull request's fate: merged promotes it into the durable ledger,
+closed-without-merging drops it, so records a reviewer turned down are
+resubmitted in a fresh pull request instead of being filtered out of every
+later run by fingerprints for data the datastore never accepted.
 
 Skipping is reversible and audited: every skipped record's model id and
 fingerprint is listed in that run's `run.json`. To republish everything once,
 use `--force-full`; to reset an adapter permanently, delete its
-`state/<adapter>.fingerprints`.
+`state/<adapter>.fingerprints` and `state/<adapter>.pending`.
 
 The order matters. `cron_run_date` changes daily and is part of the record, so
 fingerprints are taken *before* the provenance stamp; otherwise nothing would
@@ -120,6 +126,14 @@ the mixed one: two sources, the first snapshotted, the second over a cap, and
 records that look complete from the outside. The manifest is still uploaded,
 so the reason survives.
 
+No manifest at all fails the run too, unless the catalog entry says
+`captures_raw=False`. Every adapter that fetches live sources writes one
+through the paths above, so its absence means the capture hooks never ran:
+a sink that was unwritable from the first byte, or an adapter fetching around
+the shared helpers. Records without kept source bytes must not publish just
+because the failure was total rather than partial. The exemption exists for
+adapters that convert local files and have nothing to snapshot.
+
 The caps are 64 MB per payload and 512 MB per run, overridable with
 `EEE_RAW_CAPTURE_MAX_PAYLOAD_MB` and `EEE_RAW_CAPTURE_MAX_TOTAL_MB`. A source
 that outgrows one turns that adapter's job red until the cap is raised, which
@@ -137,7 +151,9 @@ evaleval/EEE_raw   (private dataset, main)
   raw/<adapter>/<YYYY-MM-DD>/manifest.jsonl   one line per capture
   raw/<adapter>/<YYYY-MM-DD>/run.json         outcome, coverage, PR link
   state/<adapter>.json                        PR number, last run, last status
-  state/<adapter>.fingerprints                one sha256 per published record
+  state/<adapter>.fingerprints                one sha256 per merged record
+  state/<adapter>.pending                     one sha256 per record still
+                                              waiting on its pull request
 ```
 
 `<adapter>` is the catalog key, which is also the job name and the name on the

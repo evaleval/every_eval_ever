@@ -243,7 +243,10 @@ def test_a_successful_run_opens_a_pull_request_and_records_it(
     assert state['pull_request_number'] == 42
     assert state['last_run_date'] == '2026-08-10'
     assert state['last_status'] == 'completed'
-    assert hub.files['state/hle.fingerprints'] == 'fingerprint-0\n'
+    # Committed to a pull request is not merged into the datastore, so the
+    # fingerprint waits in the pending ledger until the pull request does.
+    assert hub.files['state/hle.pending'] == 'fingerprint-0\n'
+    assert hub.files['state/hle.fingerprints'] == ''
 
 
 def test_the_raw_snapshot_and_run_report_land_in_one_commit(
@@ -263,6 +266,7 @@ def test_the_raw_snapshot_and_run_report_land_in_one_commit(
         'raw/hle/2026-08-10/run.json',
         'state/hle.json',
         'state/hle.fingerprints',
+        'state/hle.pending',
     }
     assert store_commit['parent_commit'] == 'headsha'
     report = json.loads(hub.files['raw/hle/2026-08-10/run.json'])
@@ -293,10 +297,129 @@ def test_a_second_run_reuses_the_remembered_pull_request(tmp_path) -> None:
     upload_commit = hub.commits[0]
     assert upload_commit['revision'] == 'refs/pr/12'
     assert 'create_pr' not in upload_commit
-    assert set(hub.files['state/hle.fingerprints'].split()) == {
-        'known-0',
-        'fingerprint-0',
-    }
+    # The merged ledger is untouched; the new record waits on the still-open
+    # pull request it was just committed to.
+    assert hub.files['state/hle.fingerprints'] == 'known-0\n'
+    assert hub.files['state/hle.pending'] == 'fingerprint-0\n'
+
+
+def test_a_merged_pull_request_promotes_its_pending_fingerprints() -> None:
+    hub = FakeHub(discussions=[cron_pr(12, status='merged')])
+    state = store.AdapterState(
+        adapter='hle',
+        pull_request_number=12,
+        fingerprints={'old-0'},
+        pending_fingerprints={'known-0'},
+    )
+
+    note = cli._reconcile_pending(state, submit.DatastoreSubmitter(hub))
+
+    assert state.fingerprints == {'old-0', 'known-0'}
+    assert state.pending_fingerprints == set()
+    assert state.pull_request_number is None
+    assert 'merged' in note
+
+
+def test_a_closed_pull_request_requeues_its_pending_fingerprints() -> None:
+    """Fingerprints from a rejected pull request must be forgotten.
+
+    The ledger holds records committed to a pull request, not records merged
+    into the datastore. Kept after that pull request is closed unmerged, they
+    would filter the same records out of every later run before publication
+    is attempted, so the replacement pull request could never open.
+    """
+    hub = FakeHub(discussions=[cron_pr(12, status='closed')])
+    state = store.AdapterState(
+        adapter='hle',
+        pull_request_number=12,
+        fingerprints={'old-0'},
+        pending_fingerprints={'known-0'},
+    )
+
+    note = cli._reconcile_pending(state, submit.DatastoreSubmitter(hub))
+
+    assert state.fingerprints == {'old-0'}
+    assert state.pending_fingerprints == set()
+    assert state.pull_request_number is None
+    assert 'closed without merging' in note
+
+
+def test_an_open_pull_request_keeps_its_pending_fingerprints() -> None:
+    hub = FakeHub(discussions=[cron_pr(12)])
+    state = store.AdapterState(
+        adapter='hle',
+        pull_request_number=12,
+        pending_fingerprints={'known-0'},
+    )
+
+    assert cli._reconcile_pending(state, submit.DatastoreSubmitter(hub)) is None
+    assert state.pending_fingerprints == {'known-0'}
+    assert state.known_fingerprints == {'known-0'}
+
+
+def test_a_dry_run_does_not_ask_the_hub_about_pending_records() -> None:
+    state = store.AdapterState(
+        adapter='hle',
+        pull_request_number=12,
+        pending_fingerprints={'known-0'},
+    )
+
+    assert cli._reconcile_pending(state, None) is None
+    assert state.pending_fingerprints == {'known-0'}
+
+
+def test_an_unanswerable_pull_request_fate_stops_the_run() -> None:
+    hub = FakeHub(discussions=[cron_pr(12)])
+    hub.details_error = ConnectionError('boom')
+    state = store.AdapterState(
+        adapter='hle',
+        pull_request_number=12,
+        pending_fingerprints={'known-0'},
+    )
+
+    with pytest.raises(submit.SubmissionError):
+        cli._reconcile_pending(state, submit.DatastoreSubmitter(hub))
+
+
+def test_records_from_a_closed_pull_request_are_resubmitted(
+    monkeypatch, tmp_path
+) -> None:
+    """The end-to-end shape of the requeue: the closed pull request's
+    fingerprints are not handed to the runner as known, so the unchanged
+    records upload again, and a fresh pull request opens to carry them."""
+    hub = FakeHub(
+        {
+            'state/hle.json': json.dumps({'pull_request_number': 12}),
+            'state/hle.pending': 'known-0\n',
+        },
+        discussions=[cron_pr(12, status='closed')],
+    )
+    monkeypatch.setattr('huggingface_hub.HfApi', lambda *a, **k: hub)
+    monkeypatch.setenv('HF_TOKEN', 'a-token')
+    seen = {}
+
+    def fake_run(spec, workdir, **kwargs):
+        seen['known'] = set(kwargs['known_fingerprints'])
+        outcome = make_outcome(tmp_path)
+        write_capture(outcome.raw_dir)
+        return outcome
+
+    monkeypatch.setattr(cli.runner, 'run', fake_run)
+
+    exit_code = cli.main(
+        ['run', '--adapter', 'hle', '--workdir', str(tmp_path / 'work')]
+    )
+
+    assert exit_code == 0
+    assert seen['known'] == set()
+    assert any(commit.get('create_pr') for commit in hub.commits)
+    state = json.loads(hub.files['state/hle.json'])
+    assert state['pull_request_number'] == 42
+    assert hub.files['state/hle.pending'] == 'fingerprint-0\n'
+    report = json.loads(hub.files['raw/hle/2026-08-10/run.json'])
+    assert any(
+        'closed without merging' in message for message in report['messages']
+    )
 
 
 def test_records_that_landed_before_a_failure_are_still_remembered(
@@ -328,7 +451,7 @@ def test_records_that_landed_before_a_failure_are_still_remembered(
 
     assert finish(outcome, hub, submitter=submitter) == 1
 
-    remembered = set(hub.files['state/hle.fingerprints'].split())
+    remembered = set(hub.files['state/hle.pending'].split())
     assert remembered == {'fingerprint-0'}
     assert json.loads(hub.files['state/hle.json'])['pull_request_number'] == 12
 

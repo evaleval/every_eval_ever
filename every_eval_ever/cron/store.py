@@ -12,11 +12,18 @@ Layout of ``evaleval/EEE_raw`` (``main``)::
     raw/<adapter>/<YYYY-MM-DD>/manifest.jsonl  one line per capture
     raw/<adapter>/<YYYY-MM-DD>/run.json        outcome, coverage, PR link
     state/<adapter>.json                       PR number, last run
-    state/<adapter>.fingerprints               one sha256 per line
+    state/<adapter>.fingerprints               one sha256 per merged record
+    state/<adapter>.pending                    one sha256 per record still
+                                               waiting on its pull request
 
-Fingerprints live in their own newline-delimited file: the set is cumulative
-and reaches thousands of lines for the larger leaderboards, and keeping it out
-of the JSON keeps the part a human reads small and the diffs meaningful.
+Fingerprints live in their own newline-delimited files: the merged set is
+cumulative and reaches thousands of lines for the larger leaderboards, and
+keeping it out of the JSON keeps the part a human reads small and the diffs
+meaningful. Pending fingerprints are kept apart from merged ones because they
+mean less: they say a record reached the adapter's open pull request, not the
+datastore. When that pull request is merged they are promoted; when it is
+closed without merging they are dropped, so the records they named are
+resubmitted instead of being silently filtered forever.
 
 The store is private, and that is enforced rather than documented. It holds
 whole source payloads kept so a published record can be checked against what
@@ -76,7 +83,12 @@ class AdapterState:
     last_run_date: str | None = None
     last_raw_date: str | None = None
     last_status: str | None = None
+    #: Records that were merged into the datastore. Kept forever.
     fingerprints: set[str] = field(default_factory=set)
+    #: Records committed to :attr:`pull_request_number` but not merged yet.
+    #: Promoted into :attr:`fingerprints` when that pull request merges,
+    #: dropped when it is closed without merging.
+    pending_fingerprints: set[str] = field(default_factory=set)
     #: Commit the state was read at, so a concurrent write is rejected
     #: instead of silently overwriting a newer one.
     parent_commit: str | None = None
@@ -95,6 +107,7 @@ class AdapterState:
                     'last_raw_date': self.last_raw_date,
                     'last_status': self.last_status,
                     'fingerprint_count': len(self.fingerprints),
+                    'pending_fingerprint_count': len(self.pending_fingerprints),
                 },
                 indent=2,
                 sort_keys=True,
@@ -102,8 +115,25 @@ class AdapterState:
             + '\n'
         )
 
+    @property
+    def known_fingerprints(self) -> set[str]:
+        """Every fingerprint that should keep a record from re-uploading.
+
+        Merged records are in the datastore and pending ones are already on
+        the adapter's open pull request; re-publishing either would put the
+        same evaluation up twice. What this deliberately does not decide is
+        whether the pending set still deserves to be here: the caller settles
+        that against the pull request's fate before running the adapter.
+        """
+        return self.fingerprints | self.pending_fingerprints
+
     def fingerprints_text(self) -> str:
         return ''.join(f'{value}\n' for value in sorted(self.fingerprints))
+
+    def pending_fingerprints_text(self) -> str:
+        return ''.join(
+            f'{value}\n' for value in sorted(self.pending_fingerprints)
+        )
 
 
 def state_path(adapter: str) -> str:
@@ -112,6 +142,10 @@ def state_path(adapter: str) -> str:
 
 def fingerprints_path(adapter: str) -> str:
     return f'{STATE_DIR}/{adapter}.fingerprints'
+
+
+def pending_fingerprints_path(adapter: str) -> str:
+    return f'{STATE_DIR}/{adapter}.pending'
 
 
 def raw_prefix(adapter: str, run_date: date) -> str:
@@ -291,6 +325,13 @@ class RawStore:
             state.exists = True
             state.fingerprints = {
                 line.strip() for line in ledger.splitlines() if line.strip()
+            }
+
+        pending = self._download_text(pending_fingerprints_path(adapter))
+        if pending is not None:
+            state.exists = True
+            state.pending_fingerprints = {
+                line.strip() for line in pending.splitlines() if line.strip()
             }
         return state
 
@@ -475,6 +516,10 @@ def state_operations(state: AdapterState) -> list[CommitOperationAdd]:
             path_in_repo=fingerprints_path(state.adapter),
             path_or_fileobj=state.fingerprints_text().encode('utf-8'),
         ),
+        CommitOperationAdd(
+            path_in_repo=pending_fingerprints_path(state.adapter),
+            path_or_fileobj=state.pending_fingerprints_text().encode('utf-8'),
+        ),
     ]
 
 
@@ -490,6 +535,7 @@ __all__ = [
     'RawStore',
     'StoreError',
     'fingerprints_path',
+    'pending_fingerprints_path',
     'plan_raw_upload',
     'raw_prefix',
     'run_report_operation',

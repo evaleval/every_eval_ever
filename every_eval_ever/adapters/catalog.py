@@ -64,6 +64,14 @@ class AdapterSpec:
     required_env: tuple[str, ...] = ()
     with_packages: tuple[str, ...] = ()
     allow_partial: bool = True
+    #: Whether a scheduled run must leave a raw-capture manifest behind.
+    #: Every adapter that fetches live sources does, through the shared fetch
+    #: helpers or its own ``raw_capture`` calls, so for them a missing
+    #: manifest means the evidence trail is broken, not that there was
+    #: nothing to keep. Set ``False`` only for adapters that convert local
+    #: files and have nothing to snapshot, so the exemption is a reviewed
+    #: catalog fact rather than whatever the run happened to write.
+    captures_raw: bool = True
     notes: str = ''
 
     def __post_init__(self) -> None:
@@ -324,6 +332,7 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         output_scope='data_root',
         runnable=False,
         unrunnable_reason='requires --input-csv; no live fetch path',
+        captures_raw=False,
     ),
     AdapterSpec(
         key='cocoabench',
@@ -331,6 +340,7 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         collections=('cocoabench',),
         runnable=False,
         unrunnable_reason='requires --csv; no live fetch path',
+        captures_raw=False,
     ),
     AdapterSpec(
         key='sciarena',
@@ -339,6 +349,7 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         output_scope='data_root',
         runnable=False,
         unrunnable_reason='requires --input-json; no live fetch path',
+        captures_raw=False,
     ),
 )
 

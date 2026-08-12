@@ -133,6 +133,70 @@ def _resolve_state(
     return raw_store.read_state(adapter)
 
 
+def _reconcile_pending(
+    state: store.AdapterState,
+    submitter: submit.DatastoreSubmitter | None,
+) -> str | None:
+    """Settle what the last pull request's fingerprints mean, before running.
+
+    The ledger's pending fingerprints describe records committed to a pull
+    request, not records merged into the datastore. While that pull request
+    is open they mean "already queued" and keep unchanged records from being
+    uploaded twice. Once it is merged they are durable. Once it is closed
+    without merging they mean nothing, and treating them as published would
+    filter the same records out of every later run before publication is
+    ever attempted, so the replacement pull request could never open.
+
+    Mutates ``state`` and returns a line for the run report, or ``None`` when
+    there was nothing to settle. The mutation is persisted by the same
+    end-of-run state commit as everything else, so a run that dies before
+    then simply settles again next time.
+    """
+    if not state.pending_fingerprints:
+        return None
+    if submitter is None:
+        # A dry run publishes nothing either way, so the pending records are
+        # left queued rather than asking the Hub about their pull request.
+        return None
+    if state.pull_request_number is None:
+        # Written only alongside a pull request number, so this is a state
+        # file someone edited by hand. Fingerprints that can never be
+        # promoted or requeued would recreate the buried-forever failure,
+        # so they are requeued now, at the cost of a possible duplicate if
+        # they really were on some open pull request.
+        count = len(state.pending_fingerprints)
+        state.pending_fingerprints.clear()
+        return (
+            f'{count} pending fingerprint(s) named no pull request to wait '
+            'on; their records will be resubmitted'
+        )
+    number = state.pull_request_number
+    status = submitter.pull_request_status(number)
+    if status == 'open':
+        return None
+    count = len(state.pending_fingerprints)
+    if status == 'merged':
+        state.fingerprints |= state.pending_fingerprints
+        state.pending_fingerprints.clear()
+        state.pull_request_number = None
+        state.pull_request_url = None
+        return (
+            f'pull request {number} was merged; {count} record(s) are now in '
+            'the datastore ledger'
+        )
+    # Closed without merging: a reviewer looked at those records and turned
+    # them down, so the next pull request must carry them again, visibly,
+    # rather than pretending they were published.
+    state.pending_fingerprints.clear()
+    state.pull_request_number = None
+    state.pull_request_url = None
+    return (
+        f'pull request {number} was closed without merging; its {count} '
+        'record(s) are forgotten from the ledger and will be resubmitted in '
+        'a fresh pull request'
+    )
+
+
 def _landed_fingerprints(
     outcome: runner.RunOutcome, committed_paths: Sequence[str]
 ) -> list[str]:
@@ -246,6 +310,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         raw_store.ensure_private()
 
     state = _resolve_state(raw_store, spec.key)
+    pending_note = _reconcile_pending(state, submitter)
 
     with contextlib.ExitStack() as stack:
         if args.workdir:
@@ -261,10 +326,12 @@ def cmd_run(args: argparse.Namespace) -> int:
             spec,
             workdir,
             run_date=run_date,
-            known_fingerprints=state.fingerprints,
+            known_fingerprints=state.known_fingerprints,
             force_full=args.force_full,
             run_url=run_url,
         )
+        if pending_note:
+            outcome.messages.append(pending_note)
         return _finish(
             outcome,
             spec=spec,
@@ -362,11 +429,13 @@ def _finish(
         if pull_request is not None:
             state.pull_request_number = pull_request.number
             state.pull_request_url = pull_request.url
-            # Only fingerprints that actually reached the datastore are
+            # Only fingerprints that actually reached the pull request are
             # remembered, so a failed upload is retried rather than
             # forgotten, and a batch that landed before a later one failed
-            # is not published a second time.
-            state.fingerprints.update(
+            # is not published a second time. They are remembered as
+            # pending, not durable: they name records on a pull request a
+            # reviewer may still close, and only its merge promotes them.
+            state.pending_fingerprints.update(
                 _landed_fingerprints(outcome, committed_paths)
             )
         operations.extend(store.state_operations(state))

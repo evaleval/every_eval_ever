@@ -160,9 +160,16 @@ def pipeline(tmp_path, monkeypatch):
     )
     runs = 0
 
-    def go(files, *, run_kwargs=None, env=None, **behaviour):
+    def go(files, *, run_kwargs=None, env=None, spec_kwargs=None, **behaviour):
         nonlocal runs
         runs += 1
+        # A real scheduled adapter always snapshots what it fetched, and a
+        # run that leaves no manifest may not publish, so the stand-in
+        # captures one small source unless a test says otherwise by passing
+        # ``captures=[]``.
+        behaviour.setdefault(
+            'captures', [{'url': 'https://example/source.json', 'bytes': 16}]
+        )
         (package / 'files.json').write_text(
             json.dumps({name: encode(value) for name, value in files.items()}),
             encoding='utf-8',
@@ -175,6 +182,7 @@ def pipeline(tmp_path, monkeypatch):
             module='stand_in_pkg.adapter',
             collections=(COLLECTION,),
             timeout_minutes=5,
+            **(spec_kwargs or {}),
         )
         return runner.run(
             spec,
@@ -324,10 +332,30 @@ def test_a_snapshot_that_was_stored_does_not_block_the_run(pipeline) -> None:
     assert outcome.has_upload
 
 
-def test_an_adapter_that_captures_nothing_is_not_penalised(pipeline) -> None:
-    """Not every adapter has capture wiring yet; absence is not a failure."""
+def test_an_adapter_that_captures_nothing_cannot_publish(pipeline) -> None:
+    """A run that kept no source bytes must not look like one that had
+    nothing to keep. An unwritable sink and an accidentally unwired fetch
+    both leave no manifest at all, which is a totaller version of the
+    dropped-snapshot failure, not a cleaner one."""
     outcome = pipeline(
-        {f'demo-org/demo-model/{UUID_A}.json': record_without_samples()}
+        {f'demo-org/demo-model/{UUID_A}.json': record_without_samples()},
+        captures=[],
+    )
+
+    assert outcome.status == 'failed'
+    assert not outcome.ok
+    assert outcome.uploaded == []
+    assert any('no raw-capture manifest' in m for m in outcome.messages)
+
+
+def test_the_catalog_can_exempt_an_adapter_with_nothing_to_snapshot(
+    pipeline,
+) -> None:
+    """The exemption is a reviewed catalog fact, not a runtime inference."""
+    outcome = pipeline(
+        {f'demo-org/demo-model/{UUID_A}.json': record_without_samples()},
+        captures=[],
+        spec_kwargs={'captures_raw': False},
     )
 
     assert outcome.status == 'completed', outcome.messages
@@ -365,13 +393,13 @@ def test_a_records_sample_uuid_does_not_change_its_fingerprint(
 
     yesterday = pipeline(
         {
-            f'demo-org\\demo-model\\{UUID_A}.json': first,
+            f'demo-org/demo-model/{UUID_A}.json': first,
             f'demo-org/demo-model/{UUID_A}_samples.jsonl': first_samples,
         }
     )
     today = pipeline(
         {
-            f'demo-org\\demo-model\\{UUID_B}.json': second,
+            f'demo-org/demo-model/{UUID_B}.json': second,
             f'demo-org/demo-model/{UUID_B}_samples.jsonl': second_samples,
         },
         run_kwargs={'known_fingerprints': {yesterday.records[0].fingerprint}},

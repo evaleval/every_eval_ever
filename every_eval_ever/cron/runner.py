@@ -595,8 +595,9 @@ def capture_problems(raw_dir: Path) -> list[str]:
     validator passing, while half the evidence behind them is gone. That is
     exactly when a later correction needs the source and cannot get it.
 
-    An adapter with no capture wiring writes no manifest, which is not a
-    problem and is not treated as one.
+    A missing manifest is not judged here: :func:`run` compares it against
+    the catalog's ``captures_raw`` declaration, because only the catalog
+    knows whether this adapter had anything to snapshot.
     """
     manifest = Path(raw_dir) / RAW_MANIFEST
     if not manifest.is_file():
@@ -793,6 +794,23 @@ def run(
         outcome.messages.append(
             'adapter exited cleanly but produced no records; treating an '
             'empty refresh as a failure rather than an up-to-date one'
+        )
+        return outcome
+
+    # A run that kept no source bytes at all must not look like one that had
+    # nothing to keep. The sink writes a manifest line for everything it
+    # sees, stored or dropped, so for an adapter the catalog says captures,
+    # "no manifest" means the capture hooks never ran: the sink was
+    # unwritable from the first byte, or the adapter fetched around the
+    # shared helpers. Either way the records cannot be traced to a source.
+    if spec.captures_raw and not (raw_dir / RAW_MANIFEST).is_file():
+        outcome.status = 'failed'
+        outcome.messages.append(
+            'the adapter produced records but no raw-capture manifest, so '
+            'none of them can be traced back to source bytes. Fetch through '
+            'helpers.fetch or call raw_capture.record directly, or mark the '
+            'adapter captures_raw=False in the catalog if it truly has '
+            'nothing to snapshot.'
         )
         return outcome
 

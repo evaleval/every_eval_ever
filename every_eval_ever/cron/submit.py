@@ -261,6 +261,47 @@ class DatastoreSubmitter:
             ) from exc
         return marker(adapter) in _first_comment(details)
 
+    def pull_request_status(self, number: int) -> str:
+        """Return ``open``, ``merged`` or ``closed`` for a pull request.
+
+        Merged and closed are different verdicts for the ledger. Merged means
+        the records a pull request carried are in the datastore, so their
+        fingerprints may be kept forever. Closed without merging means a
+        reviewer rejected them, so the same fingerprints must be forgotten:
+        kept, they would filter the unchanged records out of every later run
+        and the resubmission could never happen.
+
+        An unanswerable status is an error rather than a guess, because both
+        wrong guesses lose data: "merged" buries rejected records for good,
+        and "closed" republishes accepted ones.
+        """
+        try:
+            details = self.api.get_discussion_details(
+                repo_id=self.repo_id,
+                repo_type='dataset',
+                discussion_num=number,
+            )
+        except Exception as exc:  # noqa: BLE001 - re-raised with context
+            raise SubmissionError(
+                f'could not read pull request {number} on {self.repo_id} to '
+                f'settle its records: {type(exc).__name__}: {exc}'
+            ) from exc
+        if not getattr(details, 'is_pull_request', False):
+            raise SubmissionError(
+                f'discussion {number} on {self.repo_id} is not a pull '
+                'request, but the ledger says records were committed to it; '
+                'refusing to guess what happened to them'
+            )
+        status = getattr(details, 'status', None)
+        if status == 'draft':
+            return 'open'
+        if status not in ('open', 'merged', 'closed'):
+            raise SubmissionError(
+                f'pull request {number} on {self.repo_id} reports '
+                f'unrecognised status {status!r}'
+            )
+        return status
+
     def resolve_known(self, adapter: str, number: int) -> PullRequest | None:
         """Return the remembered pull request if it is still usable.
 
@@ -410,14 +451,60 @@ class DatastoreSubmitter:
                     )
                 )
             except Exception as exc:  # noqa: BLE001 - re-raised with context
+                landed = self._paths_on_ref(pull_request, batch)
+                if landed:
+                    committed.extend(landed)
+                    hint = (
+                        ' The failing batch itself reached the pull request '
+                        'despite the error and is counted as committed.'
+                    )
+                elif landed is None:
+                    hint = (
+                        ' Whether the failing batch landed could not be '
+                        'checked either; if the error was a timeout whose '
+                        'commit went through, a retry would duplicate its '
+                        f'records, so inspect {pull_request.url} before '
+                        're-running.'
+                    )
+                else:
+                    hint = ''
                 raise PartialSubmissionError(
                     f'could not add records to {pull_request.url}: '
-                    f'{type(exc).__name__}: {exc}',
+                    f'{type(exc).__name__}: {exc}.{hint}',
                     pull_request=pull_request,
                     committed_paths=committed,
                 ) from exc
             committed.extend(operation.path_in_repo for operation in batch)
         return commits
+
+    def _paths_on_ref(
+        self,
+        pull_request: PullRequest,
+        batch: Sequence[CommitOperationAdd],
+    ) -> list[str] | None:
+        """Return the failed batch's paths if its commit landed regardless.
+
+        A ``create_commit`` can time out after the Hub has accepted the
+        commit (see :data:`DEFAULT_BATCH_SIZE`), so the error alone does not
+        say the batch is absent. Reporting only the earlier batches in that
+        case makes the caller's ledger forget the ambiguous one, and the
+        retry republishes it under fresh UUID paths. The pull request ref is
+        the arbiter: a Hub commit is atomic, so either every path in the
+        batch is there or none is. ``None`` means the ref could not be read,
+        which the caller reports rather than resolves.
+        """
+        try:
+            files = set(
+                self.api.list_repo_files(
+                    repo_id=self.repo_id,
+                    repo_type='dataset',
+                    revision=pull_request.revision,
+                )
+            )
+        except Exception:  # noqa: BLE001 - reconciliation is best-effort
+            return None
+        paths = [operation.path_in_repo for operation in batch]
+        return paths if all(path in files for path in paths) else []
 
     def publish(
         self,
