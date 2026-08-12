@@ -137,8 +137,9 @@ def test_plan_emits_a_matrix_for_the_date(capsys) -> None:
     matrix = json.loads(capsys.readouterr().out)
     adapters = {entry['adapter'] for entry in matrix['include']}
     assert 'hle' in adapters  # daily
-    assert 'helm_capabilities' in adapters  # weekly, Monday
-    assert 'helm_lite' not in adapters  # weekly, Tuesday
+    assert 'swe_bench_verified' in adapters  # weekly, Monday
+    assert 'swe_polybench' not in adapters  # weekly, Tuesday
+    assert 'helm_capabilities' not in adapters  # parked: static upstream
     assert 'bfcl' not in adapters  # not schedulable
 
 

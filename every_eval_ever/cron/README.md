@@ -266,6 +266,10 @@ This is a deliberate MVP.
   upstream, so a scheduled run has nothing to fetch. Flip `runnable` back
   on in the catalog once Mercor is stable. The `allow_source_outage`
   machinery remains available for a source that is flaky rather than down.
+- The five `helm_*` units and `rewardbench` are paused for staleness, not
+  breakage: their upstreams still serve but have stopped updating, so a
+  weekly refresh refetches unchanged data. Each is one `runnable` flip away
+  from rejoining the schedule if its upstream resumes publishing.
 - Most adapters key `evaluation_id` on the scrape time, so a changed record
   arrives as a new file rather than an update to the previous one. The
   fingerprint ledger stops unchanged records piling up; reconciling genuine

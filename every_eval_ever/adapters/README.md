@@ -54,7 +54,7 @@ re-hosting bytes that are already durably stored.
 
 | Adapter | Data Source | Description |
 |---------|-------------|-------------|
-| `arc_agi` | ARC Prize leaderboard JSON | Converts ARC-AGI leaderboard data and merges canonical model aliases. |
+| `arc_agi` | ARC Prize leaderboard JSON | Fetches the JSON files behind arcprize.org/leaderboard, maps models to developers via the provider table, and merges canonical model aliases. |
 | `artificial_analysis` | Artificial Analysis LLM API | Converts Artificial Analysis LLM benchmark, pricing, and performance results into `data/artificial-analysis-llms/`. |
 | `vals_ai` | Vals.ai benchmark leaderboards | Scrapes Vals.ai benchmark pages and converts their embedded leaderboard results into `data/vals-ai/`. |
 | `bfcl` | BFCL leaderboard CSV | Converts BFCL leaderboard data with per-metric evaluation names and bounded continuous scores. |
@@ -153,16 +153,28 @@ single `create_commit`.
 
 ### Legacy integrations
 
-`arc_agi` and `livecodebenchpro` are retained for historical and offline use,
-but their upstream sources are no longer usable for an active refresh. They
-are excluded from active-adapter migration and compliance requirements.
-Deterministic offline tests for their existing behavior may remain in the
-test suite.
+`livecodebenchpro` is retained for historical and offline use, but its
+upstream source is no longer usable for an active refresh. It is excluded
+from active-adapter migration and compliance requirements. Deterministic
+offline tests for its existing behavior may remain in the test suite.
+
+`arc_agi` left this list on 2026-08-12: its old endpoint
+(`/media/data/leaderboard/evaluations.json`) is gone, but the leaderboard
+itself is live, rendered from JSON files under
+`https://arcprize.org/media/data/`. The adapter now fetches those
+(evaluations, models, providers, datasets), takes each model's developer
+from the provider table instead of name heuristics, and is scheduled daily.
 
 `mercor_eval` is paused: its Exports API is broken upstream as of
 2026-08-12, so the catalog marks it `runnable=False` until Mercor serves
 data again. The adapter itself is healthy and still runs by hand; it exits
 `75` on an unreachable API and `1` on a rejected key.
+
+`helm_*` and `rewardbench` are paused for staleness rather than breakage:
+HELM's leaderboards are effectively static and RewardBench has not updated
+in a while, so a weekly refresh refetches unchanged data. Both sources
+still serve, both adapters still run by hand, and re-enabling either is one
+`runnable` flip in the catalog.
 
 ### Partial conversions and provenance
 

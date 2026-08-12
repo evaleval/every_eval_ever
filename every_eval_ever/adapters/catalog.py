@@ -37,7 +37,7 @@ ADAPTER_MODULE_PREFIX = 'every_eval_ever.adapters.'
 #: Adapter packages deliberately excluded from automation. Their upstream
 #: sources are no longer usable for an active refresh; see the "Legacy
 #: integrations" section of ``every_eval_ever/adapters/README.md``.
-LEGACY_ADAPTERS = frozenset({'arc_agi', 'livecodebenchpro'})
+LEGACY_ADAPTERS = frozenset({'livecodebenchpro'})
 
 
 @dataclass(frozen=True)
@@ -176,10 +176,29 @@ def _helm(key: str, leaderboard: str, weekday: int) -> AdapterSpec:
         cadence='weekly',
         weekday=weekday,
         timeout_minutes=30,
+        runnable=False,
+        unrunnable_reason=(
+            'the HELM leaderboards are effectively static (paused '
+            '2026-08-12); a weekly refresh refetches unchanged data'
+        ),
+        notes=(
+            'The HELM API still serves, so a manual run works; flip '
+            'runnable back on if Stanford resumes publishing new results.'
+        ),
     )
 
 
 ADAPTERS: tuple[AdapterSpec, ...] = (
+    AdapterSpec(
+        key='arc_agi',
+        module='every_eval_ever.adapters.arc_agi.adapter',
+        collections=('arc-agi',),
+        notes=(
+            'Repointed 2026-08-12 to the JSON files behind '
+            'arcprize.org/leaderboard; the old '
+            '/media/data/leaderboard/evaluations.json endpoint is gone.'
+        ),
+    ),
     AdapterSpec(
         key='artificial_analysis',
         module='every_eval_ever.adapters.artificial_analysis.adapter',
@@ -313,6 +332,15 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         cadence='weekly',
         weekday=3,
         timeout_minutes=30,
+        runnable=False,
+        unrunnable_reason=(
+            'the RewardBench leaderboard has not been updated in a while '
+            '(paused 2026-08-12); a weekly refresh refetches unchanged data'
+        ),
+        notes=(
+            'The source still serves, so a manual run works; flip runnable '
+            'back on if upstream resumes publishing new results.'
+        ),
     ),
     AdapterSpec(
         key='swe_bench_verified',
