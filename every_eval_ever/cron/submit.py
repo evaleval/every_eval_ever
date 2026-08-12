@@ -12,7 +12,6 @@ An ambiguous match is an error. There is no safe guess.
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from typing import Any, Iterable, Sequence
 
@@ -42,8 +41,13 @@ def pull_request_title(adapter: str) -> str:
     return f'[Submission] cron: {adapter} — automated ingestion'
 
 
-def _title_matches(title: str, adapter: str) -> bool:
-    return bool(re.search(rf'\bcron:\s*{re.escape(adapter)}\b', title or ''))
+def _first_comment(details: Any) -> str:
+    """Return the body a pull request was opened with, if it is readable."""
+    for event in getattr(details, 'events', None) or ():
+        content = getattr(event, 'content', None)
+        if isinstance(content, str) and content:
+            return content
+    return ''
 
 
 @dataclass(frozen=True)
@@ -121,47 +125,71 @@ class DatastoreSubmitter:
                 f'{type(exc).__name__}: {exc}'
             ) from exc
 
+    def carries_marker(self, number: int, adapter: str) -> bool:
+        """Return whether a pull request body claims this adapter.
+
+        Ownership is the ``eee-cron-adapter`` line the cron wrote into the
+        body, not the title. A title is display metadata: anyone can edit it
+        to something that looks like ours, and a reviewer renaming ours does
+        not hand it to somebody else. A body that cannot be read is an error
+        rather than a "no", because silently treating it as unowned opens a
+        second pull request for the same adapter.
+        """
+        try:
+            details = self.api.get_discussion_details(
+                repo_id=self.repo_id,
+                repo_type='dataset',
+                discussion_num=number,
+            )
+        except Exception as exc:  # noqa: BLE001 - re-raised with context
+            raise SubmissionError(
+                f'could not read pull request {number} on {self.repo_id}: '
+                f'{type(exc).__name__}: {exc}'
+            ) from exc
+        return marker(adapter) in _first_comment(details)
+
     def resolve_known(self, adapter: str, number: int) -> PullRequest | None:
         """Return the remembered pull request if it is still usable.
 
         Usable means: still open, still a pull request, and still carrying
-        this adapter's marker. A merged, closed, or re-titled discussion is
-        treated as gone, so the next run opens a fresh one rather than
-        pushing into something a reviewer has finished with.
+        this adapter's marker in its body. A merged, closed, or repurposed
+        discussion is treated as gone, so the next run opens a fresh one
+        rather than pushing into something a reviewer has finished with.
         """
         for discussion in self._open_pull_requests():
             if _discussion_number(discussion) != number:
                 continue
             if not _is_open_pull_request(discussion):
                 return None
-            title = getattr(discussion, 'title', '') or ''
-            if not _title_matches(title, adapter):
+            if not self.carries_marker(number, adapter):
                 return None
             return PullRequest(
                 number=number,
                 url=_discussion_url(self.repo_id, discussion, number),
                 revision=_discussion_revision(discussion, number),
-                title=title,
+                title=getattr(discussion, 'title', '') or '',
             )
         return None
 
     def find_by_marker(self, adapter: str) -> PullRequest | None:
         """Find this adapter's pull request when no number is remembered.
 
-        Matching is on the exact ``cron: <adapter>`` marker the cron writes.
-        Two matches is an error rather than a choice: picking one would mean
+        Every open pull request is checked for the marker, including ones
+        whose title no longer looks like ours, because a title edit must not
+        strand the pull request the cron has been publishing into. Two
+        matches is an error rather than a choice: picking one would mean
         appending a scrape to a pull request nobody expected it in.
         """
         matches = []
         for discussion in self._open_pull_requests():
             if not _is_open_pull_request(discussion):
                 continue
-            title = getattr(discussion, 'title', '') or ''
-            if not _title_matches(title, adapter):
-                continue
             number = _discussion_number(discussion)
             if number is None:
                 continue
+            if not self.carries_marker(number, adapter):
+                continue
+            title = getattr(discussion, 'title', '') or ''
             matches.append(
                 PullRequest(
                     number=number,

@@ -38,6 +38,7 @@ class FakeHub:
         self.commits: list[dict[str, Any]] = []
         self.download_error: Exception | None = None
         self.commit_error: Exception | None = None
+        self.details_error: Exception | None = None
         self.next_pr = 41
 
     # -- reads ----------------------------------------------------------
@@ -61,6 +62,15 @@ class FakeHub:
 
     def get_repo_discussions(self, **kwargs):
         return iter(self.discussions)
+
+    def get_discussion_details(self, *, discussion_num, **kwargs):
+        if self.details_error is not None:
+            raise self.details_error
+        for discussion in self.discussions:
+            if discussion.num == discussion_num:
+                comment = type('Comment', (), {'content': discussion.body})()
+                return type('Details', (), {'events': [comment]})()
+        raise EntryNotFoundError(f'discussion {discussion_num} not found')
 
     # -- writes ---------------------------------------------------------
 
@@ -103,11 +113,13 @@ class FakeDiscussion:
         *,
         status: str = 'open',
         is_pull_request: bool = True,
+        body: str = '',
     ) -> None:
         self.num = num
         self.title = title
         self.status = status
         self.is_pull_request = is_pull_request
+        self.body = body
         self.url = (
             'https://huggingface.co/datasets/evaleval/EEE_datastore/'
             f'discussions/{num}'
@@ -376,10 +388,23 @@ def submitter(
     return submit.DatastoreSubmitter(hub), hub
 
 
-def test_a_remembered_open_pull_request_is_reused() -> None:
-    sub, _ = submitter(
-        [FakeDiscussion(12, '[Submission] cron: hle — automated ingestion')]
+def cron_pr(num: int, adapter: str = 'hle', **kwargs: Any) -> FakeDiscussion:
+    """An open pull request carrying the cron's ownership marker."""
+    return FakeDiscussion(
+        num,
+        submit.pull_request_title(adapter),
+        body=submit.pull_request_description(
+            adapter,
+            coverage_line='1 record',
+            run_date='2026-08-10',
+            status='completed',
+        ),
+        **kwargs,
     )
+
+
+def test_a_remembered_open_pull_request_is_reused() -> None:
+    sub, _ = submitter([cron_pr(12)])
 
     found = sub.resolve_known('hle', 12)
 
@@ -388,46 +413,55 @@ def test_a_remembered_open_pull_request_is_reused() -> None:
 
 
 def test_a_merged_pull_request_is_not_reused() -> None:
-    sub, _ = submitter(
-        [
-            FakeDiscussion(
-                12,
-                '[Submission] cron: hle — automated ingestion',
-                status='merged',
-            )
-        ]
-    )
+    sub, _ = submitter([cron_pr(12, status='merged')])
 
     assert sub.resolve_known('hle', 12) is None
 
 
 def test_a_discussion_that_is_not_a_pull_request_is_not_reused() -> None:
-    sub, _ = submitter(
-        [
-            FakeDiscussion(
-                12,
-                '[Submission] cron: hle — automated ingestion',
-                is_pull_request=False,
-            )
-        ]
-    )
+    sub, _ = submitter([cron_pr(12, is_pull_request=False)])
 
     assert sub.resolve_known('hle', 12) is None
 
 
-def test_a_retitled_pull_request_is_not_reused() -> None:
+def test_a_repurposed_pull_request_is_not_reused() -> None:
     """The number alone is not identity; a human may have repurposed it."""
     sub, _ = submitter([FakeDiscussion(12, 'Add my own eval by hand')])
 
     assert sub.resolve_known('hle', 12) is None
 
 
+def test_a_title_that_looks_like_ours_is_not_enough() -> None:
+    """Ownership is the body marker, and a title is display metadata.
+
+    Anyone can open a pull request called ``cron: hle`` by hand. Publishing
+    a scrape into it because the title matched would put automated records in
+    a stranger's submission.
+    """
+    sub, _ = submitter(
+        [FakeDiscussion(12, submit.pull_request_title('hle'), body='no marker')]
+    )
+
+    assert sub.resolve_known('hle', 12) is None
+    assert sub.find_by_marker('hle') is None
+
+
+def test_a_marked_pull_request_survives_a_title_edit() -> None:
+    """A reviewer renaming ours must not strand it.
+
+    Losing it would open a second pull request for the same adapter and
+    republish everything the first one already holds.
+    """
+    sub, _ = submitter([cron_pr(12)])
+    sub._open_pull_requests()[0].title = 'WIP: please hold'
+
+    assert sub.resolve_known('hle', 12).number == 12
+    assert sub.find_by_marker('hle').number == 12
+
+
 def test_a_pull_request_is_found_by_marker_on_a_cold_start() -> None:
     sub, _ = submitter(
-        [
-            FakeDiscussion(9, 'Someone else adding data'),
-            FakeDiscussion(12, '[Submission] cron: hle — automated ingestion'),
-        ]
+        [FakeDiscussion(9, 'Someone else adding data'), cron_pr(12)]
     )
 
     found = sub.find_by_marker('hle')
@@ -436,13 +470,7 @@ def test_a_pull_request_is_found_by_marker_on_a_cold_start() -> None:
 
 
 def test_another_adapters_pull_request_is_never_claimed() -> None:
-    sub, _ = submitter(
-        [
-            FakeDiscussion(
-                12, '[Submission] cron: mmlu_pro — automated ingestion'
-            )
-        ]
-    )
+    sub, _ = submitter([cron_pr(12, adapter='mmlu_pro')])
 
     assert sub.find_by_marker('hle') is None
 
@@ -455,13 +483,17 @@ def test_an_unrelated_open_pull_request_is_never_claimed() -> None:
     assert sub.find_by_marker('hle') is None
 
 
+def test_an_unreadable_pull_request_body_stops_the_run() -> None:
+    """Treating it as unowned would quietly open a duplicate."""
+    sub, hub = submitter([cron_pr(12)])
+    hub.details_error = RuntimeError('403')
+
+    with pytest.raises(submit.SubmissionError, match='could not read'):
+        sub.find_by_marker('hle')
+
+
 def test_two_matching_pull_requests_stop_the_run() -> None:
-    sub, _ = submitter(
-        [
-            FakeDiscussion(12, '[Submission] cron: hle — automated ingestion'),
-            FakeDiscussion(14, '[Submission] cron: hle — automated ingestion'),
-        ]
-    )
+    sub, _ = submitter([cron_pr(12), cron_pr(14)])
 
     with pytest.raises(submit.AmbiguousPullRequestError, match='12, 14'):
         sub.find_by_marker('hle')

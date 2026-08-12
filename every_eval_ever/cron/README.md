@@ -96,10 +96,13 @@ silently overwriting the other.
 ## The pull request
 
 One per adapter, titled `[Submission] cron: <adapter> — automated ingestion`,
-with `eee-cron-adapter: <adapter>` in the body. The number is remembered in
-the ledger and re-checked before reuse; merged, closed or re-titled means a
-fresh one is opened. If two open pull requests claim the same adapter the run
-stops rather than guessing.
+with `eee-cron-adapter: <adapter>` in the body. That body marker is what
+identifies it: the number is remembered in the ledger, and both it and any
+cold-start lookup are confirmed against the marker before anything is
+uploaded. The title is display metadata, so renaming a pull request does not
+strand it and titling one to look like ours does not hand it our records.
+Merged or closed means a fresh one is opened. If two open pull requests claim
+the same adapter the run stops rather than guessing.
 
 The description is rewritten each run with the coverage line — source rows,
 records produced, dropped, skipped as unchanged, uploaded.
