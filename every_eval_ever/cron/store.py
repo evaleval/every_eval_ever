@@ -1,7 +1,7 @@
 """The cron's durable memory: raw snapshots and one ledger per adapter.
 
 Records go to the datastore through a pull request, which is exactly why the
-cron cannot keep its own state there — a previous attempt at this read its
+cron cannot keep its own state there. A previous attempt at this read its
 state from a branch it only ever wrote pull requests to, so every run started
 from scratch. State therefore lives in a repository the cron can write
 directly, alongside the raw snapshots it is keeping anyway.

@@ -178,7 +178,7 @@ def test_a_public_raw_store_stops_the_run_before_the_adapter(
     monkeypatch, tmp_path, capsys
 ) -> None:
     """An hour of scraping is a poor way to learn the snapshot has nowhere
-    private to go — and no adapter output should exist to be published."""
+    private to go, and no adapter output should exist to be published."""
     hub = FakeHub(private=False)
     monkeypatch.setattr('huggingface_hub.HfApi', lambda *a, **k: hub)
     monkeypatch.setenv('HF_TOKEN', 'a-token')

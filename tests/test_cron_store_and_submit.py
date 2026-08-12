@@ -850,8 +850,8 @@ def test_a_record_and_its_sidecar_are_never_split_across_commits(
 
     Split across two, a failure on the second leaves the aggregate public,
     unrecordable (its companion never arrived), and republished under a fresh
-    UUID next run — with the abandoned half still on the pull request naming
-    a sidecar that does not exist.
+    UUID next run, with the abandoned half still on the pull request naming a
+    sidecar that does not exist.
     """
     upload = tmp_path / 'upload' / 'data' / 'hle' / 'org' / 'model'
     upload.mkdir(parents=True)

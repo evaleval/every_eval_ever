@@ -476,8 +476,8 @@ def record_fingerprint(payload: dict[str, Any]) -> str:
     Across runs it is the opposite. That path is written fresh with a new
     UUID4 on every conversion, so the same unchanged record fingerprints
     differently every day, the ledger never matches, and anything with an
-    instance-level companion republishes daily — the flood the ledger exists
-    to stop. The companion's ``checksum`` stays in the hash, so a sidecar
+    instance-level companion republishes daily, which is the flood the ledger
+    exists to stop. The companion's ``checksum`` stays in the hash, so a sidecar
     whose contents actually changed still reads as a new record.
     """
     detailed = payload.get('detailed_evaluation_results')
@@ -568,8 +568,8 @@ def check_duplicates(staging_dir: Path) -> str | None:
     """Return a description of duplicate records in the batch, if any.
 
     Two records that differ only in ``evaluation_id`` and
-    ``retrieved_timestamp`` are the same result published twice — a
-    conversion bug, not something to open a pull request with.
+    ``retrieved_timestamp`` are the same result published twice: a conversion
+    bug, not something to open a pull request with.
     """
     data_root = Path(staging_dir).resolve() / 'data'
     if not data_root.is_dir():
@@ -591,8 +591,8 @@ def capture_problems(raw_dir: Path) -> list[str]:
 
     The mixed case is the one that matters. An adapter that reads two sources
     where the first is snapshotted and the second is over a size cap looks
-    completely normal from the outside — the records are all there and the
-    validator passes — while half the evidence behind them is gone. That is
+    completely normal from the outside, with every record present and the
+    validator passing, while half the evidence behind them is gone. That is
     exactly when a later correction needs the source and cannot get it.
 
     An adapter with no capture wiring writes no manifest, which is not a

@@ -6,9 +6,9 @@
 
 ``plan`` prints the job matrix so the schedule lives in the catalog rather
 than in workflow YAML. ``run`` does one adapter end to end and exits non-zero
-only when the run was actually unhealthy — a missing credential or an
-unchanged leaderboard is a clean outcome, a crash or a validation failure is
-not.
+only when the run was actually unhealthy. An unchanged leaderboard is a clean
+outcome; a crash, a validation failure, an unsnapshotted source or a missing
+credential is not.
 """
 
 from __future__ import annotations
@@ -389,7 +389,7 @@ def _report(
     dry_run: bool,
 ) -> None:
     lines = [
-        f'### `{spec.key}` — {outcome.status}',
+        f'### `{spec.key}`: {outcome.status}',
         '',
         f'- Coverage: {outcome.coverage_line()}',
     ]

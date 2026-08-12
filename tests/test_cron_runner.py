@@ -1,8 +1,8 @@
 """What a scheduled run is and is not allowed to publish.
 
-These drive the real pipeline — a real adapter subprocess, the real
-validator, the real duplicate fingerprint — against a stand-in adapter whose
-behaviour each test chooses. Nothing here touches the network.
+These drive the real pipeline (a real adapter subprocess, the real validator,
+the real duplicate fingerprint) against a stand-in adapter whose behaviour each
+test chooses. Nothing here touches the network.
 """
 
 from __future__ import annotations

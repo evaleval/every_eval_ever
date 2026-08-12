@@ -5,20 +5,19 @@ retired, and the record in the datastore becomes the only surviving evidence
 of what the source said. This module snapshots what an adapter fetched so a
 later correction can be checked against the input rather than guessed at.
 
-Two kinds of entry, because two kinds of source:
-
-- **payload** — bytes we would otherwise lose (a leaderboard JSON, a scraped
-  HTML page, a CSV export). Stored content-addressed as ``<sha256><ext>``.
-- **pointer** — a reference to something already durably hosted and
-  addressable at a revision (a Hugging Face dataset, a git commit). Storing a
-  second copy of a pinned HF dataset buys nothing, so only the reference and
-  its resolved revision are recorded.
+Two kinds of entry, because two kinds of source. A ``payload`` entry holds
+bytes we would otherwise lose (a leaderboard JSON, a scraped HTML page, a CSV
+export), stored content-addressed as ``<sha256><ext>``. A ``pointer`` entry
+names something already durably hosted and addressable at a revision (a
+Hugging Face dataset, a git commit); a second copy of a pinned HF dataset buys
+nothing, so only the reference and its resolved revision are recorded.
 
 Capture is off unless a sink is active, so adapters behave identically when
 run by hand. Automation activates one by setting :data:`CAPTURE_DIR_ENV`.
 Capture never fails a conversion: an unwritable sink degrades and says so,
-because losing a snapshot is worse than losing the refresh it came from is
-bad, but not worse than failing the refresh.
+because losing a snapshot is bad and losing the refresh it came from is worse.
+The cron reads what was dropped and refuses to publish records whose source
+was not kept, so a degraded capture still stops a run.
 """
 
 from __future__ import annotations
@@ -104,9 +103,9 @@ class RawSink:
     ) -> str | None:
         """Snapshot one fetched payload; return its sha256, or ``None``.
 
-        Returns ``None`` when the payload was not stored — over a size cap, or
-        the sink could not be written. Both cases are recorded so a run never
-        looks complete when it is not.
+        Returns ``None`` when the payload was not stored, either because it is
+        over a size cap or because the sink could not be written. Both cases
+        are recorded so a run never looks complete when it is not.
         """
         digest = hashlib.sha256(content).hexdigest()
         entry: dict[str, Any] = {

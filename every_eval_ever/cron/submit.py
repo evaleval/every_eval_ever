@@ -5,7 +5,7 @@ runs. Getting that wrong is expensive in both directions: opening a fresh
 pull request every day buries reviewers, and guessing at which existing one
 to reuse can push a scrape into somebody else's submission. So the pull
 request is remembered by number, re-checked before use, and identified by two
-things the cron itself controls — never by "the newest open one".
+things the cron itself controls, never by "the newest open one".
 
 Those two are the account that opened it and the ``eee-cron-adapter`` line in
 its body. The account matters most: the datastore is public, so anyone can
@@ -67,7 +67,7 @@ def marker(adapter: str) -> str:
 
 
 def pull_request_title(adapter: str) -> str:
-    return f'[Submission] cron: {adapter} — automated ingestion'
+    return f'[Submission] cron: {adapter} (automated ingestion)'
 
 
 def _first_comment(details: Any) -> str:

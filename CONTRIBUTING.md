@@ -92,7 +92,7 @@ Before opening the PR, validate locally — see [Data Validation](README.md#-dat
 
 Some data arrives without a person: a daily GitHub Actions run refreshes each
 supported adapter and opens **one pull request per adapter**, reused across days
-(`[Submission] cron: <adapter> — automated ingestion`). Every record it publishes
+(`[Submission] cron: <adapter> (automated ingestion)`). Every record it publishes
 carries, in `source_metadata.additional_details`:
 
 | Key | Value |
@@ -102,8 +102,8 @@ carries, in `source_metadata.additional_details`:
 | `cron_adapter` | the adapter that produced it |
 | `cron_run_url` | the workflow run, when available |
 
-That is what makes a later correction — "redo everything this adapter published that
-day" — a query rather than a scan. Nothing else about the record differs from a
+That is what turns a later correction, "redo everything this adapter published that
+day", into a query rather than a scan. Nothing else about the record differs from a
 hand-submitted one, and the same validator gates it.
 
 The run keeps a snapshot of each source it fetched, so a record can be checked

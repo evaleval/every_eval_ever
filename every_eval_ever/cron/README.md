@@ -72,13 +72,13 @@ record that omits one is saying the same thing as one that spells it out.
 ## De-duplication
 
 Each record is fingerprinted with `normalized_hash`, which ignores
-`evaluation_id` and `retrieved_timestamp` — so a re-scrape of an unchanged
+`evaluation_id` and `retrieved_timestamp`, so a re-scrape of an unchanged
 leaderboard fingerprints identically. The cron drops one more field first:
 `detailed_evaluation_results.file_path` names the record's sample sidecar and
 is written with a fresh UUID4 every conversion, so a record with instance data
 would otherwise look new every day. Its `checksum` stays in the hash, so a
 sidecar whose contents really changed still counts as a new record.
-`normalized_hash` itself is untouched — inside a single batch, two records
+`normalized_hash` itself is untouched: inside a single batch, two records
 naming different sample files are two records, and `check-duplicates` has to
 keep seeing that.
 
@@ -104,17 +104,17 @@ adapters behave identically when run by hand.
   adapter-side code at all.
 - Adapters with their own single HTTP call site call `raw_capture.record(...)`
   there.
-- Sources already addressable at a revision — Hugging Face datasets, git
-  clones — record a pointer via `record_hf_dataset` / `record_git_checkout`
+- Sources already addressable at a revision, such as Hugging Face datasets and
+  git clones, record a pointer via `record_hf_dataset` / `record_git_checkout`
   instead of a second copy of bytes that are already durably hosted.
 
 Payloads are content-addressed (`<sha256><ext>`) with a `manifest.jsonl`
 beside them. A payload unchanged since the previous run is referenced, not
 re-uploaded.
 
-Capture never fails a conversion — an unwritable or oversized payload is
-recorded as a `dropped` manifest line and the adapter carries on — but it does
-fail the *run*. Records whose source was not kept cannot be checked against it
+Capture never fails a conversion: an unwritable or oversized payload is
+recorded as a `dropped` manifest line and the adapter carries on. It does fail
+the *run*. Records whose source was not kept cannot be checked against it
 later, which is the whole reason for keeping it, and the case that hides is
 the mixed one: two sources, the first snapshotted, the second over a cap, and
 records that look complete from the outside. The manifest is still uploaded,
@@ -150,11 +150,11 @@ silently overwriting the other.
 
 ## The pull request
 
-One per adapter, titled `[Submission] cron: <adapter> — automated ingestion`,
+One per adapter, titled `[Submission] cron: <adapter> (automated ingestion)`,
 with `eee-cron-adapter: <adapter>` in the body.
 
 Two things identify it, and neither is the title. Only pull requests opened by
-the account the token resolves to are candidates at all — the datastore is
+the account the token resolves to are candidates at all. The datastore is
 public, so anyone can open one carrying our marker, and adopting it would
 commit records onto a branch and a description a stranger controls. Among
 those, the body marker says which adapter it belongs to. The number is
@@ -166,7 +166,7 @@ ours does not hand it our records. Merged or closed means a fresh one is
 opened. If two open pull requests claim the same adapter the run stops rather
 than guessing.
 
-The description is rewritten each run with the coverage line — source rows,
+The description is rewritten each run with the coverage line: source rows,
 records produced, dropped, skipped as unchanged, uploaded.
 
 ## Setup
@@ -178,7 +178,7 @@ records produced, dropped, skipped as unchanged, uploaded.
 
    Privacy is enforced, not requested. The store holds whole source payloads,
    kept so a published record can be checked against what it was converted
-   from — republishing them is a different thing that nobody agreed to. Every
+   from. Republishing them is a different thing that nobody agreed to. Every
    run checks before it starts and again immediately before each commit, and
    refuses to write to a public dataset. It never changes a repository's
    visibility for you: that decision has consequences for anyone already
@@ -189,7 +189,7 @@ records produced, dropped, skipped as unchanged, uploaded.
 2. Add a `cron` environment to the GitHub repository with an `HF_TOKEN`
    secret that can write to the raw store and open pull requests on the
    datastore.
-3. Per-adapter credentials as secrets — `uv run python -m
+3. Per-adapter credentials as secrets. `uv run python -m
    every_eval_ever.cron list` shows which adapters want one. Every adapter
    that names one needs it: without it that adapter's job fails, naming the
    variable, while the rest of the matrix carries on.
@@ -205,7 +205,7 @@ parser and fails if any adapter package is neither registered nor listed as
 legacy.
 
 Give heavy adapters `cadence='weekly'` with a `weekday`, and a realistic
-`timeout_minutes` — it bounds both the subprocess and the GitHub job.
+`timeout_minutes`, which bounds both the subprocess and the GitHub job.
 
 ## Operating it
 
@@ -234,7 +234,7 @@ This is a deliberate MVP.
 
 - `bfcl`, `cocoabench` and `sciarena` are registered but not schedulable:
   they need a local input file and have no live fetch path. `exgentic` is
-  also parked — its upstream Hugging Face dataset no longer resolves.
+  also parked, because its upstream Hugging Face dataset no longer resolves.
   `uv run python -m every_eval_ever.cron list` shows each reason; re-enabling
   one is a single field in the catalog.
 - Most adapters key `evaluation_id` on the scrape time, so a changed record
