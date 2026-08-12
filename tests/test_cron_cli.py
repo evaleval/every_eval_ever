@@ -249,6 +249,36 @@ def test_a_second_run_reuses_the_remembered_pull_request(tmp_path) -> None:
     }
 
 
+def test_the_snapshot_pointer_only_moves_when_a_snapshot_was_written(
+    tmp_path,
+) -> None:
+    """A pointer at a date with no manifest re-uploads everything next run."""
+    hub = FakeHub(
+        {
+            'state/hle.json': json.dumps({'last_raw_date': '2026-08-09'}),
+        }
+    )
+    outcome = make_outcome(tmp_path)  # no raw capture written
+
+    finish(outcome, hub)
+
+    assert json.loads(hub.files['state/hle.json'])['last_raw_date'] == (
+        '2026-08-09'
+    )
+
+
+def test_the_snapshot_pointer_moves_when_one_was(tmp_path) -> None:
+    hub = FakeHub()
+    outcome = make_outcome(tmp_path)
+    write_capture(outcome.raw_dir)
+
+    finish(outcome, hub)
+
+    assert json.loads(hub.files['state/hle.json'])['last_raw_date'] == (
+        '2026-08-10'
+    )
+
+
 def test_a_run_with_nothing_new_still_records_that_it_ran(tmp_path) -> None:
     """Otherwise a quiet adapter looks like one that has never run."""
     hub = FakeHub()

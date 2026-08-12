@@ -14,6 +14,7 @@ not.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 import sys
@@ -201,7 +202,6 @@ def cmd_run(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
 
-    api = None
     raw_store = None
     submitter = None
     if not dry_run:
@@ -213,9 +213,16 @@ def cmd_run(args: argparse.Namespace) -> int:
 
     state = _resolve_state(raw_store, spec.key)
 
-    with tempfile.TemporaryDirectory(prefix=f'eee-cron-{spec.key}-') as tmp:
-        workdir = Path(args.workdir) if args.workdir else Path(tmp)
-        workdir.mkdir(parents=True, exist_ok=True)
+    with contextlib.ExitStack() as stack:
+        if args.workdir:
+            workdir = Path(args.workdir)
+            workdir.mkdir(parents=True, exist_ok=True)
+        else:
+            workdir = Path(
+                stack.enter_context(
+                    tempfile.TemporaryDirectory(prefix=f'eee-cron-{spec.key}-')
+                )
+            )
         outcome = runner.run(
             spec,
             workdir,
@@ -279,7 +286,7 @@ def _finish(
             if state.last_raw_date
             else []
         )
-        operations, _ = store.plan_raw_upload(
+        operations, raw_manifest = store.plan_raw_upload(
             outcome.raw_dir,
             adapter=spec.key,
             run_date=outcome.run_date,
@@ -294,14 +301,17 @@ def _finish(
 
         state.last_run_date = outcome.run_date.isoformat()
         state.last_status = outcome.status
-        if operations:
+        # Only advance the snapshot pointer when a snapshot was actually
+        # written. Pointing it at a date holding nothing but a run report
+        # would make the next run find no manifest and re-upload everything.
+        if raw_manifest:
             state.last_raw_date = outcome.run_date.isoformat()
         if pull_request is not None:
             state.pull_request_number = pull_request.number
             state.pull_request_url = pull_request.url
-        # Only fingerprints that actually reached the datastore are
-        # remembered, so a failed upload is retried rather than forgotten.
-        if pull_request is not None or not outcome.has_upload:
+            # Only fingerprints that actually reached the datastore are
+            # remembered, so a failed upload is retried rather than
+            # forgotten.
             state.fingerprints.update(outcome.new_fingerprints)
         operations.extend(store.state_operations(state))
         raw_store.commit(
