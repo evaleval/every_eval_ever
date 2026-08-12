@@ -587,6 +587,59 @@ def test_an_adapter_is_not_handed_another_adapters_credentials(
     assert env['EEE_RAW_CAPTURE_DIR'] == str(tmp_path / 'raw')
 
 
+def test_an_adapter_is_not_handed_the_publication_token(tmp_path) -> None:
+    """The token that can write to the datastore stays in the parent.
+
+    An adapter reads public sources. Handing its subprocess, and every
+    dependency it imports, a credential that can open pull requests on the
+    datastore buys nothing and widens what a compromised adapter can do.
+    """
+    spec = AdapterSpec(
+        key='one-key',
+        module='every_eval_ever.adapters.llm_stats.adapter',
+        collections=('llm-stats',),
+        required_env=('LLM_STATS_API_KEY',),
+    )
+
+    env = runner.adapter_environment(
+        spec,
+        raw_dir=tmp_path / 'raw',
+        base_env={
+            'LLM_STATS_API_KEY': 'mine',
+            'HF_TOKEN': 'write-token',
+            'HUGGING_FACE_HUB_TOKEN': 'write-token',
+            'HUGGINGFACEHUB_API_TOKEN': 'write-token',
+            'PATH': '/usr/bin',
+        },
+    )
+
+    assert 'HF_TOKEN' not in env
+    assert 'HUGGING_FACE_HUB_TOKEN' not in env
+    assert 'HUGGINGFACEHUB_API_TOKEN' not in env
+    assert env['LLM_STATS_API_KEY'] == 'mine'
+
+
+def test_an_adapter_that_asks_for_a_hub_token_still_gets_it(tmp_path) -> None:
+    """Stripping is by default, not by prohibition.
+
+    No adapter needs one today. If one ever reads a gated dataset, declaring
+    it in the registry is the way to say so, and the declaration is what makes
+    the exception visible in review.
+    """
+    spec = AdapterSpec(
+        key='gated',
+        module='every_eval_ever.adapters.hle.adapter',
+        collections=('hle',),
+        required_env=('HF_TOKEN',),
+    )
+
+    env = runner.adapter_environment(
+        spec, raw_dir=tmp_path / 'raw', base_env={'HF_TOKEN': 'read-token'}
+    )
+
+    assert env['HF_TOKEN'] == 'read-token'
+
+
 def test_adapter_output_encoding_does_not_depend_on_the_platform(
     tmp_path,
 ) -> None:

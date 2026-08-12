@@ -223,10 +223,18 @@ def _positive_mb(name: str) -> int | None:
         return None
     try:
         megabytes = int(value)
-    except ValueError as exc:
-        raise ValueError(f'{name} must be a whole number of MB') from exc
+    except ValueError:
+        megabytes = 0
     if megabytes <= 0:
-        raise ValueError(f'{name} must be positive')
+        # Read from active_sink(), which the shared fetch helpers call on
+        # every request. Raising here would let a typo in a workflow variable
+        # crash the conversion this module only exists to snapshot.
+        print(
+            f'raw capture: ignoring {name}={value!r}, '
+            'expected a positive whole number of MB',
+            file=sys.stderr,
+        )
+        return None
     return megabytes * 1024 * 1024
 
 

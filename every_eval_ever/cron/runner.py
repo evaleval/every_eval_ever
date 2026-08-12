@@ -51,6 +51,15 @@ ALL_CREDENTIAL_ENV = frozenset(
     name for spec in _ALL_ADAPTERS for name in spec.required_env
 )
 
+#: The credentials this package publishes with. An adapter converts public
+#: sources and never writes to the Hub itself, so handing its subprocess a
+#: token that can open pull requests on the datastore widens the blast radius
+#: of any adapter or transitive dependency for no gain. Removed unless a
+#: registry entry asks for one by name.
+PUBLICATION_ENV = frozenset(
+    {'HF_TOKEN', 'HUGGING_FACE_HUB_TOKEN', 'HUGGINGFACEHUB_API_TOKEN'}
+)
+
 _UUID = r'[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}'
 _AGGREGATE_NAME = re.compile(rf'^{_UUID}\.json$')
 _SAMPLES_NAME = re.compile(rf'^{_UUID}_samples\.jsonl$')
@@ -258,10 +267,17 @@ def adapter_environment(
     """Return the environment one adapter subprocess should see.
 
     Credentials belonging to *other* adapters are removed: a leaderboard
-    scraper has no reason to be handed another service's API key.
+    scraper has no reason to be handed another service's API key. The
+    publication token is removed for the same reason, and it matters more,
+    because that one can write to the datastore.
+
+    ``base_env`` is the complete environment to derive from, not an overlay on
+    the current one. Passing a partial mapping therefore yields a partial
+    environment, which is what lets a test state exactly what an adapter runs
+    with instead of inheriting whatever the machine happens to export.
     """
     env = dict(os.environ if base_env is None else base_env)
-    for name in ALL_CREDENTIAL_ENV - set(spec.required_env):
+    for name in (ALL_CREDENTIAL_ENV | PUBLICATION_ENV) - set(spec.required_env):
         env.pop(name, None)
     env[CAPTURE_DIR_ENV] = str(raw_dir)
     # Adapters print progress containing arrows and dashes. Piped output
@@ -732,6 +748,7 @@ def run(
 __all__ = [
     'ALLOWED_STAGING_DIRS',
     'ALL_CREDENTIAL_ENV',
+    'PUBLICATION_ENV',
     'AdapterProcess',
     'RunOutcome',
     'StagedRecord',

@@ -80,6 +80,27 @@ def test_environment_sink_follows_a_changed_directory(
     assert second.root == tmp_path / 'two'
 
 
+@pytest.mark.parametrize('value', ['not-a-number', '0', '-5', '1.5'])
+def test_an_unusable_size_cap_falls_back_instead_of_raising(
+    tmp_path, monkeypatch, capsys, value
+) -> None:
+    """A typo in a workflow variable must not crash the conversion.
+
+    ``active_sink`` is called from the shared fetch helpers on every request,
+    so raising here would fail a refresh over a setting that only governs how
+    much of the source gets snapshotted.
+    """
+    monkeypatch.setenv(raw_capture.CAPTURE_DIR_ENV, str(tmp_path / 'raw'))
+    monkeypatch.setenv(raw_capture.MAX_PAYLOAD_MB_ENV, value)
+
+    sink = raw_capture.active_sink()
+
+    assert sink is not None
+    assert sink.max_payload_bytes == raw_capture.DEFAULT_MAX_PAYLOAD_BYTES
+    assert raw_capture.MAX_PAYLOAD_MB_ENV in capsys.readouterr().err
+    assert sink.record(url='https://x', content=b'{}') is not None
+
+
 def test_an_explicit_sink_wins_over_the_environment(
     tmp_path, monkeypatch
 ) -> None:
