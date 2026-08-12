@@ -318,7 +318,7 @@ METRIC_SPECS = [
 ]
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description='Convert Artificial Analysis LLM API data to Every Eval Ever format.'
     )
@@ -342,7 +342,7 @@ def parse_args() -> argparse.Namespace:
         '--api-key',
         help='Artificial Analysis API key. Defaults to ARTIFICIAL_ANALYSIS_API_KEY.',
     )
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 def stringify(value: Any) -> str:

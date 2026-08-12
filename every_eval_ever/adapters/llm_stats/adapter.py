@@ -214,7 +214,7 @@ class LogBundle:
     model: str
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description='Convert LLM Stats API data to Every Eval Ever format.'
     )
@@ -258,7 +258,7 @@ def parse_args() -> argparse.Namespace:
             '--output-dir when any row fails.'
         ),
     )
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 def stringify(value: Any) -> str:

@@ -15,7 +15,7 @@ Usage:
 import json
 import math
 import time
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
@@ -53,7 +53,7 @@ HELM_PROJECT_METADATA_URL = (
 )
 
 
-def parse_args():
+def parse_args(argv: List[str] | None = None) -> Namespace:
     """Parse CLI arguments."""
     parser = ArgumentParser()
     parser.add_argument(
@@ -91,7 +91,7 @@ def parse_args():
     )
     parser.add_argument('--output-dir', default='data')
     parser.add_argument('--failure-report')
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 def clean_model_name(model_name: str) -> str:

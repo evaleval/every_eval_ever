@@ -12,10 +12,11 @@ Each subdirectory under evaluation/<lang>/verified/ is a submission with:
 Score = len(resolved) / total_instances  (from results.json)
 
 Usage:
-    cd every_eval_ever
-    .venv/bin/python -m every_eval_ever.adapters.multi_swe_bench.adapter
+    uv run python -m every_eval_ever.adapters.multi_swe_bench.adapter
+    uv run python -m every_eval_ever.adapters.multi_swe_bench.adapter         --output-dir /tmp/smoke/data/multi-swe-bench-leaderboard
 """
 
+import argparse
 import json
 import os
 import re
@@ -197,7 +198,7 @@ def convert_submission(
 def convert_submissions(
     submissions: list[tuple[Path, str]],
     retrieved_timestamp: str,
-    output_dir: str = OUTPUT_BASE,
+    output_dir: str | Path = OUTPUT_BASE,
 ) -> SourceConversionResult[EvaluationLogOutput]:
     """Convert all usable submissions and retain rejected source paths."""
     outputs = []
@@ -252,7 +253,22 @@ def convert_submissions(
     )
 
 
-def main():
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description='Convert the Multi-SWE-bench leaderboard to EEE records.'
+    )
+    parser.add_argument(
+        '--output-dir',
+        type=Path,
+        default=Path(OUTPUT_BASE),
+        help=f'Datastore collection directory (default: {OUTPUT_BASE}).',
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None):
+    args = parse_args(argv)
+    output_dir = args.output_dir
     retrieved_timestamp = str(time.time())
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -288,6 +304,7 @@ def main():
         converted = convert_submissions(
             source_submissions,
             retrieved_timestamp,
+            output_dir,
         )
         result = SourceConversionResult(
             source_name='Multi-SWE-bench',
@@ -301,13 +318,13 @@ def main():
         if result.failures:
             report_path = save_failure_report(
                 result,
-                default_failure_report_path(OUTPUT_BASE),
+                default_failure_report_path(output_dir),
             )
             print(f'Failure report: {report_path}')
 
     print(
         f'\nGenerated {len(paths)} files, {len(result.failures)} errors '
-        f'→ {OUTPUT_BASE}/'
+        f'→ {output_dir}/'
     )
     result.raise_if_incomplete()
 

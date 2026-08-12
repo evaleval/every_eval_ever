@@ -160,7 +160,7 @@ class OpenEvalAggregationResult:
     exclusions: list[SourceRecordExclusion]
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description='Convert OpenEval HF dataset results to EEE format.'
     )
@@ -200,7 +200,7 @@ def parse_args() -> argparse.Namespace:
         action='store_true',
         help='Also write instance-level *_samples.jsonl files.',
     )
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 def stringify(value: Any) -> str:

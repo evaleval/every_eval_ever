@@ -80,7 +80,7 @@ class LogBundle:
     model: str
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description='Convert Mercor evaluation exports to Every Eval Ever.'
     )
@@ -110,7 +110,7 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_PAGE_SIZE,
         help=f'Leaderboard page size (default: {DEFAULT_PAGE_SIZE}).',
     )
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 def normalize_slug(value: Any, fallback: str = 'unknown') -> str:

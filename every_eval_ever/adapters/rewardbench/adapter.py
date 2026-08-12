@@ -8,8 +8,11 @@ Data sources:
 
 Usage:
     uv run python -m every_eval_ever.adapters.rewardbench.adapter
+    uv run python -m every_eval_ever.adapters.rewardbench.adapter \
+        --output-dir /tmp/smoke/data/reward-bench
 """
 
+import argparse
 import re
 import time
 from pathlib import Path
@@ -336,15 +339,19 @@ def convert_rewardbench_v1_rows(
     )
 
 
-def fetch_rewardbench_v1(retrieved_timestamp: str) -> int:
+def fetch_rewardbench_v1(
+    retrieved_timestamp: str,
+    output_dir: Path | str = OUTPUT_DIR,
+) -> int:
     """Fetch and process RewardBench v1 results from the CSV file."""
     print('Fetching RewardBench v1 CSV...')
 
     result = convert_rewardbench_v1_rows(
         fetch_csv(REWARDBENCH_V1_CSV),
         retrieved_timestamp,
+        output_dir,
     )
-    return _publish_result(result, OUTPUT_DIR)
+    return _publish_result(result, output_dir)
 
 
 def collect_rewardbench_v2(
@@ -547,16 +554,36 @@ def _publish_result(
     return len(paths)
 
 
-def fetch_rewardbench_v2(retrieved_timestamp: str) -> int:
+def fetch_rewardbench_v2(
+    retrieved_timestamp: str,
+    output_dir: Path | str = OUTPUT_DIR,
+) -> int:
     """Fetch, process, and publish RewardBench v2 results."""
     return _publish_result(
-        collect_rewardbench_v2(retrieved_timestamp),
-        OUTPUT_DIR,
+        collect_rewardbench_v2(retrieved_timestamp, output_dir),
+        output_dir,
     )
 
 
-def main():
+def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description=(
+            'Convert the RewardBench v1 and v2 leaderboards to EEE records.'
+        )
+    )
+    parser.add_argument(
+        '--output-dir',
+        type=Path,
+        default=OUTPUT_DIR,
+        help=f'Datastore collection directory (default: {OUTPUT_DIR}).',
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: List[str] | None = None):
     """Main function to fetch and process RewardBench results."""
+    args = parse_args(argv)
+    output_dir = args.output_dir
     retrieved_timestamp = str(time.time())
 
     print('=' * 60)
@@ -566,6 +593,7 @@ def main():
     v1 = convert_rewardbench_v1_rows(
         fetch_csv(REWARDBENCH_V1_CSV),
         retrieved_timestamp,
+        output_dir,
     )
     print(f'\nConverted {len(v1.records)} models from RewardBench v1')
 
@@ -573,7 +601,7 @@ def main():
     print('Fetching RewardBench v2 results...')
     print('=' * 60)
 
-    v2 = collect_rewardbench_v2(retrieved_timestamp)
+    v2 = collect_rewardbench_v2(retrieved_timestamp, output_dir)
     print(f'\nConverted {len(v2.records)} models from RewardBench v2')
 
     combined = SourceConversionResult(
@@ -583,7 +611,7 @@ def main():
         failures=[*v1.failures, *v2.failures],
         exclusions=[*v1.exclusions, *v2.exclusions],
     )
-    count = _publish_result(combined, OUTPUT_DIR)
+    count = _publish_result(combined, output_dir)
     print(f'\nPublished {count} RewardBench models')
 
     print('\n' + '=' * 60)

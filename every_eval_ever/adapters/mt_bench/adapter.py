@@ -174,7 +174,7 @@ class ModelScores:
                 self.latest_judgment_ts = ts
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description='Convert MT-Bench LMSYS judgments to EEE records.'
     )
@@ -205,7 +205,7 @@ def parse_args() -> argparse.Namespace:
             '--output-dir when any row fails.'
         ),
     )
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 def fetch_judgments(url: str) -> Iterable[dict]:

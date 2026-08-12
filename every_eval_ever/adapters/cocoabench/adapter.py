@@ -193,7 +193,7 @@ DEFAULT_ROW_MAP: dict[str, dict[str, str]] = {
 }
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description='Convert CocoaBench aggregate CSV results to Every Eval Ever format'
     )
@@ -251,7 +251,7 @@ def parse_args() -> argparse.Namespace:
             'project page. May be repeated.'
         ),
     )
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 def load_rows(csv_path: Path) -> list[dict[str, str]]:

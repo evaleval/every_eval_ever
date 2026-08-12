@@ -12,10 +12,12 @@ Each subdirectory under evaluation/verified/ is a submission with:
 Score = len(resolved) / 500  (500 total SWE-bench Verified instances)
 
 Usage:
-    cd every_eval_ever
-    .venv/bin/python -m every_eval_ever.adapters.swe_bench_verified.adapter
+    uv run python -m every_eval_ever.adapters.swe_bench_verified.adapter
+    uv run python -m every_eval_ever.adapters.swe_bench_verified.adapter \
+        --output-dir /tmp/smoke/data/swe-bench-verified-leaderboard
 """
 
+import argparse
 import json
 import re
 import subprocess
@@ -247,7 +249,7 @@ def convert_submissions(
     submissions: list[Path],
     retrieved_timestamp: str,
     total_instances: int,
-    output_dir: str = OUTPUT_DIR,
+    output_dir: str | Path = OUTPUT_DIR,
 ) -> SourceConversionResult[EvaluationLogOutput]:
     """Convert usable submissions and retain each rejected source path."""
     outputs = []
@@ -301,12 +303,29 @@ def convert_submissions(
     )
 
 
-def main():
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description=(
+            'Convert the SWE-bench Verified leaderboard to EEE records.'
+        )
+    )
+    parser.add_argument(
+        '--output-dir',
+        type=Path,
+        default=Path(OUTPUT_DIR),
+        help=f'Datastore collection directory (default: {OUTPUT_DIR}).',
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None):
+    args = parse_args(argv)
+    output_dir = args.output_dir
     try:
         from datasets import load_dataset
     except ImportError as e:
         raise ImportError(
-            'datasets is required to run this adapter. Install it with: pip install datasets'
+            'datasets is required to run this adapter. Install it with: uv add datasets'
         ) from e
 
     retrieved_timestamp = str(time.time())
@@ -335,6 +354,7 @@ def main():
             submissions,
             retrieved_timestamp,
             total_instances,
+            output_dir,
         )
         paths = save_evaluation_logs(result.records)
         for path in paths:
@@ -342,13 +362,13 @@ def main():
         if result.failures:
             report_path = save_failure_report(
                 result,
-                default_failure_report_path(OUTPUT_DIR),
+                default_failure_report_path(output_dir),
             )
             print(f'Failure report: {report_path}')
 
     print(
         f'\nGenerated {len(paths)} files, {len(result.failures)} errors '
-        f'→ {OUTPUT_DIR}/'
+        f'→ {output_dir}/'
     )
     result.raise_if_incomplete()
 

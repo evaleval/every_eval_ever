@@ -960,7 +960,7 @@ def process_benchmark(
     return len(paths), len(result.failures)
 
 
-def main() -> None:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description='Fetch HAL leaderboard data and convert to EEE schema.'
     )
@@ -976,7 +976,11 @@ def main() -> None:
         default=Path('data'),
         help='Root output directory (default: data/)',
     )
-    args = parser.parse_args()
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> None:
+    args = parse_args(argv)
 
     benchmarks = (
         list(BENCHMARK_BY_SLUG.values())

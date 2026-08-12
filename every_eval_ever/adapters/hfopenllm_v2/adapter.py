@@ -6,9 +6,13 @@ Data source:
 
 Usage:
     uv run python -m every_eval_ever.adapters.hfopenllm_v2.adapter
+    uv run python -m every_eval_ever.adapters.hfopenllm_v2.adapter \
+        --output-dir /tmp/smoke/data/hfopenllm_v2
 """
 
+import argparse
 import time
+from pathlib import Path
 from typing import Any, Dict, List
 
 from every_eval_ever.eval_types import (
@@ -270,7 +274,7 @@ def convert_models(
 
 
 def process_models(
-    models_data: List[Dict[str, Any]], output_dir: str = OUTPUT_DIR
+    models_data: List[Dict[str, Any]], output_dir: str | Path = OUTPUT_DIR
 ) -> int:
     """Save valid models, report rejected rows, and signal incompleteness."""
     result = convert_models(models_data)
@@ -296,10 +300,32 @@ def process_models(
     return len(paths)
 
 
-if __name__ == '__main__':
+def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description=(
+            'Convert the HF Open LLM Leaderboard v2 API to EEE records.'
+        )
+    )
+    parser.add_argument(
+        '--output-dir',
+        type=Path,
+        default=Path(OUTPUT_DIR),
+        help=f'Datastore collection directory (default: {OUTPUT_DIR}).',
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: List[str] | None = None) -> int:
+    args = parse_args(argv)
+
     print(f'Fetching data from {SOURCE_URL}...')
     all_models = fetch_json(SOURCE_URL)
 
     print(f'Processing {len(all_models)} models...')
-    count = process_models(all_models)
+    count = process_models(all_models, args.output_dir)
     print(f'Done! Processed {count} models.')
+    return count
+
+
+if __name__ == '__main__':
+    main()

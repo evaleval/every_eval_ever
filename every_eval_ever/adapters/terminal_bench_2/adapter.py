@@ -448,7 +448,7 @@ def export(
     )
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description='Fetch and convert the Terminal-Bench 2.0 leaderboard.',
     )
@@ -481,7 +481,7 @@ def parse_args() -> argparse.Namespace:
             '--output-dir when any row fails.'
         ),
     )
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 def main() -> None:

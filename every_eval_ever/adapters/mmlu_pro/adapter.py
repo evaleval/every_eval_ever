@@ -120,7 +120,7 @@ DEVELOPER_OVERRIDES: dict[str, str] = {
 }
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description='Convert the MMLU-Pro leaderboard CSV into EEE records.'
     )
@@ -153,7 +153,7 @@ def parse_args() -> argparse.Namespace:
             '--output-dir when any row fails.'
         ),
     )
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 def fetch_csv(url: str) -> str:

@@ -624,7 +624,7 @@ def convert_rows(
     )
 
 
-def main() -> None:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument('--input-csv', type=Path, required=True)
     parser.add_argument('--output-dir', type=Path, required=True)
@@ -635,7 +635,11 @@ def main() -> None:
         default=None,
         help='Exact BFCL Model cell to export. If omitted, export all rows.',
     )
-    args = parser.parse_args()
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> None:
+    args = parse_args(argv)
 
     rows = load_rows(args.input_csv)
     observed_max_scores = compute_observed_max_scores(rows)

@@ -332,7 +332,7 @@ def convert_results(
     )
 
 
-def main():
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description='Convert Exgentic results to Every Eval Ever format'
     )
@@ -350,10 +350,15 @@ def main():
         default=OUTPUT_DIR,
         help=f'Output directory for EEE JSON files (default: {OUTPUT_DIR})',
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     if not args.results_dir and not args.from_hf:
         parser.error('Specify either --results-dir or --from-hf')
+    return args
+
+
+def main(argv: list[str] | None = None):
+    args = parse_args(argv)
 
     if args.results_dir:
         loaded = collect_results_from_dir(args.results_dir)

@@ -7,9 +7,13 @@ Data source:
 
 Usage:
     uv run python -m every_eval_ever.adapters.global_mmlu_lite.adapter
+    uv run python -m every_eval_ever.adapters.global_mmlu_lite.adapter \
+        --output-dir /tmp/smoke/data/global-mmlu-lite
 """
 
+import argparse
 import time
+from pathlib import Path
 
 from every_eval_ever.eval_types import (
     ConfidenceInterval,
@@ -107,7 +111,7 @@ def make_eval_result(
 def convert_rows(
     rows: list[dict],
     retrieved_timestamp: str,
-    output_dir: str = OUTPUT_DIR,
+    output_dir: str | Path = OUTPUT_DIR,
 ) -> SourceConversionResult[EvaluationLogOutput]:
     """Convert valid rows and metrics while retaining rejected provenance."""
     outputs = []
@@ -247,7 +251,10 @@ def convert_rows(
     )
 
 
-def fetch_global_mmlu_lite(retrieved_timestamp: str) -> int:
+def fetch_global_mmlu_lite(
+    retrieved_timestamp: str,
+    output_dir: str | Path = OUTPUT_DIR,
+) -> int:
     """Fetch, convert, and publish Global MMLU Lite results."""
     print("Fetching Global MMLU Lite leaderboard from Kaggle API...")
     data = fetch_json(KAGGLE_API_URL)
@@ -255,29 +262,45 @@ def fetch_global_mmlu_lite(retrieved_timestamp: str) -> int:
     if not isinstance(rows, list) or not rows:
         raise ValueError("Kaggle response contains no leaderboard rows")
 
-    result = convert_rows(rows, retrieved_timestamp)
+    result = convert_rows(rows, retrieved_timestamp, output_dir)
     paths = save_evaluation_logs(result.records)
     for path in paths:
         print(f"Saved: {path}")
     if result.failures:
         report_path = save_failure_report(
             result,
-            default_failure_report_path(OUTPUT_DIR),
+            default_failure_report_path(output_dir),
         )
         print(f"Failure report: {report_path}")
         result.raise_if_incomplete()
     return len(paths)
 
 
-def main():
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Convert the Global MMLU Lite Kaggle leaderboard to EEE records."
+        )
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=Path(OUTPUT_DIR),
+        help=f"Datastore collection directory (default: {OUTPUT_DIR}).",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None):
     """Main function to fetch and process Global MMLU Lite results."""
+    args = parse_args(argv)
     retrieved_timestamp = str(time.time())
 
     print("=" * 60)
     print("Fetching Global MMLU Lite results...")
     print("=" * 60)
 
-    count = fetch_global_mmlu_lite(retrieved_timestamp)
+    count = fetch_global_mmlu_lite(retrieved_timestamp, args.output_dir)
     print(f"\nProcessed {count} models from Global MMLU Lite")
 
     print("\n" + "=" * 60)
