@@ -439,7 +439,7 @@ def discover_records(
                 ),
                 # Fingerprint the record as the adapter produced it. Stamping
                 # adds the run date, which would make every record look new.
-                fingerprint=normalized_hash(payload),
+                fingerprint=record_fingerprint(payload),
                 samples=sample_path,
                 samples_repo_path=(
                     sample_repo_path if sample_path is not None else None
@@ -453,6 +453,38 @@ def discover_records(
             f'{", ".join(sorted(samples))}'
         )
     return records
+
+
+def record_fingerprint(payload: dict[str, Any]) -> str:
+    """Return the identity the de-duplication ledger keys one record on.
+
+    ``normalized_hash`` already ignores ``evaluation_id`` and
+    ``retrieved_timestamp``, which is what lets a re-scrape of an unchanged
+    leaderboard fingerprint identically. It cannot ignore
+    ``detailed_evaluation_results.file_path``, and should not: inside one
+    batch, two records naming different sample files are two records, and
+    ``check-duplicates`` has to keep seeing that.
+
+    Across runs it is the opposite. That path is written fresh with a new
+    UUID4 on every conversion, so the same unchanged record fingerprints
+    differently every day, the ledger never matches, and anything with an
+    instance-level companion republishes daily — the flood the ledger exists
+    to stop. The companion's ``checksum`` stays in the hash, so a sidecar
+    whose contents actually changed still reads as a new record.
+    """
+    detailed = payload.get('detailed_evaluation_results')
+    if not isinstance(detailed, dict) or 'file_path' not in detailed:
+        return normalized_hash(payload)
+    return normalized_hash(
+        {
+            **payload,
+            'detailed_evaluation_results': {
+                key: value
+                for key, value in detailed.items()
+                if key != 'file_path'
+            },
+        }
+    )
 
 
 def _run_cli(argv: list[str]) -> tuple[int, str, str]:
@@ -781,6 +813,7 @@ __all__ = [
     'missing_credentials',
     'missing_dependencies',
     'read_coverage',
+    'record_fingerprint',
     'run',
     'run_adapter',
     'validate_staging',

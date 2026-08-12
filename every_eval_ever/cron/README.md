@@ -55,8 +55,17 @@ broken output directory looks like, not an up-to-date leaderboard.
 
 Each record is fingerprinted with `normalized_hash`, which ignores
 `evaluation_id` and `retrieved_timestamp` — so a re-scrape of an unchanged
-leaderboard fingerprints identically. Fingerprints already published are kept
-in `state/<adapter>.fingerprints` and skipped on later runs.
+leaderboard fingerprints identically. The cron drops one more field first:
+`detailed_evaluation_results.file_path` names the record's sample sidecar and
+is written with a fresh UUID4 every conversion, so a record with instance data
+would otherwise look new every day. Its `checksum` stays in the hash, so a
+sidecar whose contents really changed still counts as a new record.
+`normalized_hash` itself is untouched — inside a single batch, two records
+naming different sample files are two records, and `check-duplicates` has to
+keep seeing that.
+
+Fingerprints already published are kept in `state/<adapter>.fingerprints` and
+skipped on later runs.
 
 Skipping is reversible and audited: every skipped record's model id and
 fingerprint is listed in that run's `run.json`. To republish everything once,

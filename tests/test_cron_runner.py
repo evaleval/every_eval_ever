@@ -277,6 +277,60 @@ def test_the_fingerprint_is_taken_before_stamping(pipeline) -> None:
     assert outcome.records[0].fingerprint == normalized_hash(record)
 
 
+def test_a_records_sample_uuid_does_not_change_its_fingerprint(
+    pipeline,
+) -> None:
+    """Otherwise anything with instance data republishes every single day.
+
+    ``detailed_evaluation_results.file_path`` is written fresh with a new
+    UUID4 on every conversion, so an unchanged record would never match the
+    ledger.
+    """
+    first, first_samples = record_with_samples(UUID_A)
+    second, second_samples = record_with_samples(UUID_B)
+    assert first['detailed_evaluation_results']['file_path'] != (
+        second['detailed_evaluation_results']['file_path']
+    )
+    assert first_samples == second_samples
+
+    yesterday = pipeline(
+        {
+            f'demo-org\\demo-model\\{UUID_A}.json': first,
+            f'demo-org/demo-model/{UUID_A}_samples.jsonl': first_samples,
+        }
+    )
+    today = pipeline(
+        {
+            f'demo-org\\demo-model\\{UUID_B}.json': second,
+            f'demo-org/demo-model/{UUID_B}_samples.jsonl': second_samples,
+        },
+        run_kwargs={
+            'known_fingerprints': {yesterday.records[0].fingerprint}
+        },
+    )
+
+    assert today.status == 'completed', today.messages
+    assert today.uploaded == []
+    assert [r.fingerprint for r in today.skipped_unchanged] == [
+        yesterday.records[0].fingerprint
+    ]
+
+
+def test_a_changed_sample_file_is_still_a_new_record() -> None:
+    """Dropping the path must not also drop the sidecar's checksum."""
+    record, samples = record_with_samples(UUID_A)
+    edited, _ = record_with_samples(UUID_A)
+    edited_samples = samples + b'{"extra": 1}\n'
+    edited['detailed_evaluation_results']['checksum'] = hashlib.sha256(
+        edited_samples
+    ).hexdigest()
+    edited['detailed_evaluation_results']['total_rows'] += 1
+
+    assert runner.record_fingerprint(record) != runner.record_fingerprint(
+        edited
+    )
+
+
 def test_a_record_seen_on_a_previous_run_is_skipped_and_listed(
     pipeline,
 ) -> None:
