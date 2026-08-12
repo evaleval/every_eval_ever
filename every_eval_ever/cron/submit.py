@@ -33,6 +33,26 @@ class AmbiguousPullRequestError(SubmissionError):
     """Raised when more than one open pull request claims one adapter."""
 
 
+class PartialSubmissionError(SubmissionError):
+    """Raised when some batches landed and a later one did not.
+
+    Carries what actually reached the datastore. A caller that discards this
+    and retries from scratch republishes the landed records under fresh
+    UUID paths, which is the duplicate this exists to prevent.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        pull_request: PullRequest | None,
+        committed_paths: Sequence[str],
+    ) -> None:
+        super().__init__(message)
+        self.pull_request = pull_request
+        self.committed_paths = tuple(committed_paths)
+
+
 def marker(adapter: str) -> str:
     return f'{MARKER_PREFIX} {adapter}'
 
@@ -58,6 +78,14 @@ class PullRequest:
     url: str
     revision: str
     title: str
+
+
+@dataclass(frozen=True)
+class Submission:
+    """What one publish attempt actually put in the datastore."""
+
+    pull_request: PullRequest
+    committed_paths: tuple[str, ...]
 
 
 def _discussion_number(discussion: Any) -> int | None:
@@ -263,10 +291,27 @@ class DatastoreSubmitter:
         message: str,
     ) -> list[Any]:
         """Add records to an existing pull request, in bounded batches."""
+        return self._upload_batches(
+            pull_request,
+            batches=list(_chunks(operations, self.batch_size)),
+            message=message,
+            committed=[],
+        )
+
+    def _upload_batches(
+        self,
+        pull_request: PullRequest,
+        *,
+        batches: Sequence[Sequence[CommitOperationAdd]],
+        message: str,
+        committed: list[str],
+        offset: int = 0,
+        total: int | None = None,
+    ) -> list[Any]:
         commits = []
-        batches = list(_chunks(operations, self.batch_size))
-        for index, batch in enumerate(batches, start=1):
-            suffix = f' ({index}/{len(batches)})' if len(batches) > 1 else ''
+        total = len(batches) + offset if total is None else total
+        for index, batch in enumerate(batches, start=offset + 1):
+            suffix = f' ({index}/{total})' if total > 1 else ''
             try:
                 commits.append(
                     self.api.create_commit(
@@ -278,11 +323,60 @@ class DatastoreSubmitter:
                     )
                 )
             except Exception as exc:  # noqa: BLE001 - re-raised with context
-                raise SubmissionError(
+                raise PartialSubmissionError(
                     f'could not add records to {pull_request.url}: '
-                    f'{type(exc).__name__}: {exc}'
+                    f'{type(exc).__name__}: {exc}',
+                    pull_request=pull_request,
+                    committed_paths=committed,
                 ) from exc
+            committed.extend(
+                operation.path_in_repo for operation in batch
+            )
         return commits
+
+    def publish(
+        self,
+        adapter: str,
+        *,
+        pull_request: PullRequest | None,
+        operations: Sequence[CommitOperationAdd],
+        description: str,
+        message: str,
+    ) -> Submission:
+        """Send one adapter's records, opening its pull request if needed.
+
+        Every commit is bounded, including the one that opens the pull
+        request: a cold start is the largest upload an adapter ever does, so
+        exempting it from the batch size aimed the ambiguous-timeout problem
+        at exactly the run most likely to hit it.
+
+        A failure after something landed raises
+        :class:`PartialSubmissionError` carrying what did, so the caller can
+        record it and retry the remainder instead of publishing it twice.
+        """
+        batches = list(_chunks(operations, self.batch_size))
+        committed: list[str] = []
+        if pull_request is None:
+            first = batches[0] if batches else []
+            pull_request = self.open_pull_request(
+                adapter, operations=first, description=description
+            )
+            committed.extend(operation.path_in_repo for operation in first)
+            batches = batches[1:]
+            offset = 1
+        else:
+            offset = 0
+        self._upload_batches(
+            pull_request,
+            batches=batches,
+            message=message,
+            committed=committed,
+            offset=offset,
+            total=len(batches) + offset,
+        )
+        return Submission(
+            pull_request=pull_request, committed_paths=tuple(committed)
+        )
 
 
 def _chunks(items: Sequence[Any], size: int) -> Iterable[Sequence[Any]]:
@@ -352,7 +446,9 @@ __all__ = [
     'MARKER_PREFIX',
     'AmbiguousPullRequestError',
     'DatastoreSubmitter',
+    'PartialSubmissionError',
     'PullRequest',
+    'Submission',
     'SubmissionError',
     'marker',
     'pull_request_description',

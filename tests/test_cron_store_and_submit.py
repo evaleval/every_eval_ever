@@ -569,6 +569,85 @@ def test_a_large_batch_is_split_and_numbered(tmp_path) -> None:
     ]
 
 
+def _upload_tree(tmp_path, count: int) -> Path:
+    upload = tmp_path / 'upload' / 'data' / 'hle' / 'org' / 'model'
+    upload.mkdir(parents=True)
+    for index in range(count):
+        (upload / f'{index}.json').write_text('{}', encoding='utf-8')
+    return tmp_path / 'upload'
+
+
+def test_a_cold_start_is_batched_like_any_other_upload(tmp_path) -> None:
+    """The first run is the biggest one an adapter ever does.
+
+    Opening the pull request with every operation in one commit aimed the
+    ambiguous timeout that batching exists to avoid at exactly the run most
+    likely to trip it.
+    """
+    tree = _upload_tree(tmp_path, 7)
+    hub = FakeHub()
+    sub = submit.DatastoreSubmitter(hub, batch_size=3)
+
+    submission = sub.publish(
+        'hle',
+        pull_request=None,
+        operations=submit.upload_operations(tree),
+        description=submit.pull_request_description(
+            'hle',
+            coverage_line='7 record(s)',
+            run_date='2026-08-10',
+            status='completed',
+        ),
+        message='hle 2026-08-10',
+    )
+
+    assert [len(commit['operations']) for commit in hub.commits] == [3, 3, 1]
+    assert hub.commits[0]['create_pr'] is True
+    assert all('create_pr' not in commit for commit in hub.commits[1:])
+    assert all(
+        commit['revision'] == 'refs/pr/42' for commit in hub.commits[1:]
+    )
+    assert len(submission.committed_paths) == 7
+
+
+def test_a_failure_after_the_first_batch_reports_what_landed(
+    tmp_path,
+) -> None:
+    """A retry must not republish records that already reached the Hub.
+
+    They would land under fresh UUID paths, so the pull request would hold
+    the same evaluation twice with no way to tell which copy to keep.
+    """
+    tree = _upload_tree(tmp_path, 7)
+    hub = FakeHub()
+    sub = submit.DatastoreSubmitter(hub, batch_size=3)
+    pull_request = submit.PullRequest(12, 'https://x/12', 'refs/pr/12', 'x')
+
+    real_create_commit = hub.create_commit
+
+    def fail_on_second(**kwargs):
+        if len(hub.commits) >= 1:
+            raise RuntimeError('504 Gateway Timeout')
+        return real_create_commit(**kwargs)
+
+    hub.create_commit = fail_on_second
+
+    with pytest.raises(submit.PartialSubmissionError) as caught:
+        sub.publish(
+            'hle',
+            pull_request=pull_request,
+            operations=submit.upload_operations(tree),
+            description='',
+            message='hle 2026-08-10',
+        )
+
+    assert caught.value.pull_request is pull_request
+    assert len(caught.value.committed_paths) == 3
+    assert all(
+        path.startswith('data/hle/') for path in caught.value.committed_paths
+    )
+
+
 def test_upload_operations_use_repository_relative_posix_paths(
     tmp_path,
 ) -> None:

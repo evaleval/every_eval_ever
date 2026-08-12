@@ -21,6 +21,7 @@ import sys
 import tempfile
 from datetime import UTC, date, datetime
 from pathlib import Path
+from typing import Sequence
 
 from every_eval_ever.adapters import registry
 from every_eval_ever.cron import runner, store, submit
@@ -132,6 +133,26 @@ def _resolve_state(
     return raw_store.read_state(adapter)
 
 
+def _landed_fingerprints(
+    outcome: runner.RunOutcome, committed_paths: Sequence[str]
+) -> list[str]:
+    """Return fingerprints for records whose every file reached the Hub.
+
+    A record with an instance sidecar spans two files, and a batch boundary
+    can fall between them. Remembering such a record on the strength of half
+    of it would leave the sidecar permanently unpublished.
+    """
+    landed = set(committed_paths)
+    fingerprints = []
+    for record in outcome.uploaded:
+        paths = [record.repo_path]
+        if record.samples_repo_path:
+            paths.append(record.samples_repo_path)
+        if all(path in landed for path in paths):
+            fingerprints.append(record.fingerprint)
+    return fingerprints
+
+
 def _publish(
     outcome: runner.RunOutcome,
     *,
@@ -141,7 +162,7 @@ def _publish(
     run_url: str | None,
     raw_reference: str,
     notes: list[str],
-) -> submit.PullRequest | None:
+) -> submit.Submission | None:
     """Put this run's records into the adapter's own pull request."""
     operations = submit.upload_operations(outcome.upload_dir)
     if not operations:
@@ -164,20 +185,17 @@ def _publish(
         )
     if pull_request is None:
         pull_request = submitter.find_by_marker(spec.key)
-    if pull_request is None:
-        return submitter.open_pull_request(
-            spec.key, operations=operations, description=description
-        )
 
-    submitter.upload(
-        pull_request,
+    return submitter.publish(
+        spec.key,
+        pull_request=pull_request,
         operations=operations,
+        description=description,
         message=(
             f'cron: {spec.key} {outcome.run_date.isoformat()} '
             f'({len(outcome.uploaded)} record(s))'
         ),
     )
-    return pull_request
 
 
 def cmd_run(args: argparse.Namespace) -> int:
@@ -255,23 +273,42 @@ def _finish(
     notes: list[str] = []
     raw_reference = store.raw_prefix(spec.key, outcome.run_date)
     pull_request = None
+    committed_paths: tuple[str, ...] = ()
+    publish_failure: submit.PartialSubmissionError | None = None
 
     if dry_run:
         notes.append('dry run: nothing was published')
     elif outcome.has_upload and submitter is not None:
-        pull_request = _publish(
-            outcome,
-            spec=spec,
-            state=state,
-            submitter=submitter,
-            run_url=run_url,
-            raw_reference=raw_reference,
-            notes=notes,
-        )
+        try:
+            submission = _publish(
+                outcome,
+                spec=spec,
+                state=state,
+                submitter=submitter,
+                run_url=run_url,
+                raw_reference=raw_reference,
+                notes=notes,
+            )
+        except submit.PartialSubmissionError as exc:
+            # Some batches landed. Fall through so the pull request number
+            # and the fingerprints that reached it are still written to the
+            # ledger, then fail the job. Losing them would republish those
+            # records under fresh paths on the next run.
+            publish_failure = exc
+            pull_request = exc.pull_request
+            committed_paths = exc.committed_paths
+            notes.append(str(exc))
+        else:
+            if submission is not None:
+                pull_request = submission.pull_request
+                committed_paths = submission.committed_paths
 
     report = outcome.to_manifest()
     report['raw_reference'] = raw_reference
     report['dry_run'] = dry_run
+    if publish_failure is not None:
+        report['publish_error'] = str(publish_failure)
+        report['records_committed'] = len(committed_paths)
     if pull_request is not None:
         report['pull_request'] = {
             'number': pull_request.number,
@@ -311,8 +348,11 @@ def _finish(
             state.pull_request_url = pull_request.url
             # Only fingerprints that actually reached the datastore are
             # remembered, so a failed upload is retried rather than
-            # forgotten.
-            state.fingerprints.update(outcome.new_fingerprints)
+            # forgotten, and a batch that landed before a later one failed
+            # is not published a second time.
+            state.fingerprints.update(
+                _landed_fingerprints(outcome, committed_paths)
+            )
         operations.extend(store.state_operations(state))
         raw_store.commit(
             operations,
@@ -324,6 +364,9 @@ def _finish(
         )
 
     _report(outcome, spec=spec, pull_request=pull_request, dry_run=dry_run)
+    if publish_failure is not None:
+        print(str(publish_failure), file=sys.stderr)
+        return 1
     return 0 if outcome.ok else 1
 
 

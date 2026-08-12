@@ -247,6 +247,40 @@ def test_a_second_run_reuses_the_remembered_pull_request(tmp_path) -> None:
     }
 
 
+def test_records_that_landed_before_a_failure_are_still_remembered(
+    tmp_path,
+) -> None:
+    """The job fails, but not by forgetting what it published.
+
+    The batches that landed are irreversible. Leaving their fingerprints out
+    of the ledger would make the next run publish them again under fresh
+    paths, so the pull request would hold each evaluation twice.
+    """
+    hub = FakeHub(discussions=[cron_pr(12)])
+    hub.files['state/hle.json'] = json.dumps({'pull_request_number': 12})
+    outcome = make_outcome(tmp_path, uploaded=3)
+    write_capture(outcome.raw_dir)
+    submitter = submit.DatastoreSubmitter(hub, batch_size=1)
+    real_create_commit = hub.create_commit
+
+    def fail_after_the_first_batch(**kwargs):
+        # Only the datastore batches fail. The raw-store commit that records
+        # what landed has to go through, which is the point of the test.
+        if kwargs.get('revision') == 'refs/pr/12' and any(
+            commit.get('revision') == 'refs/pr/12' for commit in hub.commits
+        ):
+            raise RuntimeError('504 Gateway Timeout')
+        return real_create_commit(**kwargs)
+
+    hub.create_commit = fail_after_the_first_batch
+
+    assert finish(outcome, hub, submitter=submitter) == 1
+
+    remembered = set(hub.files['state/hle.fingerprints'].split())
+    assert remembered == {'fingerprint-0'}
+    assert json.loads(hub.files['state/hle.json'])['pull_request_number'] == 12
+
+
 def test_the_snapshot_pointer_only_moves_when_a_snapshot_was_written(
     tmp_path,
 ) -> None:
