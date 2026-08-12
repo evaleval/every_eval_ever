@@ -270,11 +270,15 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         collections=('apex-agents',),
         output_scope='data_root',
         required_env=('MERCOR_EVAL_API_EVALEVAL_KEY',),
-        allow_source_outage=True,
+        runnable=False,
+        unrunnable_reason=(
+            'the Mercor Exports API is broken upstream as of 2026-08-12; '
+            'paused until it serves data again'
+        ),
         notes=(
-            'The exports API is failing upstream as of 2026-08-12, so an '
-            'outage is tolerated (exit 75 reports it without failing the '
-            'job). Remove allow_source_outage once Mercor is stable again.'
+            'Flip runnable back on once Mercor is stable. The adapter itself '
+            'is healthy: it exits 75 on an unreachable API and 1 on a '
+            'rejected key, so a smoke run distinguishes the two.'
         ),
     ),
     AdapterSpec(

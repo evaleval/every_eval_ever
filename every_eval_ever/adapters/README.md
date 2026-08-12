@@ -159,11 +159,10 @@ are excluded from active-adapter migration and compliance requirements.
 Deterministic offline tests for their existing behavior may remain in the
 test suite.
 
-`mercor_eval` is scheduled again: the Exports API is live data, though it is
-failing upstream at the time of writing, so its catalog entry sets
-`allow_source_outage` and the adapter exits `75` on an unreachable API. That
-reads as "source down" in the run report instead of a failed job; the flag
-comes back off once Mercor is stable.
+`mercor_eval` is paused: its Exports API is broken upstream as of
+2026-08-12, so the catalog marks it `runnable=False` until Mercor serves
+data again. The adapter itself is healthy and still runs by hand; it exits
+`75` on an unreachable API and `1` on a rejected key.
 
 ### Partial conversions and provenance
 
