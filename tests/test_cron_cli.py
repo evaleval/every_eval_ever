@@ -412,6 +412,36 @@ def test_a_step_summary_is_written_when_ci_asks_for_one(
     assert 'completed' in text
 
 
+def test_a_scheduled_run_without_a_token_fails_instead_of_publishing_nothing(
+    capsys,
+) -> None:
+    """A missing secret must not look like an unchanged leaderboard.
+
+    Falling back to a dry run left the nightly job green while it published
+    nothing, so an expired token could go unnoticed for as long as nobody
+    compared the datastore against the run log.
+    """
+    assert cli.main(['run', '--adapter', 'hle']) == 1
+
+    error = capsys.readouterr().err
+    assert 'HF_TOKEN' in error
+    assert '--dry-run' in error
+
+
+def test_an_explicit_dry_run_still_needs_no_token(monkeypatch, capsys) -> None:
+    """Not publishing stays available; it just has to be asked for."""
+    seen = {}
+
+    def record(args):
+        seen['dry_run'] = args.dry_run
+        return 0
+
+    monkeypatch.setattr(cli, 'cmd_run', record)
+
+    assert cli.main(['run', '--adapter', 'hle', '--dry-run']) == 0
+    assert seen['dry_run'] is True
+
+
 def test_a_store_error_becomes_a_reported_failure(monkeypatch, capsys) -> None:
     def explode(args):
         raise store.StoreError('could not read state/hle.json')

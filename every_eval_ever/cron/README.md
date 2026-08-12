@@ -147,8 +147,11 @@ cat /tmp/eee-cron/raw/manifest.jsonl
 uv run python -m every_eval_ever.cron run --adapter hle --force-full
 ```
 
-`--dry-run` is implied whenever no Hugging Face token is configured, so a
-local run cannot publish by accident.
+A run without a Hugging Face token stops and says so rather than quietly
+becoming a dry run. Not publishing has to be asked for with `--dry-run`,
+because a missing or expired secret would otherwise leave the scheduled job
+green while it published nothing, which is indistinguishable from an
+unchanged leaderboard until somebody goes looking.
 
 ## Known limitations
 

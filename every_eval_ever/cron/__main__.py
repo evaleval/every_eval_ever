@@ -213,12 +213,18 @@ def cmd_run(args: argparse.Namespace) -> int:
 
     run_date = args.date or _today()
     run_url = args.run_url or _run_url()
-    dry_run = args.dry_run or not _have_token()
-    if dry_run and not args.dry_run:
+    dry_run = args.dry_run
+    if not dry_run and not _have_token():
+        # Falling back to a dry run here was convenient locally and wrong in
+        # the workflow: a missing or expired secret produced a green job that
+        # published nothing, which reads as "the leaderboard was unchanged"
+        # for as long as nobody checks. Not publishing has to be asked for.
         print(
-            'no Hugging Face token configured; running without publishing',
+            'no Hugging Face token configured. Set HF_TOKEN to publish, or '
+            'pass --dry-run to run without publishing.',
             file=sys.stderr,
         )
+        return 1
 
     raw_store = None
     submitter = None
