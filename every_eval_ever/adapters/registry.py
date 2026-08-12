@@ -26,6 +26,10 @@ OutputScope = Literal['collection', 'data_root']
 Cadence = Literal['daily', 'weekly']
 
 _SAFE_COMPONENT = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._-]*$')
+_MODULE_PATH = re.compile(r'^[A-Za-z_]\w*(\.[A-Za-z_]\w*)+$')
+#: Every registered module must live here. Enforced over ``ADAPTERS`` by the
+#: registry test rather than by ``AdapterSpec``, so a test double can exist.
+ADAPTER_MODULE_PREFIX = 'every_eval_ever.adapters.'
 
 #: Adapter packages deliberately excluded from automation. Their upstream
 #: sources are no longer usable for an active refresh; see the "Legacy
@@ -62,9 +66,12 @@ class AdapterSpec:
     def __post_init__(self) -> None:
         if not _SAFE_COMPONENT.fullmatch(self.key):
             raise ValueError(f'adapter key is not a safe slug: {self.key!r}')
-        if not self.module.startswith('every_eval_ever.adapters.'):
+        # That a registered module is an in-tree adapter is checked over
+        # ADAPTERS in tests/test_adapter_registry.py, not here: this type is
+        # also how a test stands one in.
+        if not _MODULE_PATH.fullmatch(self.module):
             raise ValueError(
-                f'{self.key}: module must be an every_eval_ever adapter, got '
+                f'{self.key}: module must be a dotted module path, got '
                 f'{self.module!r}'
             )
         if not self.collections:
@@ -377,6 +384,7 @@ def registered_packages() -> frozenset[str]:
 
 __all__ = [
     'ADAPTERS',
+    'ADAPTER_MODULE_PREFIX',
     'BY_KEY',
     'LEGACY_ADAPTERS',
     'AdapterSpec',

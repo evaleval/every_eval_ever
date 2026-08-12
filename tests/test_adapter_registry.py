@@ -66,6 +66,14 @@ def test_legacy_adapters_are_not_also_registered() -> None:
 
 
 @pytest.mark.parametrize('spec', registry.ADAPTERS, ids=lambda spec: spec.key)
+def test_registered_module_is_an_in_tree_adapter(
+    spec: registry.AdapterSpec,
+) -> None:
+    assert spec.module.startswith(registry.ADAPTER_MODULE_PREFIX)
+    assert spec.module.endswith('.adapter')
+
+
+@pytest.mark.parametrize('spec', registry.ADAPTERS, ids=lambda spec: spec.key)
 def test_registered_module_imports(spec: registry.AdapterSpec) -> None:
     importlib.import_module(spec.module)
 
@@ -190,7 +198,7 @@ def test_a_partial_credential_set_still_excludes_the_adapter() -> None:
     ('kwargs', 'message'),
     [
         ({'key': 'bad key'}, 'safe slug'),
-        ({'module': 'os.path'}, 'every_eval_ever adapter'),
+        ({'module': 'not a module'}, 'dotted module path'),
         ({'collections': ()}, 'at least one collection'),
         ({'collections': ('..',)}, 'safe datastore path component'),
         ({'collections': ('a', 'b')}, 'exactly one collection'),
