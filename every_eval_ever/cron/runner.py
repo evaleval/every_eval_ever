@@ -57,8 +57,14 @@ EXIT_FAILED = 1
 EXIT_NOTHING_NEW = 3
 
 #: The cron's write-capable Hugging Face credentials, in every spelling the
-#: hub client reads. Never forwarded to adapter subprocesses.
-WRITE_TOKEN_ENV_NAMES = ('HF_TOKEN', 'HUGGING_FACE_HUB_TOKEN', 'HF_HUB_TOKEN')
+#: hub client or the wider ecosystem (e.g. LangChain) reads. Never forwarded
+#: to adapter subprocesses.
+WRITE_TOKEN_ENV_NAMES = (
+    'HF_TOKEN',
+    'HUGGING_FACE_HUB_TOKEN',
+    'HF_HUB_TOKEN',
+    'HUGGINGFACEHUB_API_TOKEN',
+)
 #: A separate read-only token for sources that need authenticated HF access.
 SOURCE_HF_TOKEN_ENV = 'EEE_SOURCE_HF_TOKEN'
 

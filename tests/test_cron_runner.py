@@ -1219,6 +1219,7 @@ def test_the_write_token_never_reaches_the_adapter_subprocess(
             'HF_TOKEN': 'write-capable',
             'HUGGING_FACE_HUB_TOKEN': 'write-capable',
             'HF_HUB_TOKEN': 'write-capable',
+            'HUGGINGFACEHUB_API_TOKEN': 'write-capable',
             'LLM_STATS_API_KEY': 'source-key',
             'PATH': '/usr/bin',
         },
