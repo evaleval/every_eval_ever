@@ -227,6 +227,14 @@ def _reconcile_pending(
     )
 
 
+def _record_paths(record: runner.StagedRecord) -> list[str]:
+    """Return every datastore path one record consists of."""
+    paths = [record.repo_path]
+    if record.samples_repo_path:
+        paths.append(record.samples_repo_path)
+    return paths
+
+
 def _landed_fingerprints(
     outcome: runner.RunOutcome, committed_paths: Sequence[str]
 ) -> list[str]:
@@ -239,14 +247,102 @@ def _landed_fingerprints(
     permanently unpublished and invisible.
     """
     landed = set(committed_paths)
-    fingerprints = []
-    for record in outcome.uploaded:
-        paths = [record.repo_path]
-        if record.samples_repo_path:
-            paths.append(record.samples_repo_path)
-        if all(path in landed for path in paths):
-            fingerprints.append(record.fingerprint)
-    return fingerprints
+    return [
+        record.fingerprint
+        for record in outcome.uploaded
+        if all(path in landed for path in _record_paths(record))
+    ]
+
+
+def _reconcile_inflight(
+    state: store.AdapterState,
+    raw_store: store.RawStore | None,
+    submitter: submit.DatastoreSubmitter | None,
+) -> str | None:
+    """Settle records a previous run published but never got to record.
+
+    Publication is written down before it happens, because it is the one step
+    that cannot be undone by repeating it. A run that uploaded records and
+    then failed to commit its ledger leaves them on the pull request with
+    nothing naming them, and the run after that would send the same
+    evaluations again under fresh UUID paths.
+
+    So the in-flight file is read back here and checked against the pull
+    request the records were headed for. The ones that arrived are recorded;
+    the ones that did not are forgotten, so this run uploads them. A question
+    the Hub cannot answer stops the run, because the two wrong answers are
+    losing records and duplicating them.
+
+    Mutates ``state`` and returns a line for the run report, or ``None`` when
+    there was nothing in flight. Running it twice settles the same batch the
+    same way, so a run that dies before its own commit costs nothing.
+    """
+    if raw_store is None or submitter is None:
+        return None
+    batch = raw_store.read_inflight(state.adapter)
+    if not batch.records:
+        return None
+
+    count = len(batch.records)
+    pull_request = None
+    if batch.pull_request_number is None:
+        # A cold start: the upload itself was to open the pull request, so
+        # whether one exists is the whole answer to whether it happened.
+        pull_request = submitter.find_by_marker(state.adapter)
+        if pull_request is None:
+            return (
+                f'{count} record(s) were staged for publication by an earlier '
+                'run that opened no pull request; nothing reached the '
+                'datastore, so they are published again'
+            )
+    else:
+        number = batch.pull_request_number
+        status = submitter.pull_request_status(number)
+        if status == 'closed':
+            return (
+                f'pull request {number} was closed without merging while '
+                f'{count} record(s) were in flight to it; they are forgotten '
+                'and will be resubmitted'
+            )
+        if status == 'open':
+            pull_request = submitter.resolve_known(state.adapter, number)
+            if pull_request is None:
+                raise submit.SubmissionError(
+                    f'pull request {number} is open but no longer identifies '
+                    f'itself as {state.adapter}, and {count} record(s) were '
+                    'in flight to it; inspect it before re-running'
+                )
+
+    # Merged means the records that landed are in the datastore itself, so
+    # that is where to look for them, and what is found is durable rather
+    # than pending.
+    revision = pull_request.revision if pull_request is not None else None
+    present = submitter.paths_present(batch.paths, revision=revision)
+    if present is None:
+        raise submit.SubmissionError(
+            f'could not read {revision or "the datastore"} to settle '
+            f'{count} record(s) an earlier run published without recording '
+            'them; a re-run would publish them a second time, so inspect the '
+            'pull request first'
+        )
+    landed = [
+        record['fingerprint']
+        for record in batch.records
+        if all(path in present for path in record['paths'])
+    ]
+    if pull_request is None:
+        state.fingerprints.update(landed)
+        where = 'the datastore'
+    else:
+        state.pull_request_number = pull_request.number
+        state.pull_request_url = pull_request.url
+        state.pending_fingerprints.update(landed)
+        where = f'pull request {pull_request.number}'
+    return (
+        f'an earlier run published {len(landed)} of {count} record(s) to '
+        f'{where} without recording them; they are recorded now and the rest '
+        'are published again'
+    )
 
 
 def _publish(
@@ -341,6 +437,10 @@ def cmd_run(args: argparse.Namespace) -> int:
         raw_store.ensure_private()
 
     state = _resolve_state(raw_store, spec.key)
+    # In flight first: it can add fingerprints to the pending set and name the
+    # pull request they are waiting on, which is what _reconcile_pending then
+    # settles against that pull request's fate.
+    inflight_note = _reconcile_inflight(state, raw_store, submitter)
     pending_note = _reconcile_pending(state, submitter)
 
     with contextlib.ExitStack() as stack:
@@ -361,8 +461,9 @@ def cmd_run(args: argparse.Namespace) -> int:
             force_full=args.force_full,
             run_url=run_url,
         )
-        if pending_note:
-            outcome.messages.append(pending_note)
+        for note in (inflight_note, pending_note):
+            if note:
+                outcome.messages.append(note)
         return _finish(
             outcome,
             spec=spec,
@@ -391,6 +492,55 @@ def _finish(
     pull_request = None
     committed_paths: tuple[str, ...] = ()
     publish_failure: submit.PartialSubmissionError | None = None
+    raw_manifest: list[dict] = []
+    parent_commit = state.parent_commit
+
+    if raw_store is not None:
+        # The snapshot and the intention to publish, before the publishing.
+        # Uploading records and then failing to write the ledger leaves them
+        # on the pull request with nothing naming them, and the next run
+        # sends the same evaluations again under fresh UUID paths. What this
+        # commit writes is enough for that next run to find them instead.
+        previous = (
+            raw_store.read_manifest(state.last_raw_prefix)
+            if state.last_raw_prefix
+            else []
+        )
+        operations, raw_manifest = store.plan_raw_upload(
+            outcome.raw_dir,
+            prefix=raw_reference,
+            previous_manifest=previous,
+            previous_prefix=state.last_raw_prefix,
+        )
+        operations.append(
+            store.inflight_operation(
+                store.InflightBatch(
+                    adapter=spec.key,
+                    run_date=outcome.run_date.isoformat(),
+                    run_token=run_token,
+                    pull_request_number=state.pull_request_number,
+                    records=(
+                        []
+                        if dry_run
+                        else [
+                            {
+                                'fingerprint': record.fingerprint,
+                                'paths': _record_paths(record),
+                            }
+                            for record in outcome.uploaded
+                        ]
+                    ),
+                )
+            )
+        )
+        result = raw_store.commit(
+            operations,
+            message=(
+                f'cron: {spec.key} {outcome.run_date.isoformat()} (snapshot)'
+            ),
+            parent_commit=parent_commit,
+        )
+        parent_commit = getattr(result, 'oid', None) or parent_commit
 
     if dry_run:
         notes.append('dry run: nothing was published')
@@ -436,20 +586,7 @@ def _finish(
         }
 
     if raw_store is not None:
-        previous = (
-            raw_store.read_manifest(state.last_raw_prefix)
-            if state.last_raw_prefix
-            else []
-        )
-        operations, raw_manifest = store.plan_raw_upload(
-            outcome.raw_dir,
-            prefix=raw_reference,
-            previous_manifest=previous,
-            previous_prefix=state.last_raw_prefix,
-        )
-        operations.append(
-            store.run_report_operation(report, prefix=raw_reference)
-        )
+        operations = [store.run_report_operation(report, prefix=raw_reference)]
 
         state.last_run_date = outcome.run_date.isoformat()
         state.last_status = outcome.status
@@ -472,13 +609,19 @@ def _finish(
                 _landed_fingerprints(outcome, committed_paths)
             )
         operations.extend(store.state_operations(state))
+        # Nothing is in flight any more: either it is in the ledger above or
+        # it never reached the pull request. Written empty rather than
+        # deleted, so every run makes the same commit.
+        operations.append(
+            store.inflight_operation(store.InflightBatch(adapter=spec.key))
+        )
         raw_store.commit(
             operations,
             message=(
                 f'cron: {spec.key} {outcome.run_date.isoformat()} '
                 f'({outcome.status})'
             ),
-            parent_commit=state.parent_commit,
+            parent_commit=parent_commit,
         )
 
     _report(outcome, spec=spec, pull_request=pull_request, dry_run=dry_run)

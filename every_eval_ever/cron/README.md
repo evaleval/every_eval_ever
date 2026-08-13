@@ -96,6 +96,10 @@ fingerprint is listed in that run's `run.json`. To republish everything once,
 use `--force-full`; to reset an adapter permanently, delete its
 `state/<adapter>.fingerprints` and `state/<adapter>.pending`.
 
+A third file, `state/<adapter>.inflight`, holds records between the moment a
+run commits its snapshot and the moment it records what it published. See
+"The raw store" below for what a non-empty one means at the start of a run.
+
 The order matters. `cron_run_date` changes daily and is part of the record, so
 fingerprints are taken *before* the provenance stamp; otherwise nothing would
 ever look unchanged. `tests/test_cron_provenance.py` pins that.
@@ -154,6 +158,8 @@ evaleval/EEE_raw   (private dataset, main)
   state/<adapter>.fingerprints                one sha256 per merged record
   state/<adapter>.pending                     one sha256 per record still
                                               waiting on its pull request
+  state/<adapter>.inflight                    records this run is about to
+                                              publish, written before it does
 ```
 
 `<adapter>` is the catalog key, which is also the job name and the name on the
@@ -170,9 +176,28 @@ content-addressed, so nothing is stored twice; only the two files that describe
 a run are per run. `state/<adapter>.json` carries `last_raw_prefix`, the whole
 path, since a date no longer names one directory.
 
-Everything one run writes lands in a single commit, guarded by the commit the
-state was read at, so two overlapping runs collide loudly instead of one
-silently overwriting the other.
+A run makes two commits here, one either side of publishing to the datastore,
+each guarded by the commit the previous one left, so two overlapping runs
+collide loudly instead of one silently overwriting the other.
+
+The first carries the raw snapshot and `state/<adapter>.inflight`: the
+fingerprint and datastore paths of every record this run is about to publish.
+The second carries the run report, the ledger and an emptied in-flight file.
+Publishing is the one step a re-run cannot undo, so it happens between them
+rather than before both. A run that uploads records and then fails to write
+its ledger, because the job was cancelled or the raw store was briefly
+unreachable, would otherwise leave them on the pull request with nothing
+naming them, and the next run would publish the same evaluations again under
+fresh UUID paths.
+
+A non-empty in-flight file at the start of a run is exactly that case. Each
+record it names is checked against the pull request it was headed for (against
+the datastore itself if that pull request has since merged): the ones that
+arrived are recorded, the ones that did not are published again, and a pull
+request closed without merging in the meantime forgets them. A check the Hub
+cannot answer stops the run, since one wrong guess buries records and the
+other duplicates them. Settling the same file twice settles it the same way,
+so a run that dies before its own commit costs nothing.
 
 ## The pull request
 

@@ -368,6 +368,66 @@ def test_state_round_trips_through_the_store() -> None:
     assert hub.files['state/hle.pending'] == 'ccc\n'
 
 
+def test_nothing_in_flight_reads_back_as_an_empty_batch() -> None:
+    assert store.RawStore(FakeHub()).read_inflight('hle').records == []
+
+
+def test_an_in_flight_batch_round_trips_through_the_store() -> None:
+    hub = FakeHub()
+    raw_store = store.RawStore(hub)
+    batch = store.InflightBatch(
+        adapter='hle',
+        run_date='2026-08-10',
+        run_token='run-2-1',
+        pull_request_number=12,
+        records=[{'fingerprint': 'aaa', 'paths': ['data/hle/a.json']}],
+    )
+
+    raw_store.commit(
+        [store.inflight_operation(batch)],
+        message='in flight',
+        parent_commit='headsha',
+    )
+    reloaded = raw_store.read_inflight('hle')
+
+    assert reloaded.pull_request_number == 12
+    assert reloaded.run_token == 'run-2-1'
+    assert reloaded.records == batch.records
+    assert reloaded.paths == ['data/hle/a.json']
+
+
+def test_an_emptied_in_flight_file_is_written_rather_than_deleted() -> None:
+    """So every run makes the same commit, and "nothing in flight" is a fact
+    the file states instead of one inferred from its absence."""
+    hub = FakeHub()
+
+    store.RawStore(hub).commit(
+        [store.inflight_operation(store.InflightBatch(adapter='hle'))],
+        message='settled',
+        parent_commit='headsha',
+    )
+
+    assert 'state/hle.inflight' in hub.files
+    assert json.loads(hub.files['state/hle.inflight'])['records'] == []
+
+
+@pytest.mark.parametrize(
+    'body',
+    [
+        'not json at all',
+        json.dumps([1, 2]),
+        json.dumps({'records': [{'paths': ['a.json']}]}),
+        json.dumps({'records': [{'fingerprint': 'aaa'}]}),
+    ],
+)
+def test_an_unreadable_in_flight_file_is_fatal(body: str) -> None:
+    """Reading it as empty would bury the records it exists to account for."""
+    hub = FakeHub({'state/hle.inflight': body})
+
+    with pytest.raises(store.StoreError):
+        store.RawStore(hub).read_inflight('hle')
+
+
 @pytest.mark.parametrize(
     'error',
     [

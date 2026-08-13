@@ -15,6 +15,8 @@ Layout of ``evaleval/EEE_raw`` (``main``)::
     state/<adapter>.fingerprints               one sha256 per merged record
     state/<adapter>.pending                    one sha256 per record still
                                                waiting on its pull request
+    state/<adapter>.inflight                   records this run is about to
+                                               publish, written before it does
 
 ``<date>`` is the UTC run date and ``<run>`` identifies the run within it, so
 a second attempt on one day adds a directory instead of overwriting the first
@@ -29,6 +31,14 @@ mean less: they say a record reached the adapter's open pull request, not the
 datastore. When that pull request is merged they are promoted; when it is
 closed without merging they are dropped, so the records they named are
 resubmitted instead of being silently filtered forever.
+
+Publication is the one step whose result cannot be recovered by repeating it,
+so the intention to publish is written down before it happens. A run that
+uploads records and then fails to write its ledger would otherwise leave them
+on the pull request with nothing naming them, and the next run would send the
+same evaluations again under fresh paths. The in-flight file says which
+records went where; the next run checks them against the pull request and
+records the ones that arrived.
 
 The store is private, and that is enforced rather than documented. It holds
 whole source payloads kept so a published record can be checked against what
@@ -146,6 +156,58 @@ class AdapterState:
         )
 
 
+@dataclass
+class InflightBatch:
+    """What a run is about to publish, recorded before it publishes it.
+
+    Written in the same commit as the raw snapshot, ahead of the datastore
+    upload, and emptied by the commit that records the run. Finding a
+    non-empty one at the start of a run means the previous run got as far as
+    uploading and no further, so what it uploaded is on the pull request with
+    no fingerprint naming it.
+
+    Each record is its fingerprint and every datastore path it consists of, so
+    the next run can ask the pull request which of them arrived rather than
+    assuming all or none did.
+    """
+
+    adapter: str
+    run_date: str | None = None
+    run_token: str | None = None
+    #: The pull request the records were headed for, when one was known
+    #: already. ``None`` on a cold start, where the upload itself opens it.
+    pull_request_number: int | None = None
+    records: list[dict[str, Any]] = field(default_factory=list)
+
+    def to_json(self) -> str:
+        return (
+            json.dumps(
+                {
+                    'adapter': self.adapter,
+                    'run_date': self.run_date,
+                    'run_token': self.run_token,
+                    'pull_request_number': self.pull_request_number,
+                    'records': [
+                        {
+                            'fingerprint': record['fingerprint'],
+                            'paths': list(record['paths']),
+                        }
+                        for record in self.records
+                    ],
+                },
+                indent=2,
+                sort_keys=True,
+            )
+            + '\n'
+        )
+
+    @property
+    def paths(self) -> list[str]:
+        return sorted(
+            {path for record in self.records for path in record['paths']}
+        )
+
+
 def state_path(adapter: str) -> str:
     return f'{STATE_DIR}/{adapter}.json'
 
@@ -156,6 +218,10 @@ def fingerprints_path(adapter: str) -> str:
 
 def pending_fingerprints_path(adapter: str) -> str:
     return f'{STATE_DIR}/{adapter}.pending'
+
+
+def inflight_path(adapter: str) -> str:
+    return f'{STATE_DIR}/{adapter}.inflight'
 
 
 def raw_prefix(adapter: str, run_date: date, run_token: str) -> str:
@@ -361,6 +427,45 @@ class RawStore:
             }
         return state
 
+    def read_inflight(self, adapter: str) -> InflightBatch:
+        """Return what the previous run was about to publish, if anything.
+
+        An unreadable or malformed file is an error rather than an empty
+        batch. Treating it as empty is what would bury the very records it
+        exists to account for.
+        """
+        batch = InflightBatch(adapter=adapter)
+        raw = self._download_text(inflight_path(adapter))
+        if raw is None:
+            return batch
+        try:
+            payload = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise StoreError(
+                f'{inflight_path(adapter)} in {self.repo_id} is not valid '
+                f'JSON: {exc}'
+            ) from exc
+        if not isinstance(payload, dict):
+            raise StoreError(
+                f'{inflight_path(adapter)} in {self.repo_id} must contain a '
+                'JSON object'
+            )
+        batch.run_date = payload.get('run_date')
+        batch.run_token = payload.get('run_token')
+        batch.pull_request_number = payload.get('pull_request_number')
+        for record in payload.get('records') or ():
+            fingerprint = (record or {}).get('fingerprint')
+            paths = (record or {}).get('paths')
+            if not fingerprint or not isinstance(paths, list) or not paths:
+                raise StoreError(
+                    f'{inflight_path(adapter)} in {self.repo_id} names a '
+                    'record without a fingerprint or without paths'
+                )
+            batch.records.append(
+                {'fingerprint': fingerprint, 'paths': list(paths)}
+            )
+        return batch
+
     def read_manifest(self, prefix: str) -> list[dict]:
         """Return the capture manifest under ``prefix``, or ``[]``."""
         raw = self._download_text(f'{prefix}/{MANIFEST_NAME}')
@@ -527,6 +632,19 @@ def run_report_operation(
     )
 
 
+def inflight_operation(batch: InflightBatch) -> CommitOperationAdd:
+    """Return the commit operation that records or clears an in-flight batch.
+
+    A batch with no records is written rather than deleted, so every run makes
+    the same commit and "nothing in flight" is a file that says so instead of
+    a file whose absence has to be interpreted.
+    """
+    return CommitOperationAdd(
+        path_in_repo=inflight_path(batch.adapter),
+        path_or_fileobj=batch.to_json().encode('utf-8'),
+    )
+
+
 def state_operations(state: AdapterState) -> list[CommitOperationAdd]:
     """Return the commit operations that persist one adapter's ledger."""
     return [
@@ -554,9 +672,12 @@ __all__ = [
     'STATE_DIR',
     'UNCHANGED_MARKER',
     'AdapterState',
+    'InflightBatch',
     'RawStore',
     'StoreError',
     'fingerprints_path',
+    'inflight_operation',
+    'inflight_path',
     'pending_fingerprints_path',
     'plan_raw_upload',
     'raw_prefix',

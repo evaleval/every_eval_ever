@@ -102,6 +102,27 @@ def write_capture(raw_dir: Path) -> None:
     )
 
 
+def datastore_commits(hub) -> list[dict]:
+    """The commits that went to the datastore, not to the raw store.
+
+    A run makes two raw-store commits around its publication, so a commit is
+    no longer identifiable by its position in the list.
+    """
+    return [
+        commit
+        for commit in hub.commits
+        if commit.get('repo_id') != store.DEFAULT_RAW_REPO
+    ]
+
+
+def raw_commits(hub) -> list[dict]:
+    return [
+        commit
+        for commit in hub.commits
+        if commit.get('repo_id') == store.DEFAULT_RAW_REPO
+    ]
+
+
 def finish(outcome, hub, **kwargs):
     return cli._finish(
         outcome,
@@ -260,7 +281,7 @@ def test_a_successful_run_opens_a_pull_request_and_records_it(
 
     assert finish(outcome, hub) == 0
 
-    assert hub.commits[0]['create_pr'] is True
+    assert datastore_commits(hub)[0]['create_pr'] is True
     state = json.loads(hub.files['state/hle.json'])
     assert state['pull_request_number'] == 42
     assert state['last_run_date'] == '2026-08-10'
@@ -271,26 +292,47 @@ def test_a_successful_run_opens_a_pull_request_and_records_it(
     assert hub.files['state/hle.fingerprints'] == ''
 
 
-def test_the_raw_snapshot_and_run_report_land_in_one_commit(
+def test_the_snapshot_is_committed_before_the_records_are_published(
     tmp_path,
 ) -> None:
+    """Two raw-store commits, one either side of the publication.
+
+    The first carries the snapshot and what this run is about to publish; the
+    second carries the report and the ledger. Between them is the only window
+    where records can exist with nothing naming them, and the first commit is
+    what lets the next run close it.
+    """
     hub = FakeHub()
     outcome = make_outcome(tmp_path)
     write_capture(outcome.raw_dir)
 
     finish(outcome, hub)
 
-    store_commit = hub.commits[-1]
-    paths = {operation.path_in_repo for operation in store_commit['operations']}
-    assert paths == {
+    order = [
+        'raw' if commit.get('repo_id') == store.DEFAULT_RAW_REPO else 'records'
+        for commit in hub.commits
+    ]
+    assert order == ['raw', 'records', 'raw']
+
+    before, after = raw_commits(hub)
+    assert {operation.path_in_repo for operation in before['operations']} == {
         f'{RAW_PREFIX}/abc.json',
         f'{RAW_PREFIX}/manifest.jsonl',
+        'state/hle.inflight',
+    }
+    assert {operation.path_in_repo for operation in after['operations']} == {
         f'{RAW_PREFIX}/run.json',
         'state/hle.json',
         'state/hle.fingerprints',
         'state/hle.pending',
+        'state/hle.inflight',
     }
-    assert store_commit['parent_commit'] == 'headsha'
+    assert before['parent_commit'] == 'headsha'
+    # The second commit builds on the first rather than on the head the state
+    # was read at, which the first one moved.
+    assert after['parent_commit'] == 'newsha'
+    # Nothing is left in flight once the ledger names it.
+    assert json.loads(hub.files['state/hle.inflight'])['records'] == []
     report = json.loads(hub.files[f'{RAW_PREFIX}/run.json'])
     assert report['status'] == 'completed'
     assert report['pull_request']['number'] == 42
@@ -316,7 +358,7 @@ def test_a_second_run_reuses_the_remembered_pull_request(tmp_path) -> None:
 
     assert finish(outcome, hub) == 0
 
-    upload_commit = hub.commits[0]
+    upload_commit = datastore_commits(hub)[0]
     assert upload_commit['revision'] == 'refs/pr/12'
     assert 'create_pr' not in upload_commit
     # The merged ledger is untouched; the new record waits on the still-open
@@ -345,6 +387,190 @@ def test_a_stale_description_is_reported_and_not_fatal(tmp_path) -> None:
     assert hub.files['state/hle.pending'] == 'fingerprint-0\n'
     report = json.loads(hub.files[f'{RAW_PREFIX}/run.json'])
     assert any('403 Forbidden' in message for message in report['messages'])
+
+
+# --- records published but never recorded --------------------------------
+
+
+def inflight(hub, **kwargs) -> str:
+    """Put an in-flight batch in the store, as a crashed run would leave it."""
+    batch = store.InflightBatch(
+        adapter='hle',
+        run_date='2026-08-09',
+        run_token='run-1-1',
+        **kwargs,
+    )
+    hub.files[store.inflight_path('hle')] = batch.to_json()
+    return batch.to_json()
+
+
+def record_entry(index: int) -> dict:
+    return {
+        'fingerprint': f'fingerprint-{index}',
+        'paths': [f'data/hle/org/model{index}/{index}.json'],
+    }
+
+
+def test_records_that_reached_the_pull_request_are_recorded_late() -> None:
+    """The run that uploaded them died before writing its ledger.
+
+    Without this, the next run finds those fingerprints unknown, uploads the
+    same evaluations again under fresh UUID paths, and the pull request ends
+    up holding each of them twice.
+    """
+    hub = FakeHub(discussions=[cron_pr(12)])
+    hub.files[record_entry(0)['paths'][0]] = '{}'
+    inflight(hub, pull_request_number=12, records=[record_entry(0)])
+    state = store.AdapterState(adapter='hle')
+
+    note = cli._reconcile_inflight(
+        state, store.RawStore(hub), submit.DatastoreSubmitter(hub)
+    )
+
+    assert state.pending_fingerprints == {'fingerprint-0'}
+    assert state.pull_request_number == 12
+    assert 'published 1 of 1' in note
+
+
+def test_records_that_never_arrived_are_published_again() -> None:
+    hub = FakeHub(discussions=[cron_pr(12)])
+    hub.files[record_entry(0)['paths'][0]] = '{}'
+    inflight(
+        hub,
+        pull_request_number=12,
+        records=[record_entry(0), record_entry(1)],
+    )
+    state = store.AdapterState(adapter='hle')
+
+    note = cli._reconcile_inflight(
+        state, store.RawStore(hub), submit.DatastoreSubmitter(hub)
+    )
+
+    assert state.pending_fingerprints == {'fingerprint-0'}
+    assert 'published 1 of 2' in note
+
+
+def test_a_batch_in_flight_to_no_pull_request_is_published_again() -> None:
+    """A cold start whose opening commit never landed."""
+    hub = FakeHub()
+    inflight(hub, records=[record_entry(0)])
+    state = store.AdapterState(adapter='hle')
+
+    note = cli._reconcile_inflight(
+        state, store.RawStore(hub), submit.DatastoreSubmitter(hub)
+    )
+
+    assert state.pending_fingerprints == set()
+    assert state.fingerprints == set()
+    assert 'opened no pull request' in note
+
+
+def test_a_batch_in_flight_to_a_merged_pull_request_becomes_durable() -> None:
+    """Merged means those records are in the datastore, not on a branch."""
+    hub = FakeHub(discussions=[cron_pr(12, status='merged')])
+    hub.files[record_entry(0)['paths'][0]] = '{}'
+    inflight(hub, pull_request_number=12, records=[record_entry(0)])
+    state = store.AdapterState(adapter='hle')
+
+    cli._reconcile_inflight(
+        state, store.RawStore(hub), submit.DatastoreSubmitter(hub)
+    )
+
+    assert state.fingerprints == {'fingerprint-0'}
+    assert state.pending_fingerprints == set()
+
+
+def test_a_batch_in_flight_to_a_closed_pull_request_is_forgotten() -> None:
+    hub = FakeHub(discussions=[cron_pr(12, status='closed')])
+    inflight(hub, pull_request_number=12, records=[record_entry(0)])
+    state = store.AdapterState(adapter='hle')
+
+    note = cli._reconcile_inflight(
+        state, store.RawStore(hub), submit.DatastoreSubmitter(hub)
+    )
+
+    assert state.pending_fingerprints == set()
+    assert state.fingerprints == set()
+    assert 'closed without merging' in note
+
+
+def test_an_unreadable_pull_request_stops_the_run() -> None:
+    """Both guesses lose: one buries records, the other duplicates them."""
+    hub = FakeHub(discussions=[cron_pr(12)])
+    hub.list_files_error = ConnectionError('network is unreachable')
+    inflight(hub, pull_request_number=12, records=[record_entry(0)])
+    state = store.AdapterState(adapter='hle')
+
+    with pytest.raises(submit.SubmissionError, match='without recording'):
+        cli._reconcile_inflight(
+            state, store.RawStore(hub), submit.DatastoreSubmitter(hub)
+        )
+
+
+def test_settling_the_same_batch_twice_settles_it_the_same_way() -> None:
+    """A run that dies before its own commit leaves the file for the next."""
+    hub = FakeHub(discussions=[cron_pr(12)])
+    hub.files[record_entry(0)['paths'][0]] = '{}'
+    inflight(hub, pull_request_number=12, records=[record_entry(0)])
+    first = store.AdapterState(adapter='hle')
+    second = store.AdapterState(adapter='hle')
+
+    for state in (first, second):
+        cli._reconcile_inflight(
+            state, store.RawStore(hub), submit.DatastoreSubmitter(hub)
+        )
+
+    assert first.pending_fingerprints == second.pending_fingerprints
+    assert second.pending_fingerprints == {'fingerprint-0'}
+
+
+def test_a_run_settles_what_was_in_flight_before_the_adapter_starts(
+    monkeypatch, tmp_path
+) -> None:
+    """End to end: the records are known before the adapter is asked for
+    anything, so it never restages them."""
+    hub = FakeHub(discussions=[cron_pr(12)])
+    hub.files[record_entry(0)['paths'][0]] = '{}'
+    inflight(hub, pull_request_number=12, records=[record_entry(0)])
+    monkeypatch.setattr('huggingface_hub.HfApi', lambda *a, **k: hub)
+    monkeypatch.setenv('HF_TOKEN', 'a-token')
+    seen = {}
+
+    def fake_run(spec, workdir, **kwargs):
+        seen['known'] = set(kwargs['known_fingerprints'])
+        outcome = make_outcome(tmp_path, uploaded=0)
+        write_capture(outcome.raw_dir)
+        return outcome
+
+    monkeypatch.setattr(cli.runner, 'run', fake_run)
+
+    exit_code = cli.main(
+        [
+            'run',
+            '--adapter',
+            'hle',
+            '--workdir',
+            str(tmp_path / 'work'),
+            '--run-id',
+            RUN_TOKEN,
+        ]
+    )
+
+    assert exit_code == 0
+    assert seen['known'] == {'fingerprint-0'}
+    assert hub.files['state/hle.pending'] == 'fingerprint-0\n'
+    assert json.loads(hub.files['state/hle.inflight'])['records'] == []
+    report = json.loads(hub.files[f'{RAW_PREFIX}/run.json'])
+    assert any('without recording' in m for m in report['messages'])
+
+
+def test_a_dry_run_settles_nothing() -> None:
+    hub = FakeHub(discussions=[cron_pr(12)])
+    inflight(hub, pull_request_number=12, records=[record_entry(0)])
+    state = store.AdapterState(adapter='hle')
+
+    assert cli._reconcile_inflight(state, store.RawStore(hub), None) is None
+    assert state.pending_fingerprints == set()
 
 
 def test_a_merged_pull_request_promotes_its_pending_fingerprints() -> None:
@@ -683,14 +909,33 @@ def test_an_upload_failure_leaves_the_fingerprints_unrecorded(
 ) -> None:
     """So the next run retries the records instead of forgetting them."""
     hub = FakeHub()
-    hub.commit_error = RuntimeError('502 bad gateway')
     outcome = make_outcome(tmp_path)
     write_capture(outcome.raw_dir)
+    real_create_commit = hub.create_commit
+
+    def fail_the_datastore(**kwargs):
+        if kwargs.get('repo_id') != store.DEFAULT_RAW_REPO:
+            raise RuntimeError('502 bad gateway')
+        return real_create_commit(**kwargs)
+
+    hub.create_commit = fail_the_datastore
 
     with pytest.raises(submit.SubmissionError):
         finish(outcome, hub)
 
     assert 'state/hle.fingerprints' not in hub.files
+    # The snapshot commit went first, so the records this run meant to
+    # publish are named even though the publication failed. Nothing landed,
+    # so the next run's reconciliation finds nothing on the pull request and
+    # publishes them again.
+    assert json.loads(hub.files['state/hle.inflight'])['records'] == [
+        {
+            'fingerprint': 'fingerprint-0',
+            'paths': [
+                'data/hle/org/model0/00000000-0000-4000-8000-000000000000.json'
+            ],
+        }
+    ]
 
 
 def test_the_run_url_reaches_the_pull_request_body(tmp_path) -> None:
@@ -700,7 +945,10 @@ def test_the_run_url_reaches_the_pull_request_body(tmp_path) -> None:
 
     finish(outcome, hub, run_url='https://ci.example/run/9')
 
-    assert 'https://ci.example/run/9' in hub.commits[0]['commit_description']
+    assert (
+        'https://ci.example/run/9'
+        in datastore_commits(hub)[0]['commit_description']
+    )
 
 
 def test_a_step_summary_is_written_when_ci_asks_for_one(

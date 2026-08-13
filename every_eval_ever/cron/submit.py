@@ -593,18 +593,32 @@ class DatastoreSubmitter:
         batch is there or none is. ``None`` means the ref could not be read,
         which the caller reports rather than resolves.
         """
+        paths = [operation.path_in_repo for operation in batch]
+        present = self.paths_present(paths, revision=pull_request.revision)
+        if present is None:
+            return None
+        return paths if len(present) == len(paths) else []
+
+    def paths_present(
+        self, paths: Sequence[str], *, revision: str | None = None
+    ) -> set[str] | None:
+        """Return which of ``paths`` exist at ``revision``, or ``None``.
+
+        ``None`` means the question could not be asked, which callers report
+        rather than resolve: an empty answer and an unanswerable one mean
+        opposite things about whether records were published.
+        """
         try:
             files = set(
                 self.api.list_repo_files(
                     repo_id=self.repo_id,
                     repo_type='dataset',
-                    revision=pull_request.revision,
+                    revision=revision,
                 )
             )
-        except Exception:  # noqa: BLE001 - reconciliation is best-effort
+        except Exception:  # noqa: BLE001 - the caller decides what it means
             return None
-        paths = [operation.path_in_repo for operation in batch]
-        return paths if all(path in files for path in paths) else []
+        return {path for path in paths if path in files}
 
     def publish(
         self,
