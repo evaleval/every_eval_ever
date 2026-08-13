@@ -339,15 +339,8 @@ class DatastoreSubmitter:
             ) from exc
 
     def request_validation(self, pull_request: PullRequest) -> None:
-        """Ask the datastore's validator to check this pull request.
-
-        The datastore validates a pull request when someone comments
-        :data:`VALIDATION_COMMAND` on it, so a run that published records has
-        to say so or nothing checks them. Posted as a fresh comment every
-        time rather than edited into an old one, because the bot reacts to
-        comments arriving, and posted after everything else so what it
-        validates is what the run actually left behind.
-        """
+        """Post :data:`VALIDATION_COMMAND` on a pull request, as a new
+        comment, which is what makes the datastore validate it."""
         try:
             self.api.comment_discussion(
                 repo_id=self.repo_id,
@@ -594,14 +587,16 @@ class DatastoreSubmitter:
                 )
             except Exception as exc:  # noqa: BLE001 - re-raised with context
                 landed = self._paths_on_ref(pull_request, batch)
-                unresolved: list[str] = []
                 if landed:
+                    # The Hub accepted the commit and only the reply was
+                    # lost, so this batch is on the pull request and the
+                    # upload carries on. Stopping here instead would end a
+                    # run whose every batch landed as a failure nothing
+                    # retries, because its records are all accounted for.
                     committed.extend(landed)
-                    hint = (
-                        ' The failing batch itself reached the pull request '
-                        'despite the error and is counted as committed.'
-                    )
-                elif landed is None:
+                    continue
+                unresolved: list[str] = []
+                if landed is None:
                     unresolved = [operation.path_in_repo for operation in batch]
                     hint = (
                         ' Whether the failing batch landed could not be '
@@ -688,10 +683,9 @@ class DatastoreSubmitter:
         body a reviewer reads describes the run that last added to it rather
         than whichever run opened it.
 
-        A submission that lands completely ends by commenting
-        :data:`VALIDATION_COMMAND` on the pull request, because that comment
-        is what makes the datastore validate it; without it the records sit
-        unchecked until a human asks.
+        A submission that lands completely ends by requesting validation
+        (see :meth:`request_validation`); a partial one leaves that to the
+        retry that completes it.
 
         An opening commit that errored after landing is adopted rather than
         repeated, and what it left on the ref decides whether its batch counts

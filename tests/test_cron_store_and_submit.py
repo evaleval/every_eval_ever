@@ -1114,15 +1114,17 @@ def test_a_failure_after_the_first_batch_reports_what_landed(
     )
 
 
-def test_a_batch_that_landed_despite_the_error_is_counted_committed(
+def test_a_batch_that_landed_despite_the_error_does_not_stop_the_upload(
     tmp_path,
 ) -> None:
     """The ambiguous timeout: the Hub accepted the commit, the client saw an
-    error. Reporting only the earlier batches would make the caller's ledger
-    forget this one, and the retry would republish it under fresh UUID paths.
-    The pull request ref is the arbiter of what actually landed."""
+    error. The pull request ref is the arbiter of what actually landed, and a
+    batch that is on it is a success, so the upload carries on. Stopping
+    instead turned a run whose final batch landed this way into a failure
+    with every record accounted for, which no retry ever completed and so
+    nothing ever validated."""
     tree = _upload_tree(tmp_path, 7)
-    hub = FakeHub()
+    hub = FakeHub(discussions=[cron_pr(12)])
     sub = submit.DatastoreSubmitter(hub, batch_size=3)
     pull_request = submit.PullRequest(12, 'https://x/12', 'refs/pr/12', 'x')
 
@@ -1136,20 +1138,19 @@ def test_a_batch_that_landed_despite_the_error_is_counted_committed(
 
     hub.create_commit = land_then_time_out
 
-    with pytest.raises(submit.PartialSubmissionError) as caught:
-        sub.publish(
-            'hle',
-            pull_request=pull_request,
-            operations=submit.upload_operations(tree),
-            description='',
-            message='hle 2026-08-10',
-        )
+    submission = sub.publish(
+        'hle',
+        pull_request=pull_request,
+        operations=submit.upload_operations(tree),
+        description='body',
+        message='hle 2026-08-10',
+    )
 
-    # Both the clean first batch and the ambiguous second one are reported;
-    # only the never-attempted third is left for the retry.
-    assert len(caught.value.committed_paths) == 6
-    assert caught.value.unresolved_paths == ()
-    assert 'reached the pull request despite the error' in str(caught.value)
+    # The clean first batch and the two ambiguous ones all count; nothing is
+    # left for a retry, and the finished submission is validated.
+    assert len(submission.committed_paths) == 7
+    assert hub.posted_comments == [(12, submit.VALIDATION_COMMAND)]
+    assert submission.validation_note is None
 
 
 def test_an_unanswerable_reconciliation_claims_nothing(tmp_path) -> None:
