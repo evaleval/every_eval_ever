@@ -9,8 +9,8 @@ canonical ``data/<collection>/<developer>/<model>/`` path):
   those templates.
 
 Scope: this catches drift in what the templates emit. A new validator rule that the
-reference conversion already satisfies leaves it green, so re-derive
-``reference/datastore-gate.md`` from ``REGISTERED_CHECKS`` when adding a check.
+reference conversion already satisfies leaves it green;
+``test_every_registered_check_is_documented_in_the_gate_guide`` covers that gap.
 
 Regenerate the frozen conversion after a deliberate change:
 
@@ -20,6 +20,7 @@ Regenerate the frozen conversion after a deliberate change:
 from __future__ import annotations
 
 import importlib.util
+import inspect
 import json
 import re
 import shutil
@@ -33,6 +34,7 @@ import pytest
 from every_eval_ever.helpers import SCHEMA_VERSION
 from every_eval_ever.helpers.io import SourceRecordsError
 from every_eval_ever.validate import main as validate_main
+from every_eval_ever.validator.validation_core import REGISTERED_CHECKS
 
 # --------------------------------------------------------------------------- setup
 
@@ -62,6 +64,39 @@ def _remedy(what_broke: str, *, where: str, regenerate: bool = True) -> str:
     if regenerate:
         lines.append(f'Then regenerate the frozen conversion: {REGENERATE_CMD}')
     return '\n'.join(lines)
+
+
+# -------------------------------------------------------------------- gate reference
+
+GATE_GUIDE = SKILL_DIR / 'reference' / 'datastore-gate.md'
+
+
+def test_every_registered_check_is_documented_in_the_gate_guide():
+    """A contributor meets the semantic checks through the guide, not the source."""
+    guide = GATE_GUIDE.read_text(encoding='utf-8')
+    missing = {}
+    for check in REGISTERED_CHECKS:
+        names = re.findall(
+            r'return (check_\w+)\(', inspect.getsource(check.run)
+        )
+        assert names, _remedy(
+            f'cannot tell which check {check.name!r} runs, so this test could '
+            'not confirm the guide documents it.',
+            where=(
+                'keep each REGISTERED_CHECKS wrapper a `return check_x(...)`, '
+                'or widen the pattern here'
+            ),
+            regenerate=False,
+        )
+        undocumented = [name for name in names if name not in guide]
+        if undocumented:
+            missing[check.name] = undocumented
+
+    assert not missing, _remedy(
+        f'registered checks absent from datastore-gate.md: {missing}',
+        where=f'add a section for each to {GATE_GUIDE.relative_to(REPO_ROOT)}',
+        regenerate=False,
+    )
 
 
 # ------------------------------------------------------------------ skill templates

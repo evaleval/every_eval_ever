@@ -65,6 +65,27 @@ Re-derive this list from `REGISTERED_CHECKS`, `_DEPLOYMENT_TYPES`,
   (`api|local|unknown`, `closed_source|open_weights_deployment|other`). Read the enums
   from the installed validator, not from an existing record or an old bot message.
 
+## §developer — `check_developer_slug` (registered as **warning**)
+- Fires when `model_info.id`'s namespace prefix or `model_info.developer` is a *second
+  name* the eval-card-registry confirms for a publisher — a genuinely different name,
+  model families included (`mistral` for `mistralai`, `glm` for `zai`, `kimi` for
+  `moonshotai`). The datastore takes the publisher directory from that prefix, or from
+  `developer` when the id is flat, so two names for one publisher is two directories.
+- Silent on a canonical id, a HuggingFace namespace the registry records for one
+  (`meta-llama` is Meta), a case or punctuation variant of either (`Anthropic`, `z-ai`),
+  and any name the registry has never seen.
+- **The message names both spellings and picks neither.** Which name is primary is one
+  editorial choice for the whole datastore, and the registry's canonical id is often the
+  *rarer* of the two spellings already published. Match how the publisher is already filed
+  datastore-wide; do not treat the message as an instruction to use the registry's id.
+- One record only proves the alias relation and this record's directory — not that the
+  other directory is already populated. Fix it by choosing the spelling and correcting the
+  adapter's mapping, so every future record agrees.
+- Warning, not error: the record stays valid, because the affected records are already
+  published and the fix changes join keys. Valid is not merge-ready though — a batch
+  carrying only this warning exits **2**, so any build treating a non-zero exit as a
+  rejection will reject it.
+
 ## §publish — `publish_evaluation_logs`
 **Mind which root each entry point wants — they differ, and a mismatch is silent until
 the path check rejects the depth:** `publish_evaluation_logs(base_output_dir=…)` takes the
