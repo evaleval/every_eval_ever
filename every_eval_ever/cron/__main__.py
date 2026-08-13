@@ -418,6 +418,9 @@ def _finish(
             if submission is not None:
                 pull_request = submission.pull_request
                 committed_paths = submission.committed_paths
+                if submission.description_note:
+                    notes.append(submission.description_note)
+                    outcome.messages.append(submission.description_note)
 
     report = outcome.to_manifest()
     report['raw_reference'] = raw_reference

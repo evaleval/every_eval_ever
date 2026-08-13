@@ -59,6 +59,8 @@ class FakeHub:
         self.download_error: Exception | None = None
         self.commit_error: Exception | None = None
         self.details_error: Exception | None = None
+        self.edit_comment_error: Exception | None = None
+        self.edited_comments: list[tuple[int, str]] = []
         self.list_files_error: Exception | None = None
         self.whoami_error: Exception | None = None
         self.repo_info_error: Exception | None = None
@@ -117,7 +119,14 @@ class FakeHub:
             raise self.details_error
         for discussion in self.discussions:
             if discussion.num == discussion_num:
-                comment = type('Comment', (), {'content': discussion.body})()
+                comment = type(
+                    'Comment',
+                    (),
+                    {
+                        'content': discussion.body,
+                        'id': f'comment-{discussion.num}',
+                    },
+                )()
                 return type(
                     'Details',
                     (),
@@ -127,6 +136,20 @@ class FakeHub:
                         'is_pull_request': discussion.is_pull_request,
                     },
                 )()
+        raise EntryNotFoundError(f'discussion {discussion_num} not found')
+
+    def edit_discussion_comment(
+        self, *, discussion_num, comment_id, new_content, **kwargs
+    ):
+        if self.edit_comment_error is not None:
+            raise self.edit_comment_error
+        for discussion in self.discussions:
+            if discussion.num == discussion_num:
+                if comment_id != f'comment-{discussion.num}':
+                    raise ValueError(f'no comment {comment_id}')
+                discussion.body = new_content
+                self.edited_comments.append((discussion_num, new_content))
+                return type('Comment', (), {'content': new_content})()
         raise EntryNotFoundError(f'discussion {discussion_num} not found')
 
     def list_repo_files(self, repo_id=None, **kwargs):
@@ -1088,6 +1111,90 @@ def test_an_unanswerable_reconciliation_claims_nothing(tmp_path) -> None:
 
     assert len(caught.value.committed_paths) == 3
     assert 'inspect https://x/12 before re-running' in str(caught.value)
+
+
+# --- the description describes the latest run -----------------------------
+
+
+def test_a_reused_pull_request_gets_its_description_rewritten(
+    tmp_path,
+) -> None:
+    """Opened in August and published into ever since, the body otherwise
+    still reports August's date, coverage and snapshot path."""
+    tree = _upload_tree(tmp_path, 2)
+    discussion = cron_pr(12)
+    hub = FakeHub(discussions=[discussion])
+    sub = submit.DatastoreSubmitter(hub)
+    pull_request = submit.PullRequest(12, 'https://x/12', 'refs/pr/12', 'x')
+    description = submit.pull_request_description(
+        'hle',
+        coverage_line='2 record(s)',
+        run_date='2026-09-14',
+        status='completed',
+        raw_reference='raw/hle/2026-09-14/run-9-1',
+    )
+
+    submission = sub.publish(
+        'hle',
+        pull_request=pull_request,
+        operations=submit.upload_operations(tree),
+        description=description,
+        message='hle 2026-09-14',
+    )
+
+    assert submission.description_note is None
+    assert hub.edited_comments == [(12, description)]
+    assert '2026-09-14' in discussion.body
+    assert '2026-08-10' not in discussion.body
+    # The marker says which adapter the pull request belongs to, so a refresh
+    # that dropped it would orphan it from the next run.
+    assert submit.marker('hle') in discussion.body
+    assert sub.carries_marker(12, 'hle')
+
+
+def test_a_newly_opened_pull_request_is_not_edited_again(tmp_path) -> None:
+    """It was opened with this run's body a moment ago."""
+    tree = _upload_tree(tmp_path, 2)
+    hub = FakeHub()
+    sub = submit.DatastoreSubmitter(hub)
+
+    sub.publish(
+        'hle',
+        pull_request=None,
+        operations=submit.upload_operations(tree),
+        description=submit.pull_request_description(
+            'hle',
+            coverage_line='2 record(s)',
+            run_date='2026-08-10',
+            status='completed',
+        ),
+        message='hle 2026-08-10',
+    )
+
+    assert hub.edited_comments == []
+
+
+def test_a_description_that_cannot_be_refreshed_does_not_fail_the_run(
+    tmp_path,
+) -> None:
+    """The records are published. A stale body is worth saying, not failing."""
+    tree = _upload_tree(tmp_path, 2)
+    hub = FakeHub(discussions=[cron_pr(12)])
+    hub.edit_comment_error = RuntimeError('403 Forbidden')
+    sub = submit.DatastoreSubmitter(hub)
+    pull_request = submit.PullRequest(12, 'https://x/12', 'refs/pr/12', 'x')
+
+    submission = sub.publish(
+        'hle',
+        pull_request=pull_request,
+        operations=submit.upload_operations(tree),
+        description='body',
+        message='hle 2026-08-10',
+    )
+
+    assert len(submission.committed_paths) == 2
+    assert '403 Forbidden' in submission.description_note
+    assert 'describes an earlier run' in submission.description_note
 
 
 # --- what happened to the last pull request -------------------------------

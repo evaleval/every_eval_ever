@@ -323,6 +323,28 @@ def test_a_second_run_reuses_the_remembered_pull_request(tmp_path) -> None:
     # pull request it was just committed to.
     assert hub.files['state/hle.fingerprints'] == 'known-0\n'
     assert hub.files['state/hle.pending'] == 'fingerprint-0\n'
+    # The body now describes this run, not whichever one opened the request.
+    assert [number for number, _ in hub.edited_comments] == [12]
+    body = hub.discussions[0].body
+    assert RAW_PREFIX in body
+    assert '2026-08-10' in body
+
+
+def test_a_stale_description_is_reported_and_not_fatal(tmp_path) -> None:
+    """The records reached the pull request; only its body did not."""
+    hub = FakeHub(
+        {'state/hle.json': json.dumps({'pull_request_number': 12})},
+        discussions=[cron_pr(12)],
+    )
+    hub.edit_comment_error = RuntimeError('403 Forbidden')
+    outcome = make_outcome(tmp_path)
+    write_capture(outcome.raw_dir)
+
+    assert finish(outcome, hub) == 0
+
+    assert hub.files['state/hle.pending'] == 'fingerprint-0\n'
+    report = json.loads(hub.files[f'{RAW_PREFIX}/run.json'])
+    assert any('403 Forbidden' in message for message in report['messages'])
 
 
 def test_a_merged_pull_request_promotes_its_pending_fingerprints() -> None:

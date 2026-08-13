@@ -192,8 +192,15 @@ ours does not hand it our records. Merged or closed means a fresh one is
 opened. If two open pull requests claim the same adapter the run stops rather
 than guessing.
 
-The description is rewritten each run with the coverage line: source rows,
-records produced, dropped, skipped as unchanged, uploaded.
+The description is rewritten after each run that adds records: the run date,
+the status, the coverage line (source rows, records produced, dropped, skipped
+as unchanged, uploaded), the raw snapshot path and the workflow run. A pull
+request stays open across many runs, so a body written when it opened would
+describe whichever run happened to be first. The rewrite carries the
+`eee-cron-adapter` marker like any other body, since that line is what claims
+the pull request for the adapter. A refresh the Hub refuses is reported in the
+run report and the step summary rather than failing the run, because by then
+the records are published.
 
 ## Setup
 

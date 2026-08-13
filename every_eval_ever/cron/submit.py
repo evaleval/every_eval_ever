@@ -70,13 +70,20 @@ def pull_request_title(adapter: str) -> str:
     return f'[Submission] cron: {adapter} (automated ingestion)'
 
 
-def _first_comment(details: Any) -> str:
-    """Return the body a pull request was opened with, if it is readable."""
+def _opening_comment(details: Any) -> Any | None:
+    """Return the comment a pull request was opened with, if it is readable."""
     for event in getattr(details, 'events', None) or ():
         content = getattr(event, 'content', None)
         if isinstance(content, str) and content:
-            return content
-    return ''
+            return event
+    return None
+
+
+def _first_comment(details: Any) -> str:
+    """Return the body a pull request was opened with, if it is readable."""
+    comment = _opening_comment(details)
+    content = getattr(comment, 'content', None) if comment else None
+    return content if isinstance(content, str) else ''
 
 
 @dataclass(frozen=True)
@@ -95,6 +102,9 @@ class Submission:
 
     pull_request: PullRequest
     committed_paths: tuple[str, ...]
+    #: Why the pull request body still describes an earlier run, when it does.
+    #: Not a failure: the records are published either way.
+    description_note: str | None = None
 
 
 def _discussion_number(discussion: Any) -> int | None:
@@ -260,6 +270,55 @@ class DatastoreSubmitter:
                 f'{type(exc).__name__}: {exc}'
             ) from exc
         return marker(adapter) in _first_comment(details)
+
+    def update_description(
+        self, pull_request: PullRequest, description: str
+    ) -> None:
+        """Rewrite a reused pull request's body to describe this run.
+
+        A pull request is opened once and published into for as long as it
+        stays open, so a body written at open time describes whichever run
+        happened to be first. A reviewer opening it a month later reads that
+        run's date, its coverage line and its raw-snapshot path, none of which
+        are true of what is in front of them.
+
+        The rewritten body carries the ``eee-cron-adapter`` marker like any
+        other, since that line is what says which adapter the pull request
+        belongs to and dropping it would orphan it from the next run.
+        """
+        try:
+            details = self.api.get_discussion_details(
+                repo_id=self.repo_id,
+                repo_type='dataset',
+                discussion_num=pull_request.number,
+            )
+        except Exception as exc:  # noqa: BLE001 - re-raised with context
+            raise SubmissionError(
+                f'could not read pull request {pull_request.number} on '
+                f'{self.repo_id} to refresh its description: '
+                f'{type(exc).__name__}: {exc}'
+            ) from exc
+        comment = _opening_comment(details)
+        comment_id = getattr(comment, 'id', None) if comment else None
+        if not comment_id:
+            raise SubmissionError(
+                f'pull request {pull_request.number} on {self.repo_id} has no '
+                'readable opening comment to refresh'
+            )
+        try:
+            self.api.edit_discussion_comment(
+                repo_id=self.repo_id,
+                repo_type='dataset',
+                discussion_num=pull_request.number,
+                comment_id=comment_id,
+                new_content=description,
+            )
+        except Exception as exc:  # noqa: BLE001 - re-raised with context
+            raise SubmissionError(
+                f'could not refresh the description of pull request '
+                f'{pull_request.number} on {self.repo_id}: '
+                f'{type(exc).__name__}: {exc}'
+            ) from exc
 
     def pull_request_status(self, number: int) -> str:
         """Return ``open``, ``merged`` or ``closed`` for a pull request.
@@ -525,12 +584,17 @@ class DatastoreSubmitter:
         Batches are whole records (see :func:`_batches`), so every commit
         either publishes a record completely or not at all.
 
+        A reused pull request has its description rewritten afterwards, so the
+        body a reviewer reads describes the run that last added to it rather
+        than whichever run opened it.
+
         A failure after something landed raises
         :class:`PartialSubmissionError` carrying what did, so the caller can
         record it and retry the remainder instead of publishing it twice.
         """
         batches = _batches(operations, self.batch_size)
         committed: list[str] = []
+        reused = pull_request is not None
         if pull_request is None:
             first = batches[0] if batches else []
             pull_request = self.open_pull_request(
@@ -549,8 +613,20 @@ class DatastoreSubmitter:
             offset=offset,
             total=len(batches) + offset,
         )
+        note = None
+        if reused:
+            # After the records, not before: a body describing an upload that
+            # then failed is worse than one describing last week's.
+            try:
+                self.update_description(pull_request, description)
+            except SubmissionError as exc:
+                # The records are in. A stale body is worth reporting and not
+                # worth failing a run that published everything it meant to.
+                note = f'{exc}; the body still describes an earlier run'
         return Submission(
-            pull_request=pull_request, committed_paths=tuple(committed)
+            pull_request=pull_request,
+            committed_paths=tuple(committed),
+            description_note=note,
         )
 
 
@@ -629,6 +705,9 @@ def pull_request_description(
     """Compose the body a reviewer reads, including the machine marker."""
     lines = [
         f'Automated daily ingestion for the `{adapter}` adapter.',
+        '',
+        'Records accumulate here across runs. The figures below describe the '
+        'run that last added to this pull request.',
         '',
         f'- **Run date**: {run_date}',
         f'- **Status**: {status}',
