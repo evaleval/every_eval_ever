@@ -875,7 +875,7 @@ def test_opening_a_pull_request_returns_its_number_and_ref(tmp_path) -> None:
     upload.mkdir(parents=True)
     (upload / 'a.json').write_text('{}', encoding='utf-8')
 
-    opened = sub.open_pull_request(
+    opened, is_new = sub.open_pull_request(
         'hle',
         operations=submit.upload_operations(tmp_path / 'upload'),
         description=submit.pull_request_description(
@@ -886,6 +886,7 @@ def test_opening_a_pull_request_returns_its_number_and_ref(tmp_path) -> None:
         ),
     )
 
+    assert is_new
     assert opened.number == 42
     assert opened.revision == 'refs/pr/42'
     assert hub.commits[0]['create_pr'] is True
@@ -1111,6 +1112,111 @@ def test_an_unanswerable_reconciliation_claims_nothing(tmp_path) -> None:
 
     assert len(caught.value.committed_paths) == 3
     assert 'inspect https://x/12 before re-running' in str(caught.value)
+
+
+def test_an_opening_commit_that_landed_despite_the_error_is_adopted(
+    tmp_path,
+) -> None:
+    """The Hub can accept the commit and lose the reply on the way back.
+
+    Opening a second pull request on the next run would put the same records
+    up twice, under fresh UUID paths, with nothing saying which copy to keep.
+    """
+    tree = _upload_tree(tmp_path, 5)
+    hub = FakeHub(discussions=[cron_pr(12)])
+    sub = submit.DatastoreSubmitter(hub, batch_size=2)
+    operations = submit.upload_operations(tree)
+    # The first batch is on the pull request; the reply never arrived.
+    for operation in _batch_paths(operations, 2)[0]:
+        hub.files[operation] = '{}'
+
+    def time_out_the_open(**kwargs):
+        if kwargs.get('create_pr'):
+            raise RuntimeError('504 Gateway Timeout')
+        return FakeHub.create_commit(hub, **kwargs)
+
+    hub.create_commit = time_out_the_open
+
+    submission = sub.publish(
+        'hle',
+        pull_request=None,
+        operations=operations,
+        description='body',
+        message='hle 2026-08-10',
+    )
+
+    assert submission.pull_request.number == 12
+    # Its own batch counted once, and the rest sent to the adopted request.
+    assert len(submission.committed_paths) == 5
+    assert all(
+        commit['revision'] == 'refs/pr/12'
+        for commit in hub.commits
+        if 'revision' in commit
+    )
+
+
+def test_an_opening_commit_that_did_not_land_still_fails(tmp_path) -> None:
+    tree = _upload_tree(tmp_path, 3)
+    hub = FakeHub()
+    hub.create_commit = _raise(RuntimeError('504 Gateway Timeout'))
+    sub = submit.DatastoreSubmitter(hub, batch_size=2)
+
+    with pytest.raises(submit.SubmissionError, match='could not open'):
+        sub.publish(
+            'hle',
+            pull_request=None,
+            operations=submit.upload_operations(tree),
+            description='body',
+            message='hle 2026-08-10',
+        )
+
+
+def test_an_adopted_request_whose_ref_is_unreadable_is_reported(
+    tmp_path,
+) -> None:
+    """Neither answer is safe to assume, so the number is recorded and the
+    run stops rather than guessing at what is on the pull request."""
+    tree = _upload_tree(tmp_path, 3)
+    hub = FakeHub(discussions=[cron_pr(12)])
+    hub.list_files_error = ConnectionError('network is unreachable')
+    sub = submit.DatastoreSubmitter(hub, batch_size=2)
+    hub.create_commit = _raise(RuntimeError('504 Gateway Timeout'))
+
+    with pytest.raises(submit.PartialSubmissionError) as caught:
+        sub.publish(
+            'hle',
+            pull_request=None,
+            operations=submit.upload_operations(tree),
+            description='body',
+            message='hle 2026-08-10',
+        )
+
+    assert caught.value.pull_request.number == 12
+    assert caught.value.committed_paths == ()
+    assert 'inspect it before re-running' in str(caught.value)
+
+
+def test_two_requests_claiming_one_adapter_stop_an_adoption(tmp_path) -> None:
+    tree = _upload_tree(tmp_path, 3)
+    hub = FakeHub(discussions=[cron_pr(12), cron_pr(13)])
+    hub.create_commit = _raise(RuntimeError('504 Gateway Timeout'))
+    sub = submit.DatastoreSubmitter(hub, batch_size=2)
+
+    with pytest.raises(submit.AmbiguousPullRequestError):
+        sub.publish(
+            'hle',
+            pull_request=None,
+            operations=submit.upload_operations(tree),
+            description='body',
+            message='hle 2026-08-10',
+        )
+
+
+def _batch_paths(operations, size: int) -> list[list[str]]:
+    return [
+        [operation.path_in_repo for operation in batch]
+        for batch in submit._batches(operations, size)
+    ]
 
 
 # --- the description describes the latest run -----------------------------

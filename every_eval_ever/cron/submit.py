@@ -431,8 +431,21 @@ class DatastoreSubmitter:
         *,
         operations: Sequence[CommitOperationAdd],
         description: str,
-    ) -> PullRequest:
-        """Open this adapter's pull request with its first batch of records."""
+    ) -> tuple[PullRequest, bool]:
+        """Open this adapter's pull request with its first batch of records.
+
+        Returns the pull request and whether this call is what created it. A
+        ``create_commit`` can time out after the Hub accepted it, and the call
+        that opens a pull request is the one where that matters most: the
+        number is reported in the reply nobody received, so the run fails
+        knowing nothing, and the next run opens a second pull request holding
+        the same records.
+
+        So a failure here asks the Hub whether the pull request exists after
+        all, by the same account-plus-marker rule used everywhere else. Finding
+        it means the commit landed and this call simply lost the answer.
+        Finding nothing means it did not, which is the error it always was.
+        """
         try:
             commit = self.api.create_commit(
                 repo_id=self.repo_id,
@@ -443,6 +456,9 @@ class DatastoreSubmitter:
                 create_pr=True,
             )
         except Exception as exc:  # noqa: BLE001 - re-raised with context
+            landed = self._opened_despite(adapter)
+            if landed is not None:
+                return landed, False
             raise SubmissionError(
                 f'could not open a pull request on {self.repo_id}: '
                 f'{type(exc).__name__}: {exc}'
@@ -456,19 +472,44 @@ class DatastoreSubmitter:
             except ValueError:
                 number = None
         if number is None:
+            landed = self._opened_despite(adapter)
+            if landed is not None:
+                return landed, True
             raise SubmissionError(
                 'the Hub accepted the commit but did not report a pull '
                 'request number; check the repository before re-running so '
                 'a second pull request is not opened'
             )
         revision = getattr(commit, 'pr_revision', None) or f'refs/pr/{number}'
-        return PullRequest(
-            number=number,
-            url=url
-            or f'https://huggingface.co/datasets/{self.repo_id}/discussions/{number}',
-            revision=revision,
-            title=pull_request_title(adapter),
+        return (
+            PullRequest(
+                number=number,
+                url=url
+                or f'https://huggingface.co/datasets/{self.repo_id}/discussions/{number}',
+                revision=revision,
+                title=pull_request_title(adapter),
+            ),
+            True,
         )
+
+    def _opened_despite(self, adapter: str) -> PullRequest | None:
+        """Return this adapter's pull request if one exists after a failure.
+
+        Answering "did the commit land" by looking for what it would have
+        created. Only pull requests this account opened carrying this
+        adapter's marker count, the same rule that governs reuse anywhere
+        else, so nothing is adopted that the cron did not open.
+
+        A lookup that itself fails answers nothing, and the caller reports the
+        original failure. The pull request, if there is one, is found by the
+        next run instead.
+        """
+        try:
+            return self.find_by_marker(adapter)
+        except AmbiguousPullRequestError:
+            raise
+        except SubmissionError:
+            return None
 
     def upload(
         self,
@@ -588,6 +629,10 @@ class DatastoreSubmitter:
         body a reviewer reads describes the run that last added to it rather
         than whichever run opened it.
 
+        An opening commit that errored after landing is adopted rather than
+        repeated, and what it left on the ref decides whether its batch counts
+        as published.
+
         A failure after something landed raises
         :class:`PartialSubmissionError` carrying what did, so the caller can
         record it and retry the remainder instead of publishing it twice.
@@ -595,16 +640,39 @@ class DatastoreSubmitter:
         batches = _batches(operations, self.batch_size)
         committed: list[str] = []
         reused = pull_request is not None
+        offset = 0
         if pull_request is None:
             first = batches[0] if batches else []
-            pull_request = self.open_pull_request(
+            pull_request, opened = self.open_pull_request(
                 adapter, operations=first, description=description
             )
-            committed.extend(operation.path_in_repo for operation in first)
             batches = batches[1:]
             offset = 1
-        else:
-            offset = 0
+            if opened:
+                committed.extend(operation.path_in_repo for operation in first)
+            else:
+                # The pull request exists, so the commit that created it
+                # landed and this run only lost the reply. Its files are on
+                # the ref or they are not; either answer is better than
+                # assuming, because assuming they landed loses records and
+                # assuming they did not duplicates them.
+                landed = self._paths_on_ref(pull_request, first)
+                if landed is None:
+                    raise PartialSubmissionError(
+                        f'a pull request for {adapter} was opened at '
+                        f'{pull_request.url} but the error hid its reply, and '
+                        'whether its first batch landed could not be checked; '
+                        'inspect it before re-running',
+                        pull_request=pull_request,
+                        committed_paths=(),
+                    )
+                if landed:
+                    committed.extend(landed)
+                else:
+                    # An empty pull request from an earlier interrupted run.
+                    # Send this batch into it rather than opening another.
+                    batches = [first, *batches]
+                    offset = 0
         self._upload_batches(
             pull_request,
             batches=batches,

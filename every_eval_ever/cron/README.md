@@ -192,6 +192,16 @@ ours does not hand it our records. Merged or closed means a fresh one is
 opened. If two open pull requests claim the same adapter the run stops rather
 than guessing.
 
+The same two checks answer the awkward case where the commit that opens a
+pull request errors after the Hub accepted it. The number is in the reply that
+never arrived, so the run would otherwise fail knowing nothing and the next
+run would open a second pull request holding the same records. Instead the
+lookup runs again: a marked pull request from this account means the commit
+landed, and this run adopts it and carries on with the remaining batches.
+Whether its first batch is on the ref decides whether those records count as
+published, and a ref that cannot be read stops the run with the number
+recorded, since inspecting one pull request beats duplicating a batch.
+
 The description is rewritten after each run that adds records: the run date,
 the status, the coverage line (source rows, records produced, dropped, skipped
 as unchanged, uploaded), the raw snapshot path and the workflow run. A pull
