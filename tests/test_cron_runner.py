@@ -356,7 +356,7 @@ def test_a_pointer_with_no_resolved_commit_stops_the_run(pipeline) -> None:
     is the state a record cannot be checked against later.
     """
     outcome = pipeline(
-        {f'demo-org\\demo-model\\{UUID_A}.json': record_without_samples()},
+        {f'demo-org/demo-model/{UUID_A}.json': record_without_samples()},
         pointers=[
             {'reference': 'some/dataset', 'note': 'commit not resolved: 500'}
         ],
@@ -373,7 +373,7 @@ def test_a_pointer_at_a_resolved_commit_does_not_block_the_run(
     pipeline,
 ) -> None:
     outcome = pipeline(
-        {f'demo-org\\demo-model\\{UUID_A}.json': record_without_samples()},
+        {f'demo-org/demo-model/{UUID_A}.json': record_without_samples()},
         pointers=[{'reference': 'some/dataset', 'revision': 'a' * 40}],
     )
 
