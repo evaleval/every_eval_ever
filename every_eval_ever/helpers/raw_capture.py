@@ -10,7 +10,9 @@ bytes we would otherwise lose (a leaderboard JSON, a scraped HTML page, a CSV
 export), stored content-addressed as ``<sha256><ext>``. A ``pointer`` entry
 names something already durably hosted and addressable at a revision (a
 Hugging Face dataset, a git commit); a second copy of a pinned HF dataset buys
-nothing, so only the reference and its resolved revision are recorded.
+nothing, so only the reference and its resolved revision are recorded. The
+revision is what makes that trade sound, so a pointer whose commit will not
+resolve is dropped rather than written without one.
 
 Capture is off unless a sink is active, so adapters behave identically when
 run by hand. Automation activates one by setting :data:`CAPTURE_DIR_ENV`.
@@ -119,6 +121,22 @@ class RawSink:
         if label:
             entry['label'] = label
 
+        stored = self._seen.get(digest)
+        if stored is not None:
+            # Same bytes, already stored. Keep the line so the manifest still
+            # records that this URL served them, but point it at the name the
+            # bytes were written under. The same payload served as JSON and
+            # again as HTML would otherwise name a .html file nobody wrote.
+            #
+            # Asked before the caps, because storing this costs nothing: the
+            # file is already on disk and its bytes are already counted. Below
+            # the caps the ordering was invisible; at them it decided whether
+            # a run went red for keeping a byte it had kept an hour earlier.
+            entry['path'] = stored
+            entry['duplicate'] = True
+            self._append(entry)
+            return digest
+
         if len(content) > self.max_payload_bytes:
             return self._drop(
                 entry, f'payload exceeds {self.max_payload_bytes} bytes'
@@ -127,17 +145,6 @@ class RawSink:
             return self._drop(
                 entry, f'run exceeds {self.max_total_bytes} bytes of raw data'
             )
-
-        stored = self._seen.get(digest)
-        if stored is not None:
-            # Same bytes, already stored. Keep the line so the manifest still
-            # records that this URL served them, but point it at the name the
-            # bytes were written under. The same payload served as JSON and
-            # again as HTML would otherwise name a .html file nobody wrote.
-            entry['path'] = stored
-            entry['duplicate'] = True
-            self._append(entry)
-            return digest
 
         name = f'{digest}{extension_for(content_type)}'
         entry['path'] = name
@@ -164,12 +171,20 @@ class RawSink:
         url: str | None = None,
         label: str | None = None,
         note: str | None = None,
+        revision_required: bool = False,
     ) -> None:
         """Record a source that is already durably hosted at a revision.
 
         Use this instead of :meth:`record` for Hugging Face datasets and git
         repositories: re-downloading and re-storing content that is already
         addressable at a commit costs bandwidth and storage and adds nothing.
+
+        That bargain only holds while the revision is known. A pointer with no
+        commit behind it names a moving target, so ``revision_required``
+        callers drop the entry instead of writing one, and the run fails the
+        same way it does for payload bytes nobody kept. The alternative is a
+        record whose source says "this dataset, at whatever it said that
+        night", which cannot be checked against anything later.
         """
         entry: dict[str, Any] = {
             'kind': 'pointer',
@@ -184,6 +199,12 @@ class RawSink:
             entry['label'] = label
         if note:
             entry['note'] = note
+        if revision_required and not revision:
+            reason = 'no source revision resolved'
+            if note:
+                reason = f'{reason} ({note})'
+            self._drop(entry, reason)
+            return
         self._append(entry)
 
     def entries(self) -> list[dict[str, Any]]:
@@ -319,6 +340,7 @@ def record_pointer(
     url: str | None = None,
     label: str | None = None,
     note: str | None = None,
+    revision_required: bool = False,
 ) -> None:
     """Record a durable source reference if capture is on."""
     sink = active_sink()
@@ -331,6 +353,7 @@ def record_pointer(
         url=url,
         label=label,
         note=note,
+        revision_required=revision_required,
     )
 
 
@@ -343,23 +366,29 @@ def record_hf_dataset(
     """Record a Hugging Face dataset source at its resolved commit.
 
     Resolving the commit is what turns "we read this dataset" into something
-    re-derivable, so it is attempted; a failure downgrades the entry to the
-    requested revision rather than failing the adapter. Nothing is downloaded
-    and no request is made when capture is off.
+    re-derivable, so a lookup that fails drops the entry rather than writing
+    the requested revision instead. ``main`` in a manifest reads as an answer
+    while naming whatever that branch points at today, which is the one thing
+    a pointer must never do. The adapter still finishes; the run does not
+    publish. Nothing is downloaded and no request is made when capture is off.
     """
     sink = active_sink()
     if sink is None:
         return
 
-    resolved = revision
+    resolved = None
     note = None
     try:
         from huggingface_hub import HfApi
 
         info = HfApi().dataset_info(repo_id, revision=revision)
-        resolved = getattr(info, 'sha', None) or revision
+        resolved = getattr(info, 'sha', None)
+        if not resolved:
+            note = 'the Hub returned no commit for this dataset'
     except Exception as exc:  # noqa: BLE001 - provenance must not break a run
         note = f'commit not resolved: {type(exc).__name__}: {exc}'
+    if note and revision:
+        note = f'{note}; requested {revision}'
 
     sink.record_pointer(
         kind='hf_dataset',
@@ -368,6 +397,7 @@ def record_hf_dataset(
         url=f'https://huggingface.co/datasets/{repo_id}',
         label=label,
         note=note,
+        revision_required=True,
     )
 
 
@@ -378,7 +408,12 @@ def record_git_checkout(
     ref: str | None = None,
     label: str | None = None,
 ) -> None:
-    """Record the exact commit a cloned working copy is sitting on."""
+    """Record the exact commit a cloned working copy is sitting on.
+
+    A checkout whose commit cannot be read is not evidence of anything, so it
+    is dropped for the same reason a dataset with no resolved commit is: the
+    records converted from it would name a source nobody can return to.
+    """
     sink = active_sink()
     if sink is None:
         return
@@ -408,6 +443,7 @@ def record_git_checkout(
         url=repo_url,
         label=label,
         note=note,
+        revision_required=True,
     )
 
 

@@ -619,7 +619,12 @@ def capture_problems(raw_dir: Path) -> list[str]:
             problems.append(f'unreadable capture manifest line: {line[:200]}')
             continue
         if isinstance(entry, dict) and entry.get('kind') == 'dropped':
-            source = entry.get('url') or entry.get('label') or 'unnamed source'
+            source = (
+                entry.get('url')
+                or entry.get('reference')
+                or entry.get('label')
+                or 'unnamed source'
+            )
             problems.append(f'{source}: {entry.get("reason", "not stored")}')
     return problems
 

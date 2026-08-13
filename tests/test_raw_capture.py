@@ -224,6 +224,38 @@ def test_a_run_stops_capturing_once_it_hits_the_total_cap(
     assert sink.degraded
 
 
+def test_bytes_already_stored_are_kept_even_at_the_total_cap(
+    tmp_path: Path,
+) -> None:
+    """A second sighting of stored bytes costs no storage, so no cap applies.
+
+    Dropping it would fail the run over a payload the run already has.
+    """
+    sink = raw_capture.activate(tmp_path, max_total_bytes=5)
+
+    assert raw_capture.record(url='https://a', content=b'12345')
+    assert raw_capture.record(url='https://b', content=b'12345')
+
+    recorded = entries(sink)
+    assert [entry['kind'] for entry in recorded] == ['payload', 'payload']
+    assert recorded[1]['duplicate'] is True
+    assert recorded[1]['path'] == recorded[0]['path']
+    assert sink.total_bytes == 5
+    assert not sink.degraded
+
+
+def test_unseen_bytes_at_the_total_cap_are_still_dropped(
+    tmp_path: Path,
+) -> None:
+    sink = raw_capture.activate(tmp_path, max_total_bytes=5)
+
+    assert raw_capture.record(url='https://a', content=b'12345')
+    assert raw_capture.record(url='https://b', content=b'different') is None
+
+    assert [entry['kind'] for entry in entries(sink)] == ['payload', 'dropped']
+    assert sink.degraded
+
+
 def test_pointer_records_a_reference_without_bytes(tmp_path: Path) -> None:
     sink = raw_capture.activate(tmp_path)
 
@@ -258,9 +290,10 @@ def test_pointer_helpers_do_nothing_when_capture_is_off(monkeypatch) -> None:
     raw_capture.record_pointer(kind='git', reference='https://example.com')
 
 
-def test_hf_pointer_degrades_to_a_note_when_the_commit_will_not_resolve(
+def test_an_hf_pointer_whose_commit_will_not_resolve_is_dropped(
     tmp_path, monkeypatch
 ) -> None:
+    """Recording the requested revision instead would name a moving target."""
     sink = raw_capture.activate(tmp_path)
 
     def explode(*args, **kwargs):
@@ -271,9 +304,54 @@ def test_hf_pointer_degrades_to_a_note_when_the_commit_will_not_resolve(
     raw_capture.record_hf_dataset('some/dataset', revision='main')
 
     entry = entries(sink)[0]
+    assert entry['kind'] == 'dropped'
     assert entry['reference'] == 'some/dataset'
-    assert entry['revision'] == 'main'
+    assert 'revision' not in entry
     assert 'offline' in entry['note']
+    assert 'requested main' in entry['note']
+    assert sink.degraded
+
+
+def test_an_hf_pointer_the_hub_gives_no_commit_for_is_dropped(
+    tmp_path, monkeypatch
+) -> None:
+    sink = raw_capture.activate(tmp_path)
+
+    class _NoSha:
+        sha = None
+
+    monkeypatch.setattr(
+        'huggingface_hub.HfApi.dataset_info',
+        lambda *args, **kwargs: _NoSha(),
+    )
+
+    raw_capture.record_hf_dataset('some/dataset')
+
+    entry = entries(sink)[0]
+    assert entry['kind'] == 'dropped'
+    assert 'no commit' in entry['note']
+    assert sink.degraded
+
+
+def test_a_resolved_hf_commit_is_recorded_as_a_pointer(
+    tmp_path, monkeypatch
+) -> None:
+    sink = raw_capture.activate(tmp_path)
+
+    class _Info:
+        sha = 'a' * 40
+
+    monkeypatch.setattr(
+        'huggingface_hub.HfApi.dataset_info',
+        lambda *args, **kwargs: _Info(),
+    )
+
+    raw_capture.record_hf_dataset('some/dataset', revision='main')
+
+    entry = entries(sink)[0]
+    assert entry['kind'] == 'pointer'
+    assert entry['revision'] == 'a' * 40
+    assert not sink.degraded
 
 
 def test_git_pointer_records_the_checked_out_commit(tmp_path) -> None:
@@ -302,7 +380,7 @@ def test_git_pointer_records_the_checked_out_commit(tmp_path) -> None:
     assert entry['note'] == 'ref=submission'
 
 
-def test_git_pointer_degrades_outside_a_repository(tmp_path) -> None:
+def test_a_git_pointer_outside_a_repository_is_dropped(tmp_path) -> None:
     sink = raw_capture.activate(tmp_path / 'raw')
 
     raw_capture.record_git_checkout(
@@ -310,8 +388,10 @@ def test_git_pointer_degrades_outside_a_repository(tmp_path) -> None:
     )
 
     entry = entries(sink)[0]
+    assert entry['kind'] == 'dropped'
     assert entry.get('revision') is None
     assert 'commit not resolved' in entry['note']
+    assert sink.degraded
 
 
 def test_an_unwritable_sink_degrades_instead_of_raising(tmp_path) -> None:

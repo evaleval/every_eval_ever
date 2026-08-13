@@ -68,6 +68,16 @@ def main(argv=None):
             content=b'x' * capture['bytes'],
             content_type='application/json',
         )
+    for pointer in BEHAVIOUR.get('pointers', []):
+        from every_eval_ever.helpers import raw_capture
+
+        raw_capture.record_pointer(
+            kind='hf_dataset',
+            reference=pointer['reference'],
+            revision=pointer.get('revision'),
+            note=pointer.get('note'),
+            revision_required=True,
+        )
     for name, encoded in FILES.items():
         target = args.output_dir / name
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -145,6 +155,25 @@ def encode(value: dict | bytes | str) -> str:
     return base64.b64encode(raw).decode('ascii')
 
 
+def stand_in_env(tmp_path, extra: dict | None = None) -> dict[str, str]:
+    """The environment the stand-in adapter needs to import and run.
+
+    The real runner hands a subprocess the whole environment; these tests hand
+    it an otherwise empty one, so the few variables the interpreter cannot
+    start without have to be named. Importing this package pulls in asyncio,
+    whose Windows selector needs SystemRoot to load winsock.
+    """
+    return {
+        'PYTHONPATH': str(tmp_path),
+        **{
+            name: value
+            for name in ('SYSTEMROOT', 'SystemRoot')
+            if (value := os.environ.get(name))
+        },
+        **(extra or {}),
+    }
+
+
 @pytest.fixture
 def pipeline(tmp_path, monkeypatch):
     """Return ``pipeline(files, **behaviour)`` -> :class:`runner.RunOutcome`.
@@ -188,19 +217,7 @@ def pipeline(tmp_path, monkeypatch):
             spec,
             tmp_path / f'work{runs}',
             run_date=RUN_DATE,
-            base_env={
-                'PYTHONPATH': str(tmp_path),
-                # Importing this package pulls in asyncio, whose Windows
-                # selector needs SystemRoot to load winsock. The real runner
-                # passes the whole environment; only these tests hand the
-                # subprocess an otherwise empty one.
-                **{
-                    name: value
-                    for name in ('SYSTEMROOT', 'SystemRoot')
-                    if (value := os.environ.get(name))
-                },
-                **(env or {}),
-            },
+            base_env=stand_in_env(tmp_path, env),
             **(run_kwargs or {}),
         )
 
@@ -326,6 +343,38 @@ def test_a_snapshot_that_was_stored_does_not_block_the_run(pipeline) -> None:
     outcome = pipeline(
         {f'demo-org/demo-model/{UUID_A}.json': record_without_samples()},
         captures=[{'url': 'https://example/board.json', 'bytes': 16}],
+    )
+
+    assert outcome.status == 'completed', outcome.messages
+    assert outcome.has_upload
+
+
+def test_a_pointer_with_no_resolved_commit_stops_the_run(pipeline) -> None:
+    """A pointer is a promise that the source can be fetched again.
+
+    Without a commit it names whatever the reference points at tonight, which
+    is the state a record cannot be checked against later.
+    """
+    outcome = pipeline(
+        {f'demo-org\\demo-model\\{UUID_A}.json': record_without_samples()},
+        pointers=[
+            {'reference': 'some/dataset', 'note': 'commit not resolved: 500'}
+        ],
+    )
+
+    assert outcome.status == 'failed'
+    assert not outcome.ok
+    assert outcome.uploaded == []
+    assert any('raw source capture failed' in m for m in outcome.messages)
+    assert any('some/dataset' in m for m in outcome.messages)
+
+
+def test_a_pointer_at_a_resolved_commit_does_not_block_the_run(
+    pipeline,
+) -> None:
+    outcome = pipeline(
+        {f'demo-org\\demo-model\\{UUID_A}.json': record_without_samples()},
+        pointers=[{'reference': 'some/dataset', 'revision': 'a' * 40}],
     )
 
     assert outcome.status == 'completed', outcome.messages
@@ -710,7 +759,7 @@ def test_an_adapter_that_forbids_partial_runs_publishes_nothing(
         spec,
         tmp_path / 'strict',
         run_date=RUN_DATE,
-        base_env={'PYTHONPATH': str(tmp_path)},
+        base_env=stand_in_env(tmp_path),
     )
 
     assert strict.status == 'failed'
