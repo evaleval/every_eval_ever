@@ -70,6 +70,9 @@ UNCHANGED_MARKER = 'same_as'
 #: How many times a state commit re-reads the head and tries again when
 #: another adapter's job moved the branch first.
 COMMIT_ATTEMPTS = 5
+#: :attr:`InflightBatch.destination` for records committed straight to the
+#: datastore's default branch.
+DIRECT_DESTINATION = 'datastore'
 
 
 class StoreError(RuntimeError):
@@ -162,22 +165,28 @@ class InflightBatch:
 
     Written in the same commit as the raw snapshot, ahead of the datastore
     upload, and emptied by the commit that records the run, except for
-    records whose batch errored while the pull request was unreadable: those
+    records whose batch errored while the datastore was unreadable: those
     stay in flight, since whether they landed is exactly the question this
     file exists to answer. Finding a non-empty one at the start of a run
     means a previous run uploaded records, or may have, without recording
-    them, so they are on the pull request with no fingerprint naming them.
+    them, so they are in the datastore with no fingerprint naming them.
 
-    Each record is its fingerprint and every datastore path it consists of, so
-    the next run can ask the pull request which of them arrived rather than
+    Each record is its fingerprint and every datastore path it consists of,
+    so the next run can ask the datastore which of them arrived rather than
     assuming all or none did.
     """
 
     adapter: str
     run_date: str | None = None
     run_token: str | None = None
-    #: The pull request the records were headed for, when one was known
-    #: already. ``None`` on a cold start, where the upload itself opens it.
+    #: Where the records were headed. :data:`DIRECT_DESTINATION` means the
+    #: datastore's default branch, which is where every run now publishes.
+    #: ``None`` is a file written by the retired pull-request flow: its
+    #: records were headed for :attr:`pull_request_number`, or for a pull
+    #: request the upload itself was to open.
+    destination: str | None = None
+    #: The pull request the records were headed for, when the flow that
+    #: wrote the file used one and knew its number already.
     pull_request_number: int | None = None
     records: list[dict[str, Any]] = field(default_factory=list)
 
@@ -188,6 +197,7 @@ class InflightBatch:
                     'adapter': self.adapter,
                     'run_date': self.run_date,
                     'run_token': self.run_token,
+                    'destination': self.destination,
                     'pull_request_number': self.pull_request_number,
                     'records': [
                         {
@@ -454,6 +464,7 @@ class RawStore:
             )
         batch.run_date = payload.get('run_date')
         batch.run_token = payload.get('run_token')
+        batch.destination = payload.get('destination')
         batch.pull_request_number = payload.get('pull_request_number')
         for record in payload.get('records') or ():
             fingerprint = (record or {}).get('fingerprint')
@@ -668,6 +679,7 @@ def state_operations(state: AdapterState) -> list[CommitOperationAdd]:
 __all__ = [
     'COMMIT_ATTEMPTS',
     'DEFAULT_RAW_REPO',
+    'DIRECT_DESTINATION',
     'MANIFEST_NAME',
     'RAW_DIR',
     'RUN_REPORT_NAME',

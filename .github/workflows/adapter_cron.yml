@@ -1,14 +1,14 @@
 # Daily adapter ingestion.
 #
-# One isolated job per adapter, and one datastore pull request per adapter.
-# Which adapters run on a given day comes from
+# One isolated job per adapter, each committing what passed validation
+# straight to the datastore. Which adapters run on a given day comes from
 # every_eval_ever/adapters/catalog.py via `cron plan`, not from this file, so
 # adding an adapter to the schedule is a catalog change with a test behind it.
 #
 # Setup this workflow needs, once:
 #   - a `cron` environment holding `HF_TOKEN`, with write access to the raw
 #     store (or permission to create it, which the first run does, private)
-#     and permission to open pull requests on the datastore;
+#     and write access to the datastore;
 #   - optional per-adapter credentials as secrets (see `cron list`);
 #   - optional `EEE_DATASTORE_REPO_ID` / `EEE_RAW_REPO_ID` repository
 #     variables to point a rehearsal run at throwaway repositories.

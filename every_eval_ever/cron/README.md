@@ -1,7 +1,7 @@
 # Scheduled adapter ingestion
 
-A daily GitHub Actions run that refreshes one adapter at a time and sends each
-adapter's records to its own Hugging Face pull request on the datastore.
+A daily GitHub Actions run that refreshes one adapter at a time and commits
+each adapter's validated records straight to the datastore.
 
 ```bash
 uv run python -m every_eval_ever.cron list          # every adapter and its schedule
@@ -24,12 +24,12 @@ provenance  mark survivors: type_of_addition=cron, run date, adapter, run URL,
    ↓
 store     snapshot the raw source and update this adapter's ledger
    ↓
-submit    upload into this adapter's own datastore pull request
+submit    commit to the datastore, one commit series per run
 ```
 
 Nothing is shared between adapters. Each run stages into its own temporary
 directory and uploads only what it validated, so one adapter's failure cannot
-reach another adapter's pull request.
+reach another adapter's records.
 
 ## Outcomes
 
@@ -83,13 +83,15 @@ naming different sample files are two records, and `check-duplicates` has to
 keep seeing that.
 
 Fingerprints are kept in two files with different meanings, and both are
-skipped on later runs. `state/<adapter>.pending` holds records committed to
-the adapter's open pull request; `state/<adapter>.fingerprints` holds records
-whose pull request was merged. Before each run the pending set is settled
-against that pull request's fate: merged promotes it into the durable ledger,
-closed-without-merging drops it, so records a reviewer turned down are
-resubmitted in a fresh pull request instead of being filtered out of every
-later run by fingerprints for data the datastore never accepted.
+skipped on later runs. `state/<adapter>.fingerprints` holds records that are
+in the datastore; a record's fingerprint joins it the moment its commit
+lands. `state/<adapter>.pending` holds records the retired pull-request flow
+committed to an adapter's open pull request before runs published directly;
+new runs write nothing to it. While any remain, each run settles them against
+that pull request's fate: merged promotes them into the durable ledger,
+closed-without-merging drops them so the records are resubmitted instead of
+being filtered out of every later run by fingerprints for data the datastore
+never accepted.
 
 Skipping is reversible and audited: every skipped record's model id and
 fingerprint is listed in that run's `run.json`. To republish everything once,
@@ -153,18 +155,17 @@ depend on.
 evaleval/EEE_raw   (private dataset, main)
   raw/<adapter>/<date>/<run>/<sha256><ext>    payload bytes
   raw/<adapter>/<date>/<run>/manifest.jsonl   one line per capture
-  raw/<adapter>/<date>/<run>/run.json         outcome, coverage, PR link
-  state/<adapter>.json                        PR number, last run, last status
-  state/<adapter>.fingerprints                one sha256 per merged record
-  state/<adapter>.pending                     one sha256 per record still
-                                              waiting on its pull request
+  raw/<adapter>/<date>/<run>/run.json         outcome, coverage, records committed
+  state/<adapter>.json                        last run, last status
+  state/<adapter>.fingerprints                one sha256 per published record
+  state/<adapter>.pending                     one sha256 per record the retired
+                                              flow left waiting on a pull request
   state/<adapter>.inflight                    records this run is about to
                                               publish, written before it does
 ```
 
-`<adapter>` is the catalog key, which is also the job name and the name on the
-adapter's datastore pull request. Nothing has ever been published here, so the
-first run that does is the one that sets this in stone.
+`<adapter>` is the catalog key, which is also the job name and the name in the
+datastore commit messages.
 
 `<date>` is the UTC run date and `<run>` names the run within it:
 `run-<workflow run id>-<attempt>` under Actions, `local-<HHMMSS>` otherwise,
@@ -183,71 +184,57 @@ collide loudly instead of one silently overwriting the other.
 The first carries the raw snapshot and `state/<adapter>.inflight`: the
 fingerprint and datastore paths of every record this run is about to publish.
 The second carries the run report, the ledger and an emptied in-flight file,
-with one exception: records whose batch errored while the pull request was
+with one exception: records whose batch errored while the datastore was
 unreadable stay in flight, because whether they landed is exactly the question
 the file exists to answer, and the next run settles it. Publishing is the one
 step a re-run cannot undo, so it happens between the two commits rather than
 before both. A run that uploads records and then fails to write
 its ledger, because the job was cancelled or the raw store was briefly
-unreachable, would otherwise leave them on the pull request with nothing
+unreachable, would otherwise leave them in the datastore with nothing
 naming them, and the next run would publish the same evaluations again under
 fresh UUID paths.
 
 A non-empty in-flight file at the start of a run is exactly that case. Each
-record it names is checked against the pull request it was headed for (against
-the datastore itself if that pull request has since merged): the ones that
-arrived are recorded, the ones that did not are published again, and a pull
-request closed without merging in the meantime forgets them. A check the Hub
-cannot answer stops the run, since one wrong guess buries records and the
-other duplicates them. Settling the same file twice settles it the same way,
-so a run that dies before its own commit costs nothing.
+record it names is checked against where it was headed — the datastore, or
+for a file the retired pull-request flow wrote, the pull request it was
+publishing into: the ones that arrived are recorded, the ones that did not
+are published again. A check the Hub cannot answer stops the run, since one
+wrong guess buries records and the other duplicates them. Settling the same
+file twice settles it the same way, so a run that dies before its own commit
+costs nothing.
 
-## The pull request
+## Publishing
 
-One per adapter, titled `[Submission] cron: <adapter> (automated ingestion)`,
-with `eee-cron-adapter: <adapter>` in the body.
+Records go straight to the datastore's default branch: one commit series per
+adapter run, batched at 300 files per commit so a single giant commit cannot
+time out ambiguously, and batches never split a record across two commits, so
+each commit publishes whole records or none of them. The review that used to
+happen on a pull request happens before publication instead — the packaged
+validator must pass with no warnings, the ledger drops records already
+published, and every record carries `type_of_addition: cron` with its run's
+date, adapter and workflow URL — so a human reviewing after the fact can find
+and correct any batch. Each commit's message is
+`cron: <adapter> <date> (<n> record(s))` and its description carries what the
+pull request body used to: run date, status, coverage line, raw snapshot path
+and workflow run.
 
-Two things identify it, and neither is the title. Only pull requests opened by
-the account the token resolves to are candidates at all. The datastore is
-public, so anyone can open one carrying our marker, and adopting it would
-commit records onto a branch and a description a stranger controls. Among
-those, the body marker says which adapter it belongs to. The number is
-remembered in the ledger, and both it and any cold-start lookup are confirmed
-against both checks before anything is uploaded.
+A commit that errors after the Hub accepted it is adopted rather than
+repeated: the datastore's file listing arbitrates, a batch proven present
+counts as committed, and the upload carries on. A batch that provably never
+landed fails the run with everything earlier recorded in the ledger, so the
+retry publishes only the remainder. A batch that cannot be checked either way
+stays in flight (see above) for the next run to settle.
 
-So renaming a pull request does not strand it, and titling one to look like
-ours does not hand it our records. Merged or closed means a fresh one is
-opened. If two open pull requests claim the same adapter the run stops rather
-than guessing.
+### What remains of the pull-request flow
 
-The same two checks answer the awkward case where the commit that opens a
-pull request errors after the Hub accepted it. The number is in the reply that
-never arrived, so the run would otherwise fail knowing nothing and the next
-run would open a second pull request holding the same records. Instead the
-lookup runs again: a marked pull request from this account means the commit
-landed, and this run adopts it and carries on with the remaining batches.
-Whether its first batch is on the ref decides whether those records count as
-published, and a ref that cannot be read stops the run with the number
-recorded, since inspecting one pull request beats duplicating a batch.
-
-The description is rewritten after each run that adds records: the run date,
-the status, the coverage line (source rows, records produced, dropped, skipped
-as unchanged, uploaded), the raw snapshot path and the workflow run. A pull
-request stays open across many runs, so a body written when it opened would
-describe whichever run happened to be first. The rewrite carries the
-`eee-cron-adapter` marker like any other body, since that line is what claims
-the pull request for the adapter. A refresh the Hub refuses is reported in the
-run report and the step summary rather than failing the run, because by then
-the records are published.
-
-A submission that lands completely ends by posting `/eee validate changed` as
-a fresh comment on the pull request, because the datastore's validator runs on
-that command rather than on push — records nobody comments on are records
-nobody validated. It is posted last, after the records and the description, so
-what it validates is the finished submission, and never after a partial one: a
-retry that completes the submission asks instead. A comment the Hub refuses is
-reported like a refused description rewrite, with a note asking a human to
-post the command by hand.
+Earlier versions published into one open pull request per adapter, identified
+by the opening account plus an `eee-cron-adapter: <adapter>` line in the
+body, with fingerprints held pending until a reviewer merged. Runs now settle
+whatever that flow left behind: pending fingerprints are promoted when their
+pull request turns out merged and dropped when it was closed without merging,
+and an old in-flight file is checked against the pull request it named. The
+settling machinery in `submit.py` can be deleted once no adapter's state
+names a pull request.
 
 ## Setup
 
@@ -267,9 +254,9 @@ post the command by hand.
    stops the run, because a 500 is not evidence that a public dataset is
    absent.
 2. Add a `cron` environment to the GitHub repository with an `HF_TOKEN`
-   secret that can write to the raw store and open pull requests on the
-   datastore. A read-only token is rejected before the adapter starts, as is
-   a datastore this token cannot read.
+   secret that can write to the raw store and to the datastore. A read-only
+   token is rejected before the adapter starts, as is a datastore this token
+   cannot read.
 3. Per-adapter credentials as secrets. `uv run python -m
    every_eval_ever.cron list` shows which adapters want one. Every adapter
    that names one needs it: without it that adapter's job fails, naming the
@@ -297,7 +284,7 @@ Give heavy adapters `cadence='weekly'` with a `weekday`, and a realistic
 that plus `JOB_TIMEOUT_BUFFER_MINUTES`, because the job also checks out the
 repository, installs the environment, uploads the snapshot and commits the
 records. A job cancelled during that last part is the one case where records
-reach a pull request with nothing in the ledger recording them.
+reach the datastore with nothing in the ledger recording them.
 
 ## Operating it
 
@@ -343,7 +330,9 @@ This is a deliberate MVP.
   fingerprint ledger stops unchanged records piling up; reconciling genuine
   updates against records already in the datastore is not attempted here.
 - Records already in the datastore are not backfilled with the cron marker.
-- The cron never merges its own pull requests.
+- Published records pass the packaged validator and carry provenance, but
+  nothing reviews them for sense before they land; a bad batch is found and
+  corrected after the fact via its `cron_*` provenance fields.
 - A source that outgrows a capture cap fails its adapter until the cap is
   raised. Nothing splits or streams a large payload.
 - The write token is checked for a reported read-only role, which a

@@ -1,9 +1,10 @@
-"""The cron's memory and its one-pull-request-per-adapter rule.
+"""The cron's memory, its datastore commits, and the leftover pull requests.
 
-Both are places where a plausible-looking shortcut loses data: a state read
+All are places where a plausible-looking shortcut loses data: a state read
 that swallows an auth error forgets every fingerprint and republishes the
-whole history, and a pull-request lookup that falls back to "the newest open
-one" pushes a scrape into somebody else's submission.
+whole history, a failed batch dropped from the accounting is republished
+under fresh paths, and settling the retired flow's pull requests against
+"the newest open one" hands records to somebody else's submission.
 """
 
 from __future__ import annotations
@@ -59,10 +60,6 @@ class FakeHub:
         self.download_error: Exception | None = None
         self.commit_error: Exception | None = None
         self.details_error: Exception | None = None
-        self.edit_comment_error: Exception | None = None
-        self.edited_comments: list[tuple[int, str]] = []
-        self.comment_error: Exception | None = None
-        self.posted_comments: list[tuple[int, str]] = []
         self.list_files_error: Exception | None = None
         self.whoami_error: Exception | None = None
         self.repo_info_error: Exception | None = None
@@ -139,26 +136,6 @@ class FakeHub:
                     },
                 )()
         raise EntryNotFoundError(f'discussion {discussion_num} not found')
-
-    def edit_discussion_comment(
-        self, *, discussion_num, comment_id, new_content, **kwargs
-    ):
-        if self.edit_comment_error is not None:
-            raise self.edit_comment_error
-        for discussion in self.discussions:
-            if discussion.num == discussion_num:
-                if comment_id != f'comment-{discussion.num}':
-                    raise ValueError(f'no comment {comment_id}')
-                discussion.body = new_content
-                self.edited_comments.append((discussion_num, new_content))
-                return type('Comment', (), {'content': new_content})()
-        raise EntryNotFoundError(f'discussion {discussion_num} not found')
-
-    def comment_discussion(self, *, discussion_num, comment, **kwargs):
-        if self.comment_error is not None:
-            raise self.comment_error
-        self.posted_comments.append((discussion_num, comment))
-        return type('Comment', (), {'content': comment})()
 
     def list_repo_files(self, repo_id=None, **kwargs):
         if self.list_files_error is not None:
@@ -743,7 +720,7 @@ def test_the_run_report_lands_beside_the_snapshot() -> None:
     assert b'completed' in operation.path_or_fileobj
 
 
-# --- pull requests -------------------------------------------------------
+# --- pull requests the retired flow left behind ---------------------------
 
 
 def submitter(
@@ -754,15 +731,13 @@ def submitter(
 
 
 def cron_pr(num: int, adapter: str = 'hle', **kwargs: Any) -> FakeDiscussion:
-    """An open pull request carrying the cron's ownership marker."""
+    """A pull request the retired flow opened, carrying its marker."""
     return FakeDiscussion(
         num,
-        submit.pull_request_title(adapter),
-        body=submit.pull_request_description(
-            adapter,
-            coverage_line='1 record',
-            run_date='2026-08-10',
-            status='completed',
+        f'[Submission] cron: {adapter} (automated ingestion)',
+        body=(
+            f'Automated daily ingestion for the `{adapter}` adapter.\n\n'
+            f'{submit.marker(adapter)}'
         ),
         **kwargs,
     )
@@ -804,7 +779,13 @@ def test_a_title_that_looks_like_ours_is_not_enough() -> None:
     a stranger's submission.
     """
     sub, _ = submitter(
-        [FakeDiscussion(12, submit.pull_request_title('hle'), body='no marker')]
+        [
+            FakeDiscussion(
+                12,
+                '[Submission] cron: hle (automated ingestion)',
+                body='no marker',
+            )
+        ]
     )
 
     assert sub.resolve_known('hle', 12) is None
@@ -937,58 +918,55 @@ def test_a_lookup_failure_is_reported_not_widened() -> None:
         submit.DatastoreSubmitter(hub).find_by_marker('hle')
 
 
-def test_opening_a_pull_request_returns_its_number_and_ref(tmp_path) -> None:
-    sub, hub = submitter([])
+# --- publishing ------------------------------------------------------------
+
+
+def _upload_tree(tmp_path, count: int) -> Path:
     upload = tmp_path / 'upload' / 'data' / 'hle' / 'org' / 'model'
     upload.mkdir(parents=True)
-    (upload / 'a.json').write_text('{}', encoding='utf-8')
+    for index in range(count):
+        (upload / f'{index}.json').write_text('{}', encoding='utf-8')
+    return tmp_path / 'upload'
 
-    opened, is_new = sub.open_pull_request(
+
+def test_records_are_committed_to_the_default_branch(tmp_path) -> None:
+    """No pull request, no ref: a passing run's records go straight in."""
+    tree = _upload_tree(tmp_path, 2)
+    hub = FakeHub()
+    sub = submit.DatastoreSubmitter(hub)
+    description = submit.commit_description(
         'hle',
-        operations=submit.upload_operations(tmp_path / 'upload'),
-        description=submit.pull_request_description(
-            'hle',
-            coverage_line='1 record(s) produced -> 1 uploaded',
-            run_date='2026-08-10',
-            status='completed',
-        ),
+        coverage_line='2 record(s) produced -> 2 uploaded',
+        run_date='2026-08-10',
+        status='completed',
     )
 
-    assert is_new
-    assert opened.number == 42
-    assert opened.revision == 'refs/pr/42'
-    assert hub.commits[0]['create_pr'] is True
-    assert submit.marker('hle') in hub.commits[0]['commit_description']
-
-
-def test_uploads_target_the_pull_request_ref(tmp_path) -> None:
-    sub, hub = submitter([])
-    upload = tmp_path / 'upload' / 'data' / 'hle' / 'org' / 'model'
-    upload.mkdir(parents=True)
-    (upload / 'a.json').write_text('{}', encoding='utf-8')
-
-    sub.upload(
-        submit.PullRequest(12, 'https://x/12', 'refs/pr/12', 'cron: hle'),
-        operations=submit.upload_operations(tmp_path / 'upload'),
-        message='hle 2026-08-10',
+    submission = sub.publish(
+        operations=submit.upload_operations(tree),
+        description=description,
+        message='cron: hle 2026-08-10 (2 record(s))',
     )
 
-    assert hub.commits[0]['revision'] == 'refs/pr/12'
-    assert 'create_pr' not in hub.commits[0]
+    assert len(hub.commits) == 1
+    commit = hub.commits[0]
+    assert 'create_pr' not in commit
+    assert 'revision' not in commit
+    assert commit['commit_message'] == 'cron: hle 2026-08-10 (2 record(s))'
+    # The provenance a reviewer used to read in a pull request body is on
+    # the commit itself.
+    assert commit['commit_description'] == description
+    assert len(submission.committed_paths) == 2
 
 
 def test_a_large_batch_is_split_and_numbered(tmp_path) -> None:
     """A single huge commit can 504 while still landing server-side."""
-    upload = tmp_path / 'upload' / 'data' / 'hle' / 'org' / 'model'
-    upload.mkdir(parents=True)
-    for index in range(7):
-        (upload / f'{index}.json').write_text('{}', encoding='utf-8')
+    tree = _upload_tree(tmp_path, 7)
     hub = FakeHub()
     sub = submit.DatastoreSubmitter(hub, batch_size=3)
 
-    sub.upload(
-        submit.PullRequest(12, 'https://x/12', 'refs/pr/12', 'cron: hle'),
-        operations=submit.upload_operations(tmp_path / 'upload'),
+    submission = sub.publish(
+        operations=submit.upload_operations(tree),
+        description='body',
         message='hle 2026-08-10',
     )
 
@@ -998,6 +976,12 @@ def test_a_large_batch_is_split_and_numbered(tmp_path) -> None:
         'hle 2026-08-10 (2/3)',
         'hle 2026-08-10 (3/3)',
     ]
+    assert [len(commit['operations']) for commit in hub.commits] == [3, 3, 1]
+    # Every commit of the run describes it, not just the first.
+    assert all(
+        commit['commit_description'] == 'body' for commit in hub.commits
+    )
+    assert len(submission.committed_paths) == 7
 
 
 def test_a_record_and_its_sidecar_are_never_split_across_commits(
@@ -1007,7 +991,7 @@ def test_a_record_and_its_sidecar_are_never_split_across_commits(
 
     Split across two, a failure on the second leaves the aggregate public,
     unrecordable (its companion never arrived), and republished under a fresh
-    UUID next run, with the abandoned half still on the pull request naming a
+    UUID next run, with the abandoned half still in the datastore naming a
     sidecar that does not exist.
     """
     upload = tmp_path / 'upload' / 'data' / 'hle' / 'org' / 'model'
@@ -1018,9 +1002,9 @@ def test_a_record_and_its_sidecar_are_never_split_across_commits(
     hub = FakeHub()
     sub = submit.DatastoreSubmitter(hub, batch_size=3)
 
-    sub.upload(
-        submit.PullRequest(12, 'https://x/12', 'refs/pr/12', 'cron: hle'),
+    sub.publish(
         operations=submit.upload_operations(tmp_path / 'upload'),
+        description='body',
         message='hle 2026-08-10',
     )
 
@@ -1037,43 +1021,23 @@ def test_a_record_and_its_sidecar_are_never_split_across_commits(
     assert len(hub.commits) == 4
 
 
-def _upload_tree(tmp_path, count: int) -> Path:
-    upload = tmp_path / 'upload' / 'data' / 'hle' / 'org' / 'model'
-    upload.mkdir(parents=True)
-    for index in range(count):
-        (upload / f'{index}.json').write_text('{}', encoding='utf-8')
-    return tmp_path / 'upload'
-
-
-def test_a_cold_start_is_batched_like_any_other_upload(tmp_path) -> None:
-    """The first run is the biggest one an adapter ever does.
-
-    Opening the pull request with every operation in one commit aimed the
-    ambiguous timeout that batching exists to avoid at exactly the run most
-    likely to trip it.
-    """
-    tree = _upload_tree(tmp_path, 7)
+def test_a_failure_before_anything_landed_reports_nothing_committed(
+    tmp_path,
+) -> None:
+    tree = _upload_tree(tmp_path, 2)
     hub = FakeHub()
-    sub = submit.DatastoreSubmitter(hub, batch_size=3)
+    hub.commit_error = RuntimeError('502 Bad Gateway')
+    sub = submit.DatastoreSubmitter(hub)
 
-    submission = sub.publish(
-        'hle',
-        pull_request=None,
-        operations=submit.upload_operations(tree),
-        description=submit.pull_request_description(
-            'hle',
-            coverage_line='7 record(s)',
-            run_date='2026-08-10',
-            status='completed',
-        ),
-        message='hle 2026-08-10',
-    )
+    with pytest.raises(submit.PartialSubmissionError) as caught:
+        sub.publish(
+            operations=submit.upload_operations(tree),
+            description='body',
+            message='hle 2026-08-10',
+        )
 
-    assert [len(commit['operations']) for commit in hub.commits] == [3, 3, 1]
-    assert hub.commits[0]['create_pr'] is True
-    assert all('create_pr' not in commit for commit in hub.commits[1:])
-    assert all(commit['revision'] == 'refs/pr/42' for commit in hub.commits[1:])
-    assert len(submission.committed_paths) == 7
+    assert caught.value.committed_paths == ()
+    assert caught.value.unresolved_paths == ()
 
 
 def test_a_failure_after_the_first_batch_reports_what_landed(
@@ -1081,13 +1045,12 @@ def test_a_failure_after_the_first_batch_reports_what_landed(
 ) -> None:
     """A retry must not republish records that already reached the Hub.
 
-    They would land under fresh UUID paths, so the pull request would hold
+    They would land under fresh UUID paths, so the datastore would hold
     the same evaluation twice with no way to tell which copy to keep.
     """
     tree = _upload_tree(tmp_path, 7)
     hub = FakeHub()
     sub = submit.DatastoreSubmitter(hub, batch_size=3)
-    pull_request = submit.PullRequest(12, 'https://x/12', 'refs/pr/12', 'x')
 
     real_create_commit = hub.create_commit
 
@@ -1100,33 +1063,29 @@ def test_a_failure_after_the_first_batch_reports_what_landed(
 
     with pytest.raises(submit.PartialSubmissionError) as caught:
         sub.publish(
-            'hle',
-            pull_request=pull_request,
             operations=submit.upload_operations(tree),
-            description='',
+            description='body',
             message='hle 2026-08-10',
         )
 
-    assert caught.value.pull_request is pull_request
     assert len(caught.value.committed_paths) == 3
     assert all(
         path.startswith('data/hle/') for path in caught.value.committed_paths
     )
+    assert caught.value.unresolved_paths == ()
 
 
 def test_a_batch_that_landed_despite_the_error_does_not_stop_the_upload(
     tmp_path,
 ) -> None:
     """The ambiguous timeout: the Hub accepted the commit, the client saw an
-    error. The pull request ref is the arbiter of what actually landed, and a
-    batch that is on it is a success, so the upload carries on. Stopping
-    instead turned a run whose final batch landed this way into a failure
-    with every record accounted for, which no retry ever completed and so
-    nothing ever validated."""
+    error. The datastore is the arbiter of what actually landed, and a batch
+    that is in it is a success, so the upload carries on. Stopping instead
+    would end a run whose final batch landed this way as a failure with
+    every record accounted for, which no retry ever completes."""
     tree = _upload_tree(tmp_path, 7)
-    hub = FakeHub(discussions=[cron_pr(12)])
+    hub = FakeHub()
     sub = submit.DatastoreSubmitter(hub, batch_size=3)
-    pull_request = submit.PullRequest(12, 'https://x/12', 'refs/pr/12', 'x')
 
     real_create_commit = hub.create_commit
 
@@ -1139,27 +1098,23 @@ def test_a_batch_that_landed_despite_the_error_does_not_stop_the_upload(
     hub.create_commit = land_then_time_out
 
     submission = sub.publish(
-        'hle',
-        pull_request=pull_request,
         operations=submit.upload_operations(tree),
         description='body',
         message='hle 2026-08-10',
     )
 
     # The clean first batch and the two ambiguous ones all count; nothing is
-    # left for a retry, and the finished submission is validated.
+    # left for a retry.
     assert len(submission.committed_paths) == 7
-    assert hub.posted_comments == [(12, submit.VALIDATION_COMMAND)]
-    assert submission.validation_note is None
 
 
-def test_an_unanswerable_reconciliation_claims_nothing(tmp_path) -> None:
-    """When the ref cannot be read either, the batch is not guessed onto the
-    ledger; the error says the pull request needs a look before a retry."""
+def test_an_unanswerable_batch_is_reported_as_unresolved(tmp_path) -> None:
+    """When the datastore cannot be read either, the batch is not guessed
+    onto the ledger; the error says the datastore needs a look before a
+    retry."""
     tree = _upload_tree(tmp_path, 7)
     hub = FakeHub()
     sub = submit.DatastoreSubmitter(hub, batch_size=3)
-    pull_request = submit.PullRequest(12, 'https://x/12', 'refs/pr/12', 'x')
 
     real_create_commit = hub.create_commit
 
@@ -1173,10 +1128,8 @@ def test_an_unanswerable_reconciliation_claims_nothing(tmp_path) -> None:
 
     with pytest.raises(submit.PartialSubmissionError) as caught:
         sub.publish(
-            'hle',
-            pull_request=pull_request,
             operations=submit.upload_operations(tree),
-            description='',
+            description='body',
             message='hle 2026-08-10',
         )
 
@@ -1187,287 +1140,10 @@ def test_an_unanswerable_reconciliation_claims_nothing(tmp_path) -> None:
     assert not (
         set(caught.value.unresolved_paths) & set(caught.value.committed_paths)
     )
-    assert 'inspect https://x/12 before re-running' in str(caught.value)
-
-
-def test_an_opening_commit_that_landed_despite_the_error_is_adopted(
-    tmp_path,
-) -> None:
-    """The Hub can accept the commit and lose the reply on the way back.
-
-    Opening a second pull request on the next run would put the same records
-    up twice, under fresh UUID paths, with nothing saying which copy to keep.
-    """
-    tree = _upload_tree(tmp_path, 5)
-    hub = FakeHub(discussions=[cron_pr(12)])
-    sub = submit.DatastoreSubmitter(hub, batch_size=2)
-    operations = submit.upload_operations(tree)
-    # The first batch is on the pull request; the reply never arrived.
-    for operation in _batch_paths(operations, 2)[0]:
-        hub.files[operation] = '{}'
-
-    def time_out_the_open(**kwargs):
-        if kwargs.get('create_pr'):
-            raise RuntimeError('504 Gateway Timeout')
-        return FakeHub.create_commit(hub, **kwargs)
-
-    hub.create_commit = time_out_the_open
-
-    submission = sub.publish(
-        'hle',
-        pull_request=None,
-        operations=operations,
-        description='body',
-        message='hle 2026-08-10',
-    )
-
-    assert submission.pull_request.number == 12
-    # Its own batch counted once, and the rest sent to the adopted request.
-    assert len(submission.committed_paths) == 5
-    assert all(
-        commit['revision'] == 'refs/pr/12'
-        for commit in hub.commits
-        if 'revision' in commit
-    )
-
-
-def test_an_opening_commit_that_did_not_land_still_fails(tmp_path) -> None:
-    tree = _upload_tree(tmp_path, 3)
-    hub = FakeHub()
-    hub.create_commit = _raise(RuntimeError('504 Gateway Timeout'))
-    sub = submit.DatastoreSubmitter(hub, batch_size=2)
-
-    with pytest.raises(submit.SubmissionError, match='could not open'):
-        sub.publish(
-            'hle',
-            pull_request=None,
-            operations=submit.upload_operations(tree),
-            description='body',
-            message='hle 2026-08-10',
-        )
-
-
-def test_an_adopted_request_whose_ref_is_unreadable_is_reported(
-    tmp_path,
-) -> None:
-    """Neither answer is safe to assume, so the number is recorded and the
-    run stops rather than guessing at what is on the pull request."""
-    tree = _upload_tree(tmp_path, 3)
-    hub = FakeHub(discussions=[cron_pr(12)])
-    hub.list_files_error = ConnectionError('network is unreachable')
-    sub = submit.DatastoreSubmitter(hub, batch_size=2)
-    hub.create_commit = _raise(RuntimeError('504 Gateway Timeout'))
-
-    with pytest.raises(submit.PartialSubmissionError) as caught:
-        sub.publish(
-            'hle',
-            pull_request=None,
-            operations=submit.upload_operations(tree),
-            description='body',
-            message='hle 2026-08-10',
-        )
-
-    assert caught.value.pull_request.number == 12
-    assert caught.value.committed_paths == ()
-    # The opening batch may be on the adopted pull request, so it is carried
-    # as unresolved for the caller to keep in flight.
-    assert len(caught.value.unresolved_paths) == 2
-    assert 'inspect it before re-running' in str(caught.value)
-
-
-def test_two_requests_claiming_one_adapter_stop_an_adoption(tmp_path) -> None:
-    tree = _upload_tree(tmp_path, 3)
-    hub = FakeHub(discussions=[cron_pr(12), cron_pr(13)])
-    hub.create_commit = _raise(RuntimeError('504 Gateway Timeout'))
-    sub = submit.DatastoreSubmitter(hub, batch_size=2)
-
-    with pytest.raises(submit.AmbiguousPullRequestError):
-        sub.publish(
-            'hle',
-            pull_request=None,
-            operations=submit.upload_operations(tree),
-            description='body',
-            message='hle 2026-08-10',
-        )
-
-
-def _batch_paths(operations, size: int) -> list[list[str]]:
-    return [
-        [operation.path_in_repo for operation in batch]
-        for batch in submit._batches(operations, size)
-    ]
-
-
-# --- the description describes the latest run -----------------------------
-
-
-def test_a_reused_pull_request_gets_its_description_rewritten(
-    tmp_path,
-) -> None:
-    """Opened in August and published into ever since, the body otherwise
-    still reports August's date, coverage and snapshot path."""
-    tree = _upload_tree(tmp_path, 2)
-    discussion = cron_pr(12)
-    hub = FakeHub(discussions=[discussion])
-    sub = submit.DatastoreSubmitter(hub)
-    pull_request = submit.PullRequest(12, 'https://x/12', 'refs/pr/12', 'x')
-    description = submit.pull_request_description(
-        'hle',
-        coverage_line='2 record(s)',
-        run_date='2026-09-14',
-        status='completed',
-        raw_reference='raw/hle/2026-09-14/run-9-1',
-    )
-
-    submission = sub.publish(
-        'hle',
-        pull_request=pull_request,
-        operations=submit.upload_operations(tree),
-        description=description,
-        message='hle 2026-09-14',
-    )
-
-    assert submission.description_note is None
-    assert hub.edited_comments == [(12, description)]
-    assert '2026-09-14' in discussion.body
-    assert '2026-08-10' not in discussion.body
-    # The marker says which adapter the pull request belongs to, so a refresh
-    # that dropped it would orphan it from the next run.
-    assert submit.marker('hle') in discussion.body
-    assert sub.carries_marker(12, 'hle')
-
-
-def test_a_newly_opened_pull_request_is_not_edited_again(tmp_path) -> None:
-    """It was opened with this run's body a moment ago."""
-    tree = _upload_tree(tmp_path, 2)
-    hub = FakeHub()
-    sub = submit.DatastoreSubmitter(hub)
-
-    sub.publish(
-        'hle',
-        pull_request=None,
-        operations=submit.upload_operations(tree),
-        description=submit.pull_request_description(
-            'hle',
-            coverage_line='2 record(s)',
-            run_date='2026-08-10',
-            status='completed',
-        ),
-        message='hle 2026-08-10',
-    )
-
-    assert hub.edited_comments == []
-
-
-def test_a_description_that_cannot_be_refreshed_does_not_fail_the_run(
-    tmp_path,
-) -> None:
-    """The records are published. A stale body is worth saying, not failing."""
-    tree = _upload_tree(tmp_path, 2)
-    hub = FakeHub(discussions=[cron_pr(12)])
-    hub.edit_comment_error = RuntimeError('403 Forbidden')
-    sub = submit.DatastoreSubmitter(hub)
-    pull_request = submit.PullRequest(12, 'https://x/12', 'refs/pr/12', 'x')
-
-    submission = sub.publish(
-        'hle',
-        pull_request=pull_request,
-        operations=submit.upload_operations(tree),
-        description='body',
-        message='hle 2026-08-10',
-    )
-
-    assert len(submission.committed_paths) == 2
-    assert '403 Forbidden' in submission.description_note
-    assert 'describes an earlier run' in submission.description_note
-
-
-# --- validation is asked for once everything is in ------------------------
-
-
-def test_a_full_submission_into_a_reused_pull_request_asks_for_validation(
-    tmp_path,
-) -> None:
-    """The datastore validates on request, so a run that published records
-    has to post the command or nothing checks them."""
-    tree = _upload_tree(tmp_path, 2)
-    hub = FakeHub(discussions=[cron_pr(12)])
-    sub = submit.DatastoreSubmitter(hub)
-    pull_request = submit.PullRequest(12, 'https://x/12', 'refs/pr/12', 'x')
-
-    submission = sub.publish(
-        'hle',
-        pull_request=pull_request,
-        operations=submit.upload_operations(tree),
-        description='body',
-        message='hle 2026-08-10',
-    )
-
-    assert hub.posted_comments == [(12, submit.VALIDATION_COMMAND)]
-    assert submission.validation_note is None
-
-
-def test_a_newly_opened_pull_request_asks_for_validation(tmp_path) -> None:
-    tree = _upload_tree(tmp_path, 2)
-    hub = FakeHub()
-    sub = submit.DatastoreSubmitter(hub)
-
-    submission = sub.publish(
-        'hle',
-        pull_request=None,
-        operations=submit.upload_operations(tree),
-        description='body',
-        message='hle 2026-08-10',
-    )
-
-    number = submission.pull_request.number
-    assert hub.posted_comments == [(number, submit.VALIDATION_COMMAND)]
-    assert submission.validation_note is None
-
-
-def test_a_validation_request_that_fails_does_not_fail_the_run(
-    tmp_path,
-) -> None:
-    """The records are published either way; the note tells a human to post
-    the command by hand."""
-    tree = _upload_tree(tmp_path, 2)
-    hub = FakeHub(discussions=[cron_pr(12)])
-    hub.comment_error = RuntimeError('403 Forbidden')
-    sub = submit.DatastoreSubmitter(hub)
-    pull_request = submit.PullRequest(12, 'https://x/12', 'refs/pr/12', 'x')
-
-    submission = sub.publish(
-        'hle',
-        pull_request=pull_request,
-        operations=submit.upload_operations(tree),
-        description='body',
-        message='hle 2026-08-10',
-    )
-
-    assert len(submission.committed_paths) == 2
-    assert '403 Forbidden' in submission.validation_note
-    assert submit.VALIDATION_COMMAND in submission.validation_note
-
-
-def test_a_partial_submission_asks_for_no_validation(tmp_path) -> None:
-    """Validation of half an upload wastes the reviewer it summons; the
-    retry that completes the submission asks instead."""
-    tree = _upload_tree(tmp_path, 2)
-    hub = FakeHub(discussions=[cron_pr(12)])
-    hub.commit_error = RuntimeError('504 Gateway Timeout')
-    sub = submit.DatastoreSubmitter(hub)
-    pull_request = submit.PullRequest(12, 'https://x/12', 'refs/pr/12', 'x')
-
-    with pytest.raises(submit.PartialSubmissionError):
-        sub.publish(
-            'hle',
-            pull_request=pull_request,
-            operations=submit.upload_operations(tree),
-            description='body',
-            message='hle 2026-08-10',
-        )
-
-    assert hub.posted_comments == []
+    assert (
+        'inspect https://huggingface.co/datasets/evaleval/EEE_datastore '
+        'before re-running'
+    ) in str(caught.value)
 
 
 # --- what happened to the last pull request -------------------------------
@@ -1523,8 +1199,8 @@ def test_upload_operations_use_repository_relative_posix_paths(
     ]
 
 
-def test_the_description_carries_coverage_and_the_marker() -> None:
-    description = submit.pull_request_description(
+def test_the_description_carries_coverage_and_provenance() -> None:
+    description = submit.commit_description(
         'hle',
         coverage_line='12 source row(s) -> 10 record(s) produced, 2 dropped',
         run_date='2026-08-10',
@@ -1538,7 +1214,6 @@ def test_the_description_carries_coverage_and_the_marker() -> None:
     assert 'https://ci.example/run/7' in description
     assert 'raw/hle/2026-08-10' in description
     assert 'raw capture degraded' in description
-    assert description.rstrip().endswith(submit.marker('hle'))
     assert 'type_of_addition' in description
 
 

@@ -272,7 +272,7 @@ def test_a_token_that_cannot_publish_stops_the_run_before_the_adapter(
 # --- what a finished run commits -----------------------------------------
 
 
-def test_a_successful_run_opens_a_pull_request_and_records_it(
+def test_a_successful_run_commits_its_records_and_remembers_them(
     tmp_path,
 ) -> None:
     hub = FakeHub()
@@ -281,15 +281,17 @@ def test_a_successful_run_opens_a_pull_request_and_records_it(
 
     assert finish(outcome, hub) == 0
 
-    assert datastore_commits(hub)[0]['create_pr'] is True
+    upload_commit = datastore_commits(hub)[0]
+    assert 'create_pr' not in upload_commit
+    assert 'revision' not in upload_commit
     state = json.loads(hub.files['state/hle.json'])
-    assert state['pull_request_number'] == 42
+    assert state['pull_request_number'] is None
     assert state['last_run_date'] == '2026-08-10'
     assert state['last_status'] == 'completed'
-    # Committed to a pull request is not merged into the datastore, so the
-    # fingerprint waits in the pending ledger until the pull request does.
-    assert hub.files['state/hle.pending'] == 'fingerprint-0\n'
-    assert hub.files['state/hle.fingerprints'] == ''
+    # On the default branch a record is durable the moment its commit lands,
+    # so its fingerprint goes straight into the durable ledger.
+    assert hub.files['state/hle.fingerprints'] == 'fingerprint-0\n'
+    assert hub.files['state/hle.pending'] == ''
 
 
 def test_the_snapshot_is_committed_before_the_records_are_published(
@@ -335,11 +337,16 @@ def test_the_snapshot_is_committed_before_the_records_are_published(
     assert json.loads(hub.files['state/hle.inflight'])['records'] == []
     report = json.loads(hub.files[f'{RAW_PREFIX}/run.json'])
     assert report['status'] == 'completed'
-    assert report['pull_request']['number'] == 42
+    assert report['records_committed'] == 1
     assert report['raw_reference'] == RAW_PREFIX
 
 
-def test_a_second_run_reuses_the_remembered_pull_request(tmp_path) -> None:
+def test_a_run_with_a_leftover_pull_request_still_commits_directly(
+    tmp_path,
+) -> None:
+    """A state file remembering the retired flow's pull request must not pull
+    new records back into it; the pull request only matters for settling the
+    pending fingerprints still waiting on it."""
     hub = FakeHub(
         {
             'state/hle.json': json.dumps(
@@ -359,34 +366,15 @@ def test_a_second_run_reuses_the_remembered_pull_request(tmp_path) -> None:
     assert finish(outcome, hub) == 0
 
     upload_commit = datastore_commits(hub)[0]
-    assert upload_commit['revision'] == 'refs/pr/12'
     assert 'create_pr' not in upload_commit
-    # The merged ledger is untouched; the new record waits on the still-open
-    # pull request it was just committed to.
-    assert hub.files['state/hle.fingerprints'] == 'known-0\n'
-    assert hub.files['state/hle.pending'] == 'fingerprint-0\n'
-    # The body now describes this run, not whichever one opened the request.
-    assert [number for number, _ in hub.edited_comments] == [12]
-    body = hub.discussions[0].body
-    assert RAW_PREFIX in body
-    assert '2026-08-10' in body
-
-
-def test_a_stale_description_is_reported_and_not_fatal(tmp_path) -> None:
-    """The records reached the pull request; only its body did not."""
-    hub = FakeHub(
-        {'state/hle.json': json.dumps({'pull_request_number': 12})},
-        discussions=[cron_pr(12)],
-    )
-    hub.edit_comment_error = RuntimeError('403 Forbidden')
-    outcome = make_outcome(tmp_path)
-    write_capture(outcome.raw_dir)
-
-    assert finish(outcome, hub) == 0
-
-    assert hub.files['state/hle.pending'] == 'fingerprint-0\n'
-    report = json.loads(hub.files[f'{RAW_PREFIX}/run.json'])
-    assert any('403 Forbidden' in message for message in report['messages'])
+    assert 'revision' not in upload_commit
+    # The new record is durable in the datastore; nothing new waits on the
+    # old pull request.
+    assert set(hub.files['state/hle.fingerprints'].split()) == {
+        'known-0',
+        'fingerprint-0',
+    }
+    assert hub.files['state/hle.pending'] == ''
 
 
 # --- records published but never recorded --------------------------------
@@ -450,8 +438,47 @@ def test_records_that_never_arrived_are_published_again() -> None:
     assert 'published 1 of 2' in note
 
 
+def test_a_direct_batch_in_flight_is_settled_against_the_datastore() -> None:
+    """What lands on the default branch is durable, so the settled
+    fingerprints go straight into the durable ledger."""
+    hub = FakeHub()
+    hub.files[record_entry(0)['paths'][0]] = '{}'
+    inflight(
+        hub,
+        destination=store.DIRECT_DESTINATION,
+        records=[record_entry(0), record_entry(1)],
+    )
+    state = store.AdapterState(adapter='hle')
+
+    note = cli._reconcile_inflight(
+        state, store.RawStore(hub), submit.DatastoreSubmitter(hub)
+    )
+
+    assert state.fingerprints == {'fingerprint-0'}
+    assert state.pending_fingerprints == set()
+    assert 'published 1 of 2' in note
+
+
+def test_an_unanswerable_direct_settle_stops_the_run() -> None:
+    """Both guesses lose: one buries records, the other duplicates them."""
+    hub = FakeHub()
+    hub.list_files_error = ConnectionError('network is unreachable')
+    inflight(
+        hub,
+        destination=store.DIRECT_DESTINATION,
+        records=[record_entry(0)],
+    )
+    state = store.AdapterState(adapter='hle')
+
+    with pytest.raises(submit.SubmissionError, match='without recording'):
+        cli._reconcile_inflight(
+            state, store.RawStore(hub), submit.DatastoreSubmitter(hub)
+        )
+
+
 def test_a_batch_in_flight_to_no_pull_request_is_published_again() -> None:
-    """A cold start whose opening commit never landed."""
+    """A cold start under the retired flow, whose opening commit never
+    landed."""
     hub = FakeHub()
     inflight(hub, records=[record_entry(0)])
     state = store.AdapterState(adapter='hle')
@@ -656,7 +683,7 @@ def test_records_from_a_closed_pull_request_are_resubmitted(
 ) -> None:
     """The end-to-end shape of the requeue: the closed pull request's
     fingerprints are not handed to the runner as known, so the unchanged
-    records upload again, and a fresh pull request opens to carry them."""
+    records upload again, straight to the datastore this time."""
     hub = FakeHub(
         {
             'state/hle.json': json.dumps({'pull_request_number': 12}),
@@ -690,10 +717,11 @@ def test_records_from_a_closed_pull_request_are_resubmitted(
 
     assert exit_code == 0
     assert seen['known'] == set()
-    assert any(commit.get('create_pr') for commit in hub.commits)
+    assert not any(commit.get('create_pr') for commit in hub.commits)
     state = json.loads(hub.files['state/hle.json'])
-    assert state['pull_request_number'] == 42
-    assert hub.files['state/hle.pending'] == 'fingerprint-0\n'
+    assert state['pull_request_number'] is None
+    assert hub.files['state/hle.fingerprints'] == 'fingerprint-0\n'
+    assert hub.files['state/hle.pending'] == ''
     report = json.loads(hub.files[f'{RAW_PREFIX}/run.json'])
     assert any(
         'closed without merging' in message for message in report['messages']
@@ -707,10 +735,9 @@ def test_records_that_landed_before_a_failure_are_still_remembered(
 
     The batches that landed are irreversible. Leaving their fingerprints out
     of the ledger would make the next run publish them again under fresh
-    paths, so the pull request would hold each evaluation twice.
+    paths, so the datastore would hold each evaluation twice.
     """
-    hub = FakeHub(discussions=[cron_pr(12)])
-    hub.files['state/hle.json'] = json.dumps({'pull_request_number': 12})
+    hub = FakeHub()
     outcome = make_outcome(tmp_path, uploaded=3)
     write_capture(outcome.raw_dir)
     submitter = submit.DatastoreSubmitter(hub, batch_size=1)
@@ -719,8 +746,9 @@ def test_records_that_landed_before_a_failure_are_still_remembered(
     def fail_after_the_first_batch(**kwargs):
         # Only the datastore batches fail. The raw-store commit that records
         # what landed has to go through, which is the point of the test.
-        if kwargs.get('revision') == 'refs/pr/12' and any(
-            commit.get('revision') == 'refs/pr/12' for commit in hub.commits
+        if kwargs.get('repo_id') != store.DEFAULT_RAW_REPO and any(
+            commit.get('repo_id') != store.DEFAULT_RAW_REPO
+            for commit in hub.commits
         ):
             raise RuntimeError('504 Gateway Timeout')
         return real_create_commit(**kwargs)
@@ -729,9 +757,8 @@ def test_records_that_landed_before_a_failure_are_still_remembered(
 
     assert finish(outcome, hub, submitter=submitter) == 1
 
-    remembered = set(hub.files['state/hle.pending'].split())
+    remembered = set(hub.files['state/hle.fingerprints'].split())
     assert remembered == {'fingerprint-0'}
-    assert json.loads(hub.files['state/hle.json'])['pull_request_number'] == 12
 
 
 def test_the_snapshot_pointer_only_moves_when_a_snapshot_was_written(
@@ -920,33 +947,21 @@ def test_an_upload_failure_leaves_the_fingerprints_unrecorded(
 
     hub.create_commit = fail_the_datastore
 
-    with pytest.raises(submit.SubmissionError):
-        finish(outcome, hub)
+    assert finish(outcome, hub) == 1
 
-    assert 'state/hle.fingerprints' not in hub.files
-    # The snapshot commit went first, so the records this run meant to
-    # publish are named even though the publication failed. Nothing landed,
-    # so the next run's reconciliation finds nothing on the pull request and
-    # publishes them again.
-    assert json.loads(hub.files['state/hle.inflight'])['records'] == [
-        {
-            'fingerprint': 'fingerprint-0',
-            'paths': [
-                'data/hle/org/model0/00000000-0000-4000-8000-000000000000.json'
-            ],
-        }
-    ]
+    # The batch provably never reached the datastore, so no fingerprint is
+    # recorded and nothing stays in flight: the next run simply publishes
+    # the records again.
+    assert hub.files['state/hle.fingerprints'] == ''
+    assert json.loads(hub.files['state/hle.inflight'])['records'] == []
 
 
 def test_an_unanswerable_batch_stays_in_flight(tmp_path) -> None:
-    """The commit errored, the ref could not be read, and the records may be
-    on the pull request anyway. Clearing the in-flight file here is how the
-    next run uploads them a second time; keeping them in it is what lets that
-    run ask the pull request instead of guessing."""
-    hub = FakeHub(
-        {'state/hle.json': json.dumps({'pull_request_number': 12})},
-        discussions=[cron_pr(12)],
-    )
+    """The commit errored, the datastore could not be read, and the records
+    may have landed anyway. Clearing the in-flight file here is how the next
+    run uploads them a second time; keeping them in it is what lets that run
+    ask the datastore instead of guessing."""
+    hub = FakeHub()
     outcome = make_outcome(tmp_path, uploaded=3)
     write_capture(outcome.raw_dir)
     real_create_commit = hub.create_commit
@@ -971,17 +986,18 @@ def test_an_unanswerable_batch_stays_in_flight(tmp_path) -> None:
     assert exit_code == 1
     # The batch that landed is in the ledger; the never-attempted third
     # record is safe to upload again, so neither stays in flight. Only the
-    # unanswerable second record does, addressed to the pull request the
-    # next run must ask about it.
-    assert hub.files['state/hle.pending'] == 'fingerprint-0\n'
+    # unanswerable second record does, addressed to the datastore the next
+    # run must ask about it.
+    assert hub.files['state/hle.fingerprints'] == 'fingerprint-0\n'
     batch = json.loads(hub.files['state/hle.inflight'])
-    assert batch['pull_request_number'] == 12
+    assert batch['destination'] == store.DIRECT_DESTINATION
+    assert batch['pull_request_number'] is None
     assert [record['fingerprint'] for record in batch['records']] == [
         'fingerprint-1'
     ]
 
 
-def test_the_run_url_reaches_the_pull_request_body(tmp_path) -> None:
+def test_the_run_url_reaches_the_commit_description(tmp_path) -> None:
     hub = FakeHub()
     outcome = make_outcome(tmp_path)
     write_capture(outcome.raw_dir)
