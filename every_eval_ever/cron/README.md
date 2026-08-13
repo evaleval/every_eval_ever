@@ -182,9 +182,12 @@ collide loudly instead of one silently overwriting the other.
 
 The first carries the raw snapshot and `state/<adapter>.inflight`: the
 fingerprint and datastore paths of every record this run is about to publish.
-The second carries the run report, the ledger and an emptied in-flight file.
-Publishing is the one step a re-run cannot undo, so it happens between them
-rather than before both. A run that uploads records and then fails to write
+The second carries the run report, the ledger and an emptied in-flight file,
+with one exception: records whose batch errored while the pull request was
+unreadable stay in flight, because whether they landed is exactly the question
+the file exists to answer, and the next run settles it. Publishing is the one
+step a re-run cannot undo, so it happens between the two commits rather than
+before both. A run that uploads records and then fails to write
 its ledger, because the job was cancelled or the raw store was briefly
 unreachable, would otherwise leave them on the pull request with nothing
 naming them, and the next run would publish the same evaluations again under

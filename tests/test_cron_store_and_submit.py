@@ -1140,6 +1140,7 @@ def test_a_batch_that_landed_despite_the_error_is_counted_committed(
     # Both the clean first batch and the ambiguous second one are reported;
     # only the never-attempted third is left for the retry.
     assert len(caught.value.committed_paths) == 6
+    assert caught.value.unresolved_paths == ()
     assert 'reached the pull request despite the error' in str(caught.value)
 
 
@@ -1171,6 +1172,12 @@ def test_an_unanswerable_reconciliation_claims_nothing(tmp_path) -> None:
         )
 
     assert len(caught.value.committed_paths) == 3
+    # The failing batch is carried as unresolved rather than dropped, so the
+    # caller keeps it in flight instead of re-uploading it blind.
+    assert len(caught.value.unresolved_paths) == 3
+    assert not (
+        set(caught.value.unresolved_paths) & set(caught.value.committed_paths)
+    )
     assert 'inspect https://x/12 before re-running' in str(caught.value)
 
 
@@ -1253,6 +1260,9 @@ def test_an_adopted_request_whose_ref_is_unreadable_is_reported(
 
     assert caught.value.pull_request.number == 12
     assert caught.value.committed_paths == ()
+    # The opening batch may be on the adopted pull request, so it is carried
+    # as unresolved for the caller to keep in flight.
+    assert len(caught.value.unresolved_paths) == 2
     assert 'inspect it before re-running' in str(caught.value)
 
 

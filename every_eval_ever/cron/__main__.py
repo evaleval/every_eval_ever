@@ -254,6 +254,47 @@ def _landed_fingerprints(
     ]
 
 
+def _still_inflight(
+    outcome: runner.RunOutcome,
+    *,
+    spec: catalog.AdapterSpec,
+    run_token: str,
+    failure: submit.PartialSubmissionError | None,
+) -> store.InflightBatch:
+    """Return what the run's closing commit leaves in flight.
+
+    Usually nothing: what landed is in the ledger, and what never reached
+    the pull request is safe to upload again. The exception is a batch whose
+    commit errored while the pull request ref was unreadable. Its records
+    are neither recorded nor known to be absent, and clearing them would
+    make the next run publish them a second time on top of copies that may
+    already be there. They stay in flight, and the next run settles them the
+    way it settles any interrupted run's.
+    """
+    unresolved = set(failure.unresolved_paths) if failure is not None else set()
+    records = [
+        {
+            'fingerprint': record.fingerprint,
+            'paths': _record_paths(record),
+        }
+        for record in outcome.uploaded
+        if any(path in unresolved for path in _record_paths(record))
+    ]
+    if not records:
+        return store.InflightBatch(adapter=spec.key)
+    return store.InflightBatch(
+        adapter=spec.key,
+        run_date=outcome.run_date.isoformat(),
+        run_token=run_token,
+        pull_request_number=(
+            failure.pull_request.number
+            if failure.pull_request is not None
+            else None
+        ),
+        records=records,
+    )
+
+
 def _reconcile_inflight(
     state: store.AdapterState,
     raw_store: store.RawStore | None,
@@ -611,9 +652,20 @@ def _finish(
         operations.extend(store.state_operations(state))
         # Nothing is in flight any more: either it is in the ledger above or
         # it never reached the pull request. Written empty rather than
-        # deleted, so every run makes the same commit.
+        # deleted, so every run makes the same commit. The exception is a
+        # batch whose commit errored while the pull request ref was
+        # unreadable: those records may have landed anyway, so they stay in
+        # flight for the next run to settle instead of being uploaded again
+        # on top of copies that may already be there.
         operations.append(
-            store.inflight_operation(store.InflightBatch(adapter=spec.key))
+            store.inflight_operation(
+                _still_inflight(
+                    outcome,
+                    spec=spec,
+                    run_token=run_token,
+                    failure=publish_failure,
+                )
+            )
         )
         raw_store.commit(
             operations,

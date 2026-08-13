@@ -161,10 +161,12 @@ class InflightBatch:
     """What a run is about to publish, recorded before it publishes it.
 
     Written in the same commit as the raw snapshot, ahead of the datastore
-    upload, and emptied by the commit that records the run. Finding a
-    non-empty one at the start of a run means the previous run got as far as
-    uploading and no further, so what it uploaded is on the pull request with
-    no fingerprint naming it.
+    upload, and emptied by the commit that records the run, except for
+    records whose batch errored while the pull request was unreadable: those
+    stay in flight, since whether they landed is exactly the question this
+    file exists to answer. Finding a non-empty one at the start of a run
+    means a previous run uploaded records, or may have, without recording
+    them, so they are on the pull request with no fingerprint naming them.
 
     Each record is its fingerprint and every datastore path it consists of, so
     the next run can ask the pull request which of them arrived rather than

@@ -48,6 +48,12 @@ class PartialSubmissionError(SubmissionError):
     Carries what actually reached the datastore. A caller that discards this
     and retries from scratch republishes the landed records under fresh
     UUID paths, which is the duplicate this exists to prevent.
+
+    ``unresolved_paths`` names the one batch that is neither: its commit
+    errored and the pull request ref could not be read to arbitrate, so the
+    records may or may not have landed. A caller must keep them in flight
+    rather than treat them as absent, because re-uploading them blind is the
+    same duplicate by another route.
     """
 
     def __init__(
@@ -56,10 +62,12 @@ class PartialSubmissionError(SubmissionError):
         *,
         pull_request: PullRequest | None,
         committed_paths: Sequence[str],
+        unresolved_paths: Sequence[str] = (),
     ) -> None:
         super().__init__(message)
         self.pull_request = pull_request
         self.committed_paths = tuple(committed_paths)
+        self.unresolved_paths = tuple(unresolved_paths)
 
 
 def marker(adapter: str) -> str:
@@ -552,6 +560,7 @@ class DatastoreSubmitter:
                 )
             except Exception as exc:  # noqa: BLE001 - re-raised with context
                 landed = self._paths_on_ref(pull_request, batch)
+                unresolved: list[str] = []
                 if landed:
                     committed.extend(landed)
                     hint = (
@@ -559,6 +568,7 @@ class DatastoreSubmitter:
                         'despite the error and is counted as committed.'
                     )
                 elif landed is None:
+                    unresolved = [operation.path_in_repo for operation in batch]
                     hint = (
                         ' Whether the failing batch landed could not be '
                         'checked either; if the error was a timeout whose '
@@ -573,6 +583,7 @@ class DatastoreSubmitter:
                     f'{type(exc).__name__}: {exc}.{hint}',
                     pull_request=pull_request,
                     committed_paths=committed,
+                    unresolved_paths=unresolved,
                 ) from exc
             committed.extend(operation.path_in_repo for operation in batch)
         return commits
@@ -679,6 +690,9 @@ class DatastoreSubmitter:
                         'inspect it before re-running',
                         pull_request=pull_request,
                         committed_paths=(),
+                        unresolved_paths=[
+                            operation.path_in_repo for operation in first
+                        ],
                     )
                 if landed:
                     committed.extend(landed)

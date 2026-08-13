@@ -938,6 +938,49 @@ def test_an_upload_failure_leaves_the_fingerprints_unrecorded(
     ]
 
 
+def test_an_unanswerable_batch_stays_in_flight(tmp_path) -> None:
+    """The commit errored, the ref could not be read, and the records may be
+    on the pull request anyway. Clearing the in-flight file here is how the
+    next run uploads them a second time; keeping them in it is what lets that
+    run ask the pull request instead of guessing."""
+    hub = FakeHub(
+        {'state/hle.json': json.dumps({'pull_request_number': 12})},
+        discussions=[cron_pr(12)],
+    )
+    outcome = make_outcome(tmp_path, uploaded=3)
+    write_capture(outcome.raw_dir)
+    real_create_commit = hub.create_commit
+
+    def lose_the_second_batch(**kwargs):
+        if (
+            kwargs.get('repo_id') != store.DEFAULT_RAW_REPO
+            and len(datastore_commits(hub)) >= 1
+        ):
+            # The reconciliation read fails too, so the batch's fate is
+            # unknowable this run.
+            hub.list_files_error = ConnectionError('network is unreachable')
+            raise RuntimeError('504 Gateway Timeout')
+        return real_create_commit(**kwargs)
+
+    hub.create_commit = lose_the_second_batch
+
+    exit_code = finish(
+        outcome, hub, submitter=submit.DatastoreSubmitter(hub, batch_size=1)
+    )
+
+    assert exit_code == 1
+    # The batch that landed is in the ledger; the never-attempted third
+    # record is safe to upload again, so neither stays in flight. Only the
+    # unanswerable second record does, addressed to the pull request the
+    # next run must ask about it.
+    assert hub.files['state/hle.pending'] == 'fingerprint-0\n'
+    batch = json.loads(hub.files['state/hle.inflight'])
+    assert batch['pull_request_number'] == 12
+    assert [record['fingerprint'] for record in batch['records']] == [
+        'fingerprint-1'
+    ]
+
+
 def test_the_run_url_reaches_the_pull_request_body(tmp_path) -> None:
     hub = FakeHub()
     outcome = make_outcome(tmp_path)
