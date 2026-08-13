@@ -86,7 +86,7 @@ jobs:
               echo
               echo "${count} adapter(s) due."
               echo
-              printf '%s' "${matrix}" | jq -r '.include[] | "- `\(.adapter)` (\(.timeout_minutes)m)"'
+              printf '%s' "${matrix}" | jq -r '.include[] | "- `\(.adapter)` (\(.timeout_minutes)m adapter, \(.job_timeout_minutes)m job)"'
           } >> "${GITHUB_STEP_SUMMARY}"
 
   run:
@@ -94,7 +94,11 @@ jobs:
     needs: plan
     if: needs.plan.outputs.count != '0'
     runs-on: ubuntu-latest
-    timeout-minutes: ${{ matrix.timeout_minutes }}
+    # The adapter's own budget plus a buffer for checkout, `uv sync` and the
+    # uploads, computed by `cron plan`. Giving the job the adapter's figure
+    # meant a job cancelled while committing, which is the one moment where
+    # records exist with nothing recording them.
+    timeout-minutes: ${{ matrix.job_timeout_minutes }}
     # Scopes the Hub token to this workflow.
     environment: cron
     # One run of one adapter at a time: two concurrent runs would read the

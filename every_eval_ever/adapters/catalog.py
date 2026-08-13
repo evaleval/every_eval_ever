@@ -39,6 +39,17 @@ ADAPTER_MODULE_PREFIX = 'every_eval_ever.adapters.'
 #: integrations" section of ``every_eval_ever/adapters/README.md``.
 LEGACY_ADAPTERS = frozenset({'livecodebenchpro'})
 
+#: Minutes a scheduled job gets on top of its adapter's own budget.
+#: ``timeout_minutes`` bounds the adapter subprocess, and the job around it
+#: also checks out the repository, installs the environment, uploads the raw
+#: snapshot and commits records. Giving the job the adapter's figure meant an
+#: adapter that used its full budget left nothing for the publishing, and a
+#: job cancelled there loses the ledger entry for what it had already
+#: uploaded. Sized for the slow case of the surrounding steps rather than the
+#: usual one, since the cost of it being too large is a late cancellation and
+#: the cost of it being too small is a torn publication.
+JOB_TIMEOUT_BUFFER_MINUTES = 15
+
 
 @dataclass(frozen=True)
 class AdapterSpec:
@@ -130,6 +141,17 @@ class AdapterSpec:
     def package(self) -> str:
         """Return the adapter package directory name under ``adapters/``."""
         return self.module.split('.')[-2]
+
+    @property
+    def job_timeout_minutes(self) -> int:
+        """Return the wall clock the whole scheduled job may take.
+
+        The adapter's own budget plus :data:`JOB_TIMEOUT_BUFFER_MINUTES` for
+        the work either side of it. Kept here rather than as arithmetic in the
+        workflow so that one place decides how long a unit may take and a test
+        can hold it to being longer than the subprocess it contains.
+        """
+        return self.timeout_minutes + JOB_TIMEOUT_BUFFER_MINUTES
 
     def output_dir(self, data_root: Path | str) -> Path:
         """Return the value to pass to ``output_arg`` for a staging root.
@@ -470,6 +492,7 @@ __all__ = [
     'ADAPTERS',
     'ADAPTER_MODULE_PREFIX',
     'BY_KEY',
+    'JOB_TIMEOUT_BUFFER_MINUTES',
     'LEGACY_ADAPTERS',
     'AdapterSpec',
     'Cadence',

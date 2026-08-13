@@ -117,6 +117,10 @@ def cmd_plan(args: argparse.Namespace) -> int:
         {
             'adapter': spec.key,
             'timeout_minutes': spec.timeout_minutes,
+            # What the job gets, as opposed to what the adapter gets. The
+            # workflow reads this one; the adapter's own budget is here so a
+            # reader of the matrix can see both.
+            'job_timeout_minutes': spec.job_timeout_minutes,
             'packages': ' '.join(spec.with_packages),
         }
         for spec in due

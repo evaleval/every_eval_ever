@@ -153,6 +153,22 @@ def test_plan_carries_the_timeout_and_extra_packages(capsys) -> None:
     assert entries['swe_bench_verified']['packages'] == 'datasets'
 
 
+def test_plan_gives_the_job_more_time_than_the_adapter(capsys) -> None:
+    """The job also checks out, installs and uploads.
+
+    Cancelling it at the adapter's own budget is how a run ends with records
+    on a pull request and nothing in the ledger saying so.
+    """
+    cli.main(['plan', '--date', '2026-08-10'])
+
+    matrix = json.loads(capsys.readouterr().out)
+    assert matrix['include']
+    for entry in matrix['include']:
+        assert entry['job_timeout_minutes'] == (
+            entry['timeout_minutes'] + catalog.JOB_TIMEOUT_BUFFER_MINUTES
+        )
+
+
 def test_an_adapter_without_credentials_stays_in_the_plan(capsys) -> None:
     """Reporting a skip is visible; dropping it from the matrix is not."""
     cli.main(['plan', '--date', '2026-08-10'])

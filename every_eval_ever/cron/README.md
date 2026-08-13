@@ -229,7 +229,11 @@ parser and fails if any adapter package is neither registered nor listed as
 legacy.
 
 Give heavy adapters `cadence='weekly'` with a `weekday`, and a realistic
-`timeout_minutes`, which bounds both the subprocess and the GitHub job.
+`timeout_minutes`, which bounds the adapter subprocess. The GitHub job gets
+that plus `JOB_TIMEOUT_BUFFER_MINUTES`, because the job also checks out the
+repository, installs the environment, uploads the snapshot and commits the
+records. A job cancelled during that last part is the one case where records
+reach a pull request with nothing in the ledger recording them.
 
 ## Operating it
 

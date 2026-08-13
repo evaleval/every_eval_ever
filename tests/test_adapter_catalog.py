@@ -219,6 +219,18 @@ def test_invalid_specs_are_rejected(kwargs: dict, message: str) -> None:
         catalog.AdapterSpec(**(base | kwargs))
 
 
+def test_every_job_gets_more_time_than_the_adapter_it_runs() -> None:
+    """The subprocess budget is not the job budget.
+
+    A job that is cancelled after its adapter finished but before its records
+    are recorded leaves the datastore ahead of the ledger, so the surrounding
+    steps get their own room.
+    """
+    assert catalog.JOB_TIMEOUT_BUFFER_MINUTES > 0
+    for spec in catalog.ADAPTERS:
+        assert spec.job_timeout_minutes > spec.timeout_minutes
+
+
 def _timedelta(days: int):
     from datetime import timedelta
 
