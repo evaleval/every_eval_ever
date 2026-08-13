@@ -20,6 +20,10 @@ from tests.test_cron_store_and_submit import FakeHub, cron_pr
 
 RUN_DATE = date(2026, 8, 10)  # a Monday
 SPEC = catalog.get('hle')
+#: Names this run within its date, so a second run that day writes its own
+#: manifest and report instead of replacing the first's.
+RUN_TOKEN = 'run-2-1'
+RAW_PREFIX = store.raw_prefix('hle', RUN_DATE, RUN_TOKEN)
 
 
 @pytest.fixture(autouse=True)
@@ -106,6 +110,7 @@ def finish(outcome, hub, **kwargs):
         raw_store=kwargs.pop('raw_store', store.RawStore(hub)),
         submitter=kwargs.pop('submitter', submit.DatastoreSubmitter(hub)),
         run_url=kwargs.pop('run_url', None),
+        run_token=kwargs.pop('run_token', RUN_TOKEN),
         dry_run=kwargs.pop('dry_run', False),
     )
 
@@ -278,18 +283,18 @@ def test_the_raw_snapshot_and_run_report_land_in_one_commit(
     store_commit = hub.commits[-1]
     paths = {operation.path_in_repo for operation in store_commit['operations']}
     assert paths == {
-        'raw/hle/2026-08-10/abc.json',
-        'raw/hle/2026-08-10/manifest.jsonl',
-        'raw/hle/2026-08-10/run.json',
+        f'{RAW_PREFIX}/abc.json',
+        f'{RAW_PREFIX}/manifest.jsonl',
+        f'{RAW_PREFIX}/run.json',
         'state/hle.json',
         'state/hle.fingerprints',
         'state/hle.pending',
     }
     assert store_commit['parent_commit'] == 'headsha'
-    report = json.loads(hub.files['raw/hle/2026-08-10/run.json'])
+    report = json.loads(hub.files[f'{RAW_PREFIX}/run.json'])
     assert report['status'] == 'completed'
     assert report['pull_request']['number'] == 42
-    assert report['raw_reference'] == 'raw/hle/2026-08-10'
+    assert report['raw_reference'] == RAW_PREFIX
 
 
 def test_a_second_run_reuses_the_remembered_pull_request(tmp_path) -> None:
@@ -424,7 +429,15 @@ def test_records_from_a_closed_pull_request_are_resubmitted(
     monkeypatch.setattr(cli.runner, 'run', fake_run)
 
     exit_code = cli.main(
-        ['run', '--adapter', 'hle', '--workdir', str(tmp_path / 'work')]
+        [
+            'run',
+            '--adapter',
+            'hle',
+            '--workdir',
+            str(tmp_path / 'work'),
+            '--run-id',
+            RUN_TOKEN,
+        ]
     )
 
     assert exit_code == 0
@@ -433,7 +446,7 @@ def test_records_from_a_closed_pull_request_are_resubmitted(
     state = json.loads(hub.files['state/hle.json'])
     assert state['pull_request_number'] == 42
     assert hub.files['state/hle.pending'] == 'fingerprint-0\n'
-    report = json.loads(hub.files['raw/hle/2026-08-10/run.json'])
+    report = json.loads(hub.files[f'{RAW_PREFIX}/run.json'])
     assert any(
         'closed without merging' in message for message in report['messages']
     )
@@ -498,8 +511,71 @@ def test_the_snapshot_pointer_moves_when_one_was(tmp_path) -> None:
 
     finish(outcome, hub)
 
-    assert json.loads(hub.files['state/hle.json'])['last_raw_date'] == (
-        '2026-08-10'
+    state = json.loads(hub.files['state/hle.json'])
+    assert state['last_raw_date'] == '2026-08-10'
+    # The whole path, because a date names more than one directory now.
+    assert state['last_raw_prefix'] == RAW_PREFIX
+
+
+def test_a_second_run_on_one_day_keeps_the_first_runs_manifest(
+    tmp_path,
+) -> None:
+    """A re-run is how the interesting days go: a cancelled job, a source
+    that was down at 03:17. Overwriting the first attempt's manifest and
+    report loses the account of what it fetched and what happened to it."""
+    hub = FakeHub()
+    first = make_outcome(tmp_path / 'first')
+    write_capture(first.raw_dir)
+    finish(first, hub, run_token='run-2-1')
+
+    second = make_outcome(tmp_path / 'second')
+    write_capture(second.raw_dir)
+    finish(second, hub, run_token='run-2-2')
+
+    first_prefix = store.raw_prefix('hle', RUN_DATE, 'run-2-1')
+    second_prefix = store.raw_prefix('hle', RUN_DATE, 'run-2-2')
+    assert f'{first_prefix}/manifest.jsonl' in hub.files
+    assert f'{second_prefix}/manifest.jsonl' in hub.files
+    assert (
+        json.loads(hub.files[f'{first_prefix}/run.json'])['run_token']
+        == 'run-2-1'
+    )
+    assert (
+        json.loads(hub.files[f'{second_prefix}/run.json'])['run_token']
+        == 'run-2-2'
+    )
+    # The second run reads the first's manifest, so the payload it already
+    # holds is referenced rather than stored again.
+    assert f'{second_prefix}/abc.json' not in hub.files
+    manifest = hub.files[f'{second_prefix}/manifest.jsonl']
+    assert f'{first_prefix}/abc.json' in manifest
+    assert json.loads(hub.files['state/hle.json'])['last_raw_prefix'] == (
+        second_prefix
+    )
+
+
+def test_a_state_written_before_run_scoped_snapshots_still_de_duplicates(
+    tmp_path,
+) -> None:
+    """A ledger from the old layout names a date, which was the directory."""
+    hub = FakeHub(
+        {
+            'state/hle.json': json.dumps({'last_raw_date': '2026-08-09'}),
+            'raw/hle/2026-08-09/manifest.jsonl': json.dumps(
+                {'kind': 'payload', 'sha256': 'abc', 'path': 'abc.json'}
+            )
+            + '\n',
+        }
+    )
+    outcome = make_outcome(tmp_path)
+    write_capture(outcome.raw_dir)
+
+    finish(outcome, hub)
+
+    assert f'{RAW_PREFIX}/abc.json' not in hub.files
+    assert (
+        'raw/hle/2026-08-09/abc.json'
+        in (hub.files[f'{RAW_PREFIX}/manifest.jsonl'])
     )
 
 
@@ -514,7 +590,7 @@ def test_a_run_with_nothing_new_still_records_that_it_ran(tmp_path) -> None:
     assert not any(commit.get('create_pr') for commit in hub.commits)
     state = json.loads(hub.files['state/hle.json'])
     assert state['last_run_date'] == '2026-08-10'
-    report = json.loads(hub.files['raw/hle/2026-08-10/run.json'])
+    report = json.loads(hub.files[f'{RAW_PREFIX}/run.json'])
     assert report['records_skipped_unchanged'] == 3
 
 
@@ -527,7 +603,7 @@ def test_a_failed_run_records_evidence_and_exits_non_zero(tmp_path) -> None:
     assert finish(outcome, hub) == 1
 
     assert not any(commit.get('create_pr') for commit in hub.commits)
-    report = json.loads(hub.files['raw/hle/2026-08-10/run.json'])
+    report = json.loads(hub.files[f'{RAW_PREFIX}/run.json'])
     assert report['status'] == 'failed'
     assert json.loads(hub.files['state/hle.json'])['last_status'] == 'failed'
 
@@ -570,6 +646,7 @@ def test_a_dry_run_touches_neither_repository(tmp_path, capsys) -> None:
             raw_store=None,
             submitter=None,
             run_url=None,
+            run_token=RUN_TOKEN,
             dry_run=True,
         )
         == 0

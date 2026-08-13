@@ -17,6 +17,7 @@ import argparse
 import contextlib
 import json
 import os
+import re
 import sys
 import tempfile
 from datetime import UTC, date, datetime
@@ -44,6 +45,31 @@ def _run_url() -> str | None:
     if server and repository and run_id:
         return f'{server}/{repository}/actions/runs/{run_id}'
     return None
+
+
+def _run_token() -> str:
+    """Return a name for this run, unique within its date.
+
+    Two runs of one adapter on one day are ordinary: a cancelled job, a source
+    that was down at 03:17, a manual run after a fix. They each write a
+    manifest and a report, so the snapshot directory has to tell them apart or
+    the second silently replaces the first's account of what it fetched.
+
+    Actions supplies the identity; outside it the clock does, which is enough
+    to separate two runs a human started minutes apart.
+    """
+    run_id = _safe_component(os.environ.get('GITHUB_RUN_ID'))
+    if run_id:
+        attempt = _safe_component(os.environ.get('GITHUB_RUN_ATTEMPT')) or '1'
+        return f'run-{run_id}-{attempt}'
+    return f'local-{datetime.now(UTC).strftime("%H%M%S")}'
+
+
+def _safe_component(value: str | None) -> str:
+    """Return ``value`` reduced to what may appear in a repository path."""
+    if not value:
+        return ''
+    return re.sub(r'[^A-Za-z0-9._-]', '', value)[:64]
 
 
 def _have_token() -> bool:
@@ -283,6 +309,7 @@ def cmd_run(args: argparse.Namespace) -> int:
 
     run_date = args.date or _today()
     run_url = args.run_url or _run_url()
+    run_token = _safe_component(args.run_id) or _run_token()
     dry_run = args.dry_run
     if not dry_run and not _have_token():
         # Falling back to a dry run here was convenient locally and wrong in
@@ -343,6 +370,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             raw_store=raw_store,
             submitter=submitter,
             run_url=run_url,
+            run_token=run_token,
             dry_run=dry_run,
         )
 
@@ -355,10 +383,11 @@ def _finish(
     raw_store: store.RawStore | None,
     submitter: submit.DatastoreSubmitter | None,
     run_url: str | None,
+    run_token: str,
     dry_run: bool,
 ) -> int:
     notes: list[str] = []
-    raw_reference = store.raw_prefix(spec.key, outcome.run_date)
+    raw_reference = store.raw_prefix(spec.key, outcome.run_date, run_token)
     pull_request = None
     committed_paths: tuple[str, ...] = ()
     publish_failure: submit.PartialSubmissionError | None = None
@@ -392,6 +421,7 @@ def _finish(
 
     report = outcome.to_manifest()
     report['raw_reference'] = raw_reference
+    report['run_token'] = run_token
     report['dry_run'] = dry_run
     if publish_failure is not None:
         report['publish_error'] = str(publish_failure)
@@ -404,32 +434,28 @@ def _finish(
 
     if raw_store is not None:
         previous = (
-            raw_store.read_manifest(
-                spec.key, date.fromisoformat(state.last_raw_date)
-            )
-            if state.last_raw_date
+            raw_store.read_manifest(state.last_raw_prefix)
+            if state.last_raw_prefix
             else []
         )
         operations, raw_manifest = store.plan_raw_upload(
             outcome.raw_dir,
-            adapter=spec.key,
-            run_date=outcome.run_date,
+            prefix=raw_reference,
             previous_manifest=previous,
-            previous_date=state.last_raw_date,
+            previous_prefix=state.last_raw_prefix,
         )
         operations.append(
-            store.run_report_operation(
-                report, adapter=spec.key, run_date=outcome.run_date
-            )
+            store.run_report_operation(report, prefix=raw_reference)
         )
 
         state.last_run_date = outcome.run_date.isoformat()
         state.last_status = outcome.status
         # Only advance the snapshot pointer when a snapshot was actually
-        # written. Pointing it at a date holding nothing but a run report
+        # written. Pointing it at a directory holding nothing but a run report
         # would make the next run find no manifest and re-upload everything.
         if raw_manifest:
             state.last_raw_date = outcome.run_date.isoformat()
+            state.last_raw_prefix = raw_reference
         if pull_request is not None:
             state.pull_request_number = pull_request.number
             state.pull_request_url = pull_request.url
@@ -556,6 +582,14 @@ def build_parser() -> argparse.ArgumentParser:
         '--run-url',
         default=None,
         help='Link recorded on every published record and in the PR body.',
+    )
+    run_parser.add_argument(
+        '--run-id',
+        default=None,
+        help=(
+            "Name this run's snapshot directory (default: the workflow run, "
+            'or the local clock).'
+        ),
     )
     run_parser.set_defaults(handler=cmd_run)
 

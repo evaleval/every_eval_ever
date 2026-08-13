@@ -8,13 +8,18 @@ directly, alongside the raw snapshots it is keeping anyway.
 
 Layout of ``evaleval/EEE_raw`` (``main``)::
 
-    raw/<adapter>/<YYYY-MM-DD>/<sha256><ext>   payload bytes
-    raw/<adapter>/<YYYY-MM-DD>/manifest.jsonl  one line per capture
-    raw/<adapter>/<YYYY-MM-DD>/run.json        outcome, coverage, PR link
+    raw/<adapter>/<date>/<run>/<sha256><ext>   payload bytes
+    raw/<adapter>/<date>/<run>/manifest.jsonl  one line per capture
+    raw/<adapter>/<date>/<run>/run.json        outcome, coverage, PR link
     state/<adapter>.json                       PR number, last run
     state/<adapter>.fingerprints               one sha256 per merged record
     state/<adapter>.pending                    one sha256 per record still
                                                waiting on its pull request
+
+``<date>`` is the UTC run date and ``<run>`` identifies the run within it, so
+a second attempt on one day adds a directory instead of overwriting the first
+attempt's manifest and report. Which run wrote a snapshot is exactly what a
+reader wants on the days there was more than one.
 
 Fingerprints live in their own newline-delimited files: the merged set is
 cumulative and reaches thousands of lines for the larger leaderboards, and
@@ -82,6 +87,10 @@ class AdapterState:
     pull_request_url: str | None = None
     last_run_date: str | None = None
     last_raw_date: str | None = None
+    #: Full path of the snapshot directory the previous run wrote, which is
+    #: what the next run's de-duplication reads. Kept whole rather than rebuilt
+    #: from :attr:`last_raw_date`, since a date no longer names one directory.
+    last_raw_prefix: str | None = None
     last_status: str | None = None
     #: Records that were merged into the datastore. Kept forever.
     fingerprints: set[str] = field(default_factory=set)
@@ -105,6 +114,7 @@ class AdapterState:
                     'pull_request_url': self.pull_request_url,
                     'last_run_date': self.last_run_date,
                     'last_raw_date': self.last_raw_date,
+                    'last_raw_prefix': self.last_raw_prefix,
                     'last_status': self.last_status,
                     'fingerprint_count': len(self.fingerprints),
                     'pending_fingerprint_count': len(self.pending_fingerprints),
@@ -148,8 +158,17 @@ def pending_fingerprints_path(adapter: str) -> str:
     return f'{STATE_DIR}/{adapter}.pending'
 
 
-def raw_prefix(adapter: str, run_date: date) -> str:
-    return f'{RAW_DIR}/{adapter}/{run_date.isoformat()}'
+def raw_prefix(adapter: str, run_date: date, run_token: str) -> str:
+    """Return the directory one run's snapshot and report belong in.
+
+    The date alone was not enough. Payloads are content-addressed and survive
+    a second run that day, but ``manifest.jsonl`` and ``run.json`` are written
+    at fixed names, so a re-run overwrote the record of what the first run
+    fetched and what happened to it. Re-runs are the normal case for the runs
+    worth reading about later: a job that was cancelled, a source that was
+    down at 03:17, a manual run after a fix.
+    """
+    return f'{RAW_DIR}/{adapter}/{run_date.isoformat()}/{run_token}'
 
 
 class RawStore:
@@ -318,6 +337,13 @@ class RawStore:
             state.pull_request_url = payload.get('pull_request_url')
             state.last_run_date = payload.get('last_run_date')
             state.last_raw_date = payload.get('last_raw_date')
+            state.last_raw_prefix = payload.get('last_raw_prefix')
+            if state.last_raw_prefix is None and state.last_raw_date:
+                # Written before snapshots were scoped to a run. The date was
+                # the whole directory then, so it still names one.
+                state.last_raw_prefix = (
+                    f'{RAW_DIR}/{adapter}/{state.last_raw_date}'
+                )
             state.last_status = payload.get('last_status')
 
         ledger = self._download_text(fingerprints_path(adapter))
@@ -335,11 +361,9 @@ class RawStore:
             }
         return state
 
-    def read_manifest(self, adapter: str, run_date: date) -> list[dict]:
-        """Return a previous run's capture manifest, or ``[]``."""
-        raw = self._download_text(
-            f'{raw_prefix(adapter, run_date)}/{MANIFEST_NAME}'
-        )
+    def read_manifest(self, prefix: str) -> list[dict]:
+        """Return the capture manifest under ``prefix``, or ``[]``."""
+        raw = self._download_text(f'{prefix}/{MANIFEST_NAME}')
         if raw is None:
             return []
         return [json.loads(line) for line in raw.splitlines() if line.strip()]
@@ -415,10 +439,9 @@ class RawStore:
 def plan_raw_upload(
     raw_dir: Path,
     *,
-    adapter: str,
-    run_date: date,
+    prefix: str,
     previous_manifest: list[dict] | None = None,
-    previous_date: str | None = None,
+    previous_prefix: str | None = None,
 ) -> tuple[list[CommitOperationAdd], list[dict]]:
     """Return the payloads to upload and the manifest describing the run.
 
@@ -433,24 +456,23 @@ def plan_raw_upload(
         return [], []
 
     previous: dict[str, str] = {}
-    if previous_manifest and previous_date:
+    if previous_manifest and previous_prefix:
         for entry in previous_manifest:
             if entry.get('kind') != 'payload':
                 continue
             # An entry that was itself unchanged names a file the previous
-            # day did not write, because that day referenced an earlier copy
+            # run did not write, because that run referenced an earlier copy
             # instead of storing one. Following its target keeps every
             # reference pointing at bytes that exist, however many unchanged
-            # days have passed.
+            # runs have passed.
             target = entry.get(UNCHANGED_MARKER)
             if not target:
                 stored = entry.get('path')
                 if not stored:
                     continue
-                target = f'{RAW_DIR}/{adapter}/{previous_date}/{stored}'
+                target = f'{previous_prefix}/{stored}'
             previous[entry['sha256']] = target
 
-    prefix = raw_prefix(adapter, run_date)
     operations: list[CommitOperationAdd] = []
     manifest: list[dict] = []
     uploaded: set[str] = set()
@@ -493,11 +515,11 @@ def plan_raw_upload(
 
 
 def run_report_operation(
-    report: dict[str, Any], *, adapter: str, run_date: date
+    report: dict[str, Any], *, prefix: str
 ) -> CommitOperationAdd:
     """Return the commit operation for a run's outcome report."""
     return CommitOperationAdd(
-        path_in_repo=f'{raw_prefix(adapter, run_date)}/{RUN_REPORT_NAME}',
+        path_in_repo=f'{prefix}/{RUN_REPORT_NAME}',
         path_or_fileobj=(
             json.dumps(report, indent=2, sort_keys=True, ensure_ascii=False)
             + '\n'

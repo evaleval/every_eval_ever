@@ -147,9 +147,9 @@ depend on.
 
 ```
 evaleval/EEE_raw   (private dataset, main)
-  raw/<adapter>/<YYYY-MM-DD>/<sha256><ext>    payload bytes
-  raw/<adapter>/<YYYY-MM-DD>/manifest.jsonl   one line per capture
-  raw/<adapter>/<YYYY-MM-DD>/run.json         outcome, coverage, PR link
+  raw/<adapter>/<date>/<run>/<sha256><ext>    payload bytes
+  raw/<adapter>/<date>/<run>/manifest.jsonl   one line per capture
+  raw/<adapter>/<date>/<run>/run.json         outcome, coverage, PR link
   state/<adapter>.json                        PR number, last run, last status
   state/<adapter>.fingerprints                one sha256 per merged record
   state/<adapter>.pending                     one sha256 per record still
@@ -159,6 +159,16 @@ evaleval/EEE_raw   (private dataset, main)
 `<adapter>` is the catalog key, which is also the job name and the name on the
 adapter's datastore pull request. Nothing has ever been published here, so the
 first run that does is the one that sets this in stone.
+
+`<date>` is the UTC run date and `<run>` names the run within it:
+`run-<workflow run id>-<attempt>` under Actions, `local-<HHMMSS>` otherwise,
+overridable with `--run-id`. Two runs of one adapter on one day are ordinary,
+a cancelled job or a source that was down at 03:17 followed by a manual re-run,
+and both write a manifest and a report at fixed names. Under a date alone the
+second overwrote the first's account of what it fetched. Payload bytes are
+content-addressed, so nothing is stored twice; only the two files that describe
+a run are per run. `state/<adapter>.json` carries `last_raw_prefix`, the whole
+path, since a date no longer names one directory.
 
 Everything one run writes lands in a single commit, guarded by the commit the
 state was read at, so two overlapping runs collide loudly instead of one

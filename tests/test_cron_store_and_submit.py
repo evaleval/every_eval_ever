@@ -23,6 +23,10 @@ from every_eval_ever.cron import store, submit
 
 RUN_DATE = date(2026, 8, 10)
 YESTERDAY = date(2026, 8, 9)
+#: Where today's snapshot goes, and where yesterday's went. Both carry a run
+#: token, because a date on its own no longer names one directory.
+PREFIX = store.raw_prefix('hle', RUN_DATE, 'run-2-1')
+PREVIOUS_PREFIX = store.raw_prefix('hle', YESTERDAY, 'run-1-1')
 #: The account the cron publishes as, in these tests.
 CRON_USER = 'eee-cron'
 
@@ -314,6 +318,7 @@ def test_state_round_trips_through_the_store() -> None:
         pull_request_url='https://example/7',
         last_run_date='2026-08-09',
         last_raw_date='2026-08-09',
+        last_raw_prefix='raw/hle/2026-08-09/run-1-1',
         last_status='completed',
         fingerprints={'bbb', 'aaa'},
         pending_fingerprints={'ccc'},
@@ -329,6 +334,7 @@ def test_state_round_trips_through_the_store() -> None:
     assert reloaded.exists
     assert reloaded.pull_request_number == 7
     assert reloaded.last_status == 'completed'
+    assert reloaded.last_raw_prefix == 'raw/hle/2026-08-09/run-1-1'
     assert reloaded.fingerprints == {'aaa', 'bbb'}
     # Pending fingerprints survive apart from the durable ones, because the
     # two are settled differently when their pull request closes.
@@ -434,7 +440,7 @@ def write_capture(raw_dir: Path, entries: list[dict], payloads: dict) -> None:
 
 def test_a_run_with_no_captures_uploads_nothing(tmp_path) -> None:
     operations, manifest = store.plan_raw_upload(
-        tmp_path / 'raw', adapter='hle', run_date=RUN_DATE
+        tmp_path / 'raw', prefix=PREFIX
     )
 
     assert operations == []
@@ -463,14 +469,12 @@ def test_payloads_and_a_manifest_are_uploaded_under_the_run_date(
         {'aaa.json': b'{}'},
     )
 
-    operations, manifest = store.plan_raw_upload(
-        raw_dir, adapter='hle', run_date=RUN_DATE
-    )
+    operations, manifest = store.plan_raw_upload(raw_dir, prefix=PREFIX)
 
     paths = [operation.path_in_repo for operation in operations]
     assert paths == [
-        'raw/hle/2026-08-10/aaa.json',
-        'raw/hle/2026-08-10/manifest.jsonl',
+        f'{PREFIX}/aaa.json',
+        f'{PREFIX}/manifest.jsonl',
     ]
     assert len(manifest) == 2
 
@@ -498,17 +502,16 @@ def test_an_unchanged_payload_is_referenced_not_re_uploaded(
 
     operations, manifest = store.plan_raw_upload(
         raw_dir,
-        adapter='hle',
-        run_date=RUN_DATE,
+        prefix=PREFIX,
         previous_manifest=previous,
-        previous_date=YESTERDAY.isoformat(),
+        previous_prefix=PREVIOUS_PREFIX,
     )
 
     assert [operation.path_in_repo for operation in operations] == [
-        'raw/hle/2026-08-10/manifest.jsonl'
+        f'{PREFIX}/manifest.jsonl'
     ]
     assert manifest[0][store.UNCHANGED_MARKER] == (
-        'raw/hle/2026-08-09/aaa.json'
+        f'{PREVIOUS_PREFIX}/aaa.json'
     )
 
 
@@ -601,14 +604,13 @@ def test_a_reference_survives_a_run_of_unchanged_days(tmp_path) -> None:
 
     operations, manifest = store.plan_raw_upload(
         raw_dir,
-        adapter='hle',
-        run_date=RUN_DATE,
+        prefix=PREFIX,
         previous_manifest=day_two,
-        previous_date=YESTERDAY.isoformat(),
+        previous_prefix=PREVIOUS_PREFIX,
     )
 
     assert [operation.path_in_repo for operation in operations] == [
-        'raw/hle/2026-08-10/manifest.jsonl'
+        f'{PREFIX}/manifest.jsonl'
     ]
     assert manifest[0][store.UNCHANGED_MARKER] == day_one
 
@@ -628,26 +630,25 @@ def test_a_changed_payload_is_uploaded_even_when_one_is_unchanged(
 
     operations, _ = store.plan_raw_upload(
         raw_dir,
-        adapter='hle',
-        run_date=RUN_DATE,
+        prefix=PREFIX,
         previous_manifest=[
             {'kind': 'payload', 'sha256': 'aaa', 'path': 'aaa.json'}
         ],
-        previous_date=YESTERDAY.isoformat(),
+        previous_prefix=PREVIOUS_PREFIX,
     )
 
     assert [operation.path_in_repo for operation in operations] == [
-        'raw/hle/2026-08-10/bbb.json',
-        'raw/hle/2026-08-10/manifest.jsonl',
+        f'{PREFIX}/bbb.json',
+        f'{PREFIX}/manifest.jsonl',
     ]
 
 
 def test_the_run_report_lands_beside_the_snapshot() -> None:
     operation = store.run_report_operation(
-        {'status': 'completed'}, adapter='hle', run_date=RUN_DATE
+        {'status': 'completed'}, prefix=PREFIX
     )
 
-    assert operation.path_in_repo == 'raw/hle/2026-08-10/run.json'
+    assert operation.path_in_repo == f'{PREFIX}/run.json'
     assert b'completed' in operation.path_or_fileobj
 
 
