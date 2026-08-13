@@ -61,6 +61,8 @@ class FakeHub:
         self.details_error: Exception | None = None
         self.edit_comment_error: Exception | None = None
         self.edited_comments: list[tuple[int, str]] = []
+        self.comment_error: Exception | None = None
+        self.posted_comments: list[tuple[int, str]] = []
         self.list_files_error: Exception | None = None
         self.whoami_error: Exception | None = None
         self.repo_info_error: Exception | None = None
@@ -151,6 +153,12 @@ class FakeHub:
                 self.edited_comments.append((discussion_num, new_content))
                 return type('Comment', (), {'content': new_content})()
         raise EntryNotFoundError(f'discussion {discussion_num} not found')
+
+    def comment_discussion(self, *, discussion_num, comment, **kwargs):
+        if self.comment_error is not None:
+            raise self.comment_error
+        self.posted_comments.append((discussion_num, comment))
+        return type('Comment', (), {'content': comment})()
 
     def list_repo_files(self, repo_id=None, **kwargs):
         if self.list_files_error is not None:
@@ -1371,6 +1379,94 @@ def test_a_description_that_cannot_be_refreshed_does_not_fail_the_run(
     assert len(submission.committed_paths) == 2
     assert '403 Forbidden' in submission.description_note
     assert 'describes an earlier run' in submission.description_note
+
+
+# --- validation is asked for once everything is in ------------------------
+
+
+def test_a_full_submission_into_a_reused_pull_request_asks_for_validation(
+    tmp_path,
+) -> None:
+    """The datastore validates on request, so a run that published records
+    has to post the command or nothing checks them."""
+    tree = _upload_tree(tmp_path, 2)
+    hub = FakeHub(discussions=[cron_pr(12)])
+    sub = submit.DatastoreSubmitter(hub)
+    pull_request = submit.PullRequest(12, 'https://x/12', 'refs/pr/12', 'x')
+
+    submission = sub.publish(
+        'hle',
+        pull_request=pull_request,
+        operations=submit.upload_operations(tree),
+        description='body',
+        message='hle 2026-08-10',
+    )
+
+    assert hub.posted_comments == [(12, submit.VALIDATION_COMMAND)]
+    assert submission.validation_note is None
+
+
+def test_a_newly_opened_pull_request_asks_for_validation(tmp_path) -> None:
+    tree = _upload_tree(tmp_path, 2)
+    hub = FakeHub()
+    sub = submit.DatastoreSubmitter(hub)
+
+    submission = sub.publish(
+        'hle',
+        pull_request=None,
+        operations=submit.upload_operations(tree),
+        description='body',
+        message='hle 2026-08-10',
+    )
+
+    number = submission.pull_request.number
+    assert hub.posted_comments == [(number, submit.VALIDATION_COMMAND)]
+    assert submission.validation_note is None
+
+
+def test_a_validation_request_that_fails_does_not_fail_the_run(
+    tmp_path,
+) -> None:
+    """The records are published either way; the note tells a human to post
+    the command by hand."""
+    tree = _upload_tree(tmp_path, 2)
+    hub = FakeHub(discussions=[cron_pr(12)])
+    hub.comment_error = RuntimeError('403 Forbidden')
+    sub = submit.DatastoreSubmitter(hub)
+    pull_request = submit.PullRequest(12, 'https://x/12', 'refs/pr/12', 'x')
+
+    submission = sub.publish(
+        'hle',
+        pull_request=pull_request,
+        operations=submit.upload_operations(tree),
+        description='body',
+        message='hle 2026-08-10',
+    )
+
+    assert len(submission.committed_paths) == 2
+    assert '403 Forbidden' in submission.validation_note
+    assert submit.VALIDATION_COMMAND in submission.validation_note
+
+
+def test_a_partial_submission_asks_for_no_validation(tmp_path) -> None:
+    """Validation of half an upload wastes the reviewer it summons; the
+    retry that completes the submission asks instead."""
+    tree = _upload_tree(tmp_path, 2)
+    hub = FakeHub(discussions=[cron_pr(12)])
+    hub.commit_error = RuntimeError('504 Gateway Timeout')
+    sub = submit.DatastoreSubmitter(hub)
+    pull_request = submit.PullRequest(12, 'https://x/12', 'refs/pr/12', 'x')
+
+    with pytest.raises(submit.PartialSubmissionError):
+        sub.publish(
+            'hle',
+            pull_request=pull_request,
+            operations=submit.upload_operations(tree),
+            description='body',
+            message='hle 2026-08-10',
+        )
+
+    assert hub.posted_comments == []
 
 
 # --- what happened to the last pull request -------------------------------

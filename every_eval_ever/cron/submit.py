@@ -32,6 +32,11 @@ DEFAULT_BATCH_SIZE = 300
 #: How an instance-level sidecar is named after its aggregate. The two are
 #: one record and are committed together.
 SAMPLES_SUFFIX = '_samples.jsonl'
+#: The comment that asks the datastore's validation bot to check what a pull
+#: request now carries. Validation on the Hub side runs on request, not on
+#: push: a pull request nobody comments on is a pull request nobody
+#: validated (see evaleval/EEE_datastore discussion 168).
+VALIDATION_COMMAND = '/eee validate changed'
 
 
 class SubmissionError(RuntimeError):
@@ -113,6 +118,11 @@ class Submission:
     #: Why the pull request body still describes an earlier run, when it does.
     #: Not a failure: the records are published either way.
     description_note: str | None = None
+    #: Why the datastore's validator was not asked to check this pull
+    #: request, when it was not. Not a failure either, but worth a human
+    #: reading: an unvalidated pull request sits unreviewed until somebody
+    #: posts the command by hand.
+    validation_note: str | None = None
 
 
 def _discussion_number(discussion: Any) -> int | None:
@@ -324,6 +334,30 @@ class DatastoreSubmitter:
         except Exception as exc:  # noqa: BLE001 - re-raised with context
             raise SubmissionError(
                 f'could not refresh the description of pull request '
+                f'{pull_request.number} on {self.repo_id}: '
+                f'{type(exc).__name__}: {exc}'
+            ) from exc
+
+    def request_validation(self, pull_request: PullRequest) -> None:
+        """Ask the datastore's validator to check this pull request.
+
+        The datastore validates a pull request when someone comments
+        :data:`VALIDATION_COMMAND` on it, so a run that published records has
+        to say so or nothing checks them. Posted as a fresh comment every
+        time rather than edited into an old one, because the bot reacts to
+        comments arriving, and posted after everything else so what it
+        validates is what the run actually left behind.
+        """
+        try:
+            self.api.comment_discussion(
+                repo_id=self.repo_id,
+                repo_type='dataset',
+                discussion_num=pull_request.number,
+                comment=VALIDATION_COMMAND,
+            )
+        except Exception as exc:  # noqa: BLE001 - re-raised with context
+            raise SubmissionError(
+                f'could not request validation on pull request '
                 f'{pull_request.number} on {self.repo_id}: '
                 f'{type(exc).__name__}: {exc}'
             ) from exc
@@ -654,6 +688,11 @@ class DatastoreSubmitter:
         body a reviewer reads describes the run that last added to it rather
         than whichever run opened it.
 
+        A submission that lands completely ends by commenting
+        :data:`VALIDATION_COMMAND` on the pull request, because that comment
+        is what makes the datastore validate it; without it the records sit
+        unchecked until a human asks.
+
         An opening commit that errored after landing is adopted rather than
         repeated, and what it left on the ref decides whether its batch counts
         as published.
@@ -719,10 +758,25 @@ class DatastoreSubmitter:
                 # The records are in. A stale body is worth reporting and not
                 # worth failing a run that published everything it meant to.
                 note = f'{exc}; the body still describes an earlier run'
+        validation_note = None
+        # Last, once the pull request holds everything this run meant to
+        # publish, so the validator reads the finished submission. A partial
+        # submission never reaches here, which is deliberate: asking for
+        # validation of half an upload wastes the reviewer the command
+        # summons.
+        try:
+            self.request_validation(pull_request)
+        except SubmissionError as exc:
+            # The records are in, same bargain as the description: report
+            # that nobody asked for validation rather than fail the run.
+            validation_note = (
+                f'{exc}; post `{VALIDATION_COMMAND}` on it manually'
+            )
         return Submission(
             pull_request=pull_request,
             committed_paths=tuple(committed),
             description_note=note,
+            validation_note=validation_note,
         )
 
 
@@ -841,6 +895,7 @@ __all__ = [
     'Submission',
     'SubmissionError',
     'SAMPLES_SUFFIX',
+    'VALIDATION_COMMAND',
     'marker',
     'pull_request_description',
     'pull_request_title',

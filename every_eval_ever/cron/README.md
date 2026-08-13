@@ -240,6 +240,15 @@ the pull request for the adapter. A refresh the Hub refuses is reported in the
 run report and the step summary rather than failing the run, because by then
 the records are published.
 
+A submission that lands completely ends by posting `/eee validate changed` as
+a fresh comment on the pull request, because the datastore's validator runs on
+that command rather than on push — records nobody comments on are records
+nobody validated. It is posted last, after the records and the description, so
+what it validates is the finished submission, and never after a partial one: a
+retry that completes the submission asks instead. A comment the Hub refuses is
+reported like a refused description rewrite, with a note asking a human to
+post the command by hand.
+
 ## Setup
 
 1. Nothing, if the token in the next step can create datasets: the first run
