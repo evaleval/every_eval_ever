@@ -466,6 +466,53 @@ def _cmd_convert_alpaca_eval(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_convert_sayf_eval(args: argparse.Namespace) -> int:
+    from every_eval_ever.converters.sayf_eval.adapter import SayfEvalAdapter
+
+    adapter = SayfEvalAdapter()
+    metadata = _common_metadata(args)
+    metadata['collection_prefix'] = getattr(args, 'collection_prefix', '') or ''
+    # The shared arg loop defaults --eval_library_name to the source id
+    # ('sayf_eval'); prefer the canonical package name unless overridden.
+    if args.eval_library_name == 'sayf_eval':
+        metadata['eval_library_name'] = 'sayf-eval'
+
+    log_path = Path(args.log_path)
+    input_result: SourceConversionResult[Any] | None = None
+    if log_path.is_file():
+        logs = adapter.transform_from_file(log_path, metadata)
+    elif log_path.is_dir():
+        input_result = adapter.transform_from_directory_result(
+            log_path, metadata
+        )
+        logs = input_result.records
+    else:
+        raise FileNotFoundError(f'Path is not a file or directory: {log_path}')
+
+    if not logs and input_result is None:
+        raise ValueError(
+            f'sayf-eval conversion produced no logs from {log_path}'
+        )
+
+    output_dir = Path(args.output_dir)
+    eval_uuids = [str(uuid.uuid4()) for _ in logs]
+    # Aggregate-only: sayf-eval per-sample item text is dual-use and never
+    # published, so no instance-level samples and no staging directory.
+    paths = (
+        publish_evaluation_logs(logs, output_dir, eval_uuids) if logs else []
+    )
+    for path in paths:
+        print(path)
+
+    _save_partial_conversion_report(
+        input_result, output_dir, 'sayf_eval_inputs'
+    )
+    if input_result is not None:
+        input_result.raise_if_incomplete()
+    print(f'Converted {len(paths)} evaluation log(s).')
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog='every_eval_ever',
@@ -535,7 +582,7 @@ def build_parser() -> argparse.ArgumentParser:
         dest='source', required=True
     )
 
-    for source in ['lm_eval', 'inspect', 'helm', 'alpaca_eval']:
+    for source in ['lm_eval', 'inspect', 'helm', 'alpaca_eval', 'sayf_eval']:
         source_parser = convert_subparsers.add_parser(
             source,
             help=f'Convert {source} logs',
@@ -631,6 +678,16 @@ def build_parser() -> argparse.ArgumentParser:
                     'evaluation details.'
                 ),
             )
+        if source == 'sayf_eval':
+            source_parser.add_argument(
+                '--collection_prefix',
+                '--collection-prefix',
+                default='',
+                help=(
+                    'Prefix for the datastore collection slug derived from each '
+                    "task (e.g. 'sayf-eval-' to namespace in a shared datastore)."
+                ),
+            )
 
     return parser
 
@@ -667,6 +724,8 @@ def main(argv: list[str] | None = None) -> int:
             return _cmd_convert_helm(args)
         if args.source == 'alpaca_eval':
             return _cmd_convert_alpaca_eval(args)
+        if args.source == 'sayf_eval':
+            return _cmd_convert_sayf_eval(args)
 
     parser.print_help()
     return 1
