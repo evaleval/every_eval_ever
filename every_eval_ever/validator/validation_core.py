@@ -32,6 +32,34 @@ _UUID_RE = (
 _AGGREGATE_FILE_RE = re.compile(rf'{_UUID_RE}\.json$')
 _INSTANCE_FILE_RE = re.compile(rf'{_UUID_RE}_samples\.jsonl$')
 
+# Metric ids that name no quantity — whatever a leaderboard called its headline
+# number. Two sources that both pick one of these produce scores that join under
+# a single id and mean different things, which is the failure
+# ``check_metric_identity`` reports. A qualified id built from the same word is
+# fine (``lmarena.elo``, ``mteb-score``): the collision is in the bare form.
+# Only words that cannot name a quantity belong here — this is not a list of
+# non-canonical metrics; see check_metric_identity.
+_GENERIC_METRIC_IDS = frozenset(
+    {
+        'average',
+        'average_score',
+        'cost',
+        'elo',
+        'mean',
+        'mean_score',
+        'metric',
+        'overall',
+        'overall_score',
+        'rank',
+        'ranking',
+        'result',
+        'score',
+        'total',
+        'total_score',
+        'value',
+    }
+)
+
 _DEPLOYMENT_TYPES = ('self_deployed', 'externally_managed', 'unknown')
 _MODEL_AVAILABILITY_TYPES = ('open_weights', 'closed_weights', 'unknown')
 _INVALID_PATH_COMPONENT_CHARS = re.compile(r'[<>:"\\|?*\x00-\x1f]')
@@ -577,6 +605,122 @@ def _metric_bound(value: Any) -> float | None:
     return None
 
 
+def check_metric_identity(data: dict[str, Any]) -> list[str]:
+    """Warn when ``metric_id`` cannot identify the metric across sources.
+
+    ``metric_id`` is the join/dedup key for scores from different leaderboards,
+    so it has to mean the same thing everywhere. A bare ``score``/``rank``/
+    ``elo`` cannot: it silently merges unrelated numbers from every source that
+    picked the same word.
+
+    What this deliberately does *not* do is decide whether an id names a real
+    metric, and :data:`_GENERIC_METRIC_IDS` must not grow into a whitelist of
+    known ones. The only vocabulary that exists is the eval-card-registry's, and
+    it namespaces 6 of its 1842 ids, so demanding a namespace would flag the
+    other 1836; no in-repo list holds every field's metrics either — ``psnr``,
+    ``cider``, ``iou``, ``stoi`` are all specific and none would be in one. So
+    the rule is the narrow one that holds offline: warn only on an id that names
+    no quantity at all.
+
+    One warning per finding *kind*, not per result. Every entry in a leaderboard
+    file is built by the same adapter code, so a per-result warning repeats
+    itself once per task — 374 identical lines on the largest published record —
+    and buries every other finding. The count and the first location are what a
+    contributor needs.
+
+    Warnings, not errors: the field is optional in the schema, and published
+    records predate this rule.
+    """
+    missing: list[str] = []
+    generic: list[tuple[str, str]] = []
+    repeats_task: list[tuple[str, str]] = []
+
+    results = data.get('evaluation_results')
+    if not isinstance(results, list):
+        return []
+
+    for index, result in enumerate(results):
+        if not isinstance(result, dict):
+            continue
+        metric = result.get('metric_config')
+        if not isinstance(metric, dict):
+            continue
+        location = f'evaluation_results[{index}].metric_config'
+        metric_id = metric.get('metric_id')
+
+        if metric_id is None or (
+            isinstance(metric_id, str) and not metric_id.strip()
+        ):
+            missing.append(location)
+            continue
+        if not isinstance(metric_id, str):
+            # A schema error, and calling it missing would name the wrong fix
+            # for a field that is populated.
+            continue
+
+        metric_id = metric_id.strip()
+        if _normalize_metric_id(metric_id) in _GENERIC_METRIC_IDS:
+            generic.append((location, metric_id))
+
+        evaluation_name = result.get('evaluation_name')
+        if isinstance(evaluation_name, str) and _normalize_metric_id(
+            metric_id
+        ) == _normalize_metric_id(evaluation_name):
+            repeats_task.append((location, evaluation_name))
+
+    warnings: list[str] = []
+    if missing:
+        warnings.append(
+            f"{missing[0]}: missing 'metric_id'"
+            f'{_and_others(len(missing))}. Scores cannot be joined or '
+            'deduplicated across sources without it — use the '
+            "eval-card-registry's id for the metric (e.g. 'accuracy', "
+            "'exact-match') or, for a construct specific to this leaderboard, "
+            'namespace it as <source>.<metric>'
+        )
+    if generic:
+        location, metric_id = generic[0]
+        others = _and_others(len(generic))
+        warnings.append(
+            f'{location}.metric_id: {metric_id!r}{others} names no particular '
+            'quantity, so it collides with whatever every other source called '
+            'its headline number — name the metric, or qualify this one as '
+            f'<source>.{_normalize_metric_id(metric_id)}'
+        )
+    if repeats_task:
+        location, evaluation_name = repeats_task[0]
+        others = _and_others(len(repeats_task))
+        warnings.append(
+            f'{location}.metric_id: repeats evaluation_name '
+            f'{evaluation_name!r}{others}. metric_id identifies the *metric*, '
+            'not the task — two metrics on this task would otherwise share an '
+            'id'
+        )
+    return warnings
+
+
+def _and_others(count: int) -> str:
+    """Render how many further results share one finding, if any do."""
+    if count <= 1:
+        return ''
+    return f' (and {count - 1} more result{"s" if count > 2 else ""})'
+
+
+def _normalize_metric_id(metric_id: str) -> str:
+    """Lowercase and unify separators before matching a spelling.
+
+    ``-``, ``_`` and internal whitespace are the same separator in practice: the
+    registry spells its ids ``exact-match`` and ``mean-score`` where adapters
+    write ``exact_match`` and ``mean_score``, and a ``mean score`` names that
+    same non-metric — the space alone must not carry it past the heuristic.
+    ``.`` and ``/`` are left alone — those *are* namespace separators, so
+    ``lmarena.elo`` and ``mmlu_pro/overall`` stay qualified and do not match a
+    generic word.
+    """
+    normalized = metric_id.strip().lower().replace('-', '_')
+    return '_'.join(normalized.split())
+
+
 def check_model_deployment(data: dict[str, Any]) -> list[str]:
     """Require independent deployment-control and weight-availability axes.
 
@@ -696,6 +840,14 @@ def _aggregate_check_model_deployment(
     return check_model_deployment(data)
 
 
+def _aggregate_check_metric_identity(
+    context: ValidationContext, data: ValidationPayload
+) -> list[str]:
+    if not isinstance(data, dict):
+        return []
+    return check_metric_identity(data)
+
+
 REGISTERED_CHECKS: tuple[ValidationCheck, ...] = (
     ValidationCheck('path structure', 'file', 'error', _file_check_path),
     ValidationCheck(
@@ -712,6 +864,12 @@ REGISTERED_CHECKS: tuple[ValidationCheck, ...] = (
         'aggregate',
         'error',
         _aggregate_check_model_deployment,
+    ),
+    ValidationCheck(
+        'metric identity',
+        'aggregate',
+        'warning',
+        _aggregate_check_metric_identity,
     ),
 )
 

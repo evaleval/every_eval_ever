@@ -54,6 +54,29 @@ Re-derive this list from `REGISTERED_CHECKS`, `_DEPLOYMENT_TYPES`,
 - Uncertainty must be finite where present: `standard_deviation`,
   `standard_error.value`, `confidence_interval.{lower,upper,confidence_level}`.
 
+## §metric-id — `check_metric_identity` (warning)
+- `metric_config.metric_id` is the join/dedup key for scores across sources, so it has
+  to name the *metric* the same way everywhere. Three shapes warn:
+  - **Missing/blank** — no key to join on. Give it the eval-card-registry's id
+    (`accuracy`, `exact-match`), or namespace a leaderboard-specific construct as
+    `<source>.<metric>`.
+  - **Generic** — a bare word that names no particular quantity (`score`, `rank`, `elo`,
+    `mean`, `overall`, `cost`, `total`, `value`, and their `*_score` forms) collides with
+    whatever every other source called its headline number. Qualify it (`lmarena.elo`).
+  - **Repeats `evaluation_name`** — `metric_id` identifies the metric, not the task; two
+    metrics on one task would otherwise share an id.
+- Matching is separator- and case-insensitive: `-`, `_`, and internal whitespace are one
+  separator (`mean-score` = `mean_score` = `mean score`), but `.`/`/` are namespace
+  separators and left alone, so a qualified `mmlu_pro/overall` does **not** warn.
+- It does **not** whitelist known metrics — any specific id passes (`psnr`, `cider`,
+  `latency_mean`). Only ids that name no quantity at all are flagged, so a real but
+  obscure metric is never talked down. A non-string `metric_id` is left to the schema.
+- **Warning, not error** (the field is optional and published records predate the rule).
+  One warning per finding *kind* with a count and the first location — a leaderboard file
+  repeats its adapter's choice once per result, so per-result lines would bury everything
+  else. Distinct values within a kind collapse to the first; fix it and re-run to see the
+  next.
+
 ## §deployment — `check_model_deployment`
 - `model_info.additional_details.deployment_type` ∈ `self_deployed | externally_managed |
   unknown`; `model_availability` ∈ `open_weights | closed_weights | unknown`.
