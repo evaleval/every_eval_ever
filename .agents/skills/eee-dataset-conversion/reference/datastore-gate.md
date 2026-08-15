@@ -9,7 +9,9 @@ unless marked warning.*
    semantic checks (`validator/validation_core.py`, `REGISTERED_CHECKS`). The in-library
    `validate_file(path)` used by unit tests defaults to semantic checks off, so a
    green test does *not* mean the gate is green. Semantic checks also need the file at its
-   final `data/<collection>/<dev>/<model>/` path.
+   final `data/<collection>/<dev>/<model>/` path. The exit status is the machine verdict:
+   `0` clean, `1` when any record has errors (errors win over warnings), `2` when the only
+   findings are warnings.
 2. **The datastore bot**: comment `/eee validate changed` on the HF PR. It runs its own
    deployed version, which may be pinned to an older compatibility version with older
    enum vocabularies. Treat a bot complaint that contradicts this file as a version skew,
@@ -64,6 +66,26 @@ Re-derive this list from `REGISTERED_CHECKS`, `_DEPLOYMENT_TYPES`,
 - Older records and the deployed bot may use a different vocabulary
   (`api|local|unknown`, `closed_source|open_weights_deployment|other`). Read the enums
   from the installed validator, not from an existing record or an old bot message.
+
+## §identity — `check_model_identity_path` (warning)
+- Warns when `model_info` addresses one `data/<collection>/<developer>/<model>/`
+  directory but the file sits in another. The datastore is queried by path, so a
+  reader who looks the model up by its stated identity never finds a record filed
+  under a different spelling — one model under two paths is two models to every
+  consumer. The message names both directories and asks them to agree without
+  dictating which side moves: the published datastore already mixes cased and
+  lowercase spellings, so there is no convention to appeal to.
+- Also warns when the identity names *no* directory at all — a blank id, a flat id
+  with no `developer`, a `developer` of `unknown`, a name that is not a portable
+  path component — reported with the reason `datastore_path_components` raised.
+- Derives the expected directory from `datastore_path_components` itself, so it
+  cannot drift from where the publisher actually files the record. Silent when the
+  §path check already rejected the path, or when the disagreement is really a schema
+  error (a non-string `id`, or a non-string `developer` on a flat id).
+- **Warning, not error**, because already-published records span both spellings.
+  Fix by filing under the directory your identity implies — build the path with
+  `datastore_output_dir` / `datastore_repo_file_path` — rather than publishing the
+  same model under two.
 
 ## §publish — `publish_evaluation_logs`
 **Mind which root each entry point wants — they differ, and a mismatch is silent until

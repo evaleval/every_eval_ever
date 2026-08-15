@@ -13,6 +13,7 @@ from typing import Any, Literal
 from pydantic import ValidationError
 
 from every_eval_ever.eval_types import EvaluationLog
+from every_eval_ever.helpers.io import datastore_path_components
 from every_eval_ever.instance_level_types import InstanceLevelEvaluationLog
 from every_eval_ever.schema import (
     get_schema_fingerprint as get_schema_fingerprint,
@@ -577,6 +578,79 @@ def _metric_bound(value: Any) -> float | None:
     return None
 
 
+def check_model_identity_path(
+    repo_path: str, data: dict[str, Any]
+) -> list[str]:
+    """Warn when a record's identity and its directory address different models.
+
+    ``data/<collection>/<developer>/<model>/`` is how the datastore is queried,
+    so a reader who looks up a model by path finds only the records filed under
+    the spelling they guessed. When ``model_info`` addresses one directory and
+    the file sits in another, the same model is two models to every consumer.
+    Nothing reports it today: the path check only looks at the path's shape, and
+    the record is perfectly valid where it sits.
+
+    An identity that names no directory at all — a blank id, a flat id with no
+    ``developer``, a developer of ``unknown``, a name that is not a portable
+    path component — is the same disagreement seen from the other side, and is
+    reported with the reason :func:`datastore_path_components` gives.
+
+    The message names both directories and asks for agreement without saying
+    which side moves: the published datastore mixes cased and lowercase
+    spellings for developers and models alike, so a per-file check has no
+    convention to appeal to. Warnings, not errors, because already-published
+    records would fail.
+    """
+    if check_path_structure(repo_path):
+        return []  # the path-structure check already reported this path
+    model_info = data.get('model_info')
+    if not isinstance(model_info, dict):
+        return []
+    model_id = model_info.get('id')
+    if not isinstance(model_id, str):
+        return []  # a non-string id is a schema error
+    stated_developer = model_info.get('developer')
+    if (
+        '/' not in model_id
+        and stated_developer is not None
+        and not isinstance(stated_developer, str)
+    ):
+        # Only a flat id reads this field, and a non-string value is already a
+        # schema error — one this check would restate as "developer is
+        # required" about a populated field.
+        return []
+
+    collection, developer, model = repo_path.split('/')[1:4]
+    try:
+        # Ask the publisher where this identity files, so the check cannot
+        # drift from datastore_output_dir. Only the developer and model
+        # components are compared, so a placeholder stands in for the
+        # collection: a collection directory the publisher would refuse is not
+        # this check's finding, and reporting it under model_info would send
+        # the reader to the wrong field.
+        _, expected_developer, expected_model = datastore_path_components(
+            'collection', model_id, stated_developer
+        )
+    except ValueError as exc:
+        return [
+            f'model_info: id {model_id!r} names no datastore directory — '
+            f'{exc}. The datastore is queried by '
+            'data/<collection>/<developer>/<model>/, so a reader who has the '
+            'model and not the path cannot find this record'
+        ]
+
+    if (developer, model) == (expected_developer, expected_model):
+        return []
+    return [
+        f'model_info: id {model_id!r} addresses '
+        f'{collection}/{expected_developer}/{expected_model}/ but the file is '
+        f'in {collection}/{developer}/{model}/. The datastore is queried by '
+        'path, so one model under two paths is two models to every reader — '
+        'make the identity and the directory agree on the spelling this '
+        'collection already uses, rather than publishing under both'
+    ]
+
+
 def check_model_deployment(data: dict[str, Any]) -> list[str]:
     """Require independent deployment-control and weight-availability axes.
 
@@ -696,6 +770,14 @@ def _aggregate_check_model_deployment(
     return check_model_deployment(data)
 
 
+def _aggregate_check_model_identity_path(
+    context: ValidationContext, data: ValidationPayload
+) -> list[str]:
+    if not isinstance(data, dict):
+        return []
+    return check_model_identity_path(context.repo_path, data)
+
+
 REGISTERED_CHECKS: tuple[ValidationCheck, ...] = (
     ValidationCheck('path structure', 'file', 'error', _file_check_path),
     ValidationCheck(
@@ -712,6 +794,12 @@ REGISTERED_CHECKS: tuple[ValidationCheck, ...] = (
         'aggregate',
         'error',
         _aggregate_check_model_deployment,
+    ),
+    ValidationCheck(
+        'model identity path',
+        'aggregate',
+        'warning',
+        _aggregate_check_model_identity_path,
     ),
 )
 
