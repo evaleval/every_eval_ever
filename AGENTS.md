@@ -26,7 +26,7 @@ convert external eval sources into it.
   one datastore PR per adapter. See its `README.md`.
 - `every_eval_ever/helpers/raw_capture.py` snapshots what an adapter fetched. Inert
   unless a sink is active, so a manual run behaves exactly as before.
-- `every_eval_ever/converters/` — in-tree converters (`inspect`/`helm`/`lm_eval`, plus `alpaca_eval`; shared code in `common`), run via `uv run python -m every_eval_ever convert <inspect|helm|lm_eval> ...`.
+- `every_eval_ever/converters/` — in-tree converters (`inspect`/`helm`/`lm_eval`, plus `alpaca_eval`; shared code in `common`), run via `uv run python -m every_eval_ever convert <inspect|helm|lm_eval> ...`. Cover one by adding a `ConverterCase` to `tests/converter_cases.py`; see "Testing a converter" in `converters/README.md`.
 - `every_eval_ever/validator/` — the schema + **semantic** merge gate (path shape, UUID4 names,
   companion pairing, score bounds, deployment axes). `REGISTERED_CHECKS` is the list.
 - Validate: `uv run python -m every_eval_ever validate <files-or-glob>` (`.json`→aggregate,
