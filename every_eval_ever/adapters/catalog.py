@@ -417,6 +417,17 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         captures_raw=False,
     ),
     AdapterSpec(
+        key='bountybench',
+        module='every_eval_ever.adapters.bountybench.adapter',
+        collections=('bountybench',),
+        runnable=False,
+        unrunnable_reason=(
+            'requires a local --logs-dir and --source-org; the run logs are '
+            'not published, so there is no live fetch path'
+        ),
+        captures_raw=False,
+    ),
+    AdapterSpec(
         key='cocoabench',
         module='every_eval_ever.adapters.cocoabench.adapter',
         collections=('cocoabench',),
