@@ -60,6 +60,41 @@ def fetch_json(
         raise FetchError(f'Failed to parse JSON from {url}: {e}') from e
 
 
+def fetch_text(
+    url: str,
+    timeout: int = DEFAULT_TIMEOUT,
+    headers: Optional[Dict[str, str]] = None,
+    session: Optional[requests.Session] = None,
+) -> str:
+    """
+    Fetch a URL and return its decoded body as text.
+
+    Useful for sources that publish plain-text artefacts (YAML configs, prompt
+    templates, version files) next to their result tables.
+
+    Args:
+        url: The URL to fetch from
+        timeout: Request timeout in seconds
+        headers: Optional HTTP headers
+        session: Optional requests session (connection reuse for many fetches)
+
+    Returns:
+        The response body as text
+
+    Raises:
+        FetchError: If the request fails or returns non-200 status
+    """
+    getter = session.get if session is not None else requests.get
+    try:
+        response = getter(
+            url, timeout=timeout, headers=headers, allow_redirects=True
+        )
+        response.raise_for_status()
+        return response.text
+    except requests.exceptions.RequestException as e:
+        raise FetchError(f'Failed to fetch {url}: {e}') from e
+
+
 def fetch_csv(
     url: str,
     timeout: int = DEFAULT_TIMEOUT,
