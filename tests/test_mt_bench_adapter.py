@@ -151,7 +151,15 @@ def test_source_data_url_contains_judgment_url():
     )
     log = bundles[0][0]
     overall = log.evaluation_results[0]
-    assert adapter.JUDGMENT_URL in overall.source_data.url
+    assert set(overall.source_data.url) == {
+        adapter.JUDGMENT_URL,
+        adapter.GITHUB_URL,
+    }
+    assert adapter.PAPER_URL not in overall.source_data.url
+    assert (
+        overall.source_data.additional_details['paper_url']
+        == adapter.PAPER_URL
+    )
     assert overall.source_data.source_type == 'url'
 
 

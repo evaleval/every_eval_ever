@@ -302,7 +302,7 @@ def make_source_data() -> SourceDataUrl:
     return SourceDataUrl(
         dataset_name='MT-Bench (single-answer GPT-4 judgments)',
         source_type='url',
-        url=[JUDGMENT_URL, GITHUB_URL, PAPER_URL],
+        url=[JUDGMENT_URL, GITHUB_URL],
         additional_details={
             'paper_url': PAPER_URL,
         },
