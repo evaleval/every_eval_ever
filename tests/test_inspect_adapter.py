@@ -330,6 +330,10 @@ def test_gaia_eval():
     assert converted_eval.model_info.inference_platform == 'openai'
     assert converted_eval.model_info.inference_engine is None
 
+    generation_config = converted_eval.evaluation_results[0].generation_config
+    assert generation_config is not None
+    assert generation_config.generation_args.max_attempts == 1
+
     results = converted_eval.evaluation_results
     assert len(results) > 0
     assert (
