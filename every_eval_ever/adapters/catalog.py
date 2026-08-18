@@ -408,6 +408,17 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
     # Registered but not schedulable. Each needs a local input file because it
     # has no live fetch path; automation would have nothing to hand it.
     AdapterSpec(
+        key='paperswithcode_drugbank',
+        module='every_eval_ever.adapters.paperswithcode_drugbank.adapter',
+        collections=('paperswithcode-drugbank',),
+        runnable=False,
+        unrunnable_reason=(
+            'requires --dump and --overlay; no checked-in reviewed source manifest'
+        ),
+        with_packages=('pgdumplib>=4.0.0',),
+        captures_raw=False,
+    ),
+    AdapterSpec(
         key='bfcl',
         module='every_eval_ever.adapters.bfcl.adapter',
         collections=('bfcl',),
