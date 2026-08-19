@@ -2,9 +2,9 @@
 """Convert reviewed Papers with Code DrugBank result cells to EEE.
 
 The adapter consumes a local PwC PostgreSQL dump and a YAML manifest that binds
-each selected score cell to reviewed model, metric, protocol, and provenance
-metadata. It derives the generalization regime from the declared drug-entity
-overlap and does not infer semantics from labels or score distributions.
+each selected score cell to reviewed model, metric, split, protocol, and
+provenance metadata. It checks the declared split against drug-entity overlap
+and does not infer semantics from labels or score distributions.
 
 Run with the adapter extra installed::
 
@@ -32,6 +32,8 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    StrictInt,
+    StrictStr,
     field_validator,
     model_validator,
 )
@@ -72,6 +74,26 @@ class _StrictModel(BaseModel):
     model_config = ConfigDict(extra='forbid', frozen=True)
 
 
+class _UniqueKeySafeLoader(yaml.SafeLoader):
+    pass
+
+
+def _construct_unique_mapping(loader, node, deep=False):
+    mapping = {}
+    for key_node, value_node in node.value:
+        key = loader.construct_object(key_node, deep=deep)
+        if key in mapping:
+            raise ValueError(f'overlay YAML contains duplicate key: {key!r}')
+        mapping[key] = loader.construct_object(value_node, deep=deep)
+    return mapping
+
+
+_UniqueKeySafeLoader.add_constructor(
+    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
+    _construct_unique_mapping,
+)
+
+
 def _sha256(value: str, field: str) -> str:
     value = value.strip()
     if not _SHA256_RE.fullmatch(value):
@@ -98,9 +120,9 @@ def _canonical_sha256(value: Any) -> str:
 
 
 class OverlayAnchors(_StrictModel):
-    paper_id: str | int | None
-    dataset_id: str | int
-    task_id: str | int
+    paper_id: StrictStr | StrictInt | None
+    dataset_id: StrictStr | StrictInt
+    task_id: StrictStr | StrictInt
     model_name: str
     model_id: str
     developer: str
@@ -127,6 +149,7 @@ class OverlayAnchors(_StrictModel):
 
 class ProtocolQualification(_StrictModel):
     benchmark_id: str
+    split_id: Literal['transductive', 'inductive-s1', 'inductive-s2']
     study_id: str
     protocol_id: str
     task_id: str
@@ -160,12 +183,24 @@ class ProtocolQualification(_StrictModel):
             raise ValueError('protocol semantic fields must be non-empty')
         return value
 
+    @model_validator(mode='after')
+    def split_matches_entity_overlap(self):
+        expected_overlap = {
+            'transductive': 'both-seen',
+            'inductive-s1': 'both-unseen',
+            'inductive-s2': 'one-unseen',
+        }[self.split_id]
+        if self.drug_entity_overlap != expected_overlap:
+            raise ValueError(
+                f'split_id {self.split_id!r} requires '
+                f'drug_entity_overlap {expected_overlap!r}'
+            )
+        return self
+
     @property
     def generalization_regime(self) -> Literal['transductive', 'inductive']:
         return (
-            'transductive'
-            if self.drug_entity_overlap == 'both-seen'
-            else 'inductive'
+            'transductive' if self.split_id == 'transductive' else 'inductive'
         )
 
     def semantic_sha256(self) -> str:
@@ -246,7 +281,7 @@ class OverlayMetric(_StrictModel):
 
 
 class ProtocolOverlayEntry(_StrictModel):
-    pwc_evaluation_id: str | int
+    pwc_evaluation_id: StrictStr | StrictInt
     anchors: OverlayAnchors
     source_metrics_sha256: str
     qualification: ProtocolQualification
@@ -267,16 +302,21 @@ class ProtocolOverlayEntry(_StrictModel):
 
     @model_validator(mode='after')
     def unique_metric_names(self):
-        names = [metric.source_name for metric in self.metrics]
-        if len(names) != len(set(names)):
+        source_names = [metric.source_name for metric in self.metrics]
+        if len(source_names) != len(set(source_names)):
             raise ValueError(
                 'metric source_name selectors must be unique within an entry'
+            )
+        metric_ids = [metric.metric_id for metric in self.metrics]
+        if len(metric_ids) != len(set(metric_ids)):
+            raise ValueError(
+                'canonical metric_id selectors must be unique within an entry'
             )
         return self
 
 
 class ProtocolOverlay(_StrictModel):
-    schema_version: Literal[1]
+    schema_version: Literal[2]
     dump_sha256: str
     registry_revision: str
     retrieved_timestamp: str
@@ -316,8 +356,10 @@ class ProtocolOverlay(_StrictModel):
     @model_validator(mode='after')
     def consistent_entries(self):
         seen: set[tuple[str, str]] = set()
+        seen_canonical_metrics: set[tuple[str, str, str]] = set()
         model_by_evaluation: dict[str, str] = {}
         developer_by_model: dict[str, str] = {}
+        protocol_by_benchmark: dict[str, str] = {}
         for entry in self.entries:
             evaluation_id = str(entry.pwc_evaluation_id)
             model_id = entry.anchors.model_id
@@ -336,6 +378,16 @@ class ProtocolOverlay(_StrictModel):
                 raise ValueError(
                     f'inconsistent reviewed developer for {model_id}'
                 )
+            benchmark_id = entry.qualification.benchmark_id
+            protocol_digest = entry.qualification.semantic_sha256()
+            prior_digest = protocol_by_benchmark.setdefault(
+                benchmark_id, protocol_digest
+            )
+            if prior_digest != protocol_digest:
+                raise ValueError(
+                    'canonical benchmark_id is reused for conflicting '
+                    f'protocol semantics: {benchmark_id!r}'
+                )
             for metric in entry.metrics:
                 key = (evaluation_id, metric.source_name)
                 if key in seen:
@@ -343,13 +395,24 @@ class ProtocolOverlay(_StrictModel):
                         f'PwC source score cell is selected more than once: {key}'
                     )
                 seen.add(key)
+                metric_key = (
+                    evaluation_id,
+                    protocol_digest,
+                    metric.metric_id,
+                )
+                if metric_key in seen_canonical_metrics:
+                    raise ValueError(
+                        'canonical metric_id is selected more than once for '
+                        f'one source protocol: {metric.metric_id!r}'
+                    )
+                seen_canonical_metrics.add(metric_key)
         return self
 
 
 @dataclass
 class _ModelGroup:
     developer: str
-    evaluation_ids: set[str] = field(default_factory=set)
+    result_ids: set[str] = field(default_factory=set)
     model_names: set[str] = field(default_factory=set)
     results: list[EvaluationResult] = field(default_factory=list)
 
@@ -392,7 +455,7 @@ def file_sha256(path: str | Path) -> str:
 
 def load_overlay(path: str | Path) -> tuple[ProtocolOverlay, str]:
     raw = Path(path).read_bytes()
-    payload = yaml.safe_load(raw)
+    payload = yaml.load(raw, Loader=_UniqueKeySafeLoader)
     if not isinstance(payload, dict):
         raise ValueError('overlay YAML must decode to an object')
     return ProtocolOverlay.model_validate(payload), hashlib.sha256(
@@ -582,23 +645,22 @@ def build_source_metadata(
     )
 
 
-def _metric_result_suffix(source_name: str) -> str:
+def _metric_result_suffix(metric: OverlayMetric) -> str:
     slug = (
-        re.sub(r'[^a-z0-9]+', '-', source_name.lower()).strip('-') or 'metric'
+        re.sub(r'[^a-z0-9]+', '-', metric.source_name.lower()).strip('-')
+        or 'metric'
     )
-    digest = hashlib.sha256(source_name.encode('utf-8')).hexdigest()[:8]
-    return f'{slug}-{digest}'
+    digest = _canonical_sha256(metric.model_dump(mode='json'))
+    return f'{slug}-{metric.metric_id}-{digest}'
 
 
-def _bundle_evaluation_id(
-    dump_sha256: str, pwc_evaluation_ids: Iterable[str]
-) -> str:
-    source_ids = sorted(set(pwc_evaluation_ids))
-    if not source_ids:
+def _bundle_evaluation_id(dump_sha256: str, result_ids: Iterable[str]) -> str:
+    selected_result_ids = sorted(set(result_ids))
+    if not selected_result_ids:
         raise ValueError(
-            'cannot build an evaluation id without PwC source evaluations'
+            'cannot build an evaluation id without selected metric results'
         )
-    source_bundle_sha256 = _canonical_sha256(source_ids)
+    source_bundle_sha256 = _canonical_sha256(selected_result_ids)
     return f'paperswithcode-drugbank/{dump_sha256}/{source_bundle_sha256}'
 
 
@@ -624,6 +686,7 @@ def _build_result(
         )
 
     q = entry.qualification
+    protocol_digest = q.semantic_sha256()
     details = stringify_details(
         {
             'pwc_evaluation_id': entry.pwc_evaluation_id,
@@ -632,9 +695,10 @@ def _build_result(
             'pwc_task_id': entry.anchors.task_id,
             'pwc_model_name': entry.anchors.model_name,
             'source_metrics_sha256': entry.source_metrics_sha256,
-            'protocol_semantic_sha256': q.semantic_sha256(),
+            'protocol_semantic_sha256': protocol_digest,
             'protocol_study_id': q.study_id,
             'protocol_id': q.protocol_id,
+            'split_id': q.split_id,
             'generalization_regime': q.generalization_regime,
             'drug_entity_overlap': q.drug_entity_overlap,
             'pair_overlap': q.pair_overlap,
@@ -657,7 +721,7 @@ def _build_result(
     return EvaluationResult(
         evaluation_result_id=(
             f'paperswithcode-drugbank.{entry.pwc_evaluation_id}.'
-            f'{_metric_result_suffix(metric.source_name)}'
+            f'{_metric_result_suffix(metric)}.{protocol_digest}'
         ),
         evaluation_name=q.benchmark_id,
         source_data=build_source_data(dataset),
@@ -667,7 +731,7 @@ def _build_result(
         metric_config=MetricConfig(
             evaluation_description=(
                 f'{metric.metric_name} for DrugBank protocol {q.protocol_id} '
-                f'({q.generalization_regime}).'
+                f'({q.split_id}).'
             ),
             metric_id=metric.metric_id,
             metric_name=metric.metric_name,
@@ -748,7 +812,6 @@ def build_logs(
         group = groups.setdefault(
             model_id, _ModelGroup(entry.anchors.developer)
         )
-        group.evaluation_ids.add(evaluation_id)
         group.model_names.add(entry.anchors.model_name)
         for metric in entry.metrics:
             if metric.source_name not in metrics:
@@ -756,15 +819,22 @@ def build_logs(
                     f'PwC evaluation {evaluation_id} is missing selected metric '
                     f'{metric.source_name!r}'
                 )
-            group.results.append(
-                _build_result(
-                    entry,
-                    row,
-                    dataset,
-                    metric,
-                    metrics[metric.source_name],
-                )
+            result = _build_result(
+                entry,
+                row,
+                dataset,
+                metric,
+                metrics[metric.source_name],
             )
+            if result.evaluation_result_id is None:
+                raise ValueError('DrugBank result is missing its stable id')
+            if result.evaluation_result_id in group.result_ids:
+                raise ValueError(
+                    'duplicate DrugBank evaluation_result_id: '
+                    f'{result.evaluation_result_id}'
+                )
+            group.result_ids.add(result.evaluation_result_id)
+            group.results.append(result)
 
     logs: list[EvaluationLog] = []
     for model_id, group in sorted(groups.items()):
@@ -773,7 +843,7 @@ def build_logs(
             schema_version=SCHEMA_VERSION,
             evaluation_id=_bundle_evaluation_id(
                 overlay.dump_sha256,
-                group.evaluation_ids,
+                group.result_ids,
             ),
             retrieved_timestamp=overlay.retrieved_timestamp,
             source_metadata=build_source_metadata(
@@ -837,7 +907,10 @@ def export(logs: Iterable[EvaluationLog], output_dir: Path) -> list[Path]:
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description='Convert explicitly qualified PwC DrugBank transductive/inductive results.'
+        description=(
+            'Convert explicitly qualified PwC DrugBank transductive, '
+            'inductive-S1, and inductive-S2 results.'
+        )
     )
     parser.add_argument(
         '--dump',
