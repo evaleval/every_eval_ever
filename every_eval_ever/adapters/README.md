@@ -85,7 +85,8 @@ metric, and benchmark IDs plus the registry commit against which they were
 reviewed. The adapter does not resolve or invent identities, and conversion is
 atomic: an anchor, hash, or schema mismatch aborts before any output is written.
 For split comparisons, each manifest entry must declare `transductive`,
-`inductive-s1`, or `inductive-s2`, with matching entity-overlap semantics. A
+`inductive-s1`, or `inductive-s2`, with matching manifest-declared overlap
+labels. A
 canonical benchmark ID cannot be reused for conflicting protocols anywhere in
 the manifest, so the adapter cannot emit conflicting split scores under one
 benchmark key. The adapter preserves the scores and protocol evidence supplied
