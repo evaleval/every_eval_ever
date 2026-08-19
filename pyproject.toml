@@ -42,9 +42,11 @@ helm = [
     # because crfm-helm is frozen.
     "nltk<3.10.1",
 ]
+paperswithcode-drugbank = ["pgdumplib>=4.0.0,<5.0.0"]
 all = [
     "every-eval-ever[inspect]",
     "every-eval-ever[helm]",
+    "every-eval-ever[paperswithcode-drugbank]",
 ]
 
 [project.scripts]

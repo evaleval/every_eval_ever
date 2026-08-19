@@ -78,6 +78,16 @@ def test_registered_module_imports(spec: catalog.AdapterSpec) -> None:
     importlib.import_module(spec.module)
 
 
+@pytest.mark.parametrize('spec', catalog.ADAPTERS, ids=lambda spec: spec.key)
+def test_dependency_probes_are_module_names(spec: catalog.AdapterSpec) -> None:
+    for module_name in spec.with_packages:
+        assert all(part.isidentifier() for part in module_name.split('.')), (
+            f'{spec.key}: with_packages entries are passed to importlib.find_spec; '
+            'use a dotted module name, not a requirement specifier: '
+            f'{module_name!r}'
+        )
+
+
 @pytest.mark.parametrize('spec', RUNNABLE, ids=lambda spec: spec.key)
 def test_runnable_adapter_accepts_its_registered_arguments(
     spec: catalog.AdapterSpec, tmp_path: Path

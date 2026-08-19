@@ -34,8 +34,8 @@ An adapter that automation runs must therefore:
   `save_failure_report` + a non-zero exit, which is what lets a partial refresh be
   told apart from a crash.
 
-`bfcl`, `cocoabench` and `sciarena` are registered as `runnable=False`: they need a
-local input file and have no live fetch path.
+`bfcl`, `cocoabench`, `paperswithcode_drugbank`, and `sciarena` are registered as
+`runnable=False`: they need local inputs and have no live fetch path.
 
 ## Raw source snapshots
 
@@ -70,8 +70,42 @@ re-hosting bytes that are already durably stored.
 | `terminal_bench_2` | tbench.ai | Fetches Terminal-Bench 2.0 agentic coding benchmark results. |
 | `hle` | Scale SEAL leaderboard | Converts the Scale SEAL Humanity's Last Exam leaderboard into `data/hle/`. Emits per-model accuracy (with 95% CI) and calibration error. |
 | `mmlu_pro` | TIGER-Lab leaderboard CSV | Converts the MMLU-Pro leaderboard (`TIGER-Lab/mmlu_pro_leaderboard_submission`) into `data/mmlu-pro/`. Emits per-model overall + 14 per-subject accuracies. |
+| `paperswithcode_drugbank` | Local Papers with Code PostgreSQL dump + reviewed YAML manifest | Manually converts only DrugBank score cells with reviewed model, metric-scale, split, and protocol semantics. Writes `data/paperswithcode-drugbank/`. |
 | `lexam` | LEXam project website | Converts the LEXam legal-reasoning leaderboard (open-question judge scores + 4-choice MCQ accuracy) into `data/lexam/`. |
 | `vectara_hallucination_leaderboard` | HuggingFace (`vectara/results`) | Converts the Vectara Hallucination Leaderboard result files, pinned to a source commit, into `data/vectara-hallucination-leaderboard/`. Emits 4 aggregate metrics plus per-category and per-text-complexity breakdowns (40 scores per model). |
+
+### Papers with Code DrugBank
+
+To run this manual adapter, provide a local custom-format PostgreSQL dump and a
+reviewed, non-empty YAML qualification manifest (schema version 2). It is not
+scheduled because
+neither input has a live fetch path, and the repository does not include a
+production manifest. The manifest must supply reviewed canonical model,
+metric, and benchmark IDs plus the registry commit against which they were
+reviewed. The adapter does not resolve or invent identities, and conversion is
+atomic: an anchor, hash, or schema mismatch aborts before any output is written.
+For split comparisons, each manifest entry must declare `transductive`,
+`inductive-s1`, or `inductive-s2`, with matching manifest-declared overlap
+labels. A
+canonical benchmark ID cannot be reused for conflicting protocols anywhere in
+the manifest, so the adapter cannot emit conflicting split scores under one
+benchmark key. The adapter preserves the scores and protocol evidence supplied
+by the reviewed manifest; it does not independently verify cited source content
+or train/test membership from the aggregate dump, and it does not compute a
+performance delta between splits.
+
+```bash
+uv run --extra paperswithcode-drugbank python -m \
+  every_eval_ever.adapters.paperswithcode_drugbank.adapter \
+  --dump /path/to/paperswithcode.dump \
+  --overlay /path/to/reviewed-drugbank.yaml \
+  --output-dir /tmp/paperswithcode-drugbank/data/paperswithcode-drugbank
+```
+
+As of 2026-08-19, the archived Papers with Code DrugBank URL redirects away
+from its dataset record. Generated logs retain that URL as raw provenance,
+link `source_data` to DrugBank, and record the official Papers with Code archive
+in source metadata.
 
 ### Mercor Evaluation Exports
 
