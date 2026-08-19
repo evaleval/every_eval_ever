@@ -413,9 +413,10 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         collections=('paperswithcode-drugbank',),
         runnable=False,
         unrunnable_reason=(
-            'requires --dump and --overlay; no checked-in reviewed source manifest'
+            'requires local --dump and --overlay inputs. '
+            'No reviewed production manifest is checked in'
         ),
-        with_packages=('pgdumplib>=4.0.0',),
+        with_packages=('pgdumplib',),
         captures_raw=False,
     ),
     AdapterSpec(

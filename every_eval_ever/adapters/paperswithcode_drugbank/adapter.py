@@ -1,20 +1,18 @@
 #!/usr/bin/env python3
-"""Convert explicitly qualified Papers with Code DrugBank result cells to EEE.
+"""Convert reviewed Papers with Code DrugBank result cells to EEE.
 
-The adapter is deliberately DrugBank-only and independent of the generic PwC
-adapter. It consumes a local PwC PostgreSQL dump plus an external YAML manifest
-that binds exact source cells to model identity, metric scale, source evidence,
-and drug-entity overlap. ``transductive`` versus ``inductive`` is derived only
-from that explicit overlap; the adapter never infers protocol from the DrugBank
-label or score distributions.
+The adapter consumes a local PwC PostgreSQL dump and a YAML manifest that binds
+each selected score cell to reviewed model, metric, protocol, and provenance
+metadata. It derives the generalization regime from the declared drug-entity
+overlap and does not infer semantics from labels or score distributions.
 
-Run manually with ``pgdumplib`` available::
+Run with the adapter extra installed::
 
-    uv run --with 'pgdumplib>=4.0.0' python -m \
+    uv run --extra paperswithcode-drugbank python -m \
       every_eval_ever.adapters.paperswithcode_drugbank.adapter \
       --dump /path/to/paperswithcode.dump \
       --overlay /path/to/reviewed-drugbank.yaml \
-      --output-dir /tmp/paperswithcode-drugbank
+      --output-dir /tmp/paperswithcode-drugbank/data/paperswithcode-drugbank
 """
 
 from __future__ import annotations
@@ -24,14 +22,19 @@ import hashlib
 import json
 import math
 import re
-from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable, Iterator, Literal
 from urllib.parse import urlparse
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
 
 from every_eval_ever.eval_types import (
     EvalLibrary,
@@ -48,21 +51,21 @@ from every_eval_ever.eval_types import (
 from every_eval_ever.helpers import (
     SCHEMA_VERSION,
     EvaluationLogOutput,
-    SourceConversionResult,
-    sanitize_filename,
     save_evaluation_logs,
 )
 
 SOURCE_NAME = 'Papers with Code DrugBank'
 SOURCE_ORGANIZATION = 'Papers with Code'
-SOURCE_ORGANIZATION_URL = 'https://paperswithcode.com'
-PWC_DATASET_URL = 'https://paperswithcode.com/dataset/drugbank'
+SOURCE_ORGANIZATION_URL = 'https://github.com/paperswithcode'
+PWC_DATASET_ARCHIVE_URL = 'https://huggingface.co/datasets/pwc-archive/datasets'
 DRUGBANK_URL = 'https://go.drugbank.com'
-DEFAULT_OUTPUT_DIR = 'data/paperswithcode-drugbank'
+COLLECTION_NAME = 'paperswithcode-drugbank'
+DEFAULT_OUTPUT_DIR = f'/tmp/paperswithcode-drugbank/data/{COLLECTION_NAME}'
 
 _SHA256_RE = re.compile(r'^[0-9a-f]{64}$')
 _SAFE_SLUG_RE = re.compile(r'^[a-z0-9][a-z0-9._-]*$')
 _MODEL_COMPONENT_RE = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._-]*$')
+_REGISTRY_REVISION_RE = re.compile(r'^(?:[0-9a-f]{40}|[0-9a-f]{64})$')
 
 
 class _StrictModel(BaseModel):
@@ -81,6 +84,17 @@ def _slug(value: str, field: str) -> str:
     if not _SAFE_SLUG_RE.fullmatch(value):
         raise ValueError(f'{field} must be a lowercase semantic slug')
     return value
+
+
+def _canonical_sha256(value: Any) -> str:
+    payload = json.dumps(
+        value,
+        sort_keys=True,
+        separators=(',', ':'),
+        ensure_ascii=False,
+        allow_nan=False,
+    )
+    return hashlib.sha256(payload.encode('utf-8')).hexdigest()
 
 
 class OverlayAnchors(_StrictModel):
@@ -102,14 +116,17 @@ class OverlayAnchors(_StrictModel):
     @model_validator(mode='after')
     def valid_model_id(self):
         parts = self.model_id.split('/')
-        if len(parts) != 2 or any(not _MODEL_COMPONENT_RE.fullmatch(p) for p in parts):
-            raise ValueError('model_id must be a two-component developer/model id')
-        if parts[0] != self.developer:
-            raise ValueError('model_id developer component must equal developer')
+        if len(parts) < 2 or any(
+            not _MODEL_COMPONENT_RE.fullmatch(p) for p in parts
+        ):
+            raise ValueError(
+                'model_id must contain at least two safe namespace/model components'
+            )
         return self
 
 
 class ProtocolQualification(_StrictModel):
+    benchmark_id: str
     study_id: str
     protocol_id: str
     task_id: str
@@ -122,14 +139,18 @@ class ProtocolQualification(_StrictModel):
     negative_sampling: str
     split_preprocessing: str
 
-    @field_validator('study_id', 'protocol_id', 'task_id')
+    @field_validator('benchmark_id', 'study_id', 'protocol_id', 'task_id')
     @classmethod
     def semantic_slug(cls, value: str, info) -> str:
         return _slug(value, info.field_name)
 
     @field_validator(
-        'task_type', 'candidate_label_space', 'pair_overlap',
-        'relation_class_overlap', 'temporal_ordering', 'negative_sampling',
+        'task_type',
+        'candidate_label_space',
+        'pair_overlap',
+        'relation_class_overlap',
+        'temporal_ordering',
+        'negative_sampling',
         'split_preprocessing',
     )
     @classmethod
@@ -141,13 +162,14 @@ class ProtocolQualification(_StrictModel):
 
     @property
     def generalization_regime(self) -> Literal['transductive', 'inductive']:
-        return 'transductive' if self.drug_entity_overlap == 'both-seen' else 'inductive'
-
-    def evaluation_name(self) -> str:
         return (
-            f'paperswithcode-drugbank.{self.study_id}.'
-            f'{self.generalization_regime}.{self.protocol_id}'
+            'transductive'
+            if self.drug_entity_overlap == 'both-seen'
+            else 'inductive'
         )
+
+    def semantic_sha256(self) -> str:
+        return _canonical_sha256(self.model_dump(mode='json'))
 
 
 class ProtocolEvidence(_StrictModel):
@@ -160,7 +182,7 @@ class ProtocolEvidence(_StrictModel):
     def absolute_url(cls, value: str) -> str:
         value = value.strip()
         parsed = urlparse(value)
-        if parsed.scheme not in {'http', 'https'} or not parsed.netloc:
+        if parsed.scheme not in {'http', 'https'} or not parsed.hostname:
             raise ValueError('source_url must be an absolute HTTP(S) URL')
         return value
 
@@ -169,7 +191,9 @@ class ProtocolEvidence(_StrictModel):
     def nonempty(cls, value: str) -> str:
         value = value.strip()
         if not value:
-            raise ValueError('evidence locator and review note must be non-empty')
+            raise ValueError(
+                'evidence locator and review note must be non-empty'
+            )
         return value
 
 
@@ -199,10 +223,21 @@ class OverlayMetric(_StrictModel):
 
     @model_validator(mode='after')
     def valid_bounds(self):
-        if not math.isfinite(self.min_score) or not math.isfinite(self.max_score):
+        if not math.isfinite(self.min_score) or not math.isfinite(
+            self.max_score
+        ):
             raise ValueError('metric bounds must be finite')
         if self.max_score <= self.min_score:
             raise ValueError('metric max_score must be greater than min_score')
+        if self.source_scale == 'percent':
+            if self.metric_unit != 'proportion':
+                raise ValueError(
+                    "percent source_scale requires canonical metric_unit 'proportion'"
+                )
+            if self.min_score != 0.0 or self.max_score != 1.0:
+                raise ValueError(
+                    'percent source_scale requires canonical bounds [0.0, 1.0]'
+                )
         return self
 
     @property
@@ -234,13 +269,16 @@ class ProtocolOverlayEntry(_StrictModel):
     def unique_metric_names(self):
         names = [metric.source_name for metric in self.metrics]
         if len(names) != len(set(names)):
-            raise ValueError('metric source_name selectors must be unique within an entry')
+            raise ValueError(
+                'metric source_name selectors must be unique within an entry'
+            )
         return self
 
 
 class ProtocolOverlay(_StrictModel):
     schema_version: Literal[1]
     dump_sha256: str
+    registry_revision: str
     retrieved_timestamp: str
     entries: list[ProtocolOverlayEntry] = Field(min_length=1)
 
@@ -249,6 +287,16 @@ class ProtocolOverlay(_StrictModel):
     def dump_hash(cls, value: str) -> str:
         return _sha256(value, 'dump_sha256')
 
+    @field_validator('registry_revision')
+    @classmethod
+    def registry_commit(cls, value: str) -> str:
+        value = value.strip()
+        if not _REGISTRY_REVISION_RE.fullmatch(value):
+            raise ValueError(
+                'registry_revision must be a 40- or 64-character commit SHA'
+            )
+        return value
+
     @field_validator('retrieved_timestamp')
     @classmethod
     def unix_epoch(cls, value: str) -> str:
@@ -256,28 +304,54 @@ class ProtocolOverlay(_StrictModel):
         try:
             parsed = float(value)
         except ValueError as exc:
-            raise ValueError('retrieved_timestamp must be a Unix-epoch string') from exc
+            raise ValueError(
+                'retrieved_timestamp must be a Unix-epoch string'
+            ) from exc
         if not math.isfinite(parsed) or parsed < 0:
-            raise ValueError('retrieved_timestamp must be a finite non-negative epoch')
+            raise ValueError(
+                'retrieved_timestamp must be a finite non-negative epoch'
+            )
         return value
 
     @model_validator(mode='after')
-    def unique_cells(self):
+    def consistent_entries(self):
         seen: set[tuple[str, str]] = set()
+        model_by_evaluation: dict[str, str] = {}
+        developer_by_model: dict[str, str] = {}
         for entry in self.entries:
+            evaluation_id = str(entry.pwc_evaluation_id)
+            model_id = entry.anchors.model_id
+            prior_model = model_by_evaluation.setdefault(
+                evaluation_id, model_id
+            )
+            if prior_model != model_id:
+                raise ValueError(
+                    f'PwC evaluation {evaluation_id} is assigned to multiple '
+                    f'canonical model ids: {prior_model!r} and {model_id!r}'
+                )
+            prior_developer = developer_by_model.setdefault(
+                model_id, entry.anchors.developer
+            )
+            if prior_developer != entry.anchors.developer:
+                raise ValueError(
+                    f'inconsistent reviewed developer for {model_id}'
+                )
             for metric in entry.metrics:
-                key = (str(entry.pwc_evaluation_id), metric.source_name)
+                key = (evaluation_id, metric.source_name)
                 if key in seen:
-                    raise ValueError(f'PwC source score cell is selected more than once: {key}')
+                    raise ValueError(
+                        f'PwC source score cell is selected more than once: {key}'
+                    )
                 seen.add(key)
         return self
 
 
-@dataclass(frozen=True)
-class LogBundle:
-    log: EvaluationLog
+@dataclass
+class _ModelGroup:
     developer: str
-    model: str
+    evaluation_ids: set[str] = field(default_factory=set)
+    model_names: set[str] = field(default_factory=set)
+    results: list[EvaluationResult] = field(default_factory=list)
 
 
 def stringify(value: Any) -> str:
@@ -286,27 +360,26 @@ def stringify(value: Any) -> str:
     if value is None:
         return 'null'
     if isinstance(value, (dict, list)):
-        return json.dumps(value, sort_keys=True, separators=(',', ':'))
+        return json.dumps(
+            value,
+            sort_keys=True,
+            separators=(',', ':'),
+            ensure_ascii=False,
+            allow_nan=False,
+        )
     return str(value)
 
 
 def stringify_details(details: dict[str, Any]) -> dict[str, str]:
-    return {key: stringify(value) for key, value in details.items() if value is not None}
-
-
-def slugify(value: Any, fallback: str = 'unknown') -> str:
-    raw = str(value if value not in (None, '') else fallback).strip().lower()
-    raw = sanitize_filename(raw).replace('&', 'and')
-    raw = re.sub(r'[\s_]+', '-', raw)
-    raw = re.sub(r'[^a-z0-9.\-]+', '-', raw)
-    return re.sub(r'-{2,}', '-', raw).strip('-') or fallback
+    return {
+        key: stringify(value)
+        for key, value in details.items()
+        if value is not None
+    }
 
 
 def source_metrics_sha256(metrics: dict[str, Any]) -> str:
-    payload = json.dumps(
-        metrics, sort_keys=True, separators=(',', ':'), ensure_ascii=False, allow_nan=False
-    )
-    return hashlib.sha256(payload.encode()).hexdigest()
+    return _canonical_sha256(metrics)
 
 
 def file_sha256(path: str | Path) -> str:
@@ -322,16 +395,9 @@ def load_overlay(path: str | Path) -> tuple[ProtocolOverlay, str]:
     payload = yaml.safe_load(raw)
     if not isinstance(payload, dict):
         raise ValueError('overlay YAML must decode to an object')
-    return ProtocolOverlay.model_validate(payload), hashlib.sha256(raw).hexdigest()
-
-
-def _parse_columns(create_defn: str) -> list[str]:
-    body = create_defn.split('(', 1)[1]
-    return [
-        line.strip().rstrip(',').split()[0]
-        for line in body.splitlines()
-        if line.strip() and not line.strip().startswith(('CONSTRAINT', ')'))
-    ]
+    return ProtocolOverlay.model_validate(payload), hashlib.sha256(
+        raw
+    ).hexdigest()
 
 
 def load_dump(dump_path: str | Path):
@@ -342,15 +408,35 @@ def load_dump(dump_path: str | Path):
 
 def _columns_for(dump, table: str) -> list[str]:
     for entry in dump.entries:
-        if entry.desc == 'TABLE' and entry.tag == table:
-            return _parse_columns(entry.defn)
+        if (
+            entry.desc != 'TABLE DATA'
+            or entry.namespace != 'public'
+            or entry.tag != table
+        ):
+            continue
+        copy_stmt = (entry.copy_stmt or '').strip()
+        prefix = f'COPY public.{table} ('
+        suffix = ') FROM stdin;'
+        if not copy_stmt.startswith(prefix) or not copy_stmt.endswith(suffix):
+            raise ValueError(f'cannot read column order for public.{table}')
+        column_list = copy_stmt[len(prefix) : -len(suffix)]
+        columns = [
+            column.strip().strip('"') for column in column_list.split(',')
+        ]
+        if not columns or any(not column for column in columns):
+            raise ValueError(f'public.{table} has an invalid COPY column list')
+        if len(columns) != len(set(columns)):
+            raise ValueError(
+                f'public.{table} COPY column list contains duplicates'
+            )
+        return columns
     raise KeyError(f'table public.{table} not found in dump')
 
 
 def table_rows(dump, table: str) -> Iterator[dict[str, Any]]:
     columns = _columns_for(dump, table)
     for row in dump.table_data('public', table):
-        yield dict(zip(columns, row))
+        yield dict(zip(columns, row, strict=True))
 
 
 def load_source_context(
@@ -362,13 +448,19 @@ def load_source_context(
         row_id = str(row.get('id'))
         if row_id in wanted_evals:
             if row_id in evaluations:
-                raise ValueError(f'duplicate PwC evaluation id in dump: {row_id}')
+                raise ValueError(
+                    f'duplicate PwC evaluation id in dump: {row_id}'
+                )
             evaluations[row_id] = row
     missing = sorted(wanted_evals - set(evaluations))
     if missing:
-        raise ValueError(f'overlay references missing PwC evaluations: {missing}')
+        raise ValueError(
+            f'overlay references missing PwC evaluations: {missing}'
+        )
 
-    wanted_datasets = {str(entry.anchors.dataset_id) for entry in overlay.entries}
+    wanted_datasets = {
+        str(entry.anchors.dataset_id) for entry in overlay.entries
+    }
     datasets: dict[str, dict[str, Any]] = {}
     for row in table_rows(dump, 'datasets'):
         row_id = str(row.get('id'))
@@ -379,22 +471,28 @@ def load_source_context(
     missing = sorted(wanted_datasets - set(datasets))
     if missing:
         raise ValueError(f'overlay references missing PwC datasets: {missing}')
-    for dataset_id, dataset in datasets.items():
-        name = str(dataset.get('name') or '').strip().lower()
-        slug = str(dataset.get('slug') or '').strip().lower()
-        if name != 'drugbank' and slug != 'drugbank':
-            raise ValueError(f'PwC dataset {dataset_id} is not DrugBank')
     return list(evaluations.values()), datasets
 
 
 def _metrics_object(row: dict[str, Any]) -> dict[str, Any]:
     raw = row.get('metrics')
     try:
-        metrics = raw if isinstance(raw, dict) else json.loads(raw) if raw else {}
+        if isinstance(raw, dict):
+            metrics = raw
+        elif raw:
+            metrics = json.loads(raw)
+        else:
+            metrics = {}
     except (TypeError, ValueError) as exc:
-        raise ValueError(f'PwC evaluation {row.get("id")} has invalid metrics JSON') from exc
-    if not isinstance(metrics, dict) or any(not isinstance(name, str) for name in metrics):
-        raise ValueError(f'PwC evaluation {row.get("id")} metrics must be a string-keyed object')
+        raise ValueError(
+            f'PwC evaluation {row.get("id")} has invalid metrics JSON'
+        ) from exc
+    if not isinstance(metrics, dict) or any(
+        not isinstance(name, str) for name in metrics
+    ):
+        raise ValueError(
+            f'PwC evaluation {row.get("id")} metrics must be a string-keyed object'
+        )
     return metrics
 
 
@@ -415,19 +513,24 @@ def parse_metric_value(raw: Any) -> tuple[float, str | None, bool]:
             text, _, uncertainty = text.partition(separator)
             text, uncertainty = text.strip(), uncertainty.strip() or None
             break
-    percent = text.endswith('%')
-    text = text.rstrip('%').strip()
-    text = text.replace(',', '') if ('.' in text or text.count(',') > 1) else text.replace(',', '.')
+    has_percent_marker = text.endswith('%')
+    text = text.removesuffix('%').strip()
+    if ',' in text:
+        raise ValueError(
+            f'metric value uses ambiguous comma formatting: {raw!r}'
+        )
     try:
         value = float(text)
     except ValueError as exc:
         raise ValueError(f'metric value is not numeric: {raw!r}') from exc
     if not math.isfinite(value):
         raise ValueError('metric value must be finite')
-    return value, uncertainty, percent
+    return value, uncertainty, has_percent_marker
 
 
-def _assert_anchor(evaluation_id: str, field: str, expected: Any, actual: Any) -> None:
+def _assert_anchor(
+    evaluation_id: str, field: str, expected: Any, actual: Any
+) -> None:
     expected = None if expected is None else str(expected)
     actual = None if actual is None else str(actual)
     if expected != actual:
@@ -438,22 +541,16 @@ def _assert_anchor(evaluation_id: str, field: str, expected: Any, actual: Any) -
 
 
 def build_source_data(dataset: dict[str, Any]) -> SourceDataUrl:
-    urls = []
-    for candidate in (
-        dataset.get('url'), dataset.get('homepage'), dataset.get('paper_url'),
-        DRUGBANK_URL, PWC_DATASET_URL,
-    ):
-        if candidate and str(candidate) not in urls:
-            urls.append(str(candidate))
     return SourceDataUrl(
-        dataset_name=dataset.get('name') or 'DrugBank',
+        dataset_name='DrugBank',
         source_type='url',
-        url=urls,
+        url=[DRUGBANK_URL],
         additional_details=stringify_details(
             {
                 'raw_dataset_id': dataset.get('id'),
+                'raw_dataset_url': dataset.get('url'),
+                'raw_dataset_homepage': dataset.get('homepage'),
                 'pwc_dataset_slug': dataset.get('slug'),
-                'pwc_dataset_url': PWC_DATASET_URL,
             }
         ),
     )
@@ -472,11 +569,13 @@ def build_source_metadata(
             {
                 'source_role': 'aggregator',
                 'dump_sha256': overlay.dump_sha256,
+                'registry_revision': overlay.registry_revision,
                 'overlay_sha256': overlay_sha256,
                 'source_dump_file': dump_file,
+                'pwc_data_archive_url': PWC_DATASET_ARCHIVE_URL,
                 'qualification_policy': (
-                    'explicit source-cell manifest; no protocol inference from '
-                    'DrugBank label or score values'
+                    'explicit source-cell manifest with no protocol inference '
+                    'from the DrugBank label or score values'
                 ),
             }
         ),
@@ -484,8 +583,23 @@ def build_source_metadata(
 
 
 def _metric_result_suffix(source_name: str) -> str:
-    digest = hashlib.sha256(source_name.encode()).hexdigest()[:8]
-    return f'{slugify(source_name)}-{digest}'
+    slug = (
+        re.sub(r'[^a-z0-9]+', '-', source_name.lower()).strip('-') or 'metric'
+    )
+    digest = hashlib.sha256(source_name.encode('utf-8')).hexdigest()[:8]
+    return f'{slug}-{digest}'
+
+
+def _bundle_evaluation_id(
+    dump_sha256: str, pwc_evaluation_ids: Iterable[str]
+) -> str:
+    source_ids = sorted(set(pwc_evaluation_ids))
+    if not source_ids:
+        raise ValueError(
+            'cannot build an evaluation id without PwC source evaluations'
+        )
+    source_bundle_sha256 = _canonical_sha256(source_ids)
+    return f'paperswithcode-drugbank/{dump_sha256}/{source_bundle_sha256}'
 
 
 def _build_result(
@@ -494,8 +608,6 @@ def _build_result(
     dataset: dict[str, Any],
     metric: OverlayMetric,
     raw_value: Any,
-    overlay: ProtocolOverlay,
-    overlay_sha256: str,
 ) -> EvaluationResult:
     source_value, uncertainty, percent = parse_metric_value(raw_value)
     if percent and metric.source_scale != 'percent':
@@ -518,9 +630,9 @@ def _build_result(
             'pwc_paper_id': entry.anchors.paper_id,
             'pwc_dataset_id': entry.anchors.dataset_id,
             'pwc_task_id': entry.anchors.task_id,
+            'pwc_model_name': entry.anchors.model_name,
             'source_metrics_sha256': entry.source_metrics_sha256,
-            'dump_sha256': overlay.dump_sha256,
-            'overlay_sha256': overlay_sha256,
+            'protocol_semantic_sha256': q.semantic_sha256(),
             'protocol_study_id': q.study_id,
             'protocol_id': q.protocol_id,
             'generalization_regime': q.generalization_regime,
@@ -547,9 +659,11 @@ def _build_result(
             f'paperswithcode-drugbank.{entry.pwc_evaluation_id}.'
             f'{_metric_result_suffix(metric.source_name)}'
         ),
-        evaluation_name=q.evaluation_name(),
+        evaluation_name=q.benchmark_id,
         source_data=build_source_data(dataset),
-        evaluation_timestamp=str(row.get('evaluated_on')) if row.get('evaluated_on') else None,
+        evaluation_timestamp=str(row.get('evaluated_on'))
+        if row.get('evaluated_on')
+        else None,
         metric_config=MetricConfig(
             evaluation_description=(
                 f'{metric.metric_name} for DrugBank protocol {q.protocol_id} '
@@ -566,11 +680,11 @@ def _build_result(
             additional_details={
                 'source_metric_name': metric.source_name,
                 'reviewed_source_scale': metric.source_scale,
-                'protocol_id': q.protocol_id,
-                'generalization_regime': q.generalization_regime,
             },
         ),
-        score_details=ScoreDetails(score=score, uncertainty=None, details=details),
+        score_details=ScoreDetails(
+            score=score, uncertainty=None, details=details
+        ),
     )
 
 
@@ -581,32 +695,46 @@ def build_logs(
     overlay_sha256: str,
     *,
     dump_file: str | None = None,
-) -> SourceConversionResult[LogBundle]:
+) -> list[EvaluationLog]:
     rows: dict[str, dict[str, Any]] = {}
     for row in evaluations:
         evaluation_id = str(row.get('id'))
         if evaluation_id in rows:
-            raise ValueError(f'duplicate PwC evaluation id in source: {evaluation_id}')
+            raise ValueError(
+                f'duplicate PwC evaluation id in source: {evaluation_id}'
+            )
         rows[evaluation_id] = row
 
-    grouped: dict[str, list[EvaluationResult]] = defaultdict(list)
-    anchors_by_model: dict[str, OverlayAnchors] = {}
-    selected_cells = 0
+    groups: dict[str, _ModelGroup] = {}
     for entry in overlay.entries:
         evaluation_id = str(entry.pwc_evaluation_id)
         row = rows.get(evaluation_id)
         if row is None:
-            raise ValueError(f'overlay references missing PwC evaluation {evaluation_id}')
-        for field in ('paper_id', 'dataset_id', 'task_id', 'model_name'):
-            _assert_anchor(evaluation_id, field, getattr(entry.anchors, field), row.get(field))
+            raise ValueError(
+                f'overlay references missing PwC evaluation {evaluation_id}'
+            )
+        for anchor_field in ('paper_id', 'dataset_id', 'task_id', 'model_name'):
+            _assert_anchor(
+                evaluation_id,
+                anchor_field,
+                getattr(entry.anchors, anchor_field),
+                row.get(anchor_field),
+            )
 
         dataset = datasets_by_id.get(str(entry.anchors.dataset_id))
         if dataset is None:
-            raise ValueError(f'overlay references missing PwC dataset {entry.anchors.dataset_id!r}')
-        name = str(dataset.get('name') or '').strip().lower()
-        slug = str(dataset.get('slug') or '').strip().lower()
-        if name != 'drugbank' and slug != 'drugbank':
-            raise ValueError(f'overlay entry {evaluation_id} does not target DrugBank')
+            raise ValueError(
+                f'overlay references missing PwC dataset {entry.anchors.dataset_id!r}'
+            )
+        labels = {
+            str(dataset[field]).strip().casefold()
+            for field in ('name', 'slug')
+            if dataset.get(field)
+        }
+        if labels != {'drugbank'}:
+            raise ValueError(
+                f'overlay entry {evaluation_id} does not target DrugBank'
+            )
 
         metrics = _metrics_object(row)
         actual_hash = source_metrics_sha256(metrics)
@@ -617,82 +745,106 @@ def build_logs(
             )
 
         model_id = entry.anchors.model_id
-        prior = anchors_by_model.setdefault(model_id, entry.anchors)
-        if prior.developer != entry.anchors.developer or prior.model_name != entry.anchors.model_name:
-            raise ValueError(f'inconsistent reviewed model identity for {model_id}')
+        group = groups.setdefault(
+            model_id, _ModelGroup(entry.anchors.developer)
+        )
+        group.evaluation_ids.add(evaluation_id)
+        group.model_names.add(entry.anchors.model_name)
         for metric in entry.metrics:
             if metric.source_name not in metrics:
                 raise ValueError(
                     f'PwC evaluation {evaluation_id} is missing selected metric '
                     f'{metric.source_name!r}'
                 )
-            grouped[model_id].append(
+            group.results.append(
                 _build_result(
-                    entry, row, dataset, metric, metrics[metric.source_name],
-                    overlay, overlay_sha256,
+                    entry,
+                    row,
+                    dataset,
+                    metric,
+                    metrics[metric.source_name],
                 )
             )
-            selected_cells += 1
 
-    bundles = []
-    for model_id, results in sorted(grouped.items()):
-        anchors = anchors_by_model[model_id]
+    logs: list[EvaluationLog] = []
+    for model_id, group in sorted(groups.items()):
+        raw_model_names = sorted(group.model_names)
         log = EvaluationLog(
             schema_version=SCHEMA_VERSION,
-            evaluation_id=(
-                f'paperswithcode-drugbank/{model_id.replace("/", "_")}/'
-                f'{overlay.dump_sha256[:16]}-{overlay_sha256[:16]}'
+            evaluation_id=_bundle_evaluation_id(
+                overlay.dump_sha256,
+                group.evaluation_ids,
             ),
             retrieved_timestamp=overlay.retrieved_timestamp,
-            source_metadata=build_source_metadata(overlay, overlay_sha256, dump_file),
+            source_metadata=build_source_metadata(
+                overlay, overlay_sha256, dump_file
+            ),
             eval_library=EvalLibrary(name='unknown', version='unknown'),
             model_info=ModelInfo(
-                name=anchors.model_name,
+                name=raw_model_names[0],
                 id=model_id,
-                developer=anchors.developer,
+                developer=group.developer,
                 additional_details={
-                    'raw_model_name': anchors.model_name,
+                    'raw_model_name': raw_model_names[0],
+                    'raw_model_names': json.dumps(
+                        raw_model_names,
+                        ensure_ascii=False,
+                        separators=(',', ':'),
+                    ),
                     'identity_source': 'protocol_qualification_manifest',
                 },
             ),
-            evaluation_results=sorted(results, key=lambda r: r.evaluation_result_id or ''),
+            evaluation_results=sorted(
+                group.results,
+                key=lambda result: result.evaluation_result_id or '',
+            ),
         )
-        bundles.append(
-            LogBundle(log=log, developer=anchors.developer, model=model_id.split('/', 1)[1])
+        logs.append(log)
+    if not logs:
+        raise ValueError(
+            'DrugBank qualification manifest selected zero source score cells'
         )
-    if selected_cells == 0 or not bundles:
-        raise ValueError('DrugBank qualification manifest selected zero source score cells')
-    return SourceConversionResult(
-        source_name=SOURCE_NAME,
-        total_records=selected_cells,
-        records=bundles,
-        failures=[],
-        exclusions=[],
-    )
+    return logs
 
 
-def require_empty_output_dir(output_dir: Path) -> None:
-    if output_dir.exists() and any(output_dir.iterdir()):
-        raise ValueError(f'output directory must be empty for a fail-closed conversion: {output_dir}')
-
-
-def export(bundles: Iterable[LogBundle], output_dir: Path) -> list[Path]:
-    return save_evaluation_logs(
-        EvaluationLogOutput(
-            eval_log=bundle.log,
-            base_dir=output_dir,
-            developer=bundle.developer,
-            model_name=bundle.model,
+def validate_output_dir(output_dir: Path) -> None:
+    if output_dir.name != COLLECTION_NAME or output_dir.parent.name != 'data':
+        raise ValueError(
+            f'--output-dir must end with data/{COLLECTION_NAME}: {output_dir}'
         )
-        for bundle in bundles
-    )
+    if not output_dir.exists():
+        return
+    if not output_dir.is_dir():
+        raise ValueError(f'output path must be a directory: {output_dir}')
+    if any(output_dir.iterdir()):
+        raise ValueError(f'output directory must be empty: {output_dir}')
+
+
+def export(logs: Iterable[EvaluationLog], output_dir: Path) -> list[Path]:
+    outputs: list[EvaluationLogOutput] = []
+    for log in logs:
+        model_developer, model_name = log.model_info.id.split('/', 1)
+        outputs.append(
+            EvaluationLogOutput(
+                eval_log=log,
+                base_dir=output_dir,
+                developer=model_developer,
+                model_name=model_name,
+            )
+        )
+    return save_evaluation_logs(outputs)
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description='Convert explicitly qualified PwC DrugBank transductive/inductive results.'
     )
-    parser.add_argument('--dump', type=Path, required=True, help='Local PwC PostgreSQL custom-format dump.')
+    parser.add_argument(
+        '--dump',
+        type=Path,
+        required=True,
+        help='Local PwC PostgreSQL custom-format dump.',
+    )
     parser.add_argument(
         '--overlay',
         type=Path,
@@ -717,11 +869,11 @@ def run(args: argparse.Namespace) -> int:
             f'expected {overlay.dump_sha256}, got {actual_dump_sha256}'
         )
     evaluations, datasets = load_source_context(load_dump(args.dump), overlay)
-    result = build_logs(
+    logs = build_logs(
         evaluations, datasets, overlay, overlay_sha256, dump_file=args.dump.name
     )
-    require_empty_output_dir(args.output_dir)
-    paths = export(result.records, args.output_dir)
+    validate_output_dir(args.output_dir)
+    paths = export(logs, args.output_dir)
     for path in paths:
         print(path)
     return len(paths)
