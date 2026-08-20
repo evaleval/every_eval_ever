@@ -42,9 +42,11 @@ helm = [
     # because crfm-helm is frozen.
     "nltk<3.10.1",
 ]
+wild = ["pyarrow>=14.0"]  # every_eval_ever/adapters/wild reads WILD-raw parquet via pyarrow
 all = [
     "every-eval-ever[inspect]",
     "every-eval-ever[helm]",
+    "every-eval-ever[wild]",
 ]
 
 [project.scripts]

@@ -866,6 +866,7 @@ all = [
     { name = "crfm-helm" },
     { name = "inspect-ai" },
     { name = "nltk" },
+    { name = "pyarrow" },
     { name = "typer" },
 ]
 helm = [
@@ -875,6 +876,9 @@ helm = [
 ]
 inspect = [
     { name = "inspect-ai" },
+]
+wild = [
+    { name = "pyarrow" },
 ]
 
 [package.dev-dependencies]
@@ -891,6 +895,7 @@ requires-dist = [
     { name = "duckdb", specifier = ">=1.5.2" },
     { name = "every-eval-ever", extras = ["helm"], marker = "extra == 'all'" },
     { name = "every-eval-ever", extras = ["inspect"], marker = "extra == 'all'" },
+    { name = "every-eval-ever", extras = ["wild"], marker = "extra == 'all'" },
     { name = "huggingface-hub", specifier = ">=0.36.0,<1.0.0" },
     { name = "inspect-ai", marker = "extra == 'inspect'", specifier = ">=0.3.160,<0.4.0" },
     { name = "jsonschema", specifier = ">=4.26.0,<5.0.0" },
@@ -898,6 +903,7 @@ requires-dist = [
     { name = "nltk", marker = "extra == 'helm'", specifier = "<3.10.1" },
     { name = "numpy", specifier = ">=2.4.1" },
     { name = "pandas", specifier = ">=2.3.3" },
+    { name = "pyarrow", marker = "extra == 'wild'", specifier = ">=14.0" },
     { name = "pydantic", specifier = ">=2.12.5,<3.0.0" },
     { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "requests", specifier = ">=2.32.5,<3.0.0" },
@@ -905,7 +911,7 @@ requires-dist = [
     { name = "seaborn", specifier = ">=0.13.2" },
     { name = "typer", marker = "extra == 'helm'", specifier = ">=0.12,<1.0" },
 ]
-provides-extras = ["inspect", "helm", "all"]
+provides-extras = ["inspect", "helm", "wild", "all"]
 
 [package.metadata.requires-dev]
 dev = [
