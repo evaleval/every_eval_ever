@@ -228,6 +228,15 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         required_env=('ARTIFICIAL_ANALYSIS_API_KEY',),
     ),
     AdapterSpec(
+        key='benchpress',
+        module='every_eval_ever.adapters.benchpress.adapter',
+        collections=('benchpress',),
+        notes=(
+            'Reads microsoft/benchpress-score-matrix over plain HTTPS at one '
+            'resolved commit; --revision reproduces an earlier snapshot.'
+        ),
+    ),
+    AdapterSpec(
         key='exgentic',
         module='every_eval_ever.adapters.exgentic.adapter',
         collections=('exgentic',),

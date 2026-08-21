@@ -72,6 +72,7 @@ re-hosting bytes that are already durably stored.
 | `mmlu_pro` | TIGER-Lab leaderboard CSV | Converts the MMLU-Pro leaderboard (`TIGER-Lab/mmlu_pro_leaderboard_submission`) into `data/mmlu-pro/`. Emits per-model overall + 14 per-subject accuracies. |
 | `lexam` | LEXam project website | Converts the LEXam legal-reasoning leaderboard (open-question judge scores + 4-choice MCQ accuracy) into `data/lexam/`. |
 | `vectara_hallucination_leaderboard` | HuggingFace (`vectara/results`) | Converts the Vectara Hallucination Leaderboard result files, pinned to a source commit, into `data/vectara-hallucination-leaderboard/`. Emits 4 aggregate metrics plus per-category and per-text-complexity breakdowns (40 scores per model). |
+| `benchpress` | HuggingFace (`microsoft/benchpress-score-matrix`) | Converts the BenchPress score matrix into `data/benchpress/`. An aggregator: every cell keeps its own citation, and logs split by `evaluator_relationship`. See [`benchpress/README.md`](benchpress/README.md). |
 
 ### Mercor Evaluation Exports
 
