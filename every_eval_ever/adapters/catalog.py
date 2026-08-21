@@ -92,6 +92,14 @@ class AdapterSpec:
     #: an outage is expected, and take it back once the source is stable,
     #: so a real regression goes red again.
     allow_source_outage: bool = False
+    #: Whether a run may be skipped when the adapter reports its upstream
+    #: source, the schema, and its own code are all unchanged since the last
+    #: completed run. On by default: an adapter opts in by answering
+    #: ``--emit-source-version`` with its current source version, and one that
+    #: does not implement the flag simply runs every time as before. Set
+    #: ``False`` to force an adapter to always run, e.g. when its source
+    #: version cannot be reported cheaply or reliably.
+    skip_if_unchanged: bool = True
     notes: str = ''
 
     def __post_init__(self) -> None:

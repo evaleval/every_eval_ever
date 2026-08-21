@@ -508,6 +508,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             run_date=run_date,
             known_fingerprints=state.known_fingerprints,
             force_full=args.force_full,
+            previous_freshness_token=state.freshness_token,
             run_url=run_url,
         )
         for note in (inflight_note, pending_note):
@@ -629,6 +630,16 @@ def _finish(
 
         state.last_run_date = outcome.run_date.isoformat()
         state.last_status = outcome.status
+        # Remember the token only when the run actually settled the source:
+        # a completed or partial conversion, or a skip that already matched it.
+        # A failure keeps the previous good token, so the next run compares
+        # against the last state that truly published rather than forgetting it.
+        if outcome.freshness_token is not None and outcome.status in (
+            'completed',
+            'partial',
+            'skipped_source_unchanged',
+        ):
+            state.freshness_token = outcome.freshness_token
         # Only advance the snapshot pointer when a snapshot was actually
         # written. Pointing it at a directory holding nothing but a run report
         # would make the next run find no manifest and re-upload everything.
@@ -757,7 +768,10 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument(
         '--force-full',
         action='store_true',
-        help='Publish every record, ignoring the de-duplication ledger.',
+        help=(
+            'Convert and publish everything, ignoring both the freshness '
+            'skip and the de-duplication ledger.'
+        ),
     )
     run_parser.add_argument(
         '--datastore-repo',

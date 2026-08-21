@@ -53,12 +53,22 @@ BEHAVIOUR = json.loads((HERE / 'behaviour.json').read_text('utf-8'))
 
 def parse_args(argv=None):
     parser = argparse.ArgumentParser()
-    parser.add_argument('--output-dir', type=Path, required=True)
+    parser.add_argument('--output-dir', type=Path)
+    parser.add_argument('--emit-source-version', action='store_true')
     return parser.parse_args(argv)
 
 
 def main(argv=None):
     args = parse_args(argv)
+    if args.emit_source_version:
+        # A test that set a source_version answers the probe with it; one that
+        # did not stands in for an adapter that cannot report a version, which
+        # the runner reads from the non-zero exit.
+        version = BEHAVIOUR.get('source_version')
+        if version is None:
+            return 2
+        print(version)
+        return 0
     staging = args.output_dir.parent.parent
     for capture in BEHAVIOUR.get('captures', []):
         from every_eval_ever.helpers import raw_capture
@@ -187,6 +197,10 @@ def pipeline(tmp_path, monkeypatch):
     (package / 'adapter.py').write_text(
         textwrap.dedent(STAND_IN), encoding='utf-8'
     )
+    # The runner digests the adapter's own source in-process for the freshness
+    # token, so the stand-in has to be importable here as a real adapter would
+    # be, not only in the subprocess it hands PYTHONPATH.
+    monkeypatch.syspath_prepend(str(tmp_path))
     runs = 0
 
     def go(files, *, run_kwargs=None, env=None, spec_kwargs=None, **behaviour):
@@ -579,6 +593,127 @@ def test_force_full_republishes_a_known_record(pipeline) -> None:
     assert len(outcome.uploaded) == 1
     assert outcome.skipped_unchanged == []
     assert any('bypassed' in message for message in outcome.messages)
+
+
+# --- freshness skip ------------------------------------------------------
+
+
+def test_an_unchanged_source_skips_the_run_without_converting(pipeline) -> None:
+    record = record_without_samples()
+    files = {f'demo-org/demo-model/{UUID_A}.json': record}
+
+    first = pipeline(files, source_version='v1')
+    assert first.status == 'completed'
+    assert first.freshness_token is not None
+
+    second = pipeline(
+        files,
+        source_version='v1',
+        run_kwargs={'previous_freshness_token': first.freshness_token},
+    )
+
+    assert second.status == 'skipped_source_unchanged'
+    assert second.ok  # a green day, not a failure
+    assert second.uploaded == []
+    assert second.records == []  # the adapter never ran
+    assert not list(second.upload_dir.rglob('*.json'))
+    assert any('unchanged' in message for message in second.messages)
+
+
+def test_a_changed_source_is_not_skipped(pipeline) -> None:
+    record = record_without_samples()
+    files = {f'demo-org/demo-model/{UUID_A}.json': record}
+
+    first = pipeline(files, source_version='v1')
+    second = pipeline(
+        files,
+        source_version='v2',
+        run_kwargs={'previous_freshness_token': first.freshness_token},
+    )
+
+    assert second.status == 'completed'
+    assert second.freshness_token != first.freshness_token
+    assert len(second.uploaded) == 1
+
+
+def test_force_full_converts_even_when_the_source_is_unchanged(
+    pipeline,
+) -> None:
+    record = record_without_samples()
+    files = {f'demo-org/demo-model/{UUID_A}.json': record}
+
+    first = pipeline(files, source_version='v1')
+    second = pipeline(
+        files,
+        source_version='v1',
+        run_kwargs={
+            'previous_freshness_token': first.freshness_token,
+            'force_full': True,
+        },
+    )
+
+    assert second.status == 'completed'
+    assert len(second.uploaded) == 1
+
+
+def test_an_adapter_that_reports_no_version_is_never_skipped(pipeline) -> None:
+    record = record_without_samples()
+    files = {f'demo-org/demo-model/{UUID_A}.json': record}
+
+    # No source_version: the stand-in exits non-zero on the probe, so the run
+    # cannot be pinned and must go ahead even against a stored token.
+    outcome = pipeline(
+        files,
+        run_kwargs={'previous_freshness_token': 'source=whatever|x'},
+    )
+
+    assert outcome.status == 'completed'
+    assert outcome.freshness_token is None
+    assert len(outcome.uploaded) == 1
+
+
+def test_disabling_skip_if_unchanged_always_runs(pipeline) -> None:
+    record = record_without_samples()
+    files = {f'demo-org/demo-model/{UUID_A}.json': record}
+
+    first = pipeline(files, source_version='v1')
+    second = pipeline(
+        files,
+        source_version='v1',
+        spec_kwargs={'skip_if_unchanged': False},
+        run_kwargs={'previous_freshness_token': first.freshness_token},
+    )
+
+    assert second.status == 'completed'
+    # The probe is not even attempted when the catalog turns the feature off.
+    assert second.freshness_token is None
+    assert len(second.uploaded) == 1
+
+
+def test_the_adapter_code_is_part_of_the_token(tmp_path) -> None:
+    package = tmp_path / 'digest_pkg'
+    package.mkdir()
+    (package / '__init__.py').write_text('', encoding='utf-8')
+    (package / 'adapter.py').write_text('VERSION = 1\n', encoding='utf-8')
+    spec = AdapterSpec(
+        key='digest',
+        module='digest_pkg.adapter',
+        collections=(COLLECTION,),
+    )
+
+    import sys as _sys
+
+    _sys.path.insert(0, str(tmp_path))
+    try:
+        before = runner.freshness_token('v1', spec)
+        (package / 'adapter.py').write_text('VERSION = 2\n', encoding='utf-8')
+        # find_spec caches nothing here; the digest reads the file fresh.
+        after = runner.freshness_token('v1', spec)
+    finally:
+        _sys.path.remove(str(tmp_path))
+
+    assert before is not None and after is not None
+    assert before != after  # same source version, changed adapter code
 
 
 # --- refusals ------------------------------------------------------------

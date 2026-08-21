@@ -105,6 +105,12 @@ class AdapterState:
     #: from :attr:`last_raw_date`, since a date no longer names one directory.
     last_raw_prefix: str | None = None
     last_status: str | None = None
+    #: The freshness token the last completed run computed: source version,
+    #: schema version, and adapter code folded together. The next run skips
+    #: only when it recomputes exactly this, so a change in any of the three
+    #: forces a real run. ``None`` until an adapter that reports a source
+    #: version has completed once.
+    freshness_token: str | None = None
     #: Records that were merged into the datastore. Kept forever.
     fingerprints: set[str] = field(default_factory=set)
     #: Records committed to :attr:`pull_request_number` but not merged yet.
@@ -129,6 +135,7 @@ class AdapterState:
                     'last_raw_date': self.last_raw_date,
                     'last_raw_prefix': self.last_raw_prefix,
                     'last_status': self.last_status,
+                    'freshness_token': self.freshness_token,
                     'fingerprint_count': len(self.fingerprints),
                     'pending_fingerprint_count': len(self.pending_fingerprints),
                 },
@@ -423,6 +430,7 @@ class RawStore:
                     f'{RAW_DIR}/{adapter}/{state.last_raw_date}'
                 )
             state.last_status = payload.get('last_status')
+            state.freshness_token = payload.get('freshness_token')
 
         ledger = self._download_text(fingerprints_path(adapter))
         if ledger is not None:

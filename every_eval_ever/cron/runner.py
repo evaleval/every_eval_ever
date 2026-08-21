@@ -18,6 +18,7 @@ a report of what happened; ``store`` and ``submit`` do the rest.
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import importlib.util
 import io
 import json
@@ -33,6 +34,7 @@ from typing import Any, Literal
 
 from every_eval_ever.adapters.catalog import ADAPTERS as _ALL_ADAPTERS
 from every_eval_ever.adapters.catalog import AdapterSpec
+from every_eval_ever.converters import SCHEMA_VERSION
 from every_eval_ever.cron.provenance import stamp_cron_provenance
 from every_eval_ever.helpers.raw_capture import CAPTURE_DIR_ENV
 from every_eval_ever.helpers.raw_capture import MANIFEST_NAME as RAW_MANIFEST
@@ -45,8 +47,21 @@ Status = Literal[
     'skipped_missing_credential',
     'skipped_missing_dependency',
     'skipped_source_unavailable',
+    'skipped_source_unchanged',
     'failed',
 ]
+
+#: The flag an adapter answers to report its current upstream source version
+#: instead of converting. A participating adapter prints one line and exits 0;
+#: an adapter that does not implement it exits non-zero, which the runner reads
+#: as "no version" and runs the adapter as usual.
+SOURCE_VERSION_FLAG = '--emit-source-version'
+
+#: How long the source-version probe may take. It should print a constant or
+#: read one revision, so this is a backstop against an adapter that does real
+#: work on the flag rather than a budget; a probe that overruns it is treated
+#: as no version and the adapter runs.
+PROBE_TIMEOUT_SECONDS = 120
 
 #: The exit code (``EX_TEMPFAIL``) an adapter uses to say its upstream
 #: source is down, as opposed to crashing on it. Honoured only when the
@@ -171,6 +186,10 @@ class RunOutcome:
     skipped_unchanged: list[StagedRecord] = field(default_factory=list)
     coverage: dict[str, Any] | None = None
     messages: list[str] = field(default_factory=list)
+    #: The freshness token this run computed, or ``None`` if the adapter could
+    #: not report a source version. The caller persists it after a completed
+    #: or partial run so the next run has something to compare against.
+    freshness_token: str | None = None
 
     #: Statuses that make the scheduled job red. A missing credential is one
     #: of them: an adapter is only in today's matrix because the catalog says
@@ -365,6 +384,93 @@ def _as_text(value: str | bytes | None) -> str:
     if isinstance(value, bytes):
         return value.decode('utf-8', errors='replace')
     return value
+
+
+def adapter_code_digest(spec: AdapterSpec) -> str | None:
+    """Return a hex digest of the adapter package's own source.
+
+    Covers every ``.py`` the package ships, not just ``adapter.py``, so a
+    change in a helper the adapter imports counts too. It does not reach the
+    shared converters the adapter calls into; the schema half of the token
+    covers a schema change, and a maintainer touching shared code can force a
+    full refresh once. Returns ``None`` when the package cannot be located,
+    which the caller treats as no token, i.e. run.
+    """
+    try:
+        found = importlib.util.find_spec(spec.module)
+    except (ImportError, ValueError):
+        return None
+    if found is None or not found.origin:
+        return None
+    package_dir = Path(found.origin).parent
+    digest = hashlib.sha256()
+    for path in sorted(package_dir.rglob('*.py')):
+        digest.update(path.relative_to(package_dir).as_posix().encode('utf-8'))
+        digest.update(b'\0')
+        digest.update(path.read_bytes())
+        digest.update(b'\0')
+    return digest.hexdigest()
+
+
+def probe_source_version(
+    spec: AdapterSpec,
+    *,
+    raw_dir: Path,
+    base_env: dict[str, str] | None = None,
+    cwd: Path | None = None,
+    executable: str | None = None,
+) -> str | None:
+    """Ask the adapter for its current source version, or ``None``.
+
+    Runs the adapter with :data:`SOURCE_VERSION_FLAG`, which a participating
+    adapter answers by printing one line and exiting 0 without converting. An
+    adapter that does not implement the flag exits non-zero, and that, a
+    timeout, or empty output all read as "no version": the run then proceeds
+    exactly as it would without the feature.
+    """
+    argv = [
+        executable or sys.executable,
+        '-m',
+        spec.module,
+        SOURCE_VERSION_FLAG,
+    ]
+    try:
+        completed = subprocess.run(
+            argv,
+            capture_output=True,
+            text=True,
+            encoding='utf-8',
+            errors='replace',
+            timeout=min(spec.timeout_minutes * 60, PROBE_TIMEOUT_SECONDS),
+            cwd=None if cwd is None else str(cwd),
+            env=adapter_environment(spec, raw_dir=raw_dir, base_env=base_env),
+        )
+    except subprocess.TimeoutExpired:
+        return None
+    if completed.returncode != 0:
+        return None
+    lines = [
+        line.strip() for line in completed.stdout.splitlines() if line.strip()
+    ]
+    return lines[-1] if lines else None
+
+
+def freshness_token(
+    source_version: str | None, spec: AdapterSpec
+) -> str | None:
+    """Fold the source version, schema, and adapter code into one token.
+
+    All three must be unchanged for a run to be skipped, so any one of them
+    moving produces a different token and forces a run. Returns ``None`` when
+    the source version is unknown or the adapter code cannot be digested, so an
+    adapter that cannot be pinned to a version is never skipped.
+    """
+    if source_version is None:
+        return None
+    code = adapter_code_digest(spec)
+    if code is None:
+        return None
+    return f'source={source_version}|schema={SCHEMA_VERSION}|adapter={code}'
 
 
 def discover_records(
@@ -705,6 +811,7 @@ def run(
     run_date: date,
     known_fingerprints: set[str] | None = None,
     force_full: bool = False,
+    previous_freshness_token: str | None = None,
     run_url: str | None = None,
     base_env: dict[str, str] | None = None,
     cwd: Path | None = None,
@@ -754,6 +861,32 @@ def run(
             f'not run: install {", ".join(unavailable)} to run this adapter'
         )
         return outcome
+
+    if spec.skip_if_unchanged:
+        # Ask the source what it is before scraping it. The token is computed
+        # even when this run will not skip (a cold start, or --force-full), so
+        # the next run has the current value to compare against.
+        source_version = probe_source_version(
+            spec,
+            raw_dir=raw_dir,
+            base_env=env,
+            cwd=cwd,
+            executable=executable,
+        )
+        outcome.freshness_token = freshness_token(source_version, spec)
+        if (
+            not force_full
+            and previous_freshness_token is not None
+            and outcome.freshness_token is not None
+            and outcome.freshness_token == previous_freshness_token
+        ):
+            outcome.status = 'skipped_source_unchanged'
+            outcome.messages.append(
+                'not run: upstream source, schema and adapter are all '
+                f'unchanged since the last run (source {source_version!r}). '
+                'Pass --force-full to convert anyway.'
+            )
+            return outcome
 
     outcome.process = run_adapter(
         spec,

@@ -328,6 +328,7 @@ def test_state_round_trips_through_the_store() -> None:
         last_raw_date='2026-08-09',
         last_raw_prefix='raw/hle/2026-08-09/run-1-1',
         last_status='completed',
+        freshness_token='source=abc123|schema=0.3.0|adapter=deadbeef',
         fingerprints={'bbb', 'aaa'},
         pending_fingerprints={'ccc'},
     )
@@ -342,6 +343,9 @@ def test_state_round_trips_through_the_store() -> None:
     assert reloaded.exists
     assert reloaded.pull_request_number == 7
     assert reloaded.last_status == 'completed'
+    assert reloaded.freshness_token == (
+        'source=abc123|schema=0.3.0|adapter=deadbeef'
+    )
     assert reloaded.last_raw_prefix == 'raw/hle/2026-08-09/run-1-1'
     assert reloaded.fingerprints == {'aaa', 'bbb'}
     # Pending fingerprints survive apart from the durable ones, because the

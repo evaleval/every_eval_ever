@@ -37,6 +37,24 @@ An adapter that automation runs must therefore:
 `bfcl`, `cocoabench` and `sciarena` are registered as `runnable=False`: they need a
 local input file and have no live fetch path.
 
+### Skipping a run whose source has not changed
+
+Many sources go days or weeks without a new result, so re-scraping them produces
+byte-identical records the de-duplication ledger then drops. An adapter can let the
+scheduler skip that work entirely by answering `--emit-source-version`: it prints one
+line naming the current upstream state — a pinned commit, a dump version, a content
+hash — and exits `0` without converting anything. The runner folds that line together
+with the schema version and a digest of the adapter's own package into a *freshness
+token*, and skips the run (green, status `skipped_source_unchanged`) only when all
+three match the last completed run. A change to any one — the source, the schema, or
+the adapter code — forces a real run, as does `--force-full`.
+
+The behaviour is on by default (`skip_if_unchanged=True` in the catalog); an adapter
+that does not implement the flag simply runs every time, as before. Set
+`skip_if_unchanged=False` for an adapter whose source version cannot be reported
+cheaply or reliably. The probe runs in-process for the digest, so an adapter must
+stay importable without side effects and print the version before any network work.
+
 ## Raw source snapshots
 
 [`helpers/raw_capture.py`](../helpers/raw_capture.py) keeps the bytes an adapter

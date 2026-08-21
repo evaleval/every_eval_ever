@@ -579,11 +579,25 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         type=Path,
         help="Write the fetched raw source rows to this path.",
     )
+    parser.add_argument(
+        "--emit-source-version",
+        action="store_true",
+        help=(
+            "Print the pinned source commit and exit, so the scheduler can "
+            "skip a run whose source has not changed."
+        ),
+    )
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
+    if args.emit_source_version:
+        # The whole leaderboard is pinned to one commit, so the commit is the
+        # source version. Nothing here fetches, so the scheduler's probe costs
+        # nothing.
+        print(SOURCE_COMMIT)
+        return 0
     retrieved_timestamp = str(time.time())
 
     print("=" * 60)

@@ -162,6 +162,15 @@ def test_unbounded_length_metric_declares_infinite_upper_bound(
     )
 
 
+def test_emit_source_version_prints_the_pinned_commit(capsys):
+    exit_code = adapter.main(['--emit-source-version'])
+
+    assert exit_code == 0
+    # One line, the pinned commit, nothing fetched — this is what the
+    # scheduler compares to decide whether a run can be skipped.
+    assert capsys.readouterr().out.strip() == adapter.SOURCE_COMMIT
+
+
 def test_private_corpus_is_distinguished_from_public_result_files(
     source_rows, tmp_path: Path
 ):
