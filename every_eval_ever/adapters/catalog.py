@@ -342,6 +342,16 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         notes='Clones the upstream submission repository.',
     ),
     AdapterSpec(
+        key='open_medical_llm',
+        module='every_eval_ever.adapters.open_medical_llm.adapter',
+        collections=('open-medical-llm',),
+        timeout_minutes=30,
+        notes=(
+            'Reads openlifescienceai/results, pinned to the resolved commit; '
+            'resolves model ids through the eval-card-registry space.'
+        ),
+    ),
+    AdapterSpec(
         key='openeval',
         module='every_eval_ever.adapters.openeval.adapter',
         collections=('openeval',),
