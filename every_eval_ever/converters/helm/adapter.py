@@ -47,6 +47,10 @@ from every_eval_ever.converters.common.adapter import (
     BaseEvaluationAdapter,
     SupportedLibrary,
 )
+from every_eval_ever.converters.common.metrics import (
+    count_unknown_bounds,
+    metric_config_fields,
+)
 from every_eval_ever.converters.common.utils import sha256_file
 from every_eval_ever.converters.helm.instance_level_adapter import (
     HELMInstanceLevelDataAdapter,
@@ -54,7 +58,13 @@ from every_eval_ever.converters.helm.instance_level_adapter import (
     _score_from_stat,
     _stat_name_part,
 )
-from every_eval_ever.converters.helm.metrics import is_core_metric
+from every_eval_ever.converters.helm.metrics import (
+    HELM_HARNESS_ID,
+    HELM_METRIC_BOUNDS,
+    is_core_metric,
+    metric_bounds_name,
+    metric_parameters,
+)
 from every_eval_ever.converters.helm.utils import extract_reasoning
 from every_eval_ever.eval_types import (
     DetailedEvaluationResults,
@@ -68,7 +78,6 @@ from every_eval_ever.eval_types import (
     MetricConfig,
     ModelInfo,
     ScoreDetails,
-    ScoreType,
     SourceDataHf,
     SourceMetadata,
     SourceType,
@@ -82,6 +91,58 @@ from every_eval_ever.helpers.io import (
     require_identity,
     require_uuid4,
 )
+
+
+def _instance_counts_by_result_id(per_instance_stats: List) -> Dict[str, int]:
+    """How many distinct instances each aggregate result was computed over.
+
+    HELM aggregates a run by averaging one value per train trial
+    (``Stat.take_mean()`` in ``helm.benchmark.metrics.metric``), so the ``count``
+    on a stat in ``stats.json`` is the number of trials, which is 1 for the
+    single-trial runs that make up almost every published suite. The number of
+    instances behind a score is therefore only recoverable from the per-instance
+    stats, keyed the same way the aggregate results are.
+    """
+    instance_ids: Dict[str, set] = {}
+    for entry in per_instance_stats:
+        instance_id = getattr(entry, 'instance_id', None)
+        if instance_id is None:
+            continue
+        for stat in getattr(entry, 'stats', None) or []:
+            stat_name = getattr(stat, 'name', None)
+            result_id = _evaluation_result_id(
+                getattr(stat_name, 'name', None),
+                getattr(stat_name, 'split', None),
+                getattr(stat_name, 'perturbation', None),
+            )
+            if result_id is None:
+                continue
+            instance_ids.setdefault(result_id, set()).add(str(instance_id))
+    return {
+        result_id: len(ids) for result_id, ids in instance_ids.items() if ids
+    }
+
+
+def _instance_counts_by_split(stats_raw: List) -> Dict[str, int]:
+    """The instance count HELM itself reports for each split.
+
+    HELM emits a ``num_instances`` stat per split, whose mean is that split's
+    instance count. It is the only sample count available for a run converted
+    without its per-instance stats, where the alternative is the run-wide count
+    covering every split at once.
+    """
+    counts: Dict[str, int] = {}
+    for stat in stats_raw:
+        stat_name = getattr(stat, 'name', None)
+        if getattr(stat_name, 'name', None) != 'num_instances':
+            continue
+        if getattr(stat_name, 'perturbation', None) is not None:
+            continue
+        split = _stat_name_part(getattr(stat_name, 'split', None)) or ''
+        mean = getattr(stat, 'mean', None)
+        if isinstance(mean, (int, float)) and mean > 0:
+            counts[split] = int(mean)
+    return counts
 
 
 def _require_helm_dependencies() -> None:
@@ -487,6 +548,8 @@ class HELMAdapter(BaseEvaluationAdapter):
         # additional_details in a separate follow-up.
         evaluation_results: List[EvaluationResult] = []
         seen_evaluation_result_ids: set[str] = set()
+        instance_counts = _instance_counts_by_result_id(per_instance_stats_list)
+        split_instance_counts = _instance_counts_by_split(stats_raw)
 
         for stat in stats_raw:
             # The ID helper mirrors the instance-level converter. This is the
@@ -515,15 +578,39 @@ class HELMAdapter(BaseEvaluationAdapter):
             metric_config = MetricConfig(
                 evaluation_description=metric_name,
                 metric_name=metric_name,
-                lower_is_better=False,  # TODO schema.json check
-                score_type=ScoreType.continuous,
-                min_score=0,
-                max_score=1.0,
+                **metric_config_fields(
+                    metric_name,
+                    harness=HELM_HARNESS_ID,
+                    bounds_table=HELM_METRIC_BOUNDS,
+                    lookup_name=metric_bounds_name(metric_name),
+                    metric_parameters=metric_parameters(metric_name),
+                ),
             )
 
             split = getattr(stat.name, 'split', None)
             perturbation = getattr(stat.name, 'perturbation', None)
             perturbation_label = _stat_name_part(perturbation)
+
+            # HELM's spread is across train trials, not across samples, so it is
+            # not the `standard_deviation` the schema asks for and it is 0.0 by
+            # construction for the single-trial runs that make up almost every
+            # published suite. It travels as itself instead.
+            trial_stddev = getattr(stat, 'stddev', None)
+            # The per-instance stats state the sample count exactly for this
+            # split and perturbation. A worst-case-over-perturbations stat has
+            # none of its own and is computed over the instances of its split,
+            # which is what the unperturbed stat for the same split counts, and
+            # what HELM's own `num_instances` reports for that split. The run's
+            # instance count is the last resort, and covers every split at once.
+            num_samples = (
+                instance_counts.get(evaluation_result_id)
+                or instance_counts.get(
+                    _evaluation_result_id(metric_name, split)
+                )
+                or split_instance_counts.get(_stat_name_part(split) or '')
+                or source_data.samples_number
+                or None
+            )
 
             evaluation_results.append(
                 EvaluationResult(
@@ -534,20 +621,20 @@ class HELMAdapter(BaseEvaluationAdapter):
                     metric_config=metric_config,
                     score_details=ScoreDetails(
                         score=score,
-                        uncertainty=Uncertainty(
-                            standard_deviation=getattr(stat, 'stddev', None),
-                            # Split-specific HELM stats may cover fewer
-                            # examples than the full run, so use the stat's
-                            # own count when it is available.
-                            num_samples=(
-                                stat_count
-                                if stat_count is not None
-                                else adapter_spec.max_eval_instances
-                                or len(request_states)
-                            ),
+                        uncertainty=(
+                            Uncertainty(num_samples=num_samples)
+                            if num_samples
+                            else None
                         ),
                         details={
-                            'count': str(getattr(stat, 'count', '')),
+                            'num_train_trials': str(
+                                stat_count if stat_count is not None else ''
+                            ),
+                            'stddev_across_train_trials': (
+                                ''
+                                if trial_stddev is None
+                                else str(trial_stddev)
+                            ),
                             'split': _stat_name_part(split) or '',
                             'perturbation': perturbation_label or '',
                         },
@@ -575,6 +662,25 @@ class HELMAdapter(BaseEvaluationAdapter):
                         },
                     ),
                 )
+            )
+
+        if not evaluation_results:
+            reported = sorted(
+                {
+                    name
+                    for name in (
+                        getattr(getattr(stat, 'name', None), 'name', None)
+                        for stat in stats_raw
+                    )
+                    if name
+                }
+            )
+            raise ValueError(
+                f'HELM run {run_spec.name!r} reports no metric this converter '
+                f'recognizes as a benchmark score, so there is nothing to '
+                f'publish. Its stats are: {", ".join(reported) or "(none)"}. '
+                f'Add the ones that are scores to CORE_METRIC_PREFIXES in '
+                f'every_eval_ever/converters/helm/metrics.py.'
             )
 
         if request_states:
@@ -624,6 +730,9 @@ class HELMAdapter(BaseEvaluationAdapter):
         else:
             detailed_evaluation_results = None
 
+        unknown_bounds_count = count_unknown_bounds(
+            result.metric_config for result in evaluation_results
+        )
         eval_log = EvaluationLog(
             schema_version=SCHEMA_VERSION,
             evaluation_id=evaluation_id,
@@ -646,6 +755,11 @@ class HELMAdapter(BaseEvaluationAdapter):
                     'evaluator_relationship'
                 )
                 or 'third_party',
+                additional_details=(
+                    {'metrics_with_unknown_bounds': str(unknown_bounds_count)}
+                    if unknown_bounds_count
+                    else None
+                ),
             ),
             eval_library=EvalLibrary(
                 name=metadata_args.get('eval_library_name', 'helm'),

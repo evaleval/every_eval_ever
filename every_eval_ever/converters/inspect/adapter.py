@@ -49,6 +49,10 @@ from every_eval_ever.converters.common.adapter import (
     SupportedLibrary,
 )
 from every_eval_ever.converters.common.error import AdapterError
+from every_eval_ever.converters.common.metrics import (
+    count_unknown_bounds,
+    metric_config_fields,
+)
 from every_eval_ever.converters.common.utils import (
     convert_timestamp_to_unix_format,
     get_current_unix_timestamp,
@@ -59,6 +63,7 @@ from every_eval_ever.converters.inspect.instance_level_adapter import (
     evaluation_result_id,
 )
 from every_eval_ever.converters.inspect.utils import (
+    INSPECT_HARNESS_ID,
     apply_supplemental_eval_details,
     extract_model_info_from_model_path,
     parse_supplemental_eval_details,
@@ -83,7 +88,6 @@ from every_eval_ever.eval_types import (
     ModelInfo,
     Sandbox,
     ScoreDetails,
-    ScoreType,
     SourceDataHf,
     SourceDataPrivate,
     SourceMetadata,
@@ -100,6 +104,18 @@ from every_eval_ever.helpers.io import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Inspect metrics that the schema carries inside `uncertainty` instead of as a
+# score of their own. `var` is deliberately absent: there is no field for a
+# variance, so dropping it as a score would lose the number.
+_STDDEV_METRICS = frozenset({'std', 'stddev'})
+# Inspect's `stderr` is the analytic standard error of the mean; its
+# `bootstrap_stderr` resamples, which the schema records as the method.
+_STDERR_METHODS = {'stderr': 'analytic', 'bootstrap_stderr': 'bootstrap'}
+# When a scorer reports more than one, the analytic standard error of the mean
+# is the primary; a bootstrap resample is kept alongside it, not in its place.
+_STDERR_PREFERENCE = ('analytic', 'bootstrap')
+_UNCERTAINTY_METRICS = _STDDEV_METRICS | frozenset(_STDERR_METHODS)
 
 
 class InspectAIAdapter(BaseEvaluationAdapter):
@@ -123,12 +139,46 @@ class InspectAIAdapter(BaseEvaluationAdapter):
     def supported_library(self) -> SupportedLibrary:
         return SupportedLibrary.INSPECT_AI
 
+    @staticmethod
+    def _unselected_stderr_details(
+        stderr_by_method: dict[str, EvalMetric],
+        primary_method: str | None,
+    ) -> dict[str, str]:
+        """Preserve any standard error the primary is not.
+
+        Choosing the analytic value for ``standard_error`` should not discard
+        the bootstrap number Inspect also computed; the schema carries one
+        standard error, so the rest — its value and any parameters it names,
+        such as the resample count — is kept in the score's string details.
+        """
+        details: dict[str, str] = {}
+        for method, metric in stderr_by_method.items():
+            if method == primary_method:
+                continue
+            details[metric.name] = str(metric.value)
+            params = getattr(metric, 'params', None)
+            if isinstance(params, dict) and params:
+                details[f'{metric.name}_params'] = json.dumps(
+                    params, sort_keys=True, default=str
+                )
+        return details
+
     def _extract_uncertainty(
-        self, stderr_value: float, stddev_value: float, num_samples: int
-    ) -> Uncertainty:
+        self,
+        stderr_value: float | None,
+        stderr_method: str | None,
+        stddev_value: float | None,
+        num_samples: int | None,
+    ) -> Uncertainty | None:
+        if stderr_value is None and stddev_value is None and not num_samples:
+            return None
         return Uncertainty(
-            standard_error=StandardError(value=stderr_value)
-            if stderr_value
+            # A standard error of exactly 0.0 is what a task every sample
+            # scores identically reports, so it is a value, not an absence.
+            standard_error=StandardError(
+                value=stderr_value, method=stderr_method
+            )
+            if stderr_value is not None
             else None,
             standard_deviation=stddev_value,
             num_samples=num_samples,
@@ -144,8 +194,10 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         evaluation_timestamp: str,
         generation_config: GenerationConfig,
         stderr_value: float | None = None,
+        stderr_method: str | None = None,
+        stderr_extra: dict[str, str] | None = None,
         stddev_value: float | None = None,
-        num_samples: int = 0,
+        num_samples: int | None = None,
     ) -> EvaluationResult:
         return EvaluationResult(
             evaluation_result_id=evaluation_result_id(
@@ -157,16 +209,16 @@ class InspectAIAdapter(BaseEvaluationAdapter):
             metric_config=MetricConfig(
                 evaluation_description=f'{metric_info.name} from scorer {scorer_name}',
                 metric_name=metric_info.name,
-                lower_is_better=False,  # no metadata available
-                score_type=ScoreType.continuous,
-                min_score=0,
-                max_score=1,
                 llm_scoring=llm_grader,
+                **metric_config_fields(
+                    metric_info.name, harness=INSPECT_HARNESS_ID
+                ),
             ),
             score_details=ScoreDetails(
                 score=metric_info.value,
+                details=stderr_extra or None,
                 uncertainty=self._extract_uncertainty(
-                    stderr_value, stddev_value, num_samples
+                    stderr_value, stderr_method, stddev_value, num_samples
                 ),
             ),
             generation_config=generation_config,
@@ -208,29 +260,69 @@ class InspectAIAdapter(BaseEvaluationAdapter):
                     ),
                 )
 
-            stderr_value = next(
+            # A scorer can report the analytic stderr and a bootstrap resample
+            # of the same score. Prefer the analytic standard error of the mean;
+            # keep whichever is not chosen (with any parameters it carries) in
+            # the score's details, rather than letting dict order decide which
+            # survives and silently dropping the other.
+            stderr_by_method = {
+                _STDERR_METHODS[m.name]: m
+                for m in scorer.metrics.values()
+                if m.name in _STDERR_METHODS
+            }
+            primary_method = next(
                 (
-                    m.value
-                    for m in scorer.metrics.values()
-                    if m.name == 'stderr'
+                    method
+                    for method in _STDERR_PREFERENCE
+                    if method in stderr_by_method
                 ),
                 None,
+            )
+            stderr_value = (
+                stderr_by_method[primary_method].value
+                if primary_method is not None
+                else None
+            )
+            stderr_method = primary_method
+            stderr_extra = self._unselected_stderr_details(
+                stderr_by_method, primary_method
             )
 
             stddev_value = next(
                 (
                     m.value
                     for m in scorer.metrics.values()
-                    if m.name in {'std', 'stddev'}
+                    if m.name in _STDDEV_METRICS
                 ),
                 None,
             )
 
-            for _, metric_info in scorer.metrics.items():
-                if metric_info.name == 'stderr':
-                    continue
+            # Inspect computes a scorer's metrics over the samples it could
+            # score, and states how many those were. The run-wide count includes
+            # the samples this scorer returned no value for, and is what a log
+            # from before Inspect reported this per scorer leaves us with.
+            scored_samples = (
+                getattr(scorer, 'scored_samples', None) or num_samples
+            )
 
+            # Inspect reports dispersion as a metric of the scorer, and the
+            # schema carries it on the score it describes rather than beside it.
+            # Emitting it as its own score as well would repeat the number and
+            # claim a direction ("a higher standard deviation is better") that
+            # does not apply to it. It stays a score when it is the only thing
+            # the scorer reported, so that a run is never left with none.
+            scored_metrics = [
+                metric_info
+                for metric_info in scorer.metrics.values()
+                if metric_info.name not in _UNCERTAINTY_METRICS
+            ] or list(scorer.metrics.values())
+
+            for metric_info in scored_metrics:
                 scorer_name = scorer.name or scorer.scorer
+                # A dispersion metric that had to stay a score is the value of
+                # this result, so repeating it as the result's own uncertainty
+                # would state the same number twice.
+                describes_itself = metric_info.name in _UNCERTAINTY_METRICS
 
                 result = self._build_evaluation_result(
                     evaluation_task_name=evaluation_task_name,
@@ -240,9 +332,11 @@ class InspectAIAdapter(BaseEvaluationAdapter):
                     source_data=source_data,
                     evaluation_timestamp=timestamp,
                     generation_config=generation_config,
-                    stderr_value=stderr_value,
-                    stddev_value=stddev_value,
-                    num_samples=num_samples,
+                    stderr_value=None if describes_itself else stderr_value,
+                    stderr_method=None if describes_itself else stderr_method,
+                    stderr_extra=None if describes_itself else stderr_extra,
+                    stddev_value=None if describes_itself else stddev_value,
+                    num_samples=scored_samples,
                 )
                 results.append(result)
 
@@ -601,28 +695,12 @@ class InspectAIAdapter(BaseEvaluationAdapter):
                 evaluator_relationship
             )
 
-        source_metadata = SourceMetadata(
-            source_name='inspect_ai',
-            source_type=SourceType.evaluation_run,
-            source_organization_name=metadata_args.get(
-                'source_organization_name', 'unknown'
-            ),
-            source_organization_url=metadata_args.get(
-                'source_organization_url'
-            ),
-            source_organization_logo_url=metadata_args.get(
-                'source_organization_logo_url'
-            ),
-            evaluator_relationship=evaluator_relationship,
-        )
-
         source_data = self._extract_source_data(
             eval_spec.dataset, eval_spec.task
         )
 
         model_path = eval_spec.model
 
-        num_samples = len(raw_eval_log.samples) if raw_eval_log.samples else 0
         single_sample = (
             raw_eval_log.samples[0] if raw_eval_log.samples else single_sample
         )
@@ -648,6 +726,17 @@ class InspectAIAdapter(BaseEvaluationAdapter):
 
         results: EvalResults | None = raw_eval_log.results
 
+        # The scores were computed over the samples that completed, which the
+        # results header states. `raw_eval_log.samples` is only populated when
+        # the log was read with its samples, so its length is a fallback: for a
+        # header-only log it is 0, which would understate every score's
+        # num_samples rather than leave it unstated.
+        num_samples = (
+            results.completed_samples or results.total_samples
+            if results
+            else None
+        ) or (len(raw_eval_log.samples) if raw_eval_log.samples else None)
+
         evaluation_task_name = eval_spec.task_display_name or eval_spec.task
 
         evaluation_results, result_ids_by_scorer = (
@@ -671,6 +760,31 @@ class InspectAIAdapter(BaseEvaluationAdapter):
             model_info=model_info,
             evaluation_results=evaluation_results,
             supplemental_eval_details=supplemental_eval_details,
+        )
+
+        # Built here rather than beside `eval_library` because the count needs
+        # the finished results, including anything a supplement replaced.
+        unknown_bounds_count = count_unknown_bounds(
+            result.metric_config for result in evaluation_results
+        )
+        source_metadata = SourceMetadata(
+            source_name='inspect_ai',
+            source_type=SourceType.evaluation_run,
+            source_organization_name=metadata_args.get(
+                'source_organization_name', 'unknown'
+            ),
+            source_organization_url=metadata_args.get(
+                'source_organization_url'
+            ),
+            source_organization_logo_url=metadata_args.get(
+                'source_organization_logo_url'
+            ),
+            evaluator_relationship=evaluator_relationship,
+            additional_details=(
+                {'metrics_with_unknown_bounds': str(unknown_bounds_count)}
+                if unknown_bounds_count
+                else None
+            ),
         )
 
         evaluation_id = f'{source_data.dataset_name}/{model_path.replace("/", "_")}/{evaluation_unix_timestamp}'

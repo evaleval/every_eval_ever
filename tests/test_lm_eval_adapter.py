@@ -158,17 +158,75 @@ def test_transform_from_file_evaluation_results():
 
 
 def test_transform_from_file_uncertainty():
+    """This task aggregates with `mean`, whose standard error lm-eval computes
+    analytically (`sample_stddev / sqrt(n)`), never by resampling."""
     adapter = LMEvalAdapter()
     logs = adapter.transform_from_file(RESULTS_FILE, _make_metadata_args())
 
     uncertainty = logs[1].evaluation_results[0].score_details.uncertainty
     assert uncertainty is not None
     assert uncertainty.standard_error.value == 0.0002828144211304471
-    assert uncertainty.standard_error.method == 'bootstrap'
+    assert uncertainty.standard_error.method == 'analytic'
     assert uncertainty.num_samples == 5000
-    # The resamples the standard error came from, distinct from the 5000
-    # documents the score came from.
-    assert uncertainty.num_bootstrap_samples == 100000
+    # The run configured bootstrap_iters=100000, but none of them were spent on
+    # this metric, so claiming them would overstate how the error was obtained.
+    assert uncertainty.num_bootstrap_samples is None
+
+
+def test_bootstrapped_metric_reports_the_resamples_lm_eval_actually_used():
+    """Only some aggregations are bootstrapped, and `bleu` is resampled at
+    `min(bootstrap_iters, 100)` however many the run configured."""
+    adapter = LMEvalAdapter()
+    raw_data = {
+        'results': {
+            'mytask': {
+                'bleu,none': 12.5,
+                'bleu_stderr,none': 0.4,
+                'acc,none': 0.5,
+                'acc_stderr,none': 0.01,
+            }
+        },
+        'configs': {
+            'mytask': {
+                'task': 'mytask',
+                'metric_list': [
+                    {'metric': 'bleu', 'aggregation': 'bleu'},
+                    {'metric': 'acc', 'aggregation': 'mean'},
+                ],
+            }
+        },
+        'config': {'bootstrap_iters': 100000},
+        'n-samples': {'mytask': {'effective': 40}},
+    }
+
+    by_metric = {
+        result.metric_config.metric_name: result.score_details.uncertainty
+        for result in adapter._build_evaluation_results(raw_data, 'mytask')
+    }
+
+    assert by_metric['bleu'].standard_error.method == 'bootstrap'
+    assert by_metric['bleu'].num_bootstrap_samples == 100
+    assert by_metric['acc'].standard_error.method == 'analytic'
+    assert by_metric['acc'].num_bootstrap_samples is None
+
+
+def test_unstated_aggregation_claims_no_standard_error_method():
+    """lm-eval resolves an unstated aggregation from its own registry, which the
+    log does not record, so the method is unknown rather than assumed."""
+    adapter = LMEvalAdapter()
+    raw_data = {
+        'results': {'mytask': {'acc,none': 0.5, 'acc_stderr,none': 0.01}},
+        'configs': {'mytask': {'task': 'mytask', 'metric_list': ['acc']}},
+        'config': {'bootstrap_iters': 100000},
+        'n-samples': {'mytask': {'effective': 40}},
+    }
+
+    [result] = adapter._build_evaluation_results(raw_data, 'mytask')
+    uncertainty = result.score_details.uncertainty
+
+    assert uncertainty.standard_error.value == 0.01
+    assert uncertainty.standard_error.method is None
+    assert uncertainty.num_bootstrap_samples is None
 
 
 def test_transform_from_file_generation_config():
@@ -484,9 +542,7 @@ def test_unknown_metric_is_preserved_without_invented_bounds():
     assert result.metric_config.score_type is None
     assert result.metric_config.min_score is None
     assert result.metric_config.max_score is None
-    assert result.metric_config.additional_details == {
-        'bounds_status': 'unknown'
-    }
+    assert result.metric_config.additional_details['bounds_status'] == 'unknown'
 
 
 def test_unknown_metric_count_is_recorded_on_the_log():

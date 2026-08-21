@@ -12,6 +12,9 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from every_eval_ever.converters.common.error import AdapterError
+from every_eval_ever.converters.common.metrics import (
+    METRIC_ID_REGISTRY_REVISION,
+)
 from every_eval_ever.converters.inspect.adapter import InspectAIAdapter
 from every_eval_ever.converters.inspect.utils import (
     extract_model_info_from_model_path,
@@ -68,9 +71,17 @@ def _make_metric(name: str, value: float):
     return SimpleNamespace(name=name, value=value)
 
 
-def _make_scorer(scorer_name: str, metrics: dict[str, object]):
+def _make_scorer(
+    scorer_name: str,
+    metrics: dict[str, object],
+    scored_samples: int | None = None,
+):
     return SimpleNamespace(
-        name=scorer_name, scorer=scorer_name, params=None, metrics=metrics
+        name=scorer_name,
+        scorer=scorer_name,
+        params=None,
+        metrics=metrics,
+        scored_samples=scored_samples,
     )
 
 
@@ -344,7 +355,11 @@ def test_gaia_eval():
 
 
 def test_evaluation_name_is_the_benchmark_and_the_metric_is_named():
-    """One scorer reporting three metrics: same eval, three named metrics."""
+    """One scorer reporting three metrics: same eval, two named scores.
+
+    The third is the scorer's `std`, which the schema carries as uncertainty on
+    the scores it describes.
+    """
     adapter = InspectAIAdapter()
     metadata_args = {
         'source_organization_name': 'TestOrg',
@@ -358,19 +373,84 @@ def test_evaluation_name_is_the_benchmark_and_the_metric_is_named():
     )
 
     results = converted_eval.evaluation_results
-    assert len(results) == 3
+    assert len(results) == 2
     assert {result.evaluation_name for result in results} == {
         'inspect_evals/cyse2_vulnerability_exploit'
     }
     assert {result.metric_config.metric_name for result in results} == {
         'accuracy',
         'mean',
-        'std',
     }
     for result in results:
         assert result.evaluation_result_id == (
             f'vul_exploit_scorer:{result.metric_config.metric_name}'
         )
+        # The scorer's `std` metric, carried where the schema puts dispersion.
+        assert result.score_details.uncertainty.standard_deviation == (
+            0.3115628730565127
+        )
+
+
+def test_metric_bounds_are_claimed_only_where_they_are_known():
+    """`accuracy` is a proportion; `mean` is a mean of whatever the scorer returns."""
+    adapter = InspectAIAdapter()
+    converted_eval = _load_eval(
+        adapter,
+        'tests/data/inspect/data_cyse2_vuln_exploit_challenges.json',
+        {
+            'source_organization_name': 'TestOrg',
+            'evaluator_relationship': EvaluatorRelationship.first_party,
+        },
+    )
+    by_metric = {
+        result.metric_config.metric_name: result.metric_config
+        for result in converted_eval.evaluation_results
+    }
+
+    assert by_metric['accuracy'].min_score == 0.0
+    assert by_metric['accuracy'].max_score == 1.0
+    assert by_metric['accuracy'].score_type == ScoreType.continuous
+
+    assert by_metric['mean'].min_score is None
+    assert by_metric['mean'].max_score is None
+    assert by_metric['mean'].additional_details['bounds_status'] == 'unknown'
+
+
+def test_num_samples_comes_from_the_results_header():
+    """The scores cover every completed sample, not only the samples in the log.
+
+    A log read without its samples carries none, so counting them would report
+    a handful of samples for a run over thousands.
+    """
+    adapter = InspectAIAdapter()
+    converted_eval = _load_eval(
+        adapter,
+        'tests/data/inspect/data_cyse2_vuln_exploit_challenges.json',
+        {
+            'source_organization_name': 'TestOrg',
+            'evaluator_relationship': EvaluatorRelationship.first_party,
+        },
+    )
+
+    for result in converted_eval.evaluation_results:
+        assert result.score_details.uncertainty.num_samples == 2340
+
+
+def test_standard_error_of_zero_is_reported():
+    """A task every sample scores identically has a stderr of 0.0, not of none."""
+    adapter = InspectAIAdapter()
+    converted_eval = _load_eval(
+        adapter,
+        'tests/data/inspect/data_pubmedqa_gpt4o_mini.json',
+        {
+            'source_organization_name': 'TestOrg',
+            'evaluator_relationship': EvaluatorRelationship.first_party,
+        },
+    )
+
+    uncertainty = converted_eval.evaluation_results[0].score_details.uncertainty
+    assert uncertainty.standard_error is not None
+    assert uncertainty.standard_error.value == 0.0
 
 
 def test_humaneval_eval():
@@ -426,6 +506,144 @@ def test_extract_evaluation_results_one_scorer_with_two_metrics():
         'choice:f1',
     }
     assert result_ids_by_scorer == {'choice': ['choice:accuracy', 'choice:f1']}
+
+
+def test_each_scorer_counts_the_samples_it_could_score():
+    """Inspect computes a scorer's metrics over the samples that scorer scored, and
+    says how many those were; the run-wide count includes the ones it skipped."""
+    adapter = InspectAIAdapter()
+    scores = [
+        _make_scorer(
+            'strict',
+            {'accuracy': _make_metric('accuracy', 0.5)},
+            scored_samples=7,
+        ),
+        _make_scorer('lenient', {'accuracy': _make_metric('accuracy', 0.9)}),
+    ]
+
+    results, _ = adapter._extract_evaluation_results(
+        evaluation_task_name='synthetic/task',
+        scores=scores,
+        source_data=SourceDataHf(
+            dataset_name='synthetic_ds', source_type='hf_dataset'
+        ),
+        generation_config=GenerationConfig(),
+        num_samples=10,
+        timestamp='1234567890',
+    )
+
+    by_id = {
+        result.evaluation_result_id: result.score_details.uncertainty
+        for result in results
+    }
+    assert by_id['strict:accuracy'].num_samples == 7
+    # No count of its own, so the run's stands in.
+    assert by_id['lenient:accuracy'].num_samples == 10
+
+
+def test_standard_error_says_how_inspect_computed_it():
+    """`stderr` is the analytic standard error of the mean and `bootstrap_stderr`
+    resamples, so neither should be published without saying which it was."""
+    adapter = InspectAIAdapter()
+    scores = [
+        _make_scorer(
+            'analytic',
+            {
+                'accuracy': _make_metric('accuracy', 0.5),
+                'stderr': _make_metric('stderr', 0.05),
+            },
+        ),
+        _make_scorer(
+            'resampled',
+            {
+                'accuracy': _make_metric('accuracy', 0.5),
+                'bootstrap_stderr': _make_metric('bootstrap_stderr', 0.06),
+            },
+        ),
+    ]
+
+    results, _ = adapter._extract_evaluation_results(
+        evaluation_task_name='synthetic/task',
+        scores=scores,
+        source_data=SourceDataHf(
+            dataset_name='synthetic_ds', source_type='hf_dataset'
+        ),
+        generation_config=GenerationConfig(),
+        num_samples=10,
+        timestamp='1234567890',
+    )
+
+    # Neither dispersion metric is a score of its own.
+    assert {result.evaluation_result_id for result in results} == {
+        'analytic:accuracy',
+        'resampled:accuracy',
+    }
+    by_id = {
+        result.evaluation_result_id: result.score_details.uncertainty
+        for result in results
+    }
+    assert by_id['analytic:accuracy'].standard_error.method == 'analytic'
+    assert by_id['resampled:accuracy'].standard_error.value == 0.06
+    assert by_id['resampled:accuracy'].standard_error.method == 'bootstrap'
+
+
+def test_both_stderrs_prefer_analytic_and_keep_the_bootstrap_value():
+    """A scorer that reports both the analytic stderr and a bootstrap resample of
+    it should publish the analytic one as the standard error and keep the bootstrap
+    value in the score details, not let dict order pick one and drop the other."""
+    adapter = InspectAIAdapter()
+    results, _ = adapter._extract_evaluation_results(
+        evaluation_task_name='synthetic/task',
+        scores=[
+            _make_scorer(
+                'both',
+                {
+                    'accuracy': _make_metric('accuracy', 0.5),
+                    # bootstrap first, so the old order-dependent pick took it.
+                    'bootstrap_stderr': _make_metric('bootstrap_stderr', 0.06),
+                    'stderr': _make_metric('stderr', 0.05),
+                },
+            )
+        ],
+        source_data=SourceDataHf(
+            dataset_name='synthetic_ds', source_type='hf_dataset'
+        ),
+        generation_config=GenerationConfig(),
+        num_samples=10,
+        timestamp='1234567890',
+    )
+
+    [result] = results
+    assert result.metric_config.metric_name == 'accuracy'
+    standard_error = result.score_details.uncertainty.standard_error
+    assert (standard_error.value, standard_error.method) == (0.05, 'analytic')
+    # The bootstrap value is preserved, not silently dropped.
+    assert result.score_details.details['bootstrap_stderr'] == '0.06'
+
+
+def test_a_scorer_reporting_only_dispersion_does_not_repeat_it():
+    """`std` stays a score when it is all the scorer reported, so that the run is
+    not left with none; carrying it as its own uncertainty would say it twice."""
+    adapter = InspectAIAdapter()
+
+    results, _ = adapter._extract_evaluation_results(
+        evaluation_task_name='synthetic/task',
+        scores=[_make_scorer('spread', {'std': _make_metric('std', 0.3)})],
+        source_data=SourceDataHf(
+            dataset_name='synthetic_ds', source_type='hf_dataset'
+        ),
+        generation_config=GenerationConfig(),
+        num_samples=10,
+        timestamp='1234567890',
+    )
+
+    [result] = results
+    assert result.metric_config.metric_name == 'std'
+    assert result.score_details.score == 0.3
+    assert result.score_details.uncertainty.standard_deviation is None
+    assert result.metric_config.additional_details['polarity'] == (
+        'not_applicable'
+    )
 
 
 def test_extract_evaluation_results_two_scorers_two_metrics_each():
@@ -595,7 +813,60 @@ def test_supplemental_eval_details_fill_only_top_level_fields():
     # Converter-synthetic defaults are override-eligible.
     assert result.metric_config.lower_is_better is True
     assert result.metric_config.evaluation_description == 'should_not_overwrite'
-    assert result.metric_config.additional_details == {'normalization': 'none'}
+    # Exhaustive: supplied details merge with what the converter resolved rather
+    # than replacing it, and nothing else leaks in.
+    assert result.metric_config.additional_details == {
+        'normalization': 'none',
+        'metric_id_registry_revision': METRIC_ID_REGISTRY_REVISION,
+    }
+
+
+def test_supplemental_eval_details_can_correct_a_resolved_metric_identity():
+    """The identity a converter resolves from a table is a caller-overrideable value.
+
+    `metric_id`, `metric_kind`, `metric_unit` and `metric_parameters` are listed
+    as synthetic so a caller who can see a wrong value may replace it. That path
+    is only real if the supplement model accepts those fields; a strict model
+    that forbids them rejects the supplement before the allowlist runs, leaving
+    the listing dead. Overriding them here has to reach the output.
+    """
+    adapter = InspectAIAdapter()
+    metadata_args = {
+        'source_organization_name': 'TestOrg',
+        'evaluator_relationship': EvaluatorRelationship.first_party,
+        'supplemental_eval_details': {
+            'evaluation_results': [
+                {
+                    'evaluation_result_id': 'choice:accuracy',
+                    'metric_config': {
+                        'metric_id': 'accuracy-corrected',
+                        'metric_kind': 'classification',
+                        'metric_unit': 'percent',
+                        'metric_parameters': {'strategy': 'greedy'},
+                    },
+                },
+            ],
+        },
+    }
+
+    converted_eval = _load_eval(
+        adapter,
+        'tests/data/inspect/data_pubmedqa_gpt4o_mini.json',
+        metadata_args,
+    )
+    result = next(
+        r
+        for r in converted_eval.evaluation_results
+        if r.evaluation_result_id == 'choice:accuracy'
+    )
+
+    # Each override differs from what the converter resolves for `accuracy`
+    # (`accuracy` / `accuracy` / `proportion` / no params), so a value that
+    # survived is one the override replaced, not one that happened to match.
+    assert result.metric_config.metric_id == 'accuracy-corrected'
+    assert result.metric_config.metric_kind == 'classification'
+    assert result.metric_config.metric_unit == 'percent'
+    assert result.metric_config.metric_parameters == {'strategy': 'greedy'}
 
 
 def test_supplemental_eval_details_applies_top_level_score_details():
@@ -700,7 +971,7 @@ def test_supplemental_eval_details_matches_all_results_of_an_evaluation():
                     'score_details': {'details': {'reviewed': 'yes'}},
                 },
                 {
-                    'evaluation_result_id': 'vul_exploit_scorer:std',
+                    'evaluation_result_id': 'vul_exploit_scorer:mean',
                     'score_details': {'details': {'reviewed': 'separately'}},
                 },
             ],
@@ -720,11 +991,8 @@ def test_supplemental_eval_details_matches_all_results_of_an_evaluation():
     assert details_by_result_id['vul_exploit_scorer:accuracy'] == {
         'reviewed': 'yes'
     }
-    assert details_by_result_id['vul_exploit_scorer:mean'] == {
-        'reviewed': 'yes'
-    }
     # The specific key wins over the evaluation-wide one.
-    assert details_by_result_id['vul_exploit_scorer:std'] == {
+    assert details_by_result_id['vul_exploit_scorer:mean'] == {
         'reviewed': 'separately'
     }
 

@@ -18,6 +18,7 @@ import json
 
 import pytest
 
+from every_eval_ever.converters.common.metrics import CANONICAL_METRIC_IDS
 from tests.converter_cases import (
     CASES,
     ConverterCase,
@@ -109,6 +110,42 @@ def test_conversion_yields_the_expected_records(case, tmp_path):
             '`metric_config.metric_name`; `None` here means the converter left it '
             'unset, and `evaluation_name` is for the evaluation.'
         )
+    if case.metric_ids is not None:
+        converted = {
+            result['metric_config'].get('metric_id')
+            for log in logs
+            for result in log['evaluation_results']
+        }
+        assert converted == case.metric_ids, (
+            f'{case.source} identified its metrics as '
+            f'{sorted(converted, key=str)}, expected {sorted(case.metric_ids)}. '
+            'This is the field consumers join on across sources, so a change '
+            'here silently splits or merges a query nobody here will run.'
+        )
+    if case.uncertainty_keys is not None:
+        results = [
+            result for log in logs for result in log['evaluation_results']
+        ]
+        bare = [
+            f'{result["evaluation_name"]}/'
+            f'{result.get("evaluation_result_id") or result["metric_config"].get("metric_name")}'
+            for result in results
+            if not result['score_details'].get('uncertainty')
+        ]
+        assert not bare, (
+            f'{case.source} published {len(bare)} score(s) with no uncertainty at '
+            f'all: {bare}. The record still validates without one, which is why '
+            'this is asserted here.'
+        )
+        converted = {
+            key
+            for result in results
+            for key in result['score_details']['uncertainty']
+        }
+        assert converted == case.uncertainty_keys, (
+            f'{case.source} reported uncertainty as {sorted(converted)}, expected '
+            f'{sorted(case.uncertainty_keys)}.'
+        )
 
     for log, path in zip(logs, aggregates, strict=True):
         detailed = log.get('detailed_evaluation_results')
@@ -143,6 +180,86 @@ def test_conversion_yields_the_expected_records(case, tmp_path):
         # `total_rows` is what a reader trusts without opening the sidecar.
         assert written == declared, (
             f'{case.source} wrote {written} row(s) but reported {declared}'
+        )
+
+
+def test_every_metric_id_is_either_canonical_or_openly_namespaced(
+    case, tmp_path
+):
+    """No converter may mint a global id the registry has not granted.
+
+    An id with no dot claims to be the canonical name for that quantity
+    everywhere, so it has to be one the registry actually carries; anything else
+    says which harness it came from and marks itself unregistered. A bare
+    `quasi_exact_match` would look canonical while joining to nothing, which is
+    the failure this rule exists to prevent. Applies to every case, so a converter
+    added later inherits it without declaring anything.
+    """
+    logs = [
+        json.loads(path.read_text(encoding='utf-8'))
+        for path in convert(case, tmp_path)
+        if path.suffix == '.json'
+    ]
+    canonical = set(CANONICAL_METRIC_IDS.values())
+
+    offenders = []
+    for log in logs:
+        for result in log['evaluation_results']:
+            config = result['metric_config']
+            metric_id = config.get('metric_id')
+            details = config.get('additional_details') or {}
+            unregistered = details.get('metric_id_status') == 'unregistered'
+            if not metric_id:
+                offenders.append(f'{config.get("metric_name")}: no metric_id')
+            elif '.' in metric_id:
+                if not unregistered:
+                    offenders.append(f'{metric_id}: namespaced but unmarked')
+            elif metric_id not in canonical:
+                offenders.append(
+                    f'{metric_id}: bare id, not in the registry map'
+                )
+            elif unregistered:
+                offenders.append(
+                    f'{metric_id}: canonical but marked unregistered'
+                )
+
+    assert not offenders, (
+        f'{case.source} published metric ids that claim more than they can '
+        f'deliver: {offenders}. Map the name in '
+        'converters/common/metrics.py::CANONICAL_METRIC_IDS if the registry '
+        'carries it, and otherwise leave it namespaced.'
+    )
+
+
+def test_unknown_bounds_are_counted_in_the_source_metadata(case, tmp_path):
+    """A record has to say how many of its metrics came out without a range.
+
+    Omitting `min_score`/`max_score` is the honest answer for a metric no bounds
+    table carries, but it is invisible without opening every result, so the count
+    goes in `source_metadata.additional_details`. Derived on both sides here
+    deliberately: the question is whether the converter wired the count up at all,
+    which is how the inspect converter was found reporting `null` while publishing
+    an unbounded metric. Applies to every case, so a converter added later
+    inherits it.
+    """
+    for path in convert(case, tmp_path):
+        if path.suffix != '.json':
+            continue
+        log = json.loads(path.read_text(encoding='utf-8'))
+        unbounded = [
+            result['metric_config'].get('metric_name')
+            for result in log['evaluation_results']
+            if result['metric_config'].get('min_score') is None
+            and result['metric_config'].get('max_score') is None
+        ]
+        details = log['source_metadata'].get('additional_details') or {}
+        reported = details.get('metrics_with_unknown_bounds')
+        expected = str(len(unbounded)) if unbounded else None
+        assert reported == expected, (
+            f'{case.source} published {len(unbounded)} metric(s) with no bounds '
+            f'({unbounded}) but source_metadata reports {reported!r}. Pass the '
+            'results through converters/common/metrics.py::count_unknown_bounds '
+            'when building SourceMetadata.'
         )
 
 

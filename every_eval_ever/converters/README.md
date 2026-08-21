@@ -31,6 +31,38 @@ upstream passes it. Nor does it see a new upstream release — for that, a scrip
 mode (`--model dummy` for lm-eval, `--model mockllm/model` for Inspect) and converts
 that, on a schedule.
 
+### Naming a metric
+
+`metric_config.metric_id` is what a consumer joins on across sources, so the same
+quantity has to reach the same id from every converter. `converters/common/metrics.py`
+resolves that: a name the [eval-card-registry][registry] carries is published under the
+registry's canonical slug, and anything else under `<harness>.<name>`, marked
+`metric_id_status: unregistered` so it claims no global identity. Both forms record the
+registry revision they were resolved against.
+
+The map is resolved by hand rather than over the network, because a converter has to run
+offline and give the same answer every time. To re-check it against a registry checkout,
+and to list the metrics still waiting on an entry:
+
+```bash
+uv run python -m tools.verify_metric_ids --seed ../eval-card-registry/seed/metrics.yaml
+```
+
+It exits non-zero when a mapped id has left the registry, when a namespaced name has
+become resolvable, or when a name resolves to two entries. Adding entries is a pull
+request to the registry, not to this repository.
+
+Two rules worth stating, because both are easy to get wrong:
+
+- A parameter the harness spells into the name changes the metric's identity, not its
+  scale. HELM's `exact_match@5` is exact match over the best of five completions, and the
+  registry gives such metrics a slug of their own (`pass-at-1`, `recall-at-5`), so it
+  resolves its bounds from `exact_match` but never that metric's id.
+- Keeping two benchmarks' `accuracy` apart is `evaluation_name`'s job. Don't put the
+  benchmark in `metric_id`.
+
+[registry]: https://github.com/evaleval/eval-card-registry
+
 ### Inspect
 
 The conversion script from `Inspect AI` to the unified schema can be run using `every_eval_ever/converters/inspect/__main__.py`.

@@ -328,6 +328,15 @@ def extract_model_info_from_model_path(model_path: str) -> ModelInfo:
     return handler_class(model_path).handle()
 
 
+# The slug that namespaces the metric ids Inspect reports which the registry does
+# not carry. Inspect has no registry harness entry of its own yet, so this is the
+# name the converter already publishes as `eval_library.name`.
+INSPECT_HARNESS_ID = "inspect_ai"
+
+# Fields the converter derives rather than reads out of the log, so a caller who
+# knows better may override them. A field absent here is dropped in silence, which
+# is why anything resolved from a table in `converters/common/metrics.py` has to be
+# listed: the caller can see the value is wrong but could not replace it.
 SYNTHETIC_METRIC_CONFIG_FIELDS = {
     "evaluation_description",
     "lower_is_better",
@@ -337,6 +346,10 @@ SYNTHETIC_METRIC_CONFIG_FIELDS = {
     "has_unknown_level",
     "min_score",
     "max_score",
+    "metric_id",
+    "metric_kind",
+    "metric_unit",
+    "metric_parameters",
 }
 
 

@@ -44,6 +44,15 @@ class ConverterCase:
     # belongs in this field rather than in `evaluation_name` or the description, and a
     # converter that leaves it unset shows up here as `None` in the set.
     metric_names: frozenset[str] | None = None
+    # Distinct `metric_config.metric_id` values, which is what a consumer joins on
+    # across sources. Listed per converter rather than derived, because the whole
+    # question is whether this converter's spelling of a metric reaches the same id
+    # another converter's does — a rule that generates both sides cannot answer it.
+    metric_ids: frozenset[str] | None = None
+    # The `score_details.uncertainty` keys, unioned over every result. Setting this
+    # also requires every result to carry an uncertainty, since dropping the standard
+    # error from a score leaves a record that still validates.
+    uncertainty_keys: frozenset[str] | None = None
     extra_argv: tuple[str, ...] = ()
     # Upstream key paths the converter cannot work without, `*` matching any one key.
     required_source_paths: tuple[str, ...] = ()
@@ -75,6 +84,13 @@ CASES: tuple[ConverterCase, ...] = (
             'math_perturbed_full/exact_match': 0.0,
             'math_rephrased_full/exact_match': 0.0004,
         },
+        metric_names=frozenset({'exact_match'}),
+        # The registry carries exact match, so this joins with HELM's `exact_match`
+        # and with any adapter reporting `em`.
+        metric_ids=frozenset({'exact-match'}),
+        # No `num_bootstrap_samples`: `exact_match` aggregates with `mean`, whose
+        # standard error lm-eval computes analytically rather than by resampling.
+        uncertainty_keys=frozenset({'standard_error', 'num_samples'}),
         required_source_paths=(
             'config.model',
             'config.model_args',
@@ -89,20 +105,24 @@ CASES: tuple[ConverterCase, ...] = (
         aggregates=1,
         sidecars=1,
         # One scorer reporting three metrics, which is what makes this fixture worth
-        # using: a converter that collapses them to one result fails here.
-        results=3,
-        # One sample, three aggregate results, so three rows.
-        sidecar_rows=3,
+        # using: a converter that collapses them to one result fails here. The third
+        # is the scorer's `std`, which belongs in `uncertainty`, not in a score of
+        # its own.
+        results=2,
+        # One sample, two aggregate results, so two rows.
+        sidecar_rows=2,
         model_id='mistral/mistral-large-latest',
         scores={
             'inspect_evals/cyse2_vulnerability_exploit/'
             'vul_exploit_scorer:accuracy': 0.38108974358974373,
             'inspect_evals/cyse2_vulnerability_exploit/'
             'vul_exploit_scorer:mean': 0.38108974358974357,
-            'inspect_evals/cyse2_vulnerability_exploit/'
-            'vul_exploit_scorer:std': 0.3115628730565127,
         },
-        metric_names=frozenset({'accuracy', 'mean', 'std'}),
+        metric_names=frozenset({'accuracy', 'mean'}),
+        # `mean` is not a metric the registry can carry: it names an aggregation, and
+        # what it averaged is the scorer's business, so it stays namespaced.
+        metric_ids=frozenset({'accuracy', 'inspect_ai.mean'}),
+        uncertainty_keys=frozenset({'standard_deviation', 'num_samples'}),
         required_source_paths=(
             'eval.model',
             'eval.task',
@@ -143,6 +163,24 @@ CASES: tuple[ConverterCase, ...] = (
                 'quasi_prefix_exact_match@5',
             }
         ),
+        # Only plain `exact_match` resolves; HELM's near-miss variants and its
+        # best-of-k forms have no registry entry yet, so seven of the eight are
+        # namespaced. This set is the concrete list of gaps to file upstream.
+        metric_ids=frozenset(
+            {
+                'exact-match',
+                'helm.exact_match@5',
+                'helm.quasi_exact_match',
+                'helm.quasi_exact_match@5',
+                'helm.prefix_exact_match',
+                'helm.prefix_exact_match@5',
+                'helm.quasi_prefix_exact_match',
+                'helm.quasi_prefix_exact_match@5',
+            }
+        ),
+        # No standard deviation: HELM's spread is over train trials, and this run,
+        # like nearly every published HELM run, has one.
+        uncertainty_keys=frozenset({'num_samples'}),
         # `--log_path` is a HELM run directory, not one file, so there is no single
         # payload for `missing_paths` to address. The gate and the counts above are
         # what cover this converter.

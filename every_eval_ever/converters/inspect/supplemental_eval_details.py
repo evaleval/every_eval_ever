@@ -34,6 +34,10 @@ class SupplementalMetricConfig(_StrictSupplementalModel):
     has_unknown_level: bool | None = None
     min_score: float | None = None
     max_score: float | None = None
+    metric_id: str | None = None
+    metric_kind: str | None = None
+    metric_unit: str | None = None
+    metric_parameters: dict[str, str | float | bool | None] | None = None
     additional_details: dict[str, Any] | None = None
 
 class SupplementalForEvaluationResults(_StrictSupplementalModel):

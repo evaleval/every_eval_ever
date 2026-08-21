@@ -197,11 +197,13 @@ def test_gaia_instance_level():
 
 
 def test_instance_rows_join_the_aggregate_results_they_belong_to():
-    """One sample, three aggregate metrics: three rows, one per result.
+    """One sample, two scored metrics: two rows, one per result.
 
     The instance schema asks for a record per aggregate result a sample
     contributed to, and `evaluation_result_id` is the only field that says
-    which result a row belongs to.
+    which result a row belongs to. The fixture's third metric is the scorer's
+    `std`, which becomes uncertainty on the other two rather than a result of
+    its own, so no row points at it.
     """
     adapter = InspectAIAdapter()
 
@@ -223,7 +225,7 @@ def test_instance_rows_join_the_aggregate_results_they_belong_to():
         result.evaluation_result_id
         for result in converted_eval.evaluation_results
     }
-    assert len(instance_logs) == 3
+    assert len(instance_logs) == 2
     assert {log.sample_id for log in instance_logs} == {'1'}
     assert {
         log.evaluation_result_id for log in instance_logs
@@ -231,7 +233,7 @@ def test_instance_rows_join_the_aggregate_results_they_belong_to():
     assert {log.evaluation_name for log in instance_logs} == {
         result.evaluation_name for result in converted_eval.evaluation_results
     }
-    assert converted_eval.detailed_evaluation_results.total_rows == 3
+    assert converted_eval.detailed_evaluation_results.total_rows == 2
 
 
 def test_multiple_scorers_report_their_own_score_on_their_own_row():
