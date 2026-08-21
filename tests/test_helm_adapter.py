@@ -189,6 +189,77 @@ def test_narrativeqa_eval():
     assert converted_eval.detailed_evaluation_results.total_rows >= 5
 
 
+HELLASWAG_RUN = (
+    'tests/data/helm/commonsense-dataset=hellaswag,'
+    'method=multiple_choice_joint,model=eleutherai_pythia-1b-v0'
+)
+
+
+def test_evaluation_name_is_the_benchmark_and_the_metric_is_named():
+    """Each field carries one thing: the eval, the metric, the split.
+
+    HELM reports one stat per (metric, split, perturbation), and those three
+    already identify a result through `evaluation_result_id`. `evaluation_name` is
+    the benchmark, which is what the instance-level rows carry and what a registry
+    lookup can resolve.
+    """
+    adapter = HELMAdapter()
+    converted_eval = _load_eval(
+        adapter,
+        HELLASWAG_RUN,
+        {
+            'source_organization_name': 'TestOrg',
+            'evaluator_relationship': EvaluatorRelationship.first_party,
+        },
+    )
+    results = converted_eval.evaluation_results
+
+    assert {result.evaluation_name for result in results} == {'hellaswag'}
+    assert all(
+        result.metric_config.metric_name
+        and result.evaluation_result_id.startswith(
+            result.metric_config.metric_name
+        )
+        for result in results
+    )
+    assert {
+        result.score_details.details['perturbation'] for result in results
+    } == {'', 'robustness', 'fairness'}
+
+
+def test_instance_rows_join_the_aggregate_results_they_belong_to():
+    """A sample row the aggregate cannot be joined to is a row nobody can read."""
+    import json
+
+    adapter = HELMAdapter()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        converted_eval = adapter.transform_from_directory(
+            Path(HELLASWAG_RUN),
+            metadata_args={
+                'source_organization_name': 'TestOrg',
+                'evaluator_relationship': EvaluatorRelationship.first_party,
+                'file_uuid': TEST_UUID,
+                'parent_eval_output_dir': tmpdir,
+            },
+        )[0]
+        sidecars = list(Path(tmpdir).rglob('*_samples.jsonl'))
+        assert len(sidecars) == 1
+        rows = [
+            json.loads(line)
+            for line in sidecars[0].read_text(encoding='utf-8').splitlines()
+            if line
+        ]
+
+    assert rows
+    assert {row['evaluation_name'] for row in rows} == {
+        result.evaluation_name for result in converted_eval.evaluation_results
+    }
+    assert {row['evaluation_result_id'] for row in rows} <= {
+        result.evaluation_result_id
+        for result in converted_eval.evaluation_results
+    }
+
+
 def test_missing_model_deployment_falls_back_to_model():
     """
     Copies a helm data item and explicitly removes a field to test robustness

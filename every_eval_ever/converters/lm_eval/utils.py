@@ -4,6 +4,18 @@ from pathlib import Path
 from typing import Dict, Optional
 
 
+def evaluation_result_id(metric_name: str, filter_name: str) -> str:
+    """Build the join key shared by aggregate results and instance rows.
+
+    lm-eval reports a metric once per filter, so a metric name alone is not
+    unique within a task: `exact_match` under `flexible-extract` and under no
+    filter are separate results.
+    """
+    if not filter_name or filter_name == 'none':
+        return metric_name
+    return f'{metric_name}:{filter_name}'
+
+
 def parse_model_args(model_args: str | None) -> Dict[str, str]:
     """Parse lm-eval model_args string (comma-separated key=value pairs).
 

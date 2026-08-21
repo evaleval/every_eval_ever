@@ -45,6 +45,21 @@ from every_eval_ever.instance_level_types import (
 )
 
 
+def evaluation_result_id(
+    scorer_name: str | None, metric_name: str | None
+) -> str | None:
+    """Build the join key shared by aggregate results and instance rows.
+
+    Inspect reports one set of metrics per scorer, so a metric name alone is
+    not unique within a task: two scorers can each report ``accuracy``.
+    """
+    if not metric_name:
+        return None
+    if not scorer_name:
+        return metric_name
+    return f'{scorer_name}:{metric_name}'
+
+
 class InspectInstanceLevelDataAdapter:
     def __init__(
         self,
@@ -271,12 +286,35 @@ class InspectInstanceLevelDataAdapter:
             Tuple[str, str], Tuple[float, bool]
         ],
         reductions_by_sample: Dict[str, List[Tuple[float, bool]]],
+        scorer_name: str | None = None,
     ) -> Tuple[float, bool]:
+        """Resolve one row's score, preferring the scorer that owns the row.
+
+        `scorer_name` is the scorer whose aggregate result this row joins to;
+        with it, a sample scored by several scorers reports each scorer's own
+        value instead of whichever one matched first.
+        """
         sample_id = self._normalize_sample_id(getattr(sample, 'id', None))
 
+        if scorer_name is not None:
+            matched = reductions_by_sample_and_scorer.get(
+                (sample_id, self._normalize_sample_id(scorer_name))
+            )
+            if matched is not None:
+                score, _ = matched
+                return score, False
+
+            own_score = (sample.scores or {}).get(scorer_name)
+            if own_score is not None:
+                parsed_score, _ = self._parse_score_value(
+                    getattr(own_score, 'value', None)
+                )
+                if parsed_score is not None:
+                    return parsed_score, False
+
         if sample.scores:
-            for scorer_name in sample.scores.keys():
-                scorer_key = self._normalize_sample_id(scorer_name)
+            for candidate_name in sample.scores.keys():
+                scorer_key = self._normalize_sample_id(candidate_name)
                 matched = reductions_by_sample_and_scorer.get(
                     (sample_id, scorer_key)
                 )
@@ -301,17 +339,84 @@ class InspectInstanceLevelDataAdapter:
         fallback_score = 1.0 if response_in_reference else 0.0
         return fallback_score, True
 
+    def _scorer_emissions(
+        self,
+        sample: EvalSample,
+        result_ids_by_scorer: Dict[str, List[str]],
+    ) -> List[Tuple[str | None, str | None]]:
+        """The (evaluation_result_id, scorer_name) rows one sample owes.
+
+        The instance schema asks for one record per aggregate result a sample
+        contributed to, so a sample graded by one scorer reporting three
+        metrics produces three rows. When no aggregate result can be
+        attributed, a single row carries no `evaluation_result_id`.
+        """
+        emissions: List[Tuple[str | None, str | None]] = []
+        for scorer_name in sample.scores or {}:
+            for result_id in result_ids_by_scorer.get(scorer_name, []):
+                emissions.append((result_id, scorer_name))
+
+        return emissions or [(None, None)]
+
+    def _response_from_output(
+        self, sample: EvalSample
+    ) -> Tuple[str, str | None]:
+        """The model's own response text and reasoning trace for a sample."""
+        if not sample.output.choices:
+            # Samples with no model output (e.g. sandbox failures in
+            # agentic evals) have `output.choices == []`. Treat this
+            # as an empty response rather than crashing at choices[0].
+            return '', None
+
+        content = sample.output.choices[0].message.content
+        if isinstance(content, list):
+            return self._parse_content_with_reasoning(content)
+
+        return content, None
+
+    def _response_for_scorer(
+        self,
+        sample: EvalSample,
+        scorer_name: str | None,
+        model_response: str,
+    ) -> str:
+        """The answer text a row's own scorer graded, else the model output.
+
+        Inspect scorers may restate the answer they graded (`answer`) or
+        explain it (`explanation`), which is closer to what the score refers
+        to than the raw model output.
+        """
+        if not sample.scores:
+            return model_response
+
+        if scorer_name is None:
+            scores = list(sample.scores.values())
+        else:
+            own_score = sample.scores.get(scorer_name)
+            scores = [own_score] if own_score is not None else []
+
+        response = model_response
+        for score in scores:
+            if score.answer:
+                response = score.answer
+            elif score.explanation:
+                response = score.explanation
+
+        return response
+
     def convert_instance_level_logs(
         self,
         evaluation_name: str,
         model_id: str,
         samples: List[EvalSample],
         reductions: List[EvalSampleReductions] | None = None,
+        result_ids_by_scorer: Dict[str, List[str]] | None = None,
     ) -> Tuple[str, int]:
         instance_level_logs: List[InstanceLevelEvaluationLog] = []
         reductions_by_sample_and_scorer, reductions_by_sample = (
             self._build_reduction_lookups(reductions)
         )
+        result_ids_by_scorer = result_ids_by_scorer or {}
 
         for sample in samples:
             sample_input = Input(
@@ -325,31 +430,7 @@ class InspectInstanceLevelDataAdapter:
                 formatted=None,
             )
 
-            reasoning_trace = None
-            if sample.output.choices:
-                message = sample.output.choices[0].message
-                content = message.content
-
-                if isinstance(content, list):
-                    (
-                        response,
-                        reasoning_trace,
-                    ) = self._parse_content_with_reasoning(content)
-                else:
-                    response = content
-            else:
-                # Samples with no model output (e.g. sandbox failures in
-                # agentic evals) have `output.choices == []`. Treat this
-                # as an empty response rather than crashing at choices[0].
-                response = ''
-
-            if sample.scores:
-                # TODO Consider multiple scores
-                for scorer_name, score in sample.scores.items():
-                    if score.answer:
-                        response = score.answer
-                    elif score.explanation:
-                        response = score.explanation
+            model_response, reasoning_trace = self._response_from_output(sample)
 
             processed_messages = [
                 self._handle_chat_messages(msg_idx, msg)
@@ -371,48 +452,9 @@ class InspectInstanceLevelDataAdapter:
                 interaction_type = InteractionType.single_turn
 
             if interaction_type == InteractionType.single_turn:
-                sample_output = Output(
-                    raw=[response]
-                    if isinstance(response, str)
-                    else list(response),
-                    reasoning_trace=[reasoning_trace]
-                    if isinstance(reasoning_trace, str)
-                    else reasoning_trace,
-                )
                 messages = None
             else:
-                sample_output = None
                 messages = processed_messages
-
-            response_in_reference = response in sample_input.reference
-            (
-                evaluation_score,
-                is_fallback_score,
-            ) = self._resolve_evaluation_score(
-                sample,
-                response_in_reference,
-                reductions_by_sample_and_scorer,
-                reductions_by_sample,
-            )
-            is_correct = (
-                response_in_reference
-                if is_fallback_score
-                else evaluation_score > 0
-            )
-
-            evaluation = Evaluation(
-                score=evaluation_score,
-                is_correct=is_correct,
-                num_turns=len(messages) if messages else 1,
-                tool_calls_count=sum(
-                    len(msg.tool_calls) if msg.tool_calls else 0
-                    for msg in messages
-                )
-                if messages
-                else 0,
-            )
-
-            answer_attribution: List[AnswerAttributionItem] = []
 
             token_usage = self._get_token_usage(sample.output.usage)
 
@@ -426,38 +468,89 @@ class InspectInstanceLevelDataAdapter:
             else:
                 performance = None
 
-            instance_level_log = InstanceLevelEvaluationLog(
-                schema_version=SCHEMA_VERSION,
-                evaluation_id=self.evaluation_id,
-                model_id=model_id,
-                evaluation_name=evaluation_name,
-                sample_id=str(sample.id),
-                sample_hash=sha256_string(
-                    sample_input.raw + ''.join(sample_input.reference)
-                ),
-                interaction_type=interaction_type,
-                input=sample_input,
-                output=sample_output,
-                messages=messages,
-                answer_attribution=answer_attribution,
-                evaluation=evaluation,
-                token_usage=token_usage,
-                performance=performance,
-                error=f'{sample.error.message}\n{sample.error.traceback}'
-                if sample.error
-                else None,
-                metadata={
-                    # `stop_reason` is documented as reflecting the first
-                    # choice; guard against empty `choices` so it is only
-                    # surfaced when a choice actually exists.
-                    'stop_reason': str(sample.output.stop_reason)
-                    if sample.output.choices and sample.output.stop_reason
-                    else '',
-                    'epoch': str(sample.epoch),
-                },
-            )
+            for result_id, scorer_name in self._scorer_emissions(
+                sample, result_ids_by_scorer
+            ):
+                response = self._response_for_scorer(
+                    sample, scorer_name, model_response
+                )
 
-            instance_level_logs.append(instance_level_log)
+                if messages is None:
+                    sample_output = Output(
+                        raw=[response]
+                        if isinstance(response, str)
+                        else list(response),
+                        reasoning_trace=[reasoning_trace]
+                        if isinstance(reasoning_trace, str)
+                        else reasoning_trace,
+                    )
+                else:
+                    sample_output = None
+
+                response_in_reference = response in sample_input.reference
+                (
+                    evaluation_score,
+                    is_fallback_score,
+                ) = self._resolve_evaluation_score(
+                    sample,
+                    response_in_reference,
+                    reductions_by_sample_and_scorer,
+                    reductions_by_sample,
+                    scorer_name,
+                )
+                is_correct = (
+                    response_in_reference
+                    if is_fallback_score
+                    else evaluation_score > 0
+                )
+
+                evaluation = Evaluation(
+                    score=evaluation_score,
+                    is_correct=is_correct,
+                    num_turns=len(messages) if messages else 1,
+                    tool_calls_count=sum(
+                        len(msg.tool_calls) if msg.tool_calls else 0
+                        for msg in messages
+                    )
+                    if messages
+                    else 0,
+                )
+
+                answer_attribution: List[AnswerAttributionItem] = []
+
+                instance_level_log = InstanceLevelEvaluationLog(
+                    schema_version=SCHEMA_VERSION,
+                    evaluation_id=self.evaluation_id,
+                    model_id=model_id,
+                    evaluation_name=evaluation_name,
+                    evaluation_result_id=result_id,
+                    sample_id=str(sample.id),
+                    sample_hash=sha256_string(
+                        sample_input.raw + ''.join(sample_input.reference)
+                    ),
+                    interaction_type=interaction_type,
+                    input=sample_input,
+                    output=sample_output,
+                    messages=messages,
+                    answer_attribution=answer_attribution,
+                    evaluation=evaluation,
+                    token_usage=token_usage,
+                    performance=performance,
+                    error=f'{sample.error.message}\n{sample.error.traceback}'
+                    if sample.error
+                    else None,
+                    metadata={
+                        # `stop_reason` is documented as reflecting the first
+                        # choice; guard against empty `choices` so it is only
+                        # surfaced when a choice actually exists.
+                        'stop_reason': str(sample.output.stop_reason)
+                        if sample.output.choices and sample.output.stop_reason
+                        else '',
+                        'epoch': str(sample.epoch),
+                    },
+                )
+
+                instance_level_logs.append(instance_level_log)
 
         self._save_json(instance_level_logs)
 

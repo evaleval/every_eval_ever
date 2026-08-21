@@ -39,6 +39,7 @@ from .utils import (
     KNOWN_METRIC_BOUNDS,
     MODEL_TYPE_TO_INFERENCE_ENGINE,
     MODEL_TYPE_TO_INFERENCE_PLATFORM,
+    evaluation_result_id,
     parse_model_args,
 )
 
@@ -216,6 +217,9 @@ class LMEvalAdapter(BaseEvaluationAdapter):
             task_name, {}
         )
         n_samples = raw_data.get('n-samples', {}).get(task_name, {})
+        bootstrap_iters = raw_data.get('config', {}).get('bootstrap_iters')
+        if not isinstance(bootstrap_iters, int):
+            bootstrap_iters = None
 
         source_data = self._build_source_data(task_config, task_name)
         gen_config = self._build_generation_config(task_config)
@@ -265,12 +269,14 @@ class LMEvalAdapter(BaseEvaluationAdapter):
                 # without falsely declaring them continuous and unbounded.
                 metric_config = MetricConfig(
                     evaluation_description=description,
+                    metric_name=metric_name,
                     lower_is_better=not is_higher_better,
                     additional_details={'bounds_status': 'unknown'},
                 )
             else:
                 metric_config = MetricConfig(
                     evaluation_description=description,
+                    metric_name=metric_name,
                     lower_is_better=not is_higher_better,
                     score_type=ScoreType.continuous,
                     min_score=bounds[0],
@@ -291,6 +297,9 @@ class LMEvalAdapter(BaseEvaluationAdapter):
                         else None
                     ),
                     num_samples=num_samples,
+                    num_bootstrap_samples=(
+                        bootstrap_iters if stderr_val is not None else None
+                    ),
                 )
 
             eval_name = task_name
@@ -299,6 +308,9 @@ class LMEvalAdapter(BaseEvaluationAdapter):
 
             results.append(
                 EvaluationResult(
+                    evaluation_result_id=evaluation_result_id(
+                        metric_name, filter_name
+                    ),
                     evaluation_name=eval_name,
                     source_data=source_data,
                     evaluation_timestamp=eval_timestamp,

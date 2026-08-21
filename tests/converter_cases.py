@@ -31,10 +31,19 @@ class ConverterCase:
     # Total `evaluation_results` across every aggregate. For a converter that emits more
     # results than are worth listing in `scores`, this is what catches one going missing.
     results: int | None = None
+    # Rows in the instance-level sidecars, which is one per aggregate result a sample
+    # contributed to, not one per sample.
+    sidecar_rows: int | None = None
     model_id: str | None = None
-    # Keyed by `<evaluation_name>/<metric>`, since one task can be scored by several
-    # metrics and each becomes its own result.
+    # Keyed by `<evaluation_name>/<evaluation_result_id>`, the pair that addresses one
+    # result, falling back to the metric description for a converter that sets no
+    # `evaluation_result_id`. A metric name alone would not do: HELM reports the same
+    # metric on the `valid` split and worst-case over each perturbation.
     scores: dict[str, float] | None = None
+    # Distinct `metric_config.metric_name` values across every result. The metric
+    # belongs in this field rather than in `evaluation_name` or the description, and a
+    # converter that leaves it unset shows up here as `None` in the set.
+    metric_names: frozenset[str] | None = None
     extra_argv: tuple[str, ...] = ()
     # Upstream key paths the converter cannot work without, `*` matching any one key.
     required_source_paths: tuple[str, ...] = ()
@@ -82,7 +91,18 @@ CASES: tuple[ConverterCase, ...] = (
         # One scorer reporting three metrics, which is what makes this fixture worth
         # using: a converter that collapses them to one result fails here.
         results=3,
+        # One sample, three aggregate results, so three rows.
+        sidecar_rows=3,
         model_id='mistral/mistral-large-latest',
+        scores={
+            'inspect_evals/cyse2_vulnerability_exploit/'
+            'vul_exploit_scorer:accuracy': 0.38108974358974373,
+            'inspect_evals/cyse2_vulnerability_exploit/'
+            'vul_exploit_scorer:mean': 0.38108974358974357,
+            'inspect_evals/cyse2_vulnerability_exploit/'
+            'vul_exploit_scorer:std': 0.3115628730565127,
+        },
+        metric_names=frozenset({'accuracy', 'mean', 'std'}),
         required_source_paths=(
             'eval.model',
             'eval.task',
@@ -104,7 +124,25 @@ CASES: tuple[ConverterCase, ...] = (
         # Eight metrics on the `valid` split, each also reported worst-case over the
         # robustness and fairness perturbations.
         results=24,
+        # 10 instances against the 8 `valid` results; the perturbation results report no
+        # per-instance stats, so no row joins to them.
+        sidecar_rows=80,
         model_id='eleutherai/pythia-1b-v0',
+        # The 24 results are these 8 metrics on `valid` plus each one's worst case over
+        # the robustness and fairness perturbations, so the names are listed rather than
+        # the 24 scores; `results` above is what counts them.
+        metric_names=frozenset(
+            {
+                'exact_match',
+                'exact_match@5',
+                'quasi_exact_match',
+                'quasi_exact_match@5',
+                'prefix_exact_match',
+                'prefix_exact_match@5',
+                'quasi_prefix_exact_match',
+                'quasi_prefix_exact_match@5',
+            }
+        ),
         # `--log_path` is a HELM run directory, not one file, so there is no single
         # payload for `missing_paths` to address. The gate and the counts above are
         # what cover this converter.

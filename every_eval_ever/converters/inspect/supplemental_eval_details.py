@@ -37,6 +37,7 @@ class SupplementalMetricConfig(_StrictSupplementalModel):
     additional_details: dict[str, Any] | None = None
 
 class SupplementalForEvaluationResults(_StrictSupplementalModel):
+    evaluation_result_id: str | None = None
     evaluation_name: str | None = None
     metric_config: SupplementalMetricConfig | None = None
     score_details: SupplementalScoreDetails | None = None

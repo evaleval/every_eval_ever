@@ -95,6 +95,20 @@ def test_conversion_yields_the_expected_records(case, tmp_path):
             f'{sorted(key for key in set(keys) if keys.count(key) > 1)}'
         )
         assert dict(scored) == case.scores
+    if case.metric_names is not None:
+        # `.get`, because an unset `metric_name` is absent from the record rather than
+        # null — which is the case this assertion exists to report.
+        converted = {
+            result['metric_config'].get('metric_name')
+            for log in logs
+            for result in log['evaluation_results']
+        }
+        assert converted == case.metric_names, (
+            f'{case.source} named its metrics {sorted(converted, key=str)}, '
+            f'expected {sorted(case.metric_names)}. The metric belongs in '
+            '`metric_config.metric_name`; `None` here means the converter left it '
+            'unset, and `evaluation_name` is for the evaluation.'
+        )
 
     for log, path in zip(logs, aggregates, strict=True):
         detailed = log.get('detailed_evaluation_results')
@@ -104,6 +118,32 @@ def test_conversion_yields_the_expected_records(case, tmp_path):
         # the gate resolves it as a repository path.
         assert detailed['file_path'].endswith(f'{path.stem}_samples.jsonl')
         assert detailed['total_rows'] > 0
+
+    if case.sidecar_rows is not None:
+        declared = sum(
+            log['detailed_evaluation_results']['total_rows']
+            for log in logs
+            if log.get('detailed_evaluation_results')
+        )
+        written = sum(
+            len(
+                [
+                    line
+                    for line in path.read_text(encoding='utf-8').splitlines()
+                    if line.strip()
+                ]
+            )
+            for path in sidecars
+        )
+        assert declared == case.sidecar_rows, (
+            f'{case.source} reported {declared} instance-level row(s), expected '
+            f'{case.sidecar_rows}. A row is owed per aggregate result a sample '
+            'contributed to, so this changes when the results do.'
+        )
+        # `total_rows` is what a reader trusts without opening the sidecar.
+        assert written == declared, (
+            f'{case.source} wrote {written} row(s) but reported {declared}'
+        )
 
 
 def test_required_source_paths_are_present_in_the_fixture(case):

@@ -56,6 +56,7 @@ from every_eval_ever.converters.common.utils import (
 )
 from every_eval_ever.converters.inspect.instance_level_adapter import (
     InspectInstanceLevelDataAdapter,
+    evaluation_result_id,
 )
 from every_eval_ever.converters.inspect.utils import (
     apply_supplemental_eval_details,
@@ -147,11 +148,15 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         num_samples: int = 0,
     ) -> EvaluationResult:
         return EvaluationResult(
-            evaluation_name=f'{metric_info.name} on {evaluation_task_name} for scorer {scorer_name}',
+            evaluation_result_id=evaluation_result_id(
+                scorer_name, metric_info.name
+            ),
+            evaluation_name=evaluation_task_name,
             source_data=source_data,
             evaluation_timestamp=evaluation_timestamp,
             metric_config=MetricConfig(
-                evaluation_description=metric_info.name,
+                evaluation_description=f'{metric_info.name} from scorer {scorer_name}',
+                metric_name=metric_info.name,
                 lower_is_better=False,  # no metadata available
                 score_type=ScoreType.continuous,
                 min_score=0,
@@ -175,8 +180,15 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         generation_config: GenerationConfig,
         num_samples: int,
         timestamp: str,
-    ) -> List[EvaluationResult]:
+    ) -> Tuple[List[EvaluationResult], Dict[str, List[str]]]:
+        """Convert Inspect's per-scorer metrics into aggregate results.
+
+        Returns the results plus a scorer name -> `evaluation_result_id` map,
+        which the instance-level converter needs to emit one row per aggregate
+        result a sample contributed to.
+        """
         results: List[EvaluationResult] = []
+        result_ids_by_scorer: Dict[str, List[str]] = {}
 
         for scorer in scores:
             llm_grader = None
@@ -220,22 +232,26 @@ class InspectAIAdapter(BaseEvaluationAdapter):
 
                 scorer_name = scorer.name or scorer.scorer
 
-                results.append(
-                    self._build_evaluation_result(
-                        evaluation_task_name=evaluation_task_name,
-                        scorer_name=scorer_name,
-                        metric_info=metric_info,
-                        llm_grader=llm_grader,
-                        source_data=source_data,
-                        evaluation_timestamp=timestamp,
-                        generation_config=generation_config,
-                        stderr_value=stderr_value,
-                        stddev_value=stddev_value,
-                        num_samples=num_samples,
-                    )
+                result = self._build_evaluation_result(
+                    evaluation_task_name=evaluation_task_name,
+                    scorer_name=scorer_name,
+                    metric_info=metric_info,
+                    llm_grader=llm_grader,
+                    source_data=source_data,
+                    evaluation_timestamp=timestamp,
+                    generation_config=generation_config,
+                    stderr_value=stderr_value,
+                    stddev_value=stddev_value,
+                    num_samples=num_samples,
                 )
+                results.append(result)
 
-        return results
+                if scorer_name and result.evaluation_result_id:
+                    result_ids_by_scorer.setdefault(scorer_name, []).append(
+                        result.evaluation_result_id
+                    )
+
+        return results, result_ids_by_scorer
 
     # A HuggingFace repo identifier: exactly `namespace/name` with no
     # extra path segments, schemes, or path-unsafe prefixes. We use an
@@ -634,7 +650,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
 
         evaluation_task_name = eval_spec.task_display_name or eval_spec.task
 
-        evaluation_results = (
+        evaluation_results, result_ids_by_scorer = (
             self._extract_evaluation_results(
                 evaluation_task_name,
                 results.scores if results else [],
@@ -644,7 +660,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
                 evaluation_unix_timestamp,
             )
             if results and results.scores
-            else []
+            else ([], {})
         )
 
         supplemental_eval_details = parse_supplemental_eval_details(
@@ -690,6 +706,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
                     model_info.id,
                     raw_eval_log.samples,
                     getattr(raw_eval_log, 'reductions', None),
+                    result_ids_by_scorer,
                 )
             )
 

@@ -6,6 +6,7 @@ pytest.importorskip(
 )
 
 import contextlib
+import logging
 import tempfile
 from pathlib import Path
 from types import SimpleNamespace
@@ -106,11 +107,9 @@ def test_pubmedqa_eval():
     assert converted_eval.model_info.inference_engine is None
 
     results = converted_eval.evaluation_results
-    assert (
-        results[0].evaluation_name
-        == 'accuracy on inspect_evals/pubmedqa for scorer choice'
-    )
-    assert results[0].metric_config.evaluation_description == 'accuracy'
+    assert results[0].evaluation_name == 'inspect_evals/pubmedqa'
+    assert results[0].evaluation_result_id == 'choice:accuracy'
+    assert results[0].metric_config.metric_name == 'accuracy'
     assert results[0].score_details.score == 1.0
 
     assert converted_eval.detailed_evaluation_results is not None
@@ -239,10 +238,9 @@ def test_arc_sonnet_eval():
     assert converted_eval.model_info.inference_engine is None
 
     results = converted_eval.evaluation_results
-    assert (
-        results[0].evaluation_name == 'accuracy on arc_easy for scorer choice'
-    )
-    assert results[0].metric_config.evaluation_description == 'accuracy'
+    assert results[0].evaluation_name == 'arc_easy'
+    assert results[0].evaluation_result_id == 'choice:accuracy'
+    assert results[0].metric_config.metric_name == 'accuracy'
     assert results[0].score_details.score == 1.0
 
     assert converted_eval.detailed_evaluation_results is not None
@@ -281,10 +279,9 @@ def test_arc_qwen_eval():
     assert converted_eval.model_info.inference_engine.name == 'ollama'
 
     results = converted_eval.evaluation_results
-    assert (
-        results[0].evaluation_name == 'accuracy on arc_easy for scorer choice'
-    )
-    assert results[0].metric_config.evaluation_description == 'accuracy'
+    assert results[0].evaluation_name == 'arc_easy'
+    assert results[0].evaluation_result_id == 'choice:accuracy'
+    assert results[0].metric_config.metric_name == 'accuracy'
     assert results[0].score_details.score == 0.3333333333333333
 
     assert converted_eval.detailed_evaluation_results is not None
@@ -332,15 +329,48 @@ def test_gaia_eval():
 
     results = converted_eval.evaluation_results
     assert len(results) > 0
+    assert results[0].evaluation_name == 'gaia'
+    assert results[0].evaluation_result_id == 'gaia_scorer:accuracy'
+    assert results[0].metric_config.metric_name == 'accuracy'
     assert (
-        results[0].evaluation_name == 'accuracy on gaia for scorer gaia_scorer'
+        results[0].metric_config.evaluation_description
+        == 'accuracy from scorer gaia_scorer'
     )
-    assert results[0].metric_config.evaluation_description == 'accuracy'
     assert results[0].score_details.score >= 0.0
 
     assert converted_eval.detailed_evaluation_results is not None
     assert converted_eval.detailed_evaluation_results.format is not None
     assert converted_eval.detailed_evaluation_results.total_rows > 0
+
+
+def test_evaluation_name_is_the_benchmark_and_the_metric_is_named():
+    """One scorer reporting three metrics: same eval, three named metrics."""
+    adapter = InspectAIAdapter()
+    metadata_args = {
+        'source_organization_name': 'TestOrg',
+        'evaluator_relationship': EvaluatorRelationship.first_party,
+    }
+
+    converted_eval = _load_eval(
+        adapter,
+        'tests/data/inspect/data_cyse2_vuln_exploit_challenges.json',
+        metadata_args,
+    )
+
+    results = converted_eval.evaluation_results
+    assert len(results) == 3
+    assert {result.evaluation_name for result in results} == {
+        'inspect_evals/cyse2_vulnerability_exploit'
+    }
+    assert {result.metric_config.metric_name for result in results} == {
+        'accuracy',
+        'mean',
+        'std',
+    }
+    for result in results:
+        assert result.evaluation_result_id == (
+            f'vul_exploit_scorer:{result.metric_config.metric_name}'
+        )
 
 
 def test_humaneval_eval():
@@ -375,7 +405,7 @@ def test_extract_evaluation_results_one_scorer_with_two_metrics():
         )
     ]
 
-    results = adapter._extract_evaluation_results(
+    results, result_ids_by_scorer = adapter._extract_evaluation_results(
         evaluation_task_name='synthetic/task',
         scores=scores,
         source_data=source_data,
@@ -385,10 +415,17 @@ def test_extract_evaluation_results_one_scorer_with_two_metrics():
     )
 
     assert len(results) == 2
-    assert {result.evaluation_name for result in results} == {
-        'accuracy on synthetic/task for scorer choice',
-        'f1 on synthetic/task for scorer choice',
+    # The eval is named once; the metric is a metric field, not part of the name.
+    assert {result.evaluation_name for result in results} == {'synthetic/task'}
+    assert {result.metric_config.metric_name for result in results} == {
+        'accuracy',
+        'f1',
     }
+    assert {result.evaluation_result_id for result in results} == {
+        'choice:accuracy',
+        'choice:f1',
+    }
+    assert result_ids_by_scorer == {'choice': ['choice:accuracy', 'choice:f1']}
 
 
 def test_extract_evaluation_results_two_scorers_two_metrics_each():
@@ -414,7 +451,7 @@ def test_extract_evaluation_results_two_scorers_two_metrics_each():
         ),
     ]
 
-    results = adapter._extract_evaluation_results(
+    results, result_ids_by_scorer = adapter._extract_evaluation_results(
         evaluation_task_name='synthetic/task',
         scores=scores,
         source_data=source_data,
@@ -424,11 +461,18 @@ def test_extract_evaluation_results_two_scorers_two_metrics_each():
     )
 
     assert len(results) == 4
-    assert {result.evaluation_name for result in results} == {
-        'accuracy on synthetic/task for scorer scorer_a',
-        'f1 on synthetic/task for scorer scorer_a',
-        'accuracy on synthetic/task for scorer scorer_b',
-        'f1 on synthetic/task for scorer scorer_b',
+    assert {result.evaluation_name for result in results} == {'synthetic/task'}
+    # Two scorers reporting the same metric name must not collide in
+    # `evaluation_result_id`, or sample rows cannot say which one they join.
+    assert {result.evaluation_result_id for result in results} == {
+        'scorer_a:accuracy',
+        'scorer_a:f1',
+        'scorer_b:accuracy',
+        'scorer_b:f1',
+    }
+    assert result_ids_by_scorer == {
+        'scorer_a': ['scorer_a:accuracy', 'scorer_a:f1'],
+        'scorer_b': ['scorer_b:accuracy', 'scorer_b:f1'],
     }
 
 
@@ -498,7 +542,7 @@ def test_supplemental_eval_details_fill_only_top_level_fields():
             },
             'evaluation_results': [
                 {
-                    'evaluation_name': 'accuracy on inspect_evals/pubmedqa for scorer choice',
+                    'evaluation_result_id': 'choice:accuracy',
                     'score_details': {
                         'details': {
                             'notes': ['a', 'b'],
@@ -562,7 +606,7 @@ def test_supplemental_eval_details_applies_top_level_score_details():
         'supplemental_eval_details': {
             'evaluation_results': [
                 {
-                    'evaluation_name': 'accuracy on inspect_evals/pubmedqa for scorer choice',
+                    'evaluation_result_id': 'choice:accuracy',
                     'score_details': {
                         'details': {
                             'matched': 1,
@@ -612,7 +656,9 @@ def test_supplemental_eval_details_does_not_overwrite_existing_generation_detail
     assert result.generation_config.additional_details['added_field'] == 'yes'
 
 
-def test_supplemental_eval_details_does_not_apply_when_evaluation_name_does_not_match():
+def test_supplemental_eval_details_does_not_apply_when_evaluation_name_does_not_match(
+    caplog,
+):
     adapter = InspectAIAdapter()
     metadata_args = {
         'source_organization_name': 'TestOrg',
@@ -627,13 +673,60 @@ def test_supplemental_eval_details_does_not_apply_when_evaluation_name_does_not_
         },
     }
 
-    converted_eval = _load_eval(
-        adapter,
-        'tests/data/inspect/data_pubmedqa_gpt4o_mini.json',
-        metadata_args,
-    )
+    with caplog.at_level(logging.WARNING):
+        converted_eval = _load_eval(
+            adapter,
+            'tests/data/inspect/data_pubmedqa_gpt4o_mini.json',
+            metadata_args,
+        )
     result = converted_eval.evaluation_results[0]
     assert result.score_details.details is None
+    # A supplemental file is hand-written, so a key that selects nothing is a
+    # typo the contributor needs to hear about, not a silent no-op.
+    assert 'matched no evaluation result' in caplog.text
+    assert "'some_other_eval - choice'" in caplog.text
+
+
+def test_supplemental_eval_details_matches_all_results_of_an_evaluation():
+    """`evaluation_name` now names the eval, so it selects every result."""
+    adapter = InspectAIAdapter()
+    metadata_args = {
+        'source_organization_name': 'TestOrg',
+        'evaluator_relationship': EvaluatorRelationship.first_party,
+        'supplemental_eval_details': {
+            'evaluation_results': [
+                {
+                    'evaluation_name': 'inspect_evals/cyse2_vulnerability_exploit',
+                    'score_details': {'details': {'reviewed': 'yes'}},
+                },
+                {
+                    'evaluation_result_id': 'vul_exploit_scorer:std',
+                    'score_details': {'details': {'reviewed': 'separately'}},
+                },
+            ],
+        },
+    }
+
+    converted_eval = _load_eval(
+        adapter,
+        'tests/data/inspect/data_cyse2_vuln_exploit_challenges.json',
+        metadata_args,
+    )
+
+    details_by_result_id = {
+        result.evaluation_result_id: result.score_details.details
+        for result in converted_eval.evaluation_results
+    }
+    assert details_by_result_id['vul_exploit_scorer:accuracy'] == {
+        'reviewed': 'yes'
+    }
+    assert details_by_result_id['vul_exploit_scorer:mean'] == {
+        'reviewed': 'yes'
+    }
+    # The specific key wins over the evaluation-wide one.
+    assert details_by_result_id['vul_exploit_scorer:std'] == {
+        'reviewed': 'separately'
+    }
 
 
 def test_supplemental_eval_details_fails_on_deprecated_per_result_schema():
@@ -645,7 +738,7 @@ def test_supplemental_eval_details_fails_on_deprecated_per_result_schema():
             'per_result': [
                 {
                     'match': {
-                        'evaluation_name': 'accuracy on inspect_evals/pubmedqa for scorer choice',
+                        'evaluation_result_id': 'choice:accuracy',
                     },
                     'score_details': {'details': {'matched': 1}},
                 },
@@ -664,7 +757,45 @@ def test_supplemental_eval_details_fails_on_deprecated_per_result_schema():
             )
 
 
-def test_supplemental_eval_details_fails_on_duplicate_evaluation_name():
+@pytest.mark.parametrize(
+    'key_field, key',
+    [
+        ('evaluation_result_id', 'choice:accuracy'),
+        ('evaluation_name', 'inspect_evals/pubmedqa'),
+    ],
+)
+def test_supplemental_eval_details_fails_on_duplicate_key(key_field, key):
+    adapter = InspectAIAdapter()
+    metadata_args = {
+        'source_organization_name': 'TestOrg',
+        'evaluator_relationship': EvaluatorRelationship.first_party,
+        'supplemental_eval_details': {
+            'evaluation_results': [
+                {key_field: key, 'score_details': {'details': {'a': 1}}},
+                {key_field: key, 'score_details': {'details': {'b': 2}}},
+            ]
+        },
+    }
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        metadata_args = dict(metadata_args)
+        metadata_args['file_uuid'] = TEST_UUID
+        metadata_args['parent_eval_output_dir'] = tmpdir
+        with pytest.raises(AdapterError):
+            adapter.transform_from_file(
+                Path('tests/data/inspect/data_pubmedqa_gpt4o_mini.json'),
+                metadata_args=metadata_args,
+            )
+
+
+def test_supplemental_eval_details_fails_when_one_entry_sets_both_selectors():
+    """An id selects one result; a name selects every result of the evaluation.
+
+    An entry that sets both applies to its own result by id and, through the
+    shared name, to that result's siblings as well -- never what one entry is
+    meant to do. The two behaviours are still available through two entries, so
+    the ambiguous single entry is rejected rather than silently fanned out.
+    """
     adapter = InspectAIAdapter()
     metadata_args = {
         'source_organization_name': 'TestOrg',
@@ -672,12 +803,9 @@ def test_supplemental_eval_details_fails_on_duplicate_evaluation_name():
         'supplemental_eval_details': {
             'evaluation_results': [
                 {
-                    'evaluation_name': 'accuracy on inspect_evals/pubmedqa for scorer choice',
+                    'evaluation_result_id': 'choice:accuracy',
+                    'evaluation_name': 'inspect_evals/pubmedqa',
                     'score_details': {'details': {'a': 1}},
-                },
-                {
-                    'evaluation_name': 'accuracy on inspect_evals/pubmedqa for scorer choice',
-                    'score_details': {'details': {'b': 2}},
                 },
             ]
         },

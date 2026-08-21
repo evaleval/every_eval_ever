@@ -52,6 +52,7 @@ from every_eval_ever.converters.helm.instance_level_adapter import (
     HELMInstanceLevelDataAdapter,
     _evaluation_result_id,
     _score_from_stat,
+    _stat_name_part,
 )
 from every_eval_ever.converters.helm.metrics import is_core_metric
 from every_eval_ever.converters.helm.utils import extract_reasoning
@@ -513,6 +514,7 @@ class HELMAdapter(BaseEvaluationAdapter):
 
             metric_config = MetricConfig(
                 evaluation_description=metric_name,
+                metric_name=metric_name,
                 lower_is_better=False,  # TODO schema.json check
                 score_type=ScoreType.continuous,
                 min_score=0,
@@ -521,19 +523,12 @@ class HELMAdapter(BaseEvaluationAdapter):
 
             split = getattr(stat.name, 'split', None)
             perturbation = getattr(stat.name, 'perturbation', None)
-            name_parts = [metric_name]
-            if split:
-                name_parts.append(str(split))
-            if perturbation:
-                name_parts.append(str(perturbation))
-            evaluation_name = (
-                f'{" ".join(name_parts)} on {source_data.dataset_name}'
-            )
+            perturbation_label = _stat_name_part(perturbation)
 
             evaluation_results.append(
                 EvaluationResult(
                     evaluation_result_id=evaluation_result_id,
-                    evaluation_name=evaluation_name,
+                    evaluation_name=source_data.dataset_name,
                     source_data=source_data,
                     evaluation_timestamp=evaluation_timestamp,
                     metric_config=metric_config,
@@ -553,10 +548,8 @@ class HELMAdapter(BaseEvaluationAdapter):
                         ),
                         details={
                             'count': str(getattr(stat, 'count', '')),
-                            'split': str(split) if split else '',
-                            'perturbation': str(perturbation)
-                            if perturbation
-                            else '',
+                            'split': _stat_name_part(split) or '',
+                            'perturbation': perturbation_label or '',
                         },
                     ),
                     generation_config=GenerationConfig(

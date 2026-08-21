@@ -22,6 +22,8 @@ from every_eval_ever.instance_level_types import (
     Output,
 )
 
+from .utils import evaluation_result_id
+
 
 class LMEvalInstanceLevelAdapter:
     """Converts lm-eval per-sample JSONL to instance-level every_eval_ever format."""
@@ -42,10 +44,11 @@ class LMEvalInstanceLevelAdapter:
                 if not line.strip():
                     continue
                 sample = json.loads(line)
-                log = self._transform_sample(
-                    sample, evaluation_id, model_id, task_name
+                results.extend(
+                    self._transform_sample(
+                        sample, evaluation_id, model_id, task_name
+                    )
                 )
-                results.append(log)
 
         return results
 
@@ -123,8 +126,13 @@ class LMEvalInstanceLevelAdapter:
         evaluation_id: str,
         model_id: str,
         task_name: str,
-    ) -> InstanceLevelEvaluationLog:
-        """Transform a single lm-eval sample into an instance-level log."""
+    ) -> List[InstanceLevelEvaluationLog]:
+        """Transform one lm-eval sample into a row per metric it reports.
+
+        The schema asks for one instance record per aggregate result the sample
+        contributed to. lm-eval stores each metric's own value on the sample,
+        so every row carries the score its own result aggregates.
+        """
         # Extract prompt from arguments
         arguments = sample.get('arguments', {})
         prompt = ''
@@ -137,21 +145,12 @@ class LMEvalInstanceLevelAdapter:
         # Extract model output
         raw_output = self._extract_output(sample)
 
-        # Determine correctness from metric values
         metrics = sample.get('metrics', [])
-        score = None
-        is_correct = None
-        for metric_name in metrics:
-            if metric_name in sample:
-                val = sample[metric_name]
-                if isinstance(val, (int, float)):
-                    score = float(val)
-                    is_correct = score == 1.0
-                    break
-
-        if score is None:
-            score = 0.0
-            is_correct = False
+        scored = [
+            (metric_name, float(sample[metric_name]))
+            for metric_name in metrics
+            if isinstance(sample.get(metric_name), (int, float))
+        ]
 
         # Build sample hash from input + reference for cross-model comparison
         hash_input = json.dumps(
@@ -182,35 +181,47 @@ class LMEvalInstanceLevelAdapter:
             )
         ]
 
-        return InstanceLevelEvaluationLog(
-            schema_version=SCHEMA_VERSION,
-            evaluation_id=evaluation_id,
-            model_id=model_id,
-            evaluation_name=eval_name,
-            sample_id=str(sample.get('doc_id', 0)),
-            sample_hash=sample_hash,
-            interaction_type=InteractionType.single_turn,
-            input=Input(
-                raw=prompt,
-                reference=[target],
-                choices=self._extract_choices(sample),
-            ),
-            output=Output(raw=[raw_output]),
-            answer_attribution=answer_attribution,
-            evaluation=Evaluation(
-                score=score,
-                is_correct=is_correct,
-            ),
-            metadata={
-                'doc_hash': str(sample.get('doc_hash', '')),
-                'prompt_hash': str(sample.get('prompt_hash', '')),
-                'target_hash': str(sample.get('target_hash', '')),
-                'filter': str(filter_name),
-                'lm_eval_metrics': json.dumps(
-                    {m: sample.get(m) for m in metrics if m in sample}
+        # A sample whose metrics are all non-numeric still belongs in the
+        # sidecar, with no aggregate result to point at.
+        emissions = scored or [(None, 0.0)]
+
+        return [
+            InstanceLevelEvaluationLog(
+                schema_version=SCHEMA_VERSION,
+                evaluation_id=evaluation_id,
+                model_id=model_id,
+                evaluation_name=eval_name,
+                evaluation_result_id=(
+                    evaluation_result_id(metric_name, filter_name)
+                    if metric_name is not None
+                    else None
                 ),
-            },
-        )
+                sample_id=str(sample.get('doc_id', 0)),
+                sample_hash=sample_hash,
+                interaction_type=InteractionType.single_turn,
+                input=Input(
+                    raw=prompt,
+                    reference=[target],
+                    choices=self._extract_choices(sample),
+                ),
+                output=Output(raw=[raw_output]),
+                answer_attribution=answer_attribution,
+                evaluation=Evaluation(
+                    score=score,
+                    is_correct=score == 1.0,
+                ),
+                metadata={
+                    'doc_hash': str(sample.get('doc_hash', '')),
+                    'prompt_hash': str(sample.get('prompt_hash', '')),
+                    'target_hash': str(sample.get('target_hash', '')),
+                    'filter': str(filter_name),
+                    'lm_eval_metrics': json.dumps(
+                        {m: sample.get(m) for m in metrics if m in sample}
+                    ),
+                },
+            )
+            for metric_name, score in emissions
+        ]
 
     def _is_multiple_choice(self, sample: dict[str, Any]) -> bool:
         """Check if a sample is multiple-choice by inspecting the arguments structure."""

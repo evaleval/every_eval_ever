@@ -46,7 +46,18 @@ The exact command for converting an example evaluation log is:
 uv run --extra inspect every_eval_ever convert inspect --log_path tests/data/inspect/2026-02-07T11-26-57+00-00_gaia_4V8zHbbRKpU5Yv2BMoBcjE.json
 ```
 
-Optional: pass `--supplemental_eval_details path/to/supplemental_eval_details.json` to enrich converted output. `additional_details` maps are extend-only (existing keys are preserved), while synthetic `metric_config` defaults can be overridden for these fields: `evaluation_description`, `lower_is_better`, `score_type`, `level_names`, `level_metadata`, `has_unknown_level`, `min_score`, `max_score`. Use top-level fields (`model_info`, `source_data`, `generation_config`, `agentic_eval_config`) for shared details and `evaluation_results` for per-result metric/score details keyed by `evaluation_name`.
+Optional: pass `--supplemental_eval_details path/to/supplemental_eval_details.json` to enrich converted output. `additional_details` maps are extend-only (existing keys are preserved), while synthetic `metric_config` defaults can be overridden for these fields: `evaluation_description`, `lower_is_better`, `score_type`, `level_names`, `level_metadata`, `has_unknown_level`, `min_score`, `max_score`. Use top-level fields (`model_info`, `source_data`, `generation_config`, `agentic_eval_config`) for shared details and `evaluation_results` for per-result metric/score details.
+
+An `evaluation_results` entry selects which results it applies to by either key:
+
+| Key | Selects |
+|---|---|
+| `evaluation_result_id` | one result — `"<scorer>:<metric>"`, e.g. `choice:accuracy` |
+| `evaluation_name` | every result of that evaluation, e.g. `inspect_evals/pubmedqa` |
+
+`evaluation_result_id` wins where both match. An entry with neither key applies
+positionally. Convert once without a supplement to see the available keys — a key
+that selects nothing is logged as a warning rather than applied.
 
 Example `supplemental_eval_details.json`:
 
@@ -74,7 +85,7 @@ Example `supplemental_eval_details.json`:
   },
   "evaluation_results": [
     {
-      "evaluation_name": "inspect_evals/pubmedqa - choice",
+      "evaluation_result_id": "choice:accuracy",
       "score_details": {
         "details": {
           "notes": [
@@ -100,7 +111,7 @@ Example `supplemental_eval_details.json`:
 Use it with:
 
 ```bash
-uv run python -m eval_converters.inspect \
+uv run --extra inspect every_eval_ever convert inspect \
   --log_path tests/data/inspect/data_pubmedqa_gpt4o_mini.json \
   --supplemental_eval_details path/to/supplemental_eval_details.json
 ```

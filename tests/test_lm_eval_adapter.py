@@ -148,6 +148,9 @@ def test_transform_from_file_evaluation_results():
     assert perturbed_results[0].metric_config.lower_is_better is False
     assert perturbed_results[0].metric_config.min_score == 0.0
     assert perturbed_results[0].metric_config.max_score == 1.0
+    # The metric belongs in metric_name, not only in the description.
+    assert perturbed_results[0].metric_config.metric_name == 'exact_match'
+    assert perturbed_results[0].evaluation_result_id == 'exact_match'
 
     # Second task: math_rephrased_full with exact_match = 0.0004
     rephrased_results = logs[1].evaluation_results
@@ -163,6 +166,9 @@ def test_transform_from_file_uncertainty():
     assert uncertainty.standard_error.value == 0.0002828144211304471
     assert uncertainty.standard_error.method == 'bootstrap'
     assert uncertainty.num_samples == 5000
+    # The resamples the standard error came from, distinct from the 5000
+    # documents the score came from.
+    assert uncertainty.num_bootstrap_samples == 100000
 
 
 def test_transform_from_file_generation_config():
@@ -294,6 +300,144 @@ def test_instance_level_transform_and_save_no_output_dir():
         output_dir=None,
     )
     assert result is None
+
+
+def _write_samples(tmpdir: str, samples: list[dict]) -> Path:
+    path = Path(tmpdir) / 'samples_mytask_2026-01-01T00-00-00.jsonl'
+    path.write_text(
+        '\n'.join(json.dumps(sample) for sample in samples) + '\n',
+        encoding='utf-8',
+    )
+    return path
+
+
+def test_instance_level_one_row_per_metric():
+    """A sample scored by several metrics becomes one row per metric.
+
+    Each row carries its own metric's score and the evaluation_result_id of the
+    aggregate result that score feeds, so the sidecar joins back per metric
+    rather than attributing one metric's value to all of them.
+    """
+    inst_adapter = LMEvalInstanceLevelAdapter()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        samples_path = _write_samples(
+            tmpdir,
+            [
+                {
+                    'doc_id': 0,
+                    'target': '3',
+                    'filter': 'flexible-extract',
+                    'metrics': ['acc', 'acc_norm', 'brier_score'],
+                    'acc': 1.0,
+                    'acc_norm': 0.0,
+                    'brier_score': 0.25,
+                    'arguments': {'gen_args_0': {'arg_0': 'What is 1 + 2?'}},
+                    'filtered_resps': ['3'],
+                }
+            ],
+        )
+        logs = inst_adapter.transform_samples(
+            samples_path,
+            evaluation_id='test/eval/123',
+            model_id='test-model',
+            task_name='mytask',
+        )
+
+    assert [
+        (log.evaluation_result_id, log.evaluation.score) for log in logs
+    ] == [
+        ('acc:flexible-extract', 1.0),
+        ('acc_norm:flexible-extract', 0.0),
+        ('brier_score:flexible-extract', 0.25),
+    ]
+    assert [log.evaluation.is_correct for log in logs] == [True, False, False]
+    # One underlying interaction, so the rows share a sample id and hash.
+    assert {log.sample_id for log in logs} == {'0'}
+    assert len({log.sample_hash for log in logs}) == 1
+    assert {log.evaluation_name for log in logs} == {'mytask/flexible-extract'}
+
+
+def test_instance_level_non_numeric_metrics_only():
+    """A sample whose metrics are all non-numeric still reaches the sidecar.
+
+    It has no aggregate result to point at, so it gets a single row with no
+    evaluation_result_id rather than being dropped.
+    """
+    inst_adapter = LMEvalInstanceLevelAdapter()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        samples_path = _write_samples(
+            tmpdir,
+            [
+                {
+                    'doc_id': 7,
+                    'target': 'yes',
+                    'filter': 'none',
+                    'metrics': ['verdict', 'rationale'],
+                    'verdict': 'correct',
+                    'rationale': 'looks right',
+                    'arguments': {'gen_args_0': {'arg_0': 'Is this right?'}},
+                    'filtered_resps': ['yes'],
+                }
+            ],
+        )
+        logs = inst_adapter.transform_samples(
+            samples_path,
+            evaluation_id='test/eval/123',
+            model_id='test-model',
+            task_name='mytask',
+        )
+
+    assert len(logs) == 1
+    assert logs[0].evaluation_result_id is None
+    assert logs[0].sample_id == '7'
+    # The unscored values are still recoverable from the row.
+    assert json.loads(logs[0].metadata['lm_eval_metrics']) == {
+        'verdict': 'correct',
+        'rationale': 'looks right',
+    }
+
+
+def test_instance_level_bool_metric_is_canonicalized_to_float():
+    """A per-sample boolean metric joins like the aggregate path.
+
+    Python bool is a subclass of int, so the aggregate adapter already stores
+    True/False as 1.0/0.0. The sidecar mirrors that: a boolean value
+    canonicalizes to a real scored row that joins on its evaluation_result_id,
+    not a synthetic 0.0 row with no result to point at.
+    """
+    inst_adapter = LMEvalInstanceLevelAdapter()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        samples_path = _write_samples(
+            tmpdir,
+            [
+                {
+                    'doc_id': 0,
+                    'target': 'yes',
+                    'filter': 'none',
+                    'metrics': ['passed', 'failed'],
+                    'passed': True,
+                    'failed': False,
+                    'arguments': {'gen_args_0': {'arg_0': 'Is this right?'}},
+                    'filtered_resps': ['yes'],
+                }
+            ],
+        )
+        logs = inst_adapter.transform_samples(
+            samples_path,
+            evaluation_id='test/eval/123',
+            model_id='test-model',
+            task_name='mytask',
+        )
+
+    assert [
+        (log.evaluation_result_id, log.evaluation.score) for log in logs
+    ] == [
+        ('passed', 1.0),
+        ('failed', 0.0),
+    ]
+    assert [log.evaluation.is_correct for log in logs] == [True, False]
+    # No unjoined synthetic row was emitted.
+    assert all(log.evaluation_result_id is not None for log in logs)
 
 
 def test_na_stderr_treated_as_absent():

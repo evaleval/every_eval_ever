@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 from typing import Any, Dict, List, Type
 
@@ -18,6 +19,8 @@ from every_eval_ever.eval_types import (
     MetricConfig,
     ModelInfo,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class ModelPathHandler:
@@ -486,6 +489,68 @@ def apply_result_supplement(
     apply_metric_config_supplement(evaluation_result, supplement)
 
 
+def _key_supplements(
+    result_supplements: list[SupplementalForEvaluationResults],
+    key_field: str,
+) -> dict[str, SupplementalForEvaluationResults]:
+    """Index per-result supplements by one key field, rejecting duplicates."""
+    keyed = {
+        getattr(supplement, key_field): supplement
+        for supplement in result_supplements
+        if getattr(supplement, key_field) is not None
+    }
+    provided = [
+        supplement
+        for supplement in result_supplements
+        if getattr(supplement, key_field) is not None
+    ]
+    if len(keyed) != len(provided):
+        raise ValueError(
+            f'Duplicate {key_field} values in '
+            'supplemental_eval_details.evaluation_results.'
+        )
+    return keyed
+
+
+def _warn_unmatched_supplements(
+    by_result_id: dict[str, SupplementalForEvaluationResults],
+    by_evaluation_name: dict[str, SupplementalForEvaluationResults],
+    matched_keys: set[tuple[str, str]],
+    evaluation_results: list[EvaluationResult],
+) -> None:
+    """Report supplement keys that selected no result.
+
+    A supplemental file is hand-written, so a typo would otherwise be applied
+    to nothing and reported as a successful conversion. One file may cover a
+    directory of logs, so an unmatched key is a warning rather than an error.
+    """
+    unmatched = [
+        f'{key_field}={key!r}'
+        for key_field, keys in (
+            ('evaluation_result_id', by_result_id),
+            ('evaluation_name', by_evaluation_name),
+        )
+        for key in keys
+        if (key_field, key) not in matched_keys
+    ]
+    if not unmatched:
+        return
+
+    logger.warning(
+        'supplemental_eval_details entries matched no evaluation result: %s. '
+        'Available evaluation_result_id values: %s; evaluation_name values: %s.',
+        ', '.join(unmatched),
+        sorted(
+            {
+                result.evaluation_result_id
+                for result in evaluation_results
+                if result.evaluation_result_id
+            }
+        ),
+        sorted({result.evaluation_name for result in evaluation_results}),
+    )
+
+
 def apply_supplemental_eval_details(
     model_info: ModelInfo,
     evaluation_results: list[EvaluationResult],
@@ -508,26 +573,54 @@ def apply_supplemental_eval_details(
         )
 
     result_supplements = supplemental_eval_details.evaluation_results or []
-    named_supplements = {
-        supplement.evaluation_name: supplement
+    both_selectors = [
+        supplement
         for supplement in result_supplements
-        if supplement.evaluation_name is not None
-    }
-    if len(named_supplements) != len(
-        [s for s in result_supplements if s.evaluation_name is not None]
-    ):
-        raise ValueError(
-            "Duplicate evaluation_name values in supplemental_eval_details.evaluation_results."
-        )
-    unnamed_supplements = [
-        supplement for supplement in result_supplements if supplement.evaluation_name is None
+        if supplement.evaluation_result_id is not None
+        and supplement.evaluation_name is not None
     ]
-    unnamed_idx = 0
+    if both_selectors:
+        raise ValueError(
+            'A supplemental_eval_details.evaluation_results entry sets both '
+            'evaluation_result_id and evaluation_name. An id selects one result '
+            'and a name selects every result of that evaluation, so an entry '
+            'carrying both would apply to that one result and, separately, to '
+            'every sibling sharing the name. Use one selector per entry.'
+        )
+    by_result_id = _key_supplements(result_supplements, 'evaluation_result_id')
+    by_evaluation_name = _key_supplements(result_supplements, 'evaluation_name')
+    unkeyed_supplements = [
+        supplement
+        for supplement in result_supplements
+        if supplement.evaluation_result_id is None
+        and supplement.evaluation_name is None
+    ]
+    unkeyed_idx = 0
+    matched_keys: set[tuple[str, str]] = set()
 
     for evaluation_result in evaluation_results:
-        supplement = named_supplements.get(evaluation_result.evaluation_name)
-        if supplement is None and unnamed_idx < len(unnamed_supplements):
-            supplement = unnamed_supplements[unnamed_idx]
-            unnamed_idx += 1
+        # `evaluation_result_id` selects one result; `evaluation_name` selects
+        # every result of that evaluation, so the specific key wins.
+        supplement = by_result_id.get(evaluation_result.evaluation_result_id)
+        if supplement is not None:
+            matched_keys.add(
+                ('evaluation_result_id', evaluation_result.evaluation_result_id)
+            )
+        else:
+            supplement = by_evaluation_name.get(
+                evaluation_result.evaluation_name
+            )
+            if supplement is not None:
+                matched_keys.add(
+                    ('evaluation_name', evaluation_result.evaluation_name)
+                )
+
+        if supplement is None and unkeyed_idx < len(unkeyed_supplements):
+            supplement = unkeyed_supplements[unkeyed_idx]
+            unkeyed_idx += 1
 
         apply_result_supplement(evaluation_result, supplement)
+
+    _warn_unmatched_supplements(
+        by_result_id, by_evaluation_name, matched_keys, evaluation_results
+    )

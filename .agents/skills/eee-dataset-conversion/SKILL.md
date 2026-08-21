@@ -42,6 +42,20 @@ dataset, a harness dump) and you must emit EEE records. Two artifacts:
 - **Instance `_samples.jsonl` — one record per example. Only if you have
   per-item data and want it.
 
+## The one rule: canonicalize, never invent
+An adapter reshapes information the source already carries into the schema's form;
+it never manufactures information the source lacks.
+- **Canonicalization is expected** — coercing a boolean pass/fail to `1.0`/`0.0`,
+  resolving a model string to its registry `canonical_id`, normalizing a metric
+  name, deriving the output dir from the collection. Reshaping a value you hold is
+  always fine, and the aggregate and instance-level paths must reshape the *same*
+  value the *same* way, so a result and its per-sample rows agree.
+- **Invention is not** — a score for an unscored sample, bounds for a metric whose
+  range is unknown, a model identity the source never named. Record the gap as
+  absent (a null result id, `bounds_status: unknown`, a dropped-row failure), never
+  fill it in. This is the "fill" half of the coverage-vs-fill rule in
+  `reference/fields.md` §sources.
+
 ## Workflow (do these in order)
 1. Inspect the source first — you can't map fields you haven't seen. Establish:
    distinct models · benchmarks/subtasks · the metric and its range · is there

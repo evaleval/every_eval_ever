@@ -196,6 +196,112 @@ def test_gaia_instance_level():
         assert log.token_usage.output_tokens >= 0
 
 
+def test_instance_rows_join_the_aggregate_results_they_belong_to():
+    """One sample, three aggregate metrics: three rows, one per result.
+
+    The instance schema asks for a record per aggregate result a sample
+    contributed to, and `evaluation_result_id` is the only field that says
+    which result a row belongs to.
+    """
+    adapter = InspectAIAdapter()
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        metadata_args = {
+            'source_organization_name': 'TestOrg',
+            'evaluator_relationship': EvaluatorRelationship.first_party,
+            'parent_eval_output_dir': tmpdir,
+            'file_uuid': TEST_UUID,
+        }
+
+        converted_eval, instance_logs = _load_instance_level_data(
+            adapter,
+            'tests/data/inspect/data_cyse2_vuln_exploit_challenges.json',
+            metadata_args,
+        )
+
+    aggregate_result_ids = {
+        result.evaluation_result_id
+        for result in converted_eval.evaluation_results
+    }
+    assert len(instance_logs) == 3
+    assert {log.sample_id for log in instance_logs} == {'1'}
+    assert {
+        log.evaluation_result_id for log in instance_logs
+    } == aggregate_result_ids
+    assert {log.evaluation_name for log in instance_logs} == {
+        result.evaluation_name for result in converted_eval.evaluation_results
+    }
+    assert converted_eval.detailed_evaluation_results.total_rows == 3
+
+
+def test_multiple_scorers_report_their_own_score_on_their_own_row():
+    sample = _make_synthetic_sample(
+        sample_id='sample_1',
+        target='target_answer',
+        response_content='generated_response',
+        score_value='C',
+        scorer_name='scorer_a',
+    )
+    sample.scores['scorer_b'] = SimpleNamespace(
+        value='I', answer='b_answer', explanation=None
+    )
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        adapter = InspectInstanceLevelDataAdapter(
+            'synthetic_test', 'synthetic_test', 'jsonl', 'sha256', tmpdir
+        )
+        path, rows_count = adapter.convert_instance_level_logs(
+            'synthetic_eval',
+            'synthetic/model',
+            [sample],
+            None,
+            {
+                'scorer_a': ['scorer_a:accuracy'],
+                'scorer_b': ['scorer_b:accuracy', 'scorer_b:std'],
+            },
+        )
+        rows = [
+            InstanceLevelEvaluationLog.model_validate(json.loads(line))
+            for line in Path(path).read_text(encoding='utf-8').splitlines()
+        ]
+
+    assert rows_count == 3
+    by_result_id = {row.evaluation_result_id: row for row in rows}
+    assert set(by_result_id) == {
+        'scorer_a:accuracy',
+        'scorer_b:accuracy',
+        'scorer_b:std',
+    }
+    assert {row.sample_id for row in rows} == {'sample_1'}
+
+    assert by_result_id['scorer_a:accuracy'].evaluation.score == 1.0
+    assert by_result_id['scorer_a:accuracy'].evaluation.is_correct is True
+    assert by_result_id['scorer_b:accuracy'].evaluation.score == 0.0
+    assert by_result_id['scorer_b:accuracy'].evaluation.is_correct is False
+    assert by_result_id['scorer_b:std'].evaluation.score == 0.0
+
+    # Each row shows the answer its own scorer graded, not the last scorer's.
+    assert by_result_id['scorer_a:accuracy'].output.raw == [
+        'generated_response'
+    ]
+    assert by_result_id['scorer_b:accuracy'].output.raw == ['b_answer']
+
+
+def test_sample_row_omits_result_id_when_no_aggregate_result_matches():
+    """Without an attributable aggregate result, emit one unjoined row."""
+    sample = _make_synthetic_sample(
+        sample_id='sample_1',
+        target='target_answer',
+        response_content='target_answer',
+        score_value='C',
+    )
+
+    instance_log = _convert_single_synthetic_sample(sample)
+
+    assert instance_log.evaluation_result_id is None
+    assert instance_log.evaluation.score == 1.0
+
+
 def test_serialize_input_skips_non_user_messages():
     adapter = InspectInstanceLevelDataAdapter(
         'test_id', 'test_id', 'jsonl', 'sha256', '/tmp'
