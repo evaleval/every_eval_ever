@@ -57,9 +57,9 @@ What an adapter author needs here:
 - **Pin what you resolved.** The two most careful adapters vendor the resolution
   instead of re-querying at convert time: `utils/benchpress/model_id_map.json` pins the
   batch resolver's output with a `_meta` block (endpoint, date, `n_resolved`/
-  `n_unresolved`, hand-verified `overrides`), and `utils/paperswithcode/
-  registry_metrics.json` vendors the metric entries with the registry commit the
-  bounds came from (`bound_registry_revision`), refreshed by a script. Record the
+  `n_unresolved`, hand-verified `overrides`), and the `paperswithcode` adapter's
+  `registry_snapshot.json` vendors the metric entries with the registry commit the
+  bounds came from (`_meta.registry_revision`), refreshed by a script. Record the
   revision next to any value you took from the registry so a reader can tell which
   registry state produced it — and so bumping it is a reviewable diff.
 - **Decide what an unresolved entity does.** PwC fails closed (an unknown or

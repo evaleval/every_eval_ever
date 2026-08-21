@@ -348,6 +348,24 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         timeout_minutes=45,
     ),
     AdapterSpec(
+        key='paperswithcode',
+        module='every_eval_ever.adapters.paperswithcode.adapter',
+        collections=('paperswithcode',),
+        extra_args=('--all', '--best-effort'),
+        cadence='weekly',
+        weekday=6,
+        timeout_minutes=45,
+        with_packages=('pgdumplib',),
+        notes=(
+            'Converts the whole Papers with Code postgres dump from the '
+            'huggingface/paperswithcode-backups bucket, which needs '
+            'huggingface_hub>=1.0 for the bucket API. --best-effort keeps '
+            'imperfect rows flagged instead of aborting the run; the dropped '
+            'rows land in the failure report, which the runner reads as '
+            'partial coverage rather than a failure.'
+        ),
+    ),
+    AdapterSpec(
         key='rewardbench',
         module='every_eval_ever.adapters.rewardbench.adapter',
         collections=('reward-bench',),

@@ -14,6 +14,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
+import httpx
 import pytest
 from huggingface_hub.errors import (
     EntryNotFoundError,
@@ -21,6 +22,18 @@ from huggingface_hub.errors import (
 )
 
 from every_eval_ever.cron import store, submit
+
+
+def _repo_not_found(repo_id: object) -> RepositoryNotFoundError:
+    """Build the not-found error as huggingface_hub>=1.0 raises it.
+
+    Its 1.0 error classes carry the httpx response that triggered them, so a
+    message-only construction no longer type-checks.
+    """
+    response = httpx.Response(
+        404, request=httpx.Request('GET', 'https://huggingface.co')
+    )
+    return RepositoryNotFoundError(f'{repo_id} not found', response=response)
 
 RUN_DATE = date(2026, 8, 10)
 YESTERDAY = date(2026, 8, 9)
@@ -73,11 +86,11 @@ class FakeHub:
 
     def repo_info(self, repo_id=None, **kwargs):
         if repo_id in self.unreachable:
-            raise RepositoryNotFoundError(f'{repo_id} not found')
+            raise _repo_not_found(repo_id)
         if self.repo_info_error is not None:
             raise self.repo_info_error
         if not self.exists:
-            raise RepositoryNotFoundError(f'{repo_id} not found')
+            raise _repo_not_found(repo_id)
         return type('Info', (), {'sha': self.sha, 'private': self.private})()
 
     def whoami(self):
