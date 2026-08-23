@@ -292,11 +292,15 @@ as JSON (it does **not** import sayf-eval). `--log_path` accepts a single
 `results_*.json` record or a run output directory (searched recursively for
 `results_*.json`).
 
+Each task is routed into its own namespaced collection (`data/sayf-eval-<task>/...`,
+one collection per benchmark), while the upstream dataset name is preserved in each
+log's `source_data`.
+
 ```bash
 uv run every_eval_ever convert sayf_eval \
   --log_path outputs/gpt4o \
   --source_organization_name QCRI --evaluator_relationship third_party \
-  --collection sayf-eval --output_dir data
+  --collection-prefix sayf-eval- --output_dir data
 ```
 
 > **Aggregate-only (by design).** sayf-eval is a cybersecurity benchmark whose
@@ -311,12 +315,13 @@ usage: every_eval_ever convert sayf_eval [-h] --log_path LOG_PATH
                                          [--evaluator_relationship {first_party,third_party,collaborative,other}]
                                          [--source_organization_url ...]
                                          [--source_organization_logo_url ...]
-                                         [--collection COLLECTION]
+                                         [--collection_prefix COLLECTION_PREFIX]
                                          [--eval_library_name ...]
                                          [--eval_library_version ...]
 
 options:
-  --collection COLLECTION      Datastore collection to route converted logs into
-                               (data/<collection>/...). Upstream dataset names are
-                               kept in each log's source_data. Default: sayf-eval.
+  --collection_prefix PREFIX   Prefix for the per-task datastore collection
+                               (data/<prefix><task>/...): one collection per
+                               benchmark. Upstream dataset names are kept in each
+                               log's source_data. Default: sayf-eval-.
 ```

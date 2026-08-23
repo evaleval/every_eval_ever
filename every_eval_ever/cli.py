@@ -475,9 +475,11 @@ def _cmd_convert_sayf_eval(args: argparse.Namespace) -> int:
     # ('sayf_eval'); prefer the canonical package name unless overridden.
     if args.eval_library_name == 'sayf_eval':
         metadata['eval_library_name'] = 'sayf-eval'
-    # Route all converted logs into one explicit collection; upstream dataset
-    # names are preserved in each log's source_data (not used for routing).
-    collection = getattr(args, 'collection', None) or 'sayf-eval'
+    # Route each task into its own namespaced collection (data/<prefix><task>/...)
+    # so the datastore has one collection per benchmark, matching EEE's
+    # per-collection Community-Evals tooling; upstream dataset names stay in each
+    # log's source_data.
+    collection_prefix = getattr(args, 'collection_prefix', None) or 'sayf-eval-'
 
     log_path = Path(args.log_path)
     input_result: SourceConversionResult[Any] | None = None
@@ -497,16 +499,18 @@ def _cmd_convert_sayf_eval(args: argparse.Namespace) -> int:
         )
 
     output_dir = Path(args.output_dir)
-    eval_uuids = [str(uuid.uuid4()) for _ in logs]
     # Aggregate-only: sayf-eval per-sample item text is dual-use and never
-    # published, so no instance-level samples and no staging directory.
-    paths = (
-        publish_evaluation_logs(
-            logs, output_dir, eval_uuids, collection_override=collection
+    # published, so no instance-level samples and no staging directory. Each log
+    # goes into its own per-task collection (the task is the evaluation_id stem).
+    paths = []
+    for log, eval_uuid in zip(logs, [str(uuid.uuid4()) for _ in logs]):
+        task = log.evaluation_id.split('/', 1)[0]
+        collection = f'{collection_prefix}{task.replace("_", "-")}'
+        paths.extend(
+            publish_evaluation_logs(
+                [log], output_dir, [eval_uuid], collection_override=collection
+            )
         )
-        if logs
-        else []
-    )
     for path in paths:
         print(path)
 
@@ -686,12 +690,14 @@ def build_parser() -> argparse.ArgumentParser:
             )
         if source == 'sayf_eval':
             source_parser.add_argument(
-                '--collection',
-                default='sayf-eval',
+                '--collection_prefix',
+                '--collection-prefix',
+                default='sayf-eval-',
                 help=(
-                    'Datastore collection to route converted logs into '
-                    '(data/<collection>/...). Upstream dataset names are kept in '
-                    'each log source_data. Default: sayf-eval.'
+                    'Prefix for the per-task datastore collection '
+                    '(data/<prefix><task>/...): one collection per benchmark. '
+                    'Upstream dataset names are kept in each log source_data. '
+                    'Default: sayf-eval-.'
                 ),
             )
 
