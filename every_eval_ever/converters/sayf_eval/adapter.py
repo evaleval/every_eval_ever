@@ -158,40 +158,41 @@ class SayfEvalAdapter(BaseEvaluationAdapter):
         )
 
     def _build_llm_scoring(
-        self, record: Dict[str, Any], judge_info: ModelInfo
-    ) -> LlmScoring:
-        pipeline = record.get('pipeline', {})
-        input_prompt = pipeline.get('scoring') or (
-            'LLM-as-judge: a single judge call performs answer extraction and a '
-            'CORRECT/INCORRECT verdict against the gold answer.'
-        )
+        self, record: Dict[str, Any], task: str, judge_info: ModelInfo
+    ) -> Optional[LlmScoring]:
+        """Build llm_scoring only when the record carries the real judge prompt.
+
+        We never fabricate a prompt: if the source did not record the actual
+        template for this task, return None; the judge model is then recorded in
+        the metric's ``additional_details`` instead (see _build_evaluation_results).
+        """
+        template = (record.get('judge_prompt_templates') or {}).get(task)
+        if not template:
+            return None
         return LlmScoring(
             judges=[JudgeConfig(model_info=judge_info)],
-            input_prompt=input_prompt,
+            input_prompt=template,
         )
 
     # -- source data ---------------------------------------------------------
 
-    def _build_source_data(
-        self, task: str, src: Optional[Dict[str, Any]], collection_prefix: str
-    ):
+    def _build_source_data(self, task: str, src: Optional[Dict[str, Any]]):
         """Map a task's declared provenance to an EEE source_data variant.
 
-        The collection folder in the datastore is derived from ``dataset_name``,
-        so it is set to a clean slug; the human title and HF subset are preserved
-        in ``additional_details``.
+        ``dataset_name`` keeps the upstream dataset name (provenance, e.g.
+        "CTI-Bench MCQ"); datastore routing is handled separately by an explicit
+        collection override at publish time, not by overwriting this field.
         """
-        slug = f'{collection_prefix}{task.replace("_", "-")}'
         src = src or {}
-        title = src.get('dataset_name') or task
+        name = src.get('dataset_name') or task
         stype = src.get('type', 'other')
 
         if stype == 'hf_dataset':
-            extra = {'title': title}
-            if src.get('subset'):
-                extra['subset'] = str(src['subset'])
+            extra = (
+                {'subset': str(src['subset'])} if src.get('subset') else None
+            )
             return SourceDataHf(
-                dataset_name=slug,
+                dataset_name=name,
                 source_type='hf_dataset',
                 hf_repo=src.get('hf_repo'),
                 hf_split=src.get('split'),
@@ -199,15 +200,13 @@ class SayfEvalAdapter(BaseEvaluationAdapter):
             )
         if stype == 'url' and src.get('url'):
             return SourceDataUrl(
-                dataset_name=slug,
+                dataset_name=name,
                 source_type='url',
                 url=list(src['url']),
-                additional_details={'title': title},
             )
         return SourceDataPrivate(
-            dataset_name=slug,
+            dataset_name=name,
             source_type='other',
-            additional_details={'title': title},
         )
 
     # -- generation config ---------------------------------------------------
@@ -245,10 +244,16 @@ class SayfEvalAdapter(BaseEvaluationAdapter):
         task: str,
         metrics: Dict[str, Any],
         source_data,
-        llm_scoring: LlmScoring,
+        llm_scoring: Optional[LlmScoring],
         gen_config: GenerationConfig,
+        judge_id: Optional[str],
     ) -> List[EvaluationResult]:
         results: List[EvaluationResult] = []
+        # When no real judge prompt is available (llm_scoring is None), still
+        # record which model judged, without fabricating a prompt.
+        judge_details = (
+            None if llm_scoring or not judge_id else {'judge_model': judge_id}
+        )
 
         def _result(
             metric_id,
@@ -277,6 +282,7 @@ class SayfEvalAdapter(BaseEvaluationAdapter):
                     min_score=lo,
                     max_score=hi,
                     llm_scoring=llm_scoring,
+                    additional_details=judge_details,
                 ),
                 score_details=ScoreDetails(score=score, details=details),
                 generation_config=gen_config,
@@ -344,32 +350,34 @@ class SayfEvalAdapter(BaseEvaluationAdapter):
 
         model_info = self._build_model_info(record.get('model', {}))
         judge_info = self._build_model_info(record.get('judge', {}))
-        llm_scoring = self._build_llm_scoring(record, judge_info)
+        llm_scoring = self._build_llm_scoring(record, task, judge_info)
         gen_config = self._build_generation_config(record)
 
-        collection_prefix = metadata_args.get('collection_prefix', '') or ''
         source_data = self._build_source_data(
-            task,
-            (record.get('task_sources') or {}).get(task),
-            collection_prefix,
+            task, (record.get('task_sources') or {}).get(task)
         )
 
         eval_results = self._build_evaluation_results(
-            task, metrics, source_data, llm_scoring, gen_config
+            task, metrics, source_data, llm_scoring, gen_config, judge_info.id
         )
         if not eval_results:
             raise ValueError(f'Task {task!r} has no numeric metrics to convert')
 
         retrieved_timestamp = get_current_unix_timestamp()
-        evaluation_id = f'{task}/{model_info.id}/{retrieved_timestamp}'
-        eval_timestamp = record.get('created_at')
-        if eval_timestamp:
+        # Stable identity: derive the evaluation_id's run segment from the source
+        # run's created_at, so re-converting the same record yields the same id.
+        # The wall-clock retrieval time is kept separately in retrieved_timestamp.
+        run_token = None
+        created_at = record.get('created_at')
+        if created_at:
             try:
-                eval_timestamp = convert_timestamp_to_unix_format(
-                    eval_timestamp
-                )
+                run_token = convert_timestamp_to_unix_format(created_at)
             except Exception:
-                eval_timestamp = None
+                run_token = None
+        evaluation_id = (
+            f'{task}/{model_info.id}/{run_token or retrieved_timestamp}'
+        )
+        eval_timestamp = run_token
 
         source_metadata = SourceMetadata(
             source_name='sayf-eval',
@@ -407,19 +415,50 @@ class SayfEvalAdapter(BaseEvaluationAdapter):
 
     # -- file / directory entrypoints ----------------------------------------
 
-    def transform_from_file(
+    def _transform_record_file(
         self, file_path: Union[str, Path], metadata_args: Dict[str, Any]
-    ) -> List[EvaluationLog]:
-        """Transform a sayf-eval results record JSON into one EvaluationLog per task."""
+    ) -> tuple[List[EvaluationLog], List[SourceRecordFailure]]:
+        """Transform one record file with a per-task error boundary.
+
+        A task that fails to convert is recorded as a failure and skipped; its
+        valid sibling tasks in the same record are still returned.
+        """
         file_path = Path(file_path)
         record = self._load_file(file_path)
         tasks = sorted((record.get('results') or {}).keys())
         logs: List[EvaluationLog] = []
+        failures: List[SourceRecordFailure] = []
         for task in tasks:
-            log = self._transform_single(
-                record, {**metadata_args, 'task_name': task}
+            try:
+                logs.append(
+                    self._transform_single(
+                        record, {**metadata_args, 'task_name': task}
+                    )
+                )
+            except Exception as exc:
+                failures.append(
+                    SourceRecordFailure(
+                        source_ref=f'{file_path}::{task}',
+                        reason=str(exc),
+                        source_record={'path': str(file_path), 'task': task},
+                    )
+                )
+        return logs, failures
+
+    def transform_from_file(
+        self, file_path: Union[str, Path], metadata_args: Dict[str, Any]
+    ) -> List[EvaluationLog]:
+        """Transform a sayf-eval results record JSON into one EvaluationLog per task.
+
+        Tasks that fail to convert are skipped (logged); valid siblings are kept.
+        """
+        logs, failures = self._transform_record_file(file_path, metadata_args)
+        for failure in failures:
+            self.logger.warning(
+                'sayf-eval: skipping task in %s: %s',
+                file_path,
+                failure.reason,
             )
-            logs.append(log)
         return logs
 
     @staticmethod
@@ -454,10 +493,13 @@ class SayfEvalAdapter(BaseEvaluationAdapter):
         failures: List[SourceRecordFailure] = []
         for record_file in record_files:
             try:
-                all_logs.extend(
-                    self.transform_from_file(record_file, metadata_args)
+                logs, task_failures = self._transform_record_file(
+                    record_file, metadata_args
                 )
+                all_logs.extend(logs)
+                failures.extend(task_failures)
             except Exception as exc:
+                # File-level failure (e.g. unreadable/invalid JSON).
                 failures.append(
                     SourceRecordFailure(
                         source_ref=str(record_file),
