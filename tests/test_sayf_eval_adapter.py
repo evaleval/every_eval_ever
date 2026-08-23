@@ -25,7 +25,6 @@ def _meta(**overrides):
         'source_organization_name': 'QCRI',
         'evaluator_relationship': 'third_party',
         'eval_library_name': 'sayf-eval',
-        'collection': 'sayf-eval',
     }
     args.update(overrides)
     return args
@@ -162,13 +161,24 @@ def test_publish_is_aggregate_only_valid_and_no_item_text(tmp_path):
 
     out = tmp_path / 'data'
     logs = SayfEvalAdapter().transform_from_file(FIXTURE, _meta())
-    paths = publish_evaluation_logs(
-        logs,
-        out,
-        [str(uuid.uuid4()) for _ in logs],
-        collection_override='sayf-eval',
-    )
+    paths = []
+    for log, u in zip(logs, [str(uuid.uuid4()) for _ in logs]):
+        task = log.evaluation_id.split('/', 1)[0]
+        paths += publish_evaluation_logs(
+            [log],
+            out,
+            [u],
+            collection_override=f'sayf-eval-{task.replace("_", "-")}',
+        )
     assert len(paths) == 4
+    # one namespaced collection per task (data/sayf-eval-<task>/...)
+    collections = {p.parent.parent.parent.name for p in out.rglob('*.json')}
+    assert collections == {
+        'sayf-eval-mcq',
+        'sayf-eval-athena-vsp',
+        'sayf-eval-ate',
+        'sayf-eval-cissp',
+    }
     # SECURITY: sayf-eval item text is dual-use — no instance-level samples.
     assert list(out.rglob('*_samples.jsonl')) == []
     for p in out.rglob('*.json'):
@@ -219,6 +229,34 @@ def test_partial_conversion_keeps_valid_siblings(tmp_path):
     tasks = sorted(lg.evaluation_id.split('/')[0] for lg in result.records)
     assert tasks == ['ate', 'athena_vsp', 'cissp']  # siblings kept, mcq dropped
     assert any('mcq' in f.source_ref for f in result.failures)
+
+
+def test_cli_routes_each_task_to_its_own_collection(tmp_path):
+    # End-to-end: the CLI routes each task into data/sayf-eval-<task>/... so
+    # EEE's per-collection Community-Evals tool maps one collection per benchmark.
+    from every_eval_ever import cli
+
+    out = tmp_path / 'data'
+    rc = cli.main(
+        [
+            'convert',
+            'sayf_eval',
+            '--log_path',
+            str(FIXTURE),
+            '--output_dir',
+            str(out),
+            '--source_organization_name',
+            'QCRI',
+        ]
+    )
+    assert rc == 0
+    collections = {p.parent.parent.parent.name for p in out.rglob('*.json')}
+    assert collections == {
+        'sayf-eval-mcq',
+        'sayf-eval-athena-vsp',
+        'sayf-eval-ate',
+        'sayf-eval-cissp',
+    }
 
 
 def test_directory_conversion_finds_record(tmp_path):
