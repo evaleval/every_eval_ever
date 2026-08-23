@@ -14,6 +14,7 @@ from every_eval_ever.eval_types import (
     SourceDataUrl,
     SourceType,
 )
+from every_eval_ever.validate import validate_file
 
 DATA_DIR = Path('tests/data/sayf_eval')
 FIXTURE = DATA_DIR / 'results_fixture.json'
@@ -24,7 +25,7 @@ def _meta(**overrides):
         'source_organization_name': 'QCRI',
         'evaluator_relationship': 'third_party',
         'eval_library_name': 'sayf-eval',
-        'collection_prefix': 'sayf-eval-',
+        'collection': 'sayf-eval',
     }
     args.update(overrides)
     return args
@@ -86,29 +87,45 @@ def test_ate_has_micro_f1():
 # ── judge (llm_scoring) ──────────────────────────────────────────────────
 
 
-def test_judge_recorded_as_llm_scoring():
+def test_judge_recorded_with_real_prompt_template():
     acc = _logs_by_task()['mcq'].evaluation_results[0]
     scoring = acc.metric_config.llm_scoring
     assert scoring is not None
     assert scoring.judges[0].model_info.id.startswith('anthropic/')
-    assert scoring.input_prompt  # a description of the judge, not item text
+    # input_prompt is the actual judge template (scaffolding + placeholders),
+    # not a fabricated description.
+    assert scoring.input_prompt.startswith('You are a strict evaluator')
+    assert '{question}' in scoring.input_prompt
+
+
+def test_llm_scoring_omitted_when_no_template():
+    # A record without judge_prompt_templates must not fabricate a prompt; the
+    # judge model is preserved in the metric's additional_details instead.
+    record = json.loads(FIXTURE.read_text())
+    record.pop('judge_prompt_templates', None)
+    log = SayfEvalAdapter()._transform_single(
+        record, {**_meta(), 'task_name': 'mcq'}
+    )
+    mc = log.evaluation_results[0].metric_config
+    assert mc.llm_scoring is None
+    assert mc.additional_details['judge_model'].startswith('anthropic/')
 
 
 # ── source_data provenance ───────────────────────────────────────────────
 
 
-def test_source_data_variants_and_collection_slug():
+def test_source_data_preserves_upstream_names():
     logs = _logs_by_task()
     hf = logs['mcq'].evaluation_results[0].source_data
     assert isinstance(hf, SourceDataHf)
     assert hf.hf_repo.startswith('RISys-Lab/')
-    assert (
-        hf.dataset_name == 'sayf-eval-mcq'
-    )  # prefixed slug -> datastore collection
+    # upstream dataset name is preserved (not overwritten by a routing slug)
+    assert hf.dataset_name == 'CTI-Bench MCQ'
     assert hf.additional_details['subset'] == 'cti-mcq'
 
     url = logs['athena_vsp'].evaluation_results[0].source_data
     assert isinstance(url, SourceDataUrl)
+    assert url.dataset_name == 'AthenaBench VSP'
     assert url.url and url.url[0].endswith('athena-cti-vsp.jsonl')
 
     other = logs['cissp'].evaluation_results[0].source_data
@@ -140,22 +157,68 @@ def test_local_vllm_model_info():
 # ── aggregate-only security posture + publish round-trip ─────────────────
 
 
-def test_publish_is_aggregate_only_and_valid(tmp_path):
+def test_publish_is_aggregate_only_valid_and_no_item_text(tmp_path):
+    import copy
+
     out = tmp_path / 'data'
     logs = SayfEvalAdapter().transform_from_file(FIXTURE, _meta())
     paths = publish_evaluation_logs(
-        logs, out, [str(uuid.uuid4()) for _ in logs]
+        logs,
+        out,
+        [str(uuid.uuid4()) for _ in logs],
+        collection_override='sayf-eval',
     )
     assert len(paths) == 4
     # SECURITY: sayf-eval item text is dual-use — no instance-level samples.
     assert list(out.rglob('*_samples.jsonl')) == []
-    # every published file is a schema-valid aggregate with no item text
     for p in out.rglob('*.json'):
-        d = json.loads(Path(p).read_text())
-        EvaluationLog.model_validate(d)
+        # the repository's semantic validation gate, not just Pydantic
+        report = validate_file(p)
+        assert report.valid, report.errors
+        # no per-sample item text anywhere except the (sample-independent) judge
+        # prompt template carried in llm_scoring.input_prompt
+        d = copy.deepcopy(json.loads(Path(p).read_text()))
+        for r in d.get('evaluation_results', []):
+            scoring = (r.get('metric_config') or {}).get('llm_scoring')
+            if scoring:
+                scoring.pop('input_prompt', None)
         blob = json.dumps(d).lower()
         for forbidden in ('model_response', 'extracted_answer', 'ground_truth'):
             assert forbidden not in blob
+
+
+def test_evaluation_id_is_stable_across_conversions():
+    # Identity is derived from the record's created_at, not wall-clock time, so
+    # re-converting the same record yields the same evaluation_id each time.
+    ids1 = {
+        lg.evaluation_id
+        for lg in SayfEvalAdapter().transform_from_file(FIXTURE, _meta())
+    }
+    ids2 = {
+        lg.evaluation_id
+        for lg in SayfEvalAdapter().transform_from_file(FIXTURE, _meta())
+    }
+    assert ids1 == ids2 and len(ids1) == 4
+    log = SayfEvalAdapter().transform_from_file(FIXTURE, _meta())[0]
+    assert log.retrieved_timestamp  # wall-clock retrieval time kept separately
+
+
+def test_partial_conversion_keeps_valid_siblings(tmp_path):
+    # A task that cannot convert must not discard its valid siblings; it is
+    # recorded as a failure while the rest of the file still converts.
+    record = json.loads(FIXTURE.read_text())
+    record['results']['mcq'] = {}  # no numeric metrics -> mcq fails to convert
+    rec_dir = tmp_path / 'results' / 'openai__gpt-4o'
+    rec_dir.mkdir(parents=True)
+    (rec_dir / 'results_2026-01-01T00-00-00.json').write_text(
+        json.dumps(record)
+    )
+    result = SayfEvalAdapter().transform_from_directory_result(
+        tmp_path, _meta()
+    )
+    tasks = sorted(lg.evaluation_id.split('/')[0] for lg in result.records)
+    assert tasks == ['ate', 'athena_vsp', 'cissp']  # siblings kept, mcq dropped
+    assert any('mcq' in f.source_ref for f in result.failures)
 
 
 def test_directory_conversion_finds_record(tmp_path):

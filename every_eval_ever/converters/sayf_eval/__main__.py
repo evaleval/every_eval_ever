@@ -46,11 +46,11 @@ def main():
         help='Logo of the source organization',
     )
     parser.add_argument(
-        '--collection_prefix',
+        '--collection',
         type=str,
-        default='',
-        help='Prefix for the datastore collection slug derived from each task '
-        "(e.g. 'sayf-eval-' to namespace in a shared datastore).",
+        default='sayf-eval',
+        help='Datastore collection to route converted logs into '
+        '(data/<collection>/...). Upstream dataset names are kept in source_data.',
     )
     parser.add_argument(
         '--eval_library_name',

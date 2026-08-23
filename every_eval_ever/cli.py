@@ -471,11 +471,13 @@ def _cmd_convert_sayf_eval(args: argparse.Namespace) -> int:
 
     adapter = SayfEvalAdapter()
     metadata = _common_metadata(args)
-    metadata['collection_prefix'] = getattr(args, 'collection_prefix', '') or ''
     # The shared arg loop defaults --eval_library_name to the source id
     # ('sayf_eval'); prefer the canonical package name unless overridden.
     if args.eval_library_name == 'sayf_eval':
         metadata['eval_library_name'] = 'sayf-eval'
+    # Route all converted logs into one explicit collection; upstream dataset
+    # names are preserved in each log's source_data (not used for routing).
+    collection = getattr(args, 'collection', None) or 'sayf-eval'
 
     log_path = Path(args.log_path)
     input_result: SourceConversionResult[Any] | None = None
@@ -499,7 +501,11 @@ def _cmd_convert_sayf_eval(args: argparse.Namespace) -> int:
     # Aggregate-only: sayf-eval per-sample item text is dual-use and never
     # published, so no instance-level samples and no staging directory.
     paths = (
-        publish_evaluation_logs(logs, output_dir, eval_uuids) if logs else []
+        publish_evaluation_logs(
+            logs, output_dir, eval_uuids, collection_override=collection
+        )
+        if logs
+        else []
     )
     for path in paths:
         print(path)
@@ -680,12 +686,12 @@ def build_parser() -> argparse.ArgumentParser:
             )
         if source == 'sayf_eval':
             source_parser.add_argument(
-                '--collection_prefix',
-                '--collection-prefix',
-                default='',
+                '--collection',
+                default='sayf-eval',
                 help=(
-                    'Prefix for the datastore collection slug derived from each '
-                    "task (e.g. 'sayf-eval-' to namespace in a shared datastore)."
+                    'Datastore collection to route converted logs into '
+                    '(data/<collection>/...). Upstream dataset names are kept in '
+                    'each log source_data. Default: sayf-eval.'
                 ),
             )
 
