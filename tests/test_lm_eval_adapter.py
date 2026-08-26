@@ -173,6 +173,10 @@ def test_transform_from_file_generation_config():
     assert gen is not None
     assert gen.generation_args.temperature == 0.0
     assert gen.generation_args.max_tokens == 512
+    assert gen.generation_args.max_attempts is None
+    assert 'max_attempts' not in gen.generation_args.model_dump(
+        mode='json', exclude_none=True
+    )
     assert gen.additional_details['num_fewshot'] == '0'
 
 
