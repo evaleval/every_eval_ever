@@ -1653,3 +1653,50 @@ def test_a_gated_repo_is_still_a_complete_sweep(snapshot_file, tmp_path):
     assert exit_code == 0
     assert written['renamed_repos'] == _RENAMED_MAP
     assert written['_meta']['unverifiable_repo_ids'] == [_VICUNA_REPO]
+
+
+def test_a_later_401_does_not_drop_a_previously_confirmed_rename(
+    snapshot_file, tmp_path
+):
+    """A gate today does not undo a rename HuggingFace already confirmed.
+
+    The map is rebuilt from scratch every run, so without carrying the prior
+    entry forward, a repo that answered 200 last time and 401 this time would
+    silently lose its rename and the adapter would go back to the stale id.
+    """
+    (tmp_path / identity_mod.HF_CANONICAL_NAME).write_text(
+        json.dumps({'renamed_repos': _RENAMED_MAP}) + '\n', encoding='utf-8'
+    )
+
+    exit_code, output = _refresh_run(
+        snapshot_file,
+        tmp_path,
+        {_WIZARDLM_REPO: (401, None), _VICUNA_REPO: (200, _VICUNA_REPO)},
+    )
+    written = json.loads(output.read_text(encoding='utf-8'))
+
+    assert exit_code == 0
+    assert written['renamed_repos'] == _RENAMED_MAP
+    # Retained via the prior map, not freshly confirmed - not unverifiable.
+    assert _WIZARDLM_REPO not in written['_meta']['unverifiable_repo_ids']
+
+
+def test_a_200_overrides_a_stale_prior_mapping(snapshot_file, tmp_path):
+    """A fresh 200 is authoritative even over a previously confirmed rename."""
+    (tmp_path / identity_mod.HF_CANONICAL_NAME).write_text(
+        json.dumps({'renamed_repos': _RENAMED_MAP}) + '\n', encoding='utf-8'
+    )
+    second_rename = 'WizardLMTeam/WizardLM-13B-V1.2-renamed-again'
+
+    exit_code, output = _refresh_run(
+        snapshot_file,
+        tmp_path,
+        {
+            _WIZARDLM_REPO: (200, second_rename),
+            _VICUNA_REPO: (200, _VICUNA_REPO),
+        },
+    )
+    written = json.loads(output.read_text(encoding='utf-8'))
+
+    assert exit_code == 0
+    assert written['renamed_repos'][_WIZARDLM_REPO] == second_rename

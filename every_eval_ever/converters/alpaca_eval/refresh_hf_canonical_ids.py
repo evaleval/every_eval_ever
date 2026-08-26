@@ -120,14 +120,24 @@ def hf_canonical_id(repo_id: str) -> Tuple[int, Optional[str]]:
 
 def build_map(
     snapshot: UpstreamSnapshot,
+    prior_renames: Optional[Dict[str, str]] = None,
 ) -> Tuple[Dict[str, Any], List[Tuple[str, int]]]:
     """Sweep every published repo id: the vendorable payload, and what failed.
+
+    ``prior_renames`` is the ``renamed_repos`` map this script already wrote
+    on a previous run, if any. The map is rebuilt from scratch every run, so
+    an id that answered 200 last time and 401 this time would otherwise lose
+    its confirmed rename here — 401 means gated-or-nonexistent *today*, not
+    that the earlier answer was wrong. Such an id keeps its prior mapping
+    instead of falling to ``unverifiable``. A 200 is always authoritative and
+    overrides whatever ``prior_renames`` says.
 
     The second element pairs each id HuggingFace did not answer for with the
     status it returned instead. A caller with a non-empty list holds a payload
     built from an incomplete sweep and must not publish it over the committed
     map.
     """
+    prior_renames = prior_renames or {}
     repo_ids = published_repo_ids(snapshot)
     renames: Dict[str, str] = {}
     statuses: Counter = Counter()
@@ -140,7 +150,10 @@ def build_map(
             unanswered.append((repo_id, status))
             continue
         if current is None:
-            unverifiable.append(repo_id)
+            if repo_id in prior_renames:
+                renames[repo_id] = prior_renames[repo_id]
+            else:
+                unverifiable.append(repo_id)
             continue
         if current != repo_id:
             renames[repo_id] = current
@@ -217,7 +230,16 @@ def main(argv: Optional[List[str]] = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    payload, unanswered = build_map(_load_snapshot(args.upstream_snapshot))
+    committed = (
+        json.loads(args.output.read_text(encoding='utf-8'))
+        if args.output.exists()
+        else None
+    )
+    prior_renames = (committed or {}).get('renamed_repos', {})
+
+    payload, unanswered = build_map(
+        _load_snapshot(args.upstream_snapshot), prior_renames
+    )
     if unanswered:
         listed = ', '.join(
             f'{repo_id} ({status})' for repo_id, status in unanswered[:10]
@@ -234,10 +256,9 @@ def main(argv: Optional[List[str]] = None) -> int:
         )
         return 1
     if args.check:
-        if not args.output.exists():
+        if committed is None:
             print(f'{args.output} does not exist', file=sys.stderr)
             return 1
-        committed = json.loads(args.output.read_text(encoding='utf-8'))
         if _comparable(committed) == _comparable(payload):
             print(f'{args.output.name} is up to date')
             return 0
