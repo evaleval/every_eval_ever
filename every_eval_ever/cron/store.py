@@ -53,6 +53,7 @@ from __future__ import annotations
 import json
 import random
 import re
+import sys
 import time
 from dataclasses import dataclass, field
 from datetime import date
@@ -81,9 +82,11 @@ COMMIT_ATTEMPTS = 8
 #: collide again on every attempt.
 COMMIT_RETRY_BASE_SECONDS = 1.0
 COMMIT_RETRY_MAX_SECONDS = 30.0
-#: Statuses the Hub refuses a commit with when it lost a race: 412 when the
-#: parent sent is no longer the head, 409 while another commit to the same
-#: repository is still in flight.
+#: Statuses the Hub refuses a commit with when it lost a race. A commit here
+#: sends no parent, so the head moving under it is not an error and 412 is not
+#: expected; it stays in the set so that a Hub which ever returned one would be
+#: waited out rather than failing the job. 409 is the live case: another commit
+#: to the same repository is still holding the per-repository lock.
 _CONFLICT_STATUSES = frozenset({409, 412})
 #: The sentence the Hub returns with a 409 when another commit to the same
 #: repository is still in flight.
@@ -96,12 +99,12 @@ _STATUS_PREFIX = re.compile(r'\s*(409|412)\b')
 def is_commit_conflict(exc: BaseException) -> bool:
     """Return whether the Hub refused this commit because of a race.
 
-    A race resolves two ways and each has its own status. The branch head
-    moved under us (412), answered by rebasing onto the new head; or another
+    A commit here sends no parent, so it lands on whatever the head is and
+    the only race left is the Hub's per-repository commit lock: another
     commit to the same repository is still in flight (409), answered by
-    waiting, since the Hub serialises commits per repository and rejects the
-    loser before the head has moved at all. Both are retryable, and anything
-    else — a permission or transport error — is not.
+    waiting for the lock to clear. A 412 is not expected without a parent,
+    but is still treated as retryable so a Hub that returned one would be
+    waited out. Anything else — a permission or transport error — is not.
     """
     status = getattr(getattr(exc, 'response', None), 'status_code', None)
     if status in _CONFLICT_STATUSES:
@@ -175,9 +178,6 @@ class AdapterState:
     #: Promoted into :attr:`fingerprints` when that pull request merges,
     #: dropped when it is closed without merging.
     pending_fingerprints: set[str] = field(default_factory=set)
-    #: Commit the state was read at, so a concurrent write is rejected
-    #: instead of silently overwriting a newer one.
-    parent_commit: str | None = None
     #: ``False`` when no state file existed yet, which is a cold start rather
     #: than "this adapter has published nothing".
     exists: bool = False
@@ -444,21 +444,9 @@ class RawStore:
             ) from exc
         return Path(local).read_text(encoding='utf-8')
 
-    def head_commit(self) -> str | None:
-        """Return the revision the store is currently at, if resolvable."""
-        try:
-            info = self.api.dataset_info(self.repo_id, revision=self.revision)
-        except Exception as exc:  # noqa: BLE001 - re-raised with context
-            raise StoreError(
-                f'could not resolve {self.repo_id}@{self.revision}: '
-                f'{type(exc).__name__}: {exc}'
-            ) from exc
-        return getattr(info, 'sha', None)
-
     def read_state(self, adapter: str) -> AdapterState:
         """Load one adapter's ledger, distinguishing absent from unreadable."""
         state = AdapterState(adapter=adapter)
-        state.parent_commit = self.head_commit()
 
         raw = self._download_text(state_path(adapter))
         if raw is not None:
@@ -557,30 +545,29 @@ class RawStore:
         operations: list[CommitOperationAdd],
         *,
         message: str,
-        parent_commit: str | None,
     ) -> Any:
-        """Commit to the store, retrying when another adapter got there first.
+        """Commit to the store, waiting out the Hub's per-repository lock.
 
-        Every adapter job reads one shared head and writes back to the same
-        branch, so a daily matrix of twenty adapters races on every run. The
-        loser of that race has already published its records to the datastore
-        by this point, and dropping its state commit would leave those
-        records with no fingerprints, so the next run would publish them
-        again under fresh paths.
+        The commit sends no parent, so it lands on whatever the branch head
+        is at the moment the Hub processes it. This is safe rather than a
+        lost update because a job only ever writes files it owns:
+        ``state/<adapter>.*`` and this adapter's raw snapshot directory. The
+        workflow's per-adapter concurrency group guarantees no second job is
+        writing the same ones, so two adapter jobs committing at once touch
+        disjoint files and neither can overwrite the other's work. Pinning a
+        parent would only reject one of two disjoint writes and force a
+        needless retry, which is the 412 storm this path used to produce.
 
-        A race resolves one of two ways, and both are retried here. The head
-        moved, in which case the next attempt rebases onto it; or the Hub's
-        per-repository commit lock was held by a commit still in flight, in
-        which case the head has not moved yet and the next attempt waits and
-        keeps the same parent. An unmoved head is therefore not evidence
-        against a race.
-
-        Retrying is safe rather than a lost update because a job only ever
-        writes files it owns: ``state/<adapter>.*`` and this adapter's raw
-        snapshot directory. The workflow's per-adapter concurrency group is
-        what guarantees no second job is writing the same ones. A failure
+        One race remains. Every adapter job of a matrix commits to this one
+        branch, so the Hub's per-repository commit lock is contended, and a
+        job that loses it is refused with a 409 before its commit is even
+        attempted. That is retried after a backoff; the loser has already
+        published its records to the datastore by this point, and dropping
+        its state commit would leave those records with no fingerprints, so
+        the next run would publish them again under fresh paths. A failure
         that is not a conflict is re-raised untouched, so a permission or
-        transport error still fails the job immediately.
+        transport error still fails the job immediately. This mirrors the
+        datastore path in :mod:`every_eval_ever.cron.submit`.
 
         Visibility is confirmed here rather than trusted from startup, because
         the adapter has been running in between and a repository's visibility
@@ -589,7 +576,6 @@ class RawStore:
         if not operations:
             return None
         self._require_private()
-        parent = parent_commit
         for attempt in range(1, COMMIT_ATTEMPTS + 1):
             try:
                 return self.api.create_commit(
@@ -598,7 +584,6 @@ class RawStore:
                     revision=self.revision,
                     operations=operations,
                     commit_message=message,
-                    parent_commit=parent,
                 )
             except Exception as exc:  # noqa: BLE001 - re-raised with context
                 last = attempt == COMMIT_ATTEMPTS
@@ -607,26 +592,13 @@ class RawStore:
                         f'could not write to {self.repo_id}: '
                         f'{type(exc).__name__}: {exc}'
                     ) from exc
-                moved = self._moved_head(parent)
-                if moved is not None:
-                    parent = moved
+                print(
+                    f'{self.repo_id}: commit attempt {attempt} lost the '
+                    f'per-repository lock ({type(exc).__name__}), retrying',
+                    file=sys.stderr,
+                )
                 wait_before_retry(attempt)
         return None
-
-    def _moved_head(self, parent: str | None) -> str | None:
-        """Return the branch head if it moved under us, else ``None``.
-
-        ``None`` also covers a head that could not be read and a commit sent
-        without a parent, so the caller keeps the parent it has rather than
-        treating an unanswered question as a moved branch.
-        """
-        if parent is None:
-            return None
-        try:
-            current = self.head_commit()
-        except StoreError:
-            return None
-        return current if current and current != parent else None
 
 
 def plan_raw_upload(

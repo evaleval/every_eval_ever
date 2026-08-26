@@ -326,7 +326,6 @@ def test_a_commit_re_checks_visibility_rather_than_trusting_startup() -> None:
         raw_store.commit(
             store.state_operations(store.AdapterState(adapter='hle')),
             message='state',
-            parent_commit='headsha',
         )
 
     assert hub.commits == []
@@ -340,7 +339,6 @@ def test_a_commit_whose_visibility_cannot_be_confirmed_is_refused() -> None:
         store.RawStore(hub).commit(
             store.state_operations(store.AdapterState(adapter='hle')),
             message='state',
-            parent_commit='headsha',
         )
 
     assert hub.commits == []
@@ -355,7 +353,6 @@ def test_a_cold_start_is_an_empty_ledger_that_says_so() -> None:
     assert not state.exists
     assert state.fingerprints == set()
     assert state.pull_request_number is None
-    assert state.parent_commit == 'headsha'
 
 
 def test_state_round_trips_through_the_store() -> None:
@@ -376,7 +373,6 @@ def test_state_round_trips_through_the_store() -> None:
     raw_store.commit(
         store.state_operations(state),
         message='state',
-        parent_commit='headsha',
     )
     reloaded = raw_store.read_state('hle')
 
@@ -412,7 +408,6 @@ def test_an_in_flight_batch_round_trips_through_the_store() -> None:
     raw_store.commit(
         [store.inflight_operation(batch)],
         message='in flight',
-        parent_commit='headsha',
     )
     reloaded = raw_store.read_inflight('hle')
 
@@ -430,7 +425,6 @@ def test_an_emptied_in_flight_file_is_written_rather_than_deleted() -> None:
     store.RawStore(hub).commit(
         [store.inflight_operation(store.InflightBatch(adapter='hle'))],
         message='settled',
-        parent_commit='headsha',
     )
 
     assert 'state/hle.inflight' in hub.files
@@ -486,8 +480,14 @@ def test_a_fingerprint_file_alone_still_counts_as_existing_state() -> None:
     assert state.fingerprints == {'aaa', 'bbb'}
 
 
-def test_state_writes_carry_the_commit_they_were_read_at() -> None:
-    """So a concurrent run 409s instead of overwriting a newer ledger."""
+def test_state_writes_send_no_parent_so_disjoint_writes_never_412() -> None:
+    """A commit lands on the live head rather than a head read earlier.
+
+    Each adapter job writes only files it owns, so two jobs committing at
+    once touch disjoint files and cannot overwrite each other. Pinning a
+    parent would reject one of the two and force a needless retry, which is
+    the 412 storm this path used to produce, so no parent is sent.
+    """
     hub = FakeHub()
     raw_store = store.RawStore(hub)
     state = raw_store.read_state('hle')
@@ -496,10 +496,9 @@ def test_state_writes_carry_the_commit_they_were_read_at() -> None:
     raw_store.commit(
         store.state_operations(state),
         message='state',
-        parent_commit=state.parent_commit,
     )
 
-    assert hub.commits[0]['parent_commit'] == 'headsha'
+    assert 'parent_commit' not in hub.commits[0]
 
 
 def test_a_rejected_write_is_reported_not_swallowed() -> None:
@@ -510,16 +509,7 @@ def test_a_rejected_write_is_reported_not_swallowed() -> None:
         store.RawStore(hub).commit(
             store.state_operations(store.AdapterState(adapter='hle')),
             message='state',
-            parent_commit='headsha',
         )
-
-
-def test_an_unresolvable_store_revision_is_fatal() -> None:
-    hub = FakeHub()
-    hub.dataset_info = _raise(RuntimeError('no such repo'))
-
-    with pytest.raises(store.StoreError, match='could not resolve'):
-        store.RawStore(hub).read_state('hle')
 
 
 def test_the_store_refuses_an_empty_repository_id() -> None:
@@ -625,45 +615,51 @@ def test_an_unchanged_payload_is_referenced_not_re_uploaded(
 
 
 def test_two_adapters_from_one_head_both_record_their_state() -> None:
-    """The loser of the race has already published; it must still be recorded.
+    """Two jobs writing disjoint files from one head must both land.
 
-    Every job in the daily matrix reads the same raw-store head. Dropping the
-    second one's state commit would leave the records it just put in the
-    datastore with no fingerprints, so the next run would publish them again.
+    Every job in the daily matrix reads the same raw-store head, and the head
+    moves as each one commits. When a commit pinned the head it was read at, a
+    concurrent write would move the head first and the second commit would be
+    refused with a 412 even though the two touch entirely different files. A
+    commit sends no parent now, so a moving head is not a conflict and both
+    jobs record their state. Dropping the second one's state commit would
+    leave the records it just put in the datastore with no fingerprints, so
+    the next run would publish them again.
     """
     hub = FakeHub(sha='headsha')
     first = store.RawStore(hub)
     second = store.RawStore(hub)
     first_state = first.read_state('hle')
     second_state = second.read_state('mt_bench')
-    assert first_state.parent_commit == second_state.parent_commit
 
     real_create_commit = hub.create_commit
 
-    def reject_a_stale_parent(**kwargs):
-        if kwargs.get('parent_commit') != hub.sha:
+    def refuse_any_pinned_parent(**kwargs):
+        # A commit that pins a parent no longer matching the (already moved)
+        # head is exactly the 412 this design removes; sending no parent must
+        # never trip it.
+        if kwargs.get('parent_commit') is not None:
             raise RuntimeError('412 Precondition Failed')
         result = real_create_commit(**kwargs)
         hub.sha = f'{hub.sha}-moved'
         return result
 
-    hub.create_commit = reject_a_stale_parent
+    hub.create_commit = refuse_any_pinned_parent
 
     first_state.fingerprints.add('a')
     first.commit(
         store.state_operations(first_state),
         message='hle',
-        parent_commit=first_state.parent_commit,
     )
     second_state.fingerprints.add('b')
     second.commit(
         store.state_operations(second_state),
         message='mt_bench',
-        parent_commit=second_state.parent_commit,
     )
 
     assert hub.files['state/hle.fingerprints'].split() == ['a']
     assert hub.files['state/mt_bench.fingerprints'].split() == ['b']
+    assert all('parent_commit' not in c for c in hub.commits)
 
 
 def test_a_rejected_commit_that_is_not_a_race_still_fails(
@@ -679,19 +675,18 @@ def test_a_rejected_commit_that_is_not_a_race_still_fails(
         raw_store.commit(
             store.state_operations(state),
             message='hle',
-            parent_commit=state.parent_commit,
         )
 
     assert retry_waits == []
 
 
 def test_a_held_commit_lock_is_waited_out_not_reported(retry_waits) -> None:
-    """The head has not moved, and it is still a race.
+    """A 409 is the Hub's per-repository lock, and it is retried.
 
     Four adapter jobs of one matrix commit to this branch at once and the Hub
-    serialises them, so the losers are refused with 409 before the winner's
-    commit has moved the head at all. Reading an unmoved head as evidence
-    against a race fails the job for the one reason a retry would fix.
+    serialises them, so the losers are refused with 409 while another commit
+    holds the lock. That is the one race left once no parent is pinned, and a
+    retry after a backoff is exactly what clears it.
     """
     hub = FakeHub(sha='headsha')
     raw_store = store.RawStore(hub)
@@ -717,7 +712,6 @@ def test_a_held_commit_lock_is_waited_out_not_reported(retry_waits) -> None:
     raw_store.commit(
         store.state_operations(state),
         message='hle',
-        parent_commit=state.parent_commit,
     )
 
     assert hub.files['state/hle.fingerprints'].split() == ['a']
@@ -737,7 +731,6 @@ def test_a_lock_that_never_clears_fails_after_its_attempts(
         raw_store.commit(
             store.state_operations(state),
             message='hle',
-            parent_commit=state.parent_commit,
         )
 
     assert retry_waits == list(range(1, store.COMMIT_ATTEMPTS))
