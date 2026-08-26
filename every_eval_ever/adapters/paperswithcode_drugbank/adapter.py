@@ -8,7 +8,7 @@ and does not infer semantics from labels or score distributions.
 
 Run with the adapter extra installed::
 
-    uv run --extra paperswithcode-drugbank python -m \
+    uv run --extra paperswithcode python -m \
       every_eval_ever.adapters.paperswithcode_drugbank.adapter \
       --dump /path/to/paperswithcode.dump \
       --overlay /path/to/reviewed-drugbank.yaml \

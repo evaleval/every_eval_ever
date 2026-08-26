@@ -178,8 +178,17 @@ a run are per run. `state/<adapter>.json` carries `last_raw_prefix`, the whole
 path, since a date no longer names one directory.
 
 A run makes two commits here, one either side of publishing to the datastore,
-each guarded by the commit the previous one left, so two overlapping runs
-collide loudly instead of one silently overwriting the other.
+each guarded by the commit the previous one left, so two overlapping runs of
+one adapter collide loudly instead of one silently overwriting the other.
+
+Adapters of one matrix racing each other is a different thing, and ordinary:
+every job commits to this branch and to the datastore's, and the Hub takes one
+commit per repository at a time. A refused commit is retried with backoff —
+rebased onto the new head when the head moved, and after a wait when the head
+had not moved because the winning commit was still in flight. A datastore
+batch is retried only where the datastore's own file listing proves it absent,
+so a retry cannot publish a second copy. Anything that is not a lost race
+fails the job immediately.
 
 The first carries the raw snapshot and `state/<adapter>.inflight`: the
 fingerprint and datastore paths of every record this run is about to publish.

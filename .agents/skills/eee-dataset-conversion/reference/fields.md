@@ -163,8 +163,8 @@ comes from **`evaluation_results[0].source_data.dataset_name`** unless you pass
   it — a standard error is a spread in the score's units — and keep the source's raw
   figure in `score_details.details` so the conversion stays auditable. Never invent a
   bound to fit the number you scraped; if the metric isn't in the registry, register it
-  from a cited definition (`utils/paperswithcode/METRIC_MAINTENANCE.md` is the worked
-  example) rather than guessing.
+  from a cited definition (the `paperswithcode` adapter's `METRIC_MAINTENANCE.md` is
+  the worked example) rather than guessing.
 - `metric_config.llm_scoring` — required shape for judge/rubric-scored metrics:
   `judges` (≥1, and each `JudgeConfig` needs a **full `model_info`** for the judge model)
   plus `input_prompt`, the actual judging prompt template (not a paraphrase or a

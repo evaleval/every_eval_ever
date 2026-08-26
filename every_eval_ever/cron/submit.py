@@ -22,6 +22,10 @@ from typing import Any, Sequence
 
 from huggingface_hub import CommitOperationAdd
 
+# Imported as a module, not by name: the retry helpers are replaced in tests
+# and both commit paths have to see the replacement.
+from every_eval_ever.cron import store
+
 DEFAULT_DATASTORE_REPO = 'evaleval/EEE_datastore'
 #: Machine-readable line the retired flow wrote into a pull request body to
 #: identify its adapter. Still how a leftover pull request is recognised.
@@ -238,7 +242,9 @@ class DatastoreSubmitter:
 
         A commit that errored after the Hub accepted it is adopted rather
         than repeated: the datastore's file listing arbitrates, and a batch
-        proven present counts as committed and the upload carries on.
+        proven present counts as committed and the upload carries on. A batch
+        the same listing proves absent, rejected because another adapter job
+        held the Hub's commit lock, is retried after a backoff.
 
         A failure after something landed raises
         :class:`PartialSubmissionError` carrying what did, so the caller can
@@ -249,45 +255,60 @@ class DatastoreSubmitter:
         total = len(batches)
         for index, batch in enumerate(batches, start=1):
             suffix = f' ({index}/{total})' if total > 1 else ''
-            try:
-                self.api.create_commit(
-                    repo_id=self.repo_id,
-                    repo_type='dataset',
-                    operations=list(batch),
-                    commit_message=f'{message}{suffix}',
-                    commit_description=description,
-                )
-            except Exception as exc:  # noqa: BLE001 - re-raised with context
-                landed = self._landed_anyway(batch)
-                if landed:
-                    # The Hub accepted the commit and only the reply was
-                    # lost, so this batch is in the datastore and the upload
-                    # carries on. Stopping here instead would end a run
-                    # whose every batch landed as a failure nothing retries,
-                    # because its records are all accounted for.
-                    committed.extend(landed)
-                    continue
-                unresolved: list[str] = []
-                if landed is None:
-                    unresolved = [
-                        operation.path_in_repo for operation in batch
-                    ]
-                    hint = (
-                        ' Whether the failing batch landed could not be '
-                        'checked either; if the error was a timeout whose '
-                        'commit went through, a retry would duplicate its '
-                        f'records, so inspect {self.repo_url} before '
-                        're-running.'
+            for attempt in range(1, store.COMMIT_ATTEMPTS + 1):
+                try:
+                    self.api.create_commit(
+                        repo_id=self.repo_id,
+                        repo_type='dataset',
+                        operations=list(batch),
+                        commit_message=f'{message}{suffix}',
+                        commit_description=description,
                     )
-                else:
-                    hint = ''
-                raise PartialSubmissionError(
-                    f'could not commit records to {self.repo_id}: '
-                    f'{type(exc).__name__}: {exc}.{hint}',
-                    committed_paths=committed,
-                    unresolved_paths=unresolved,
-                ) from exc
-            committed.extend(operation.path_in_repo for operation in batch)
+                except Exception as exc:  # noqa: BLE001 - re-raised w/ context
+                    landed = self._landed_anyway(batch)
+                    if landed:
+                        # The Hub accepted the commit and only the reply was
+                        # lost, so this batch is in the datastore and the
+                        # upload carries on. Stopping here instead would end
+                        # a run whose every batch landed as a failure nothing
+                        # retries, because its records are all accounted for.
+                        committed.extend(landed)
+                        break
+                    if (
+                        landed is not None
+                        and attempt < store.COMMIT_ATTEMPTS
+                        and store.is_commit_conflict(exc)
+                    ):
+                        # Every adapter job of a matrix publishes to this one
+                        # branch, so the Hub's per-repository commit lock is
+                        # contended. Retried only where the datastore proved
+                        # the batch absent, so a retry cannot duplicate it.
+                        store.wait_before_retry(attempt)
+                        continue
+                    unresolved: list[str] = []
+                    if landed is None:
+                        unresolved = [
+                            operation.path_in_repo for operation in batch
+                        ]
+                        hint = (
+                            ' Whether the failing batch landed could not be '
+                            'checked either; if the error was a timeout whose '
+                            'commit went through, a retry would duplicate its '
+                            f'records, so inspect {self.repo_url} before '
+                            're-running.'
+                        )
+                    else:
+                        hint = ''
+                    raise PartialSubmissionError(
+                        f'could not commit records to {self.repo_id}: '
+                        f'{type(exc).__name__}: {exc}.{hint}',
+                        committed_paths=committed,
+                        unresolved_paths=unresolved,
+                    ) from exc
+                committed.extend(
+                    operation.path_in_repo for operation in batch
+                )
+                break
         return Submission(committed_paths=tuple(committed))
 
     def _landed_anyway(

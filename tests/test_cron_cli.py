@@ -329,10 +329,11 @@ def test_the_snapshot_is_committed_before_the_records_are_published(
         'state/hle.pending',
         'state/hle.inflight',
     }
-    assert before['parent_commit'] == 'headsha'
-    # The second commit builds on the first rather than on the head the state
-    # was read at, which the first one moved.
-    assert after['parent_commit'] == 'newsha'
+    # Neither commit pins a parent. Each lands on the live head, so a
+    # concurrent adapter job moving the head between these two writes cannot
+    # 412 either of them.
+    assert 'parent_commit' not in before
+    assert 'parent_commit' not in after
     # Nothing is left in flight once the ledger names it.
     assert json.loads(hub.files['state/hle.inflight'])['records'] == []
     report = json.loads(hub.files[f'{RAW_PREFIX}/run.json'])

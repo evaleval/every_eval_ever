@@ -51,6 +51,10 @@ changes a repository's visibility.
 from __future__ import annotations
 
 import json
+import random
+import re
+import sys
+import time
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
@@ -67,9 +71,72 @@ MANIFEST_NAME = 'manifest.jsonl'
 RUN_REPORT_NAME = 'run.json'
 #: Payloads identical to the previous run are referenced, not re-uploaded.
 UNCHANGED_MARKER = 'same_as'
-#: How many times a state commit re-reads the head and tries again when
-#: another adapter's job moved the branch first.
-COMMIT_ATTEMPTS = 5
+#: How many times a commit is attempted before the race is called a failure.
+#: A daily matrix runs several adapter jobs at once and every one of them
+#: commits to the same branch, so losing the race is ordinary rather than
+#: exceptional.
+COMMIT_ATTEMPTS = 8
+#: Backoff between commit attempts. The Hub holds a per-repository commit
+#: lock for the length of one commit, so the wait needed is seconds, and the
+#: jitter matters more than the ceiling: four jobs that back off in lockstep
+#: collide again on every attempt.
+COMMIT_RETRY_BASE_SECONDS = 1.0
+COMMIT_RETRY_MAX_SECONDS = 30.0
+#: Statuses the Hub refuses a commit with when it lost a race. A commit here
+#: sends no parent, so the head moving under it is not an error and 412 is not
+#: expected; it stays in the set so that a Hub which ever returned one would be
+#: waited out rather than failing the job. 409 is the live case: another commit
+#: to the same repository is still holding the per-repository lock.
+_CONFLICT_STATUSES = frozenset({409, 412})
+#: The sentence the Hub returns with a 409 when another commit to the same
+#: repository is still in flight.
+_COMMIT_IN_PROGRESS = 'commit operation is in progress'
+#: Hub errors lead with the status, which is how a conflict is recognised
+#: when the exception carries no response to read it from.
+_STATUS_PREFIX = re.compile(r'\s*(409|412)\b')
+
+
+def is_commit_conflict(exc: BaseException) -> bool:
+    """Return whether the Hub refused this commit because of a race.
+
+    A commit here sends no parent, so it lands on whatever the head is and
+    the only race left is the Hub's per-repository commit lock: another
+    commit to the same repository is still in flight (409), answered by
+    waiting for the lock to clear. A 412 is not expected without a parent,
+    but is still treated as retryable so a Hub that returned one would be
+    waited out. Anything else — a permission or transport error — is not.
+    """
+    status = getattr(getattr(exc, 'response', None), 'status_code', None)
+    if status in _CONFLICT_STATUSES:
+        return True
+    text = str(exc)
+    if _COMMIT_IN_PROGRESS in text.lower():
+        return True
+    return _STATUS_PREFIX.match(text) is not None
+
+
+def commit_retry_delay(attempt: int) -> float:
+    """Return the seconds to wait before retry ``attempt`` (1 is the first).
+
+    Exponential with full-width jitter over the top half of each window, so
+    concurrent jobs separate instead of retrying together.
+    """
+    window = min(
+        COMMIT_RETRY_BASE_SECONDS * 2 ** (attempt - 1),
+        COMMIT_RETRY_MAX_SECONDS,
+    )
+    return random.uniform(window / 2, window)
+
+
+def wait_before_retry(attempt: int) -> None:
+    """Wait out the backoff window before commit retry ``attempt``.
+
+    The one place either commit path sleeps, so a test replaces this rather
+    than the clock.
+    """
+    time.sleep(commit_retry_delay(attempt))
+
+
 #: :attr:`InflightBatch.destination` for records committed straight to the
 #: datastore's default branch.
 DIRECT_DESTINATION = 'datastore'
@@ -111,9 +178,6 @@ class AdapterState:
     #: Promoted into :attr:`fingerprints` when that pull request merges,
     #: dropped when it is closed without merging.
     pending_fingerprints: set[str] = field(default_factory=set)
-    #: Commit the state was read at, so a concurrent write is rejected
-    #: instead of silently overwriting a newer one.
-    parent_commit: str | None = None
     #: ``False`` when no state file existed yet, which is a cold start rather
     #: than "this adapter has published nothing".
     exists: bool = False
@@ -380,21 +444,9 @@ class RawStore:
             ) from exc
         return Path(local).read_text(encoding='utf-8')
 
-    def head_commit(self) -> str | None:
-        """Return the revision the store is currently at, if resolvable."""
-        try:
-            info = self.api.dataset_info(self.repo_id, revision=self.revision)
-        except Exception as exc:  # noqa: BLE001 - re-raised with context
-            raise StoreError(
-                f'could not resolve {self.repo_id}@{self.revision}: '
-                f'{type(exc).__name__}: {exc}'
-            ) from exc
-        return getattr(info, 'sha', None)
-
     def read_state(self, adapter: str) -> AdapterState:
         """Load one adapter's ledger, distinguishing absent from unreadable."""
         state = AdapterState(adapter=adapter)
-        state.parent_commit = self.head_commit()
 
         raw = self._download_text(state_path(adapter))
         if raw is not None:
@@ -493,23 +545,29 @@ class RawStore:
         operations: list[CommitOperationAdd],
         *,
         message: str,
-        parent_commit: str | None,
     ) -> Any:
-        """Commit to the store, retrying when another adapter got there first.
+        """Commit to the store, waiting out the Hub's per-repository lock.
 
-        Every adapter job reads one shared head and writes back to the same
-        branch, so a daily matrix of twenty adapters races on every run. The
-        loser of that race has already published its records to the datastore
-        by this point, and dropping its state commit would leave those
-        records with no fingerprints, so the next run would publish them
-        again under fresh paths.
+        The commit sends no parent, so it lands on whatever the branch head
+        is at the moment the Hub processes it. This is safe rather than a
+        lost update because a job only ever writes files it owns:
+        ``state/<adapter>.*`` and this adapter's raw snapshot directory. The
+        workflow's per-adapter concurrency group guarantees no second job is
+        writing the same ones, so two adapter jobs committing at once touch
+        disjoint files and neither can overwrite the other's work. Pinning a
+        parent would only reject one of two disjoint writes and force a
+        needless retry, which is the 412 storm this path used to produce.
 
-        Retrying is safe rather than a lost update because a job only ever
-        writes files it owns: ``state/<adapter>.*`` and this adapter's raw
-        snapshot directory. The workflow's per-adapter concurrency group is
-        what guarantees no second job is writing the same ones. A failure
-        that is not a moved head is re-raised untouched, so a permission or
-        transport error still fails the job.
+        One race remains. Every adapter job of a matrix commits to this one
+        branch, so the Hub's per-repository commit lock is contended, and a
+        job that loses it is refused with a 409 before its commit is even
+        attempted. That is retried after a backoff; the loser has already
+        published its records to the datastore by this point, and dropping
+        its state commit would leave those records with no fingerprints, so
+        the next run would publish them again under fresh paths. A failure
+        that is not a conflict is re-raised untouched, so a permission or
+        transport error still fails the job immediately. This mirrors the
+        datastore path in :mod:`every_eval_ever.cron.submit`.
 
         Visibility is confirmed here rather than trusted from startup, because
         the adapter has been running in between and a repository's visibility
@@ -518,8 +576,7 @@ class RawStore:
         if not operations:
             return None
         self._require_private()
-        parent = parent_commit
-        for remaining in reversed(range(COMMIT_ATTEMPTS)):
+        for attempt in range(1, COMMIT_ATTEMPTS + 1):
             try:
                 return self.api.create_commit(
                     repo_id=self.repo_id,
@@ -527,31 +584,21 @@ class RawStore:
                     revision=self.revision,
                     operations=operations,
                     commit_message=message,
-                    parent_commit=parent,
                 )
             except Exception as exc:  # noqa: BLE001 - re-raised with context
-                moved = self._moved_head(parent) if remaining else None
-                if moved is None:
+                last = attempt == COMMIT_ATTEMPTS
+                if last or not is_commit_conflict(exc):
                     raise StoreError(
                         f'could not write to {self.repo_id}: '
                         f'{type(exc).__name__}: {exc}'
                     ) from exc
-                parent = moved
+                print(
+                    f'{self.repo_id}: commit attempt {attempt} lost the '
+                    f'per-repository lock ({type(exc).__name__}), retrying',
+                    file=sys.stderr,
+                )
+                wait_before_retry(attempt)
         return None
-
-    def _moved_head(self, parent: str | None) -> str | None:
-        """Return the branch head if it moved under us, else ``None``.
-
-        A commit that was rejected while the head is exactly where we left it
-        was not a race, so there is nothing to retry against.
-        """
-        if parent is None:
-            return None
-        try:
-            current = self.head_commit()
-        except StoreError:
-            return None
-        return current if current and current != parent else None
 
 
 def plan_raw_upload(
@@ -678,6 +725,8 @@ def state_operations(state: AdapterState) -> list[CommitOperationAdd]:
 
 __all__ = [
     'COMMIT_ATTEMPTS',
+    'COMMIT_RETRY_BASE_SECONDS',
+    'COMMIT_RETRY_MAX_SECONDS',
     'DEFAULT_RAW_REPO',
     'DIRECT_DESTINATION',
     'MANIFEST_NAME',
@@ -689,13 +738,16 @@ __all__ = [
     'InflightBatch',
     'RawStore',
     'StoreError',
+    'commit_retry_delay',
     'fingerprints_path',
     'inflight_operation',
     'inflight_path',
+    'is_commit_conflict',
     'pending_fingerprints_path',
     'plan_raw_upload',
     'raw_prefix',
     'run_report_operation',
     'state_operations',
     'state_path',
+    'wait_before_retry',
 ]

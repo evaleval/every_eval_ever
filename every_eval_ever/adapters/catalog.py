@@ -342,10 +342,38 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         notes='Clones the upstream submission repository.',
     ),
     AdapterSpec(
+        key='open_medical_llm',
+        module='every_eval_ever.adapters.open_medical_llm.adapter',
+        collections=('open-medical-llm',),
+        timeout_minutes=30,
+        notes=(
+            'Reads openlifescienceai/results, pinned to the resolved commit; '
+            'resolves model ids through the eval-card-registry space.'
+        ),
+    ),
+    AdapterSpec(
         key='openeval',
         module='every_eval_ever.adapters.openeval.adapter',
         collections=('openeval',),
         timeout_minutes=45,
+    ),
+    AdapterSpec(
+        key='paperswithcode',
+        module='every_eval_ever.adapters.paperswithcode.adapter',
+        collections=('paperswithcode',),
+        extra_args=('--all', '--best-effort'),
+        cadence='weekly',
+        weekday=6,
+        timeout_minutes=45,
+        with_packages=('pgdumplib',),
+        notes=(
+            'Converts the whole Papers with Code postgres dump from the '
+            'huggingface/paperswithcode-backups bucket, which needs '
+            'huggingface_hub>=1.0 for the bucket API. --best-effort keeps '
+            'imperfect rows flagged instead of aborting the run; the dropped '
+            'rows land in the failure report, which the runner reads as '
+            'partial coverage rather than a failure.'
+        ),
     ),
     AdapterSpec(
         key='rewardbench',

@@ -14,6 +14,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
+import httpx
 import pytest
 from huggingface_hub.errors import (
     EntryNotFoundError,
@@ -21,6 +22,46 @@ from huggingface_hub.errors import (
 )
 
 from every_eval_ever.cron import store, submit
+
+
+def _repo_not_found(repo_id: object) -> RepositoryNotFoundError:
+    """Build the not-found error as huggingface_hub>=1.0 raises it.
+
+    Its 1.0 error classes carry the httpx response that triggered them, so a
+    message-only construction no longer type-checks.
+    """
+    response = httpx.Response(
+        404, request=httpx.Request('GET', 'https://huggingface.co')
+    )
+    return RepositoryNotFoundError(f'{repo_id} not found', response=response)
+
+@pytest.fixture(autouse=True)
+def retry_waits(monkeypatch) -> list[int]:
+    """Record the commit backoff instead of waiting it out.
+
+    Every commit path here retries a lost race, so without this the module
+    spends the real backoff — a minute per test that exhausts its attempts.
+    Tests that care assert on the recorded attempt numbers.
+    """
+    waits: list[int] = []
+    monkeypatch.setattr(store, 'wait_before_retry', waits.append)
+    return waits
+
+
+def _conflict(status: int, message: str) -> Exception:
+    """Build the Hub's refusal of a commit that lost a race.
+
+    ``huggingface_hub>=1.0`` attaches the httpx response its errors came
+    from, and the status on it is what distinguishes a moved head from a
+    held commit lock.
+    """
+    response = httpx.Response(
+        status, request=httpx.Request('POST', 'https://huggingface.co')
+    )
+    error = RuntimeError(message)
+    error.response = response
+    return error
+
 
 RUN_DATE = date(2026, 8, 10)
 YESTERDAY = date(2026, 8, 9)
@@ -73,11 +114,11 @@ class FakeHub:
 
     def repo_info(self, repo_id=None, **kwargs):
         if repo_id in self.unreachable:
-            raise RepositoryNotFoundError(f'{repo_id} not found')
+            raise _repo_not_found(repo_id)
         if self.repo_info_error is not None:
             raise self.repo_info_error
         if not self.exists:
-            raise RepositoryNotFoundError(f'{repo_id} not found')
+            raise _repo_not_found(repo_id)
         return type('Info', (), {'sha': self.sha, 'private': self.private})()
 
     def whoami(self):
@@ -285,7 +326,6 @@ def test_a_commit_re_checks_visibility_rather_than_trusting_startup() -> None:
         raw_store.commit(
             store.state_operations(store.AdapterState(adapter='hle')),
             message='state',
-            parent_commit='headsha',
         )
 
     assert hub.commits == []
@@ -299,7 +339,6 @@ def test_a_commit_whose_visibility_cannot_be_confirmed_is_refused() -> None:
         store.RawStore(hub).commit(
             store.state_operations(store.AdapterState(adapter='hle')),
             message='state',
-            parent_commit='headsha',
         )
 
     assert hub.commits == []
@@ -314,7 +353,6 @@ def test_a_cold_start_is_an_empty_ledger_that_says_so() -> None:
     assert not state.exists
     assert state.fingerprints == set()
     assert state.pull_request_number is None
-    assert state.parent_commit == 'headsha'
 
 
 def test_state_round_trips_through_the_store() -> None:
@@ -335,7 +373,6 @@ def test_state_round_trips_through_the_store() -> None:
     raw_store.commit(
         store.state_operations(state),
         message='state',
-        parent_commit='headsha',
     )
     reloaded = raw_store.read_state('hle')
 
@@ -371,7 +408,6 @@ def test_an_in_flight_batch_round_trips_through_the_store() -> None:
     raw_store.commit(
         [store.inflight_operation(batch)],
         message='in flight',
-        parent_commit='headsha',
     )
     reloaded = raw_store.read_inflight('hle')
 
@@ -389,7 +425,6 @@ def test_an_emptied_in_flight_file_is_written_rather_than_deleted() -> None:
     store.RawStore(hub).commit(
         [store.inflight_operation(store.InflightBatch(adapter='hle'))],
         message='settled',
-        parent_commit='headsha',
     )
 
     assert 'state/hle.inflight' in hub.files
@@ -445,8 +480,14 @@ def test_a_fingerprint_file_alone_still_counts_as_existing_state() -> None:
     assert state.fingerprints == {'aaa', 'bbb'}
 
 
-def test_state_writes_carry_the_commit_they_were_read_at() -> None:
-    """So a concurrent run 409s instead of overwriting a newer ledger."""
+def test_state_writes_send_no_parent_so_disjoint_writes_never_412() -> None:
+    """A commit lands on the live head rather than a head read earlier.
+
+    Each adapter job writes only files it owns, so two jobs committing at
+    once touch disjoint files and cannot overwrite each other. Pinning a
+    parent would reject one of the two and force a needless retry, which is
+    the 412 storm this path used to produce, so no parent is sent.
+    """
     hub = FakeHub()
     raw_store = store.RawStore(hub)
     state = raw_store.read_state('hle')
@@ -455,10 +496,9 @@ def test_state_writes_carry_the_commit_they_were_read_at() -> None:
     raw_store.commit(
         store.state_operations(state),
         message='state',
-        parent_commit=state.parent_commit,
     )
 
-    assert hub.commits[0]['parent_commit'] == 'headsha'
+    assert 'parent_commit' not in hub.commits[0]
 
 
 def test_a_rejected_write_is_reported_not_swallowed() -> None:
@@ -469,16 +509,7 @@ def test_a_rejected_write_is_reported_not_swallowed() -> None:
         store.RawStore(hub).commit(
             store.state_operations(store.AdapterState(adapter='hle')),
             message='state',
-            parent_commit='headsha',
         )
-
-
-def test_an_unresolvable_store_revision_is_fatal() -> None:
-    hub = FakeHub()
-    hub.dataset_info = _raise(RuntimeError('no such repo'))
-
-    with pytest.raises(store.StoreError, match='could not resolve'):
-        store.RawStore(hub).read_state('hle')
 
 
 def test_the_store_refuses_an_empty_repository_id() -> None:
@@ -584,48 +615,56 @@ def test_an_unchanged_payload_is_referenced_not_re_uploaded(
 
 
 def test_two_adapters_from_one_head_both_record_their_state() -> None:
-    """The loser of the race has already published; it must still be recorded.
+    """Two jobs writing disjoint files from one head must both land.
 
-    Every job in the daily matrix reads the same raw-store head. Dropping the
-    second one's state commit would leave the records it just put in the
-    datastore with no fingerprints, so the next run would publish them again.
+    Every job in the daily matrix reads the same raw-store head, and the head
+    moves as each one commits. When a commit pinned the head it was read at, a
+    concurrent write would move the head first and the second commit would be
+    refused with a 412 even though the two touch entirely different files. A
+    commit sends no parent now, so a moving head is not a conflict and both
+    jobs record their state. Dropping the second one's state commit would
+    leave the records it just put in the datastore with no fingerprints, so
+    the next run would publish them again.
     """
     hub = FakeHub(sha='headsha')
     first = store.RawStore(hub)
     second = store.RawStore(hub)
     first_state = first.read_state('hle')
     second_state = second.read_state('mt_bench')
-    assert first_state.parent_commit == second_state.parent_commit
 
     real_create_commit = hub.create_commit
 
-    def reject_a_stale_parent(**kwargs):
-        if kwargs.get('parent_commit') != hub.sha:
+    def refuse_any_pinned_parent(**kwargs):
+        # A commit that pins a parent no longer matching the (already moved)
+        # head is exactly the 412 this design removes; sending no parent must
+        # never trip it.
+        if kwargs.get('parent_commit') is not None:
             raise RuntimeError('412 Precondition Failed')
         result = real_create_commit(**kwargs)
         hub.sha = f'{hub.sha}-moved'
         return result
 
-    hub.create_commit = reject_a_stale_parent
+    hub.create_commit = refuse_any_pinned_parent
 
     first_state.fingerprints.add('a')
     first.commit(
         store.state_operations(first_state),
         message='hle',
-        parent_commit=first_state.parent_commit,
     )
     second_state.fingerprints.add('b')
     second.commit(
         store.state_operations(second_state),
         message='mt_bench',
-        parent_commit=second_state.parent_commit,
     )
 
     assert hub.files['state/hle.fingerprints'].split() == ['a']
     assert hub.files['state/mt_bench.fingerprints'].split() == ['b']
+    assert all('parent_commit' not in c for c in hub.commits)
 
 
-def test_a_rejected_commit_that_is_not_a_race_still_fails() -> None:
+def test_a_rejected_commit_that_is_not_a_race_still_fails(
+    retry_waits,
+) -> None:
     """A permission or transport error must not be retried into silence."""
     hub = FakeHub(sha='headsha')
     raw_store = store.RawStore(hub)
@@ -636,8 +675,80 @@ def test_a_rejected_commit_that_is_not_a_race_still_fails() -> None:
         raw_store.commit(
             store.state_operations(state),
             message='hle',
-            parent_commit=state.parent_commit,
         )
+
+    assert retry_waits == []
+
+
+def test_a_held_commit_lock_is_waited_out_not_reported(retry_waits) -> None:
+    """A 409 is the Hub's per-repository lock, and it is retried.
+
+    Four adapter jobs of one matrix commit to this branch at once and the Hub
+    serialises them, so the losers are refused with 409 while another commit
+    holds the lock. That is the one race left once no parent is pinned, and a
+    retry after a backoff is exactly what clears it.
+    """
+    hub = FakeHub(sha='headsha')
+    raw_store = store.RawStore(hub)
+    state = raw_store.read_state('hle')
+    state.fingerprints.add('a')
+    held = _conflict(
+        409,
+        '409 Client Error: Conflict for url: .../commit/main\n\nAnother '
+        'commit operation is in progress for this repository. Please try '
+        'again later.',
+    )
+    attempts: list[dict] = []
+    real_create_commit = hub.create_commit
+
+    def hold_the_lock_once(**kwargs):
+        attempts.append(kwargs)
+        if len(attempts) == 1:
+            raise held
+        return real_create_commit(**kwargs)
+
+    hub.create_commit = hold_the_lock_once
+
+    raw_store.commit(
+        store.state_operations(state),
+        message='hle',
+    )
+
+    assert hub.files['state/hle.fingerprints'].split() == ['a']
+    assert retry_waits == [1], 'one wait, before the second attempt'
+
+
+def test_a_lock_that_never_clears_fails_after_its_attempts(
+    retry_waits,
+) -> None:
+    """A retry budget, so a permanently locked repository is still reported."""
+    hub = FakeHub(sha='headsha')
+    raw_store = store.RawStore(hub)
+    state = raw_store.read_state('hle')
+    hub.commit_error = _conflict(409, '409 Client Error: Conflict')
+
+    with pytest.raises(store.StoreError, match='could not write'):
+        raw_store.commit(
+            store.state_operations(state),
+            message='hle',
+        )
+
+    assert retry_waits == list(range(1, store.COMMIT_ATTEMPTS))
+
+
+def test_the_backoff_grows_and_separates_concurrent_jobs() -> None:
+    """Lockstep retries collide again; each window is entered at random."""
+    windows = [
+        {store.commit_retry_delay(attempt) for _ in range(50)}
+        for attempt in (1, 2, 3)
+    ]
+
+    assert all(len(window) > 1 for window in windows), 'no jitter'
+    assert max(windows[0]) <= min(windows[1])
+    assert max(windows[1]) <= min(windows[2])
+    assert (
+        store.commit_retry_delay(99) <= store.COMMIT_RETRY_MAX_SECONDS
+    ), 'the window has a ceiling'
 
 
 def test_a_reference_survives_a_run_of_unchanged_days(tmp_path) -> None:
@@ -1144,6 +1255,68 @@ def test_an_unanswerable_batch_is_reported_as_unresolved(tmp_path) -> None:
         'inspect https://huggingface.co/datasets/evaleval/EEE_datastore '
         'before re-running'
     ) in str(caught.value)
+
+
+def test_a_contended_datastore_commit_is_retried_not_torn(
+    tmp_path, retry_waits
+) -> None:
+    """The dangerous half of the same race: a lock conflict mid-publication.
+
+    Adapter jobs publish to one branch, so the Hub refuses the losers here
+    too. Reporting it as a partial submission strands the run between the
+    snapshot commit and the ledger commit, which is the one state a re-run
+    cannot reason about cheaply.
+    """
+    tree = _upload_tree(tmp_path, 7)
+    hub = FakeHub()
+    sub = submit.DatastoreSubmitter(hub, batch_size=3)
+
+    real_create_commit = hub.create_commit
+    refusals: list[int] = []
+
+    def hold_the_lock_on_the_second_batch(**kwargs):
+        if len(hub.commits) == 1 and len(refusals) < 2:
+            refusals.append(1)
+            raise _conflict(409, '409 Client Error: Conflict')
+        return real_create_commit(**kwargs)
+
+    hub.create_commit = hold_the_lock_on_the_second_batch
+
+    result = sub.publish(
+        operations=submit.upload_operations(tree),
+        description='body',
+        message='hle 2026-08-10',
+    )
+
+    assert len(result.committed_paths) == 7
+    assert len(set(result.committed_paths)) == 7, 'no batch published twice'
+    assert retry_waits == [1, 2]
+
+
+def test_a_conflict_the_datastore_cannot_arbitrate_is_not_retried(
+    tmp_path, retry_waits
+) -> None:
+    """A retry is safe only because the listing proved the batch absent.
+
+    With the listing unreadable, whether the records landed is exactly the
+    open question, and sending them again would publish a second copy under
+    fresh UUID paths.
+    """
+    tree = _upload_tree(tmp_path, 3)
+    hub = FakeHub()
+    sub = submit.DatastoreSubmitter(hub, batch_size=3)
+    hub.commit_error = _conflict(409, '409 Client Error: Conflict')
+    hub.list_files_error = ConnectionError('network is unreachable')
+
+    with pytest.raises(submit.PartialSubmissionError) as caught:
+        sub.publish(
+            operations=submit.upload_operations(tree),
+            description='body',
+            message='hle 2026-08-10',
+        )
+
+    assert retry_waits == []
+    assert len(caught.value.unresolved_paths) == 3
 
 
 # --- what happened to the last pull request -------------------------------

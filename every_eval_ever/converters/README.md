@@ -12,6 +12,25 @@ uv sync --extra helm      # + HELM
 uv sync --extra all       # + all
 ```
 
+### Testing a converter
+
+Add a `ConverterCase` to `tests/converter_cases.py` pointing at a log the upstream tool
+really wrote, plus the CLI arguments a user would pass, and state what the conversion
+should yield. `tests/test_converter_conversion.py` then converts it with the real CLI and
+requires the published files to pass `validate` with the semantic checks on and no
+warnings — which is what shows a converter's records are submittable, since
+`validate_file()` runs with those checks off. There is no test file to write, and nothing
+to regenerate when the schema changes.
+
+A case whose converter is behind an optional extra skips when the extra is not installed,
+so declaring one costs nothing in the core install.
+
+This does not check semantics: a metric that changes from a percentage to a proportion
+upstream passes it. Nor does it see a new upstream release — for that, a script under
+`tools/upstream_smoke/` makes the upstream tool produce a log with its own fake-model
+mode (`--model dummy` for lm-eval, `--model mockllm/model` for Inspect) and converts
+that, on a schedule.
+
 ### Inspect
 
 The conversion script from `Inspect AI` to the unified schema can be run using `every_eval_ever/converters/inspect/__main__.py`.

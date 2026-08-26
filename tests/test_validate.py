@@ -376,8 +376,8 @@ class TestFileDispatch:
             / 'local-output'
             / 'data'
             / 'benchmark'
-            / 'developer'
-            / 'model'
+            / 'org'
+            / 'test-model'
             / 'f82b2807-fb31-4e42-a4a4-497d7d7a7e61.json'
         )
         path.parent.mkdir(parents=True)
@@ -534,8 +534,8 @@ class TestExitCode:
             tmp_path
             / 'data'
             / 'benchmark'
-            / 'developer'
-            / 'model'
+            / 'org'
+            / 'test-model'
             / 'f82b2807-fb31-4e42-a4a4-497d7d7a7e61.json'
         )
         path.parent.mkdir(parents=True)

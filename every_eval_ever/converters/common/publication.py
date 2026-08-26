@@ -48,6 +48,24 @@ def _output_dir(
     )
 
 
+def _reject_base_below_data(base_dir: Path, output_dir: Path) -> None:
+    """Refuse a *base_dir* that is a child of a ``data`` directory.
+
+    Every path this publisher writes is ``data/<collection>/<dev>/<model>/``, so
+    a base one level inside ``data`` publishes one level too deep whatever it is
+    named — the caller having passed ``data/<collection>``, the convention
+    ``EvaluationLogOutput`` uses, or a directory whose name is not the
+    collection being published at all. A scratch root outside ``data`` still
+    publishes, even one that shares a collection's name.
+    """
+    if base_dir.parent.name == 'data':
+        raise ValueError(
+            f'base_output_dir {base_dir}/ is inside a datastore data/ '
+            "directory; pass the 'data' directory itself, or this batch "
+            f'publishes one level too deep at {output_dir}/'
+        )
+
+
 def _prepare_sample_artifact(
     log: EvaluationLog,
     file_uuid: str,
@@ -152,6 +170,17 @@ def publish_evaluation_logs(
     All aggregate and instance-level artifacts are prepared and preflighted
     before any destination file is created. Any publication failure removes
     only files successfully created by this call.
+
+    ``base_output_dir`` is the **``data``** directory, not a collection
+    directory: the collection comes from ``collection_override`` or from
+    ``evaluation_results[0].source_data.dataset_name``, and the final path is
+    ``base_output_dir/<collection>/<developer>/<model>/<uuid>.json``.
+    ``EvaluationLogOutput.base_dir`` and ``default_failure_report_path`` take
+    the opposite convention, ``data/<collection>``.
+
+    Raises:
+        ValueError: If *base_output_dir* is a child of a ``data`` directory,
+            which would publish one level too deep whatever it is named.
     """
 
     logs = list(logs)
@@ -173,6 +202,7 @@ def publish_evaluation_logs(
     for raw_log, file_uuid in zip(logs, file_uuids):
         log = EvaluationLog.model_validate(raw_log.model_dump())
         output_dir = _output_dir(base_output_dir, log, collection_override)
+        _reject_base_below_data(base_output_dir, output_dir)
         source_data = log.evaluation_results[0].source_data
         route_owner = (
             collection_override or source_data.dataset_name,

@@ -541,7 +541,6 @@ def _finish(
     committed_paths: tuple[str, ...] = ()
     publish_failure: submit.PartialSubmissionError | None = None
     raw_manifest: list[dict] = []
-    parent_commit = state.parent_commit
 
     if raw_store is not None:
         # The snapshot and the intention to publish, before the publishing.
@@ -581,14 +580,12 @@ def _finish(
                 )
             )
         )
-        result = raw_store.commit(
+        raw_store.commit(
             operations,
             message=(
                 f'cron: {spec.key} {outcome.run_date.isoformat()} (snapshot)'
             ),
-            parent_commit=parent_commit,
         )
-        parent_commit = getattr(result, 'oid', None) or parent_commit
 
     if dry_run:
         notes.append('dry run: nothing was published')
@@ -666,7 +663,6 @@ def _finish(
                 f'cron: {spec.key} {outcome.run_date.isoformat()} '
                 f'({outcome.status})'
             ),
-            parent_commit=parent_commit,
         )
 
     _report(outcome, spec=spec, published=len(landed), dry_run=dry_run)

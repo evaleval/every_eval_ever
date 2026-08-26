@@ -23,7 +23,6 @@ try:
         get_model_deployment,
     )
     from helm.benchmark.run_spec import RunSpec
-    from helm.common.codec import from_json
 except (
     Exception
 ) as ex:  # pragma: no cover - exercised only when optional deps missing
@@ -38,7 +37,6 @@ except (
     RunSpec = cast(Any, None)
     get_model_deployment = cast(Any, None)
     register_builtin_configs_from_helm_package = cast(Any, None)
-    from_json = cast(Any, None)
     ModelDeploymentNotFoundError = cast(Any, Exception)
 
 from every_eval_ever.converters import SCHEMA_VERSION
@@ -224,7 +222,14 @@ class HELMAdapter(BaseEvaluationAdapter):
         stats = self._load_file_if_exists(dir_path, self.STATS_FILE)
 
         with open(f'{dir_path}/{self.PER_INSTANCE_STATS_FILE}', 'r') as f:
-            per_instance_stats = from_json(f.read(), List[PerInstanceStats])
+            per_instance_stats = [
+                from_dict(
+                    data_class=PerInstanceStats,
+                    data=entry,
+                    config=DaciteConfig(cast=[str]),
+                )
+                for entry in json.load(f)
+            ]
 
         return {
             'per_instance_stats': per_instance_stats,
