@@ -6,6 +6,14 @@ each selected score cell to reviewed model, metric, split, protocol, and
 provenance metadata. It checks the declared split against drug-entity overlap
 and does not infer semantics from labels or score distributions.
 
+Overlap with ``adapters/paperswithcode``: that adapter converts the same dump
+across every dataset on its scheduled run, so a DrugBank cell converted here is
+also present in ``data/paperswithcode/`` without the reviewed split and
+protocol semantics. Both records carry the cell's
+``additional_details.pwc_evaluation_id``, which is the PwC ``evaluations`` row
+id, so the two are joinable and a consumer reading both collections can tell
+they are one measurement rather than two.
+
 Run with the adapter extra installed::
 
     uv run --extra paperswithcode python -m \
