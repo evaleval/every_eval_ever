@@ -41,7 +41,7 @@ def _logs_by_task():
 def test_one_log_per_task():
     logs = SayfEvalAdapter().transform_from_file(FIXTURE, _meta())
     tasks = sorted(log.evaluation_id.split('/')[0] for log in logs)
-    assert tasks == ['ate', 'athena_vsp', 'cissp', 'mcq']
+    assert tasks == ['ate', 'athena_vsp', 'mcq']
 
 
 def test_every_log_validates_and_is_evaluation_run():
@@ -127,9 +127,15 @@ def test_source_data_preserves_upstream_names():
     assert url.dataset_name == 'AthenaBench VSP'
     assert url.url and url.url[0].endswith('athena-cti-vsp.jsonl')
 
-    other = logs['cissp'].evaluation_results[0].source_data
-    assert isinstance(other, SourceDataPrivate)
-    assert other.source_type == 'other'
+
+def test_other_source_maps_to_private():
+    # sayf-eval no longer declares an 'other'/private source, but the adapter
+    # still maps one to SourceDataPrivate for robustness.
+    sd = SayfEvalAdapter()._build_source_data(
+        'x', {'type': 'other', 'dataset_name': 'Private X'}
+    )
+    assert isinstance(sd, SourceDataPrivate)
+    assert sd.source_type == 'other'
 
 
 # ── local vLLM model mapping ──────────────────────────────────────────────
@@ -170,14 +176,13 @@ def test_publish_is_aggregate_only_valid_and_no_item_text(tmp_path):
             [u],
             collection_override=f'sayf-eval-{task.replace("_", "-")}',
         )
-    assert len(paths) == 4
+    assert len(paths) == 3
     # one namespaced collection per task (data/sayf-eval-<task>/...)
     collections = {p.parent.parent.parent.name for p in out.rglob('*.json')}
     assert collections == {
         'sayf-eval-mcq',
         'sayf-eval-athena-vsp',
         'sayf-eval-ate',
-        'sayf-eval-cissp',
     }
     # SECURITY: sayf-eval item text is dual-use — no instance-level samples.
     assert list(out.rglob('*_samples.jsonl')) == []
@@ -208,7 +213,7 @@ def test_evaluation_id_is_stable_across_conversions():
         lg.evaluation_id
         for lg in SayfEvalAdapter().transform_from_file(FIXTURE, _meta())
     }
-    assert ids1 == ids2 and len(ids1) == 4
+    assert ids1 == ids2 and len(ids1) == 3
     log = SayfEvalAdapter().transform_from_file(FIXTURE, _meta())[0]
     assert log.retrieved_timestamp  # wall-clock retrieval time kept separately
 
@@ -227,7 +232,7 @@ def test_partial_conversion_keeps_valid_siblings(tmp_path):
         tmp_path, _meta()
     )
     tasks = sorted(lg.evaluation_id.split('/')[0] for lg in result.records)
-    assert tasks == ['ate', 'athena_vsp', 'cissp']  # siblings kept, mcq dropped
+    assert tasks == ['ate', 'athena_vsp']  # siblings kept, mcq dropped
     assert any('mcq' in f.source_ref for f in result.failures)
 
 
@@ -255,7 +260,6 @@ def test_cli_routes_each_task_to_its_own_collection(tmp_path):
         'sayf-eval-mcq',
         'sayf-eval-athena-vsp',
         'sayf-eval-ate',
-        'sayf-eval-cissp',
     }
 
 
@@ -270,4 +274,4 @@ def test_directory_conversion_finds_record(tmp_path):
         tmp_path, _meta()
     )
     assert not result.failures
-    assert len(result.records) == 4
+    assert len(result.records) == 3
