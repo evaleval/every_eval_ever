@@ -212,6 +212,30 @@ def _helm(key: str, leaderboard: str, weekday: int) -> AdapterSpec:
 
 ADAPTERS: tuple[AdapterSpec, ...] = (
     AdapterSpec(
+        key='aixamine',
+        module='every_eval_ever.adapters.aixamine.adapter',
+        collections=(
+            'aixamine_adversarial_robustness',
+            'aixamine_code_security',
+            'aixamine_fairness_bias',
+            'aixamine_hallucination',
+            'aixamine_jailbreak',
+            'aixamine_model_data_privacy',
+            'aixamine_ood_robustness',
+            'aixamine_over_refusal',
+            'aixamine_safety_alignment',
+        ),
+        output_scope='data_root',
+        extra_args=('--all',),
+        cadence='weekly',
+        weekday=0,
+        timeout_minutes=45,
+        notes=(
+            'Enumerates public reports via the aiXamine public API '
+            '(/reports/search) and emits one aggregate log per (model, service). '
+        ),
+    ),
+    AdapterSpec(
         key='arc_agi',
         module='every_eval_ever.adapters.arc_agi.adapter',
         collections=('arc-agi',),
