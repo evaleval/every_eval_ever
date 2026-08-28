@@ -466,6 +466,63 @@ def _cmd_convert_alpaca_eval(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_convert_sayf_eval(args: argparse.Namespace) -> int:
+    from every_eval_ever.converters.sayf_eval.adapter import SayfEvalAdapter
+
+    adapter = SayfEvalAdapter()
+    metadata = _common_metadata(args)
+    # The shared arg loop defaults --eval_library_name to the source id
+    # ('sayf_eval'); prefer the canonical package name unless overridden.
+    if args.eval_library_name == 'sayf_eval':
+        metadata['eval_library_name'] = 'sayf-eval'
+    # Route each task into its own namespaced collection (data/<prefix><task>/...)
+    # so the datastore has one collection per benchmark, matching EEE's
+    # per-collection Community-Evals tooling; upstream dataset names stay in each
+    # log's source_data.
+    collection_prefix = getattr(args, 'collection_prefix', None) or 'sayf-eval-'
+
+    log_path = Path(args.log_path)
+    input_result: SourceConversionResult[Any] | None = None
+    if log_path.is_file():
+        logs = adapter.transform_from_file(log_path, metadata)
+    elif log_path.is_dir():
+        input_result = adapter.transform_from_directory_result(
+            log_path, metadata
+        )
+        logs = input_result.records
+    else:
+        raise FileNotFoundError(f'Path is not a file or directory: {log_path}')
+
+    if not logs and input_result is None:
+        raise ValueError(
+            f'sayf-eval conversion produced no logs from {log_path}'
+        )
+
+    output_dir = Path(args.output_dir)
+    # Aggregate-only: sayf-eval per-sample item text is dual-use and never
+    # published, so no instance-level samples and no staging directory. Each log
+    # goes into its own per-task collection (the task is the evaluation_id stem).
+    paths = []
+    for log, eval_uuid in zip(logs, [str(uuid.uuid4()) for _ in logs]):
+        task = log.evaluation_id.split('/', 1)[0]
+        collection = f'{collection_prefix}{task.replace("_", "-")}'
+        paths.extend(
+            publish_evaluation_logs(
+                [log], output_dir, [eval_uuid], collection_override=collection
+            )
+        )
+    for path in paths:
+        print(path)
+
+    _save_partial_conversion_report(
+        input_result, output_dir, 'sayf_eval_inputs'
+    )
+    if input_result is not None:
+        input_result.raise_if_incomplete()
+    print(f'Converted {len(paths)} evaluation log(s).')
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog='every_eval_ever',
@@ -535,7 +592,7 @@ def build_parser() -> argparse.ArgumentParser:
         dest='source', required=True
     )
 
-    for source in ['lm_eval', 'inspect', 'helm', 'alpaca_eval']:
+    for source in ['lm_eval', 'inspect', 'helm', 'alpaca_eval', 'sayf_eval']:
         source_parser = convert_subparsers.add_parser(
             source,
             help=f'Convert {source} logs',
@@ -631,6 +688,18 @@ def build_parser() -> argparse.ArgumentParser:
                     'evaluation details.'
                 ),
             )
+        if source == 'sayf_eval':
+            source_parser.add_argument(
+                '--collection_prefix',
+                '--collection-prefix',
+                default='sayf-eval-',
+                help=(
+                    'Prefix for the per-task datastore collection '
+                    '(data/<prefix><task>/...): one collection per benchmark. '
+                    'Upstream dataset names are kept in each log source_data. '
+                    'Default: sayf-eval-.'
+                ),
+            )
 
     return parser
 
@@ -667,6 +736,8 @@ def main(argv: list[str] | None = None) -> int:
             return _cmd_convert_helm(args)
         if args.source == 'alpaca_eval':
             return _cmd_convert_alpaca_eval(args)
+        if args.source == 'sayf_eval':
+            return _cmd_convert_sayf_eval(args)
 
     parser.print_help()
     return 1

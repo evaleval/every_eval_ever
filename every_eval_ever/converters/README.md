@@ -336,3 +336,54 @@ options:
   --version {v1,v2}            Which leaderboard to convert. Omit to convert both (default).
   --output_dir OUTPUT_DIR      Base output directory (default: data).
 ```
+
+## sayf-eval
+
+[sayf-eval](https://pypi.org/project/sayf-eval/) (`pip install sayf-eval`) is a
+model-agnostic cybersecurity LLM-evaluation framework
+([source](https://github.com/qcri/sayf-eval)). Each run writes a canonical
+*results record* (`<output_dir>/results/<model>/results_<ts>.json`) that embeds
+the full pipeline configuration (decoding params, `<think>` handling,
+denominator policy, judge model) and per-task dataset provenance alongside the
+scores. The converter maps that record onto the unified schema, producing **one
+aggregate log per task** (accuracy, plus CVSS MAD for VSP and micro-F1 for ATE),
+with the judge recorded under `metric_config.llm_scoring`.
+
+You produce a record by running sayf-eval; this converter then reads the record
+as JSON (it does **not** import sayf-eval). `--log_path` accepts a single
+`results_*.json` record or a run output directory (searched recursively for
+`results_*.json`).
+
+Each task is routed into its own namespaced collection (`data/sayf-eval-<task>/...`,
+one collection per benchmark), while the upstream dataset name is preserved in each
+log's `source_data`.
+
+```bash
+uv run every_eval_ever convert sayf_eval \
+  --log_path outputs/gpt4o \
+  --source_organization_name QCRI --evaluator_relationship third_party \
+  --collection-prefix sayf-eval- --output_dir data
+```
+
+> **Aggregate-only (by design).** sayf-eval is a cybersecurity benchmark whose
+> per-sample item text is dual-use and kept private, so this converter emits only
+> aggregate score files — never instance-level `_samples.jsonl`. The results
+> record contains no prompt/gold/response text, so its output is safe to publish.
+
+```
+usage: every_eval_ever convert sayf_eval [-h] --log_path LOG_PATH
+                                         [--output_dir OUTPUT_DIR]
+                                         [--source_organization_name ...]
+                                         [--evaluator_relationship {first_party,third_party,collaborative,other}]
+                                         [--source_organization_url ...]
+                                         [--source_organization_logo_url ...]
+                                         [--collection_prefix COLLECTION_PREFIX]
+                                         [--eval_library_name ...]
+                                         [--eval_library_version ...]
+
+options:
+  --collection_prefix PREFIX   Prefix for the per-task datastore collection
+                               (data/<prefix><task>/...): one collection per
+                               benchmark. Upstream dataset names are kept in each
+                               log's source_data. Default: sayf-eval-.
+```
