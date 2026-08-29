@@ -84,6 +84,14 @@ def _model_id(model):
     return f"{dev}/{name}" if dev else name
 
 
+def _resolve_developer(model):
+    dev = (model.get("developer") or "").strip()
+    if dev:
+        return dev
+    name = model.get("name", "")
+    return name.split("/")[0] if "/" in name else None
+
+
 def _metric_config(test_value, description):
     """aiXamine scores are a 0-100 rate (safe / pass / accepted); higher is better."""
     return MetricConfig(
@@ -134,7 +142,7 @@ def _static_categories(cats):
 def build_service_logs(report, model, catalog, retrieved_ts):
     """One EvaluationLog per service present in the report (static + dynamic)."""
     model_id = _model_id(model)
-    developer = model.get("developer") or (model_id.split("/")[0] if "/" in model_id else "unknown")
+    developer = _resolve_developer(model)
     mi = ModelInfo(name=model["name"], id=model_id, developer=developer,
                    additional_details=_model_details(model.get("accessType")))
 
@@ -254,6 +262,8 @@ def enumerate_reports(base, access_type=None, page_size=50, max_pages=None):
 
 def _outputs_for(report, model, catalog, out_root, retrieved_ts, outputs, failures):
     """Append this (report, model)'s service logs to outputs / failures."""
+    if _resolve_developer(model) is None:
+        return
     try:
         logs = build_service_logs(report, model, catalog, retrieved_ts)
     except Exception as exc:
