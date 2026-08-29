@@ -78,6 +78,7 @@ re-hosting bytes that are already durably stored.
 | `bfcl` | BFCL leaderboard CSV | Converts BFCL leaderboard data with per-metric evaluation names and bounded continuous scores. |
 | `sciarena` | SciArena leaderboard API | Converts SciArena leaderboard results. |
 | `global_mmlu_lite` | Kaggle API | Fetches Global MMLU Lite leaderboard results from Kaggle. |
+| `kaggle` | Kaggle Benchmarks API | Converts every published Kaggle Community Benchmark into `data/kaggle/`: one record per (benchmark, model), one result per task result, with `kaggle.<owner>.<bench>[.<sub>]` naming so the aggregate is distinguishable from its parts. See [Kaggle Benchmarks](#kaggle-benchmarks). |
 | `hfopenllm_v2` | HuggingFace Spaces API | Fetches the Open LLM Leaderboard v2 (4576+ models). The leaderboard is no longer maintained upstream, so this converts a frozen archive and is not scheduled. |
 | `helm` | HELM leaderboard | Converts HELM leaderboard data. Supports `--leaderboard_name` for Capabilities/Lite/Classic/Instruct/MMLU. |
 | `llm_stats` | LLM Stats API | Converts LLM Stats model, benchmark, and score API data into `data/llm-stats/`. |
@@ -96,6 +97,137 @@ re-hosting bytes that are already durably stored.
 | `bountybench` | BountyBench run logs (local JSON tree) | Converts BountyBench cybersecurity agent logs into `data/bountybench/`. Emits one aggregate per (model, workflow, configuration) plus a per-bounty `*_samples.jsonl` sidecar with the full agent transcript. |
 | `paperswithcode` | Papers with Code PostgreSQL dumps | Converts PwC leaderboard entries into `data/paperswithcode/`. Metric bounds and direction are resolved against a vendored eval-card-registry snapshot; unknown metrics fail the run rather than getting invented bounds. Needs the `paperswithcode` extra. |
 | `wild` | HuggingFace (`kensho/WILD-raw`) | Converts the WILD-raw item-level eval responses (65 models × 27 benchmarks, run with Inspect AI) into `data/wild/`: aggregate accuracy per model×benchmark and per subtask, with optional per-item `_samples.jsonl` sidecars (`--include-instances`). See [`wild/README.md`](wild/README.md). |
+
+### Kaggle Benchmarks
+
+Convert one or more named benchmarks (smoke run, output outside the repo):
+
+```bash
+uv run python -m every_eval_ever.adapters.kaggle.adapter \
+  --benchmark cohere-labs/global-mmlu-lite-korean \
+  --output-dir /tmp/eee-kaggle
+```
+
+Convert every published benchmark (~1,080 of them, about five minutes; use
+`--limit` to cap a test run):
+
+```bash
+uv run python -m every_eval_ever.adapters.kaggle.adapter \
+  --all --limit 10 --output-dir /tmp/eee-kaggle
+```
+
+One record per (benchmark, model) in a single `data/kaggle/` collection, one
+result per task result within it. The source is Kaggle, the platform that
+published the leaderboard: `source_name` is `Kaggle Benchmarks` and
+`source_organization_name` is `Kaggle`, while the benchmark's uploader stays in
+`source_metadata.additional_details.benchmark_owner`.
+
+Both paths read the benchmark index first, through the unauthenticated
+`benchmarks.BenchmarkService/ListBenchmarks` RPC (which needs the anonymous
+XSRF cookie/header handshake the adapter performs for you). That is the only
+place Kaggle publishes a benchmark's scoring configuration, so a targeted run
+and an `--all` run describe the same benchmark identically.
+
+#### Telling the aggregate from its parts
+
+A benchmark's overall score and its sub-benchmark scores are all
+`evaluation_results` of one record, so they are named apart:
+
+| | `evaluation_name` | `source_data.dataset_name` | `metric_id` |
+|---|---|---|---|
+| aggregate | `kaggle.<owner>.<bench>` | `<bench>` | `kaggle.<owner>.<bench>.<metric>` |
+| sub-benchmark | `kaggle.<owner>.<bench>.<sub>` | `<sub>` | `kaggle.<owner>.<bench>.<sub>.<metric>` |
+
+The owner is part of the name because a Kaggle benchmark is an `owner/slug`
+resource and 15 slugs are published by more than one owner —
+`animalimagerecognition` by six, `metacognition-benchmark` by five — so the slug
+alone would give unrelated benchmarks one `metric_id`.
+
+`metric_name` and `metric_kind` name the *metric* — `aggregationType`
+`PERCENTAGE_PASSED` gives `pass rate` / `pass_rate` — and Kaggle's title for the
+column is kept as `metric_config.additional_details.kaggle_task_title`. The
+aggregate is published as a task with an empty name and slug.
+
+A sub-benchmark may carry its parent's slug, giving
+`kaggle.<owner>.<bench>.<bench>` (1.4% of results, 58 benchmarks). That is not a
+duplicated aggregate: in 306 of those records the aggregate and a
+`…void-market.void-market` column are separate published columns, alongside
+`…void-market.void-market-hard-mode`. Promoting a self-named column to the
+aggregate would collide with the real one and drop a column, so the name follows
+what Kaggle published — a task with a slug is a part, a task without one is the
+whole.
+
+#### What the records do and do not claim
+
+Kaggle does **not** publish a metric's unit or scale, and its rendering hints do
+not imply one: across the published corpus, values under
+`displayType=PERCENTAGES` / `aggregationType=PERCENTAGE_PASSED` run from -180 to
+7.4e7, with only ~69% of them in `[0, 1]`. Numeric results therefore carry no
+`metric_unit`, no `score_type` and no bounds, and Kaggle's raw
+`aggregationType`/`displayType`/task version are kept in
+`metric_config.additional_details` so a later pass can normalize what this
+adapter refuses to guess. Boolean task results are genuinely pass/fail and are
+emitted as `binary` on `[0, 1]`. `sortOrder` *is* published, and is the only
+source of `lower_is_better`.
+
+#### Model identity
+
+`modelVersionSlug` mixes the model with the effort it was run at, so
+`model_info.id` is resolved against the
+[eval-card-registry](https://github.com/evaleval/eval-card-registry) through the
+shared [`helpers/registry.py`](../helpers/registry.py) resolver:
+
+| Kaggle slug | `model_info.id` | generation config |
+|---|---|---|
+| `claude-opus-4-6-default` | `anthropic/claude-opus-4.6` | `reasoning_effort: default` |
+| `claude-sonnet-4-5-thinking-20250929` | `anthropic/claude-sonnet-4.5-20250929` | `reasoning: true`, `reasoning_effort: thinking` |
+| `grok-4.20-0309-non-reasoning` | `xai/grok-4.20-non-reasoning` | `reasoning: false`, `reasoning_effort: non-reasoning` |
+| `qwen3-235b-a22b-thinking-2507` | `Qwen/Qwen3-235B-A22B-Thinking-2507` | — |
+
+The registry decides the identity, so nothing is inferred from a model's name.
+The slug as published is offered first; only when the registry has no canonical
+id for it is the effort-stripped form tried, and only a canonical answer is
+adopted. That is why the last two rows keep their reasoning variant — the
+registry considers those models of their own — while the first two do not.
+`evaluation_id` is keyed by the raw slug, because one benchmark can score the
+same model at two efforts and those are distinct evaluations. The raw slug,
+resolution strategy, confidence and review status all travel in
+`model_info.additional_details`, with `model_id_needs_review: "true"` on any id
+the registry could not confidently confirm — so auditing a run means querying
+the records it wrote, not reading its log:
+
+```bash
+jq -r '.model_info.additional_details
+        | select(.model_id_needs_review == "true")
+        | .kaggle_model_version_slug' data/kaggle/*/*/*.json | sort -u
+```
+
+A run prints only how many distinct model ids were unverified; everything else
+about resolution is in the records. `--no-registry-resolve` skips resolution for
+an offline or deterministic run and says so in every record.
+
+Note that the registry answers some publishers under two namespaces (`xai` and
+`x-ai`, `meta` and `meta-llama`), which splits their models across datastore
+directories. This adapter does not overrule the registry — that is how effort
+tiers got into ids in the first place — so `ls data/kaggle/` is where you see it.
+
+#### Other notes
+
+- A task Kaggle reports as unscored (`resultCase: none`, ~13% of them) is an
+  exclusion, not a failure; a model row with no scored task at all is excluded
+  too. Both are listed in the failure report.
+- `evaluation_timestamp` carries Kaggle's `evaluationDate` where present (~85%
+  of results).
+- `eval_library.name` is `unknown`: Kaggle runs these from a notebook definition
+  and names no harness.
+- `--all` means every published benchmark. The scheduled run passes
+  `--exclude cohere-labs/global-mmlu-lite`, which
+  [`global_mmlu_lite`](global_mmlu_lite) already publishes under its own
+  collection; the exclusion is declared in [`catalog.py`](catalog.py) rather
+  than hidden in the adapter.
+- A sweep is rate-limited in bursts, so leaderboard fetches retry with backoff
+  on 429/5xx. A benchmark that still cannot be fetched is a failure and the run
+  exits non-zero.
 
 ### Mercor Evaluation Exports
 
