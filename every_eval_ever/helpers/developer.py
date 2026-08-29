@@ -33,6 +33,8 @@ DEVELOPER_PATTERNS = {
     'mistral': 'mistralai',
     'mixtral': 'mistralai',
     'devstral': 'mistralai',
+    'ministral': 'mistralai',
+    'codestral': 'mistralai',
     # Alibaba models
     'qwen': 'Qwen',
     # Microsoft models
@@ -73,6 +75,7 @@ DEVELOPER_PATTERNS = {
     'nova': 'amazon',
     'grok': 'xai',
     'kimi': 'moonshotai',
+    'sarvam': 'sarvamai',
 }
 
 

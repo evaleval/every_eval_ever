@@ -50,6 +50,7 @@ from every_eval_ever.helpers import (
     SourceRecordFailure,
     default_failure_report_path,
     raw_capture,
+    registry,
     require_finite_number,
     save_evaluation_logs,
     save_failure_report,
@@ -62,11 +63,10 @@ TREE = "https://huggingface.co/api/datasets/openlifescienceai/results/tree/main?
 LEADERBOARD_SPACE = "https://huggingface.co/spaces/openlifescienceai/open_medical_llm_leaderboard"
 SRC = "open-medical-llm-leaderboard"
 
-# Hosted eval-card-registry resolver (public HF Space, no auth). Maps a raw HF
-# ``developer/model`` id to the shared canonical id. See resolve_model_id.
-RESOLVER_URL = "https://evaleval-entity-registry.hf.space/api/v1/resolve"
-# below this the resolver's alias is treated as unverified (flag for review):
-RESOLVE_CONFIDENCE_FLOOR = 0.9
+# Hosted eval-card-registry resolver, shared with every other adapter that
+# canonicalizes a model id. See every_eval_ever/helpers/registry.py.
+RESOLVER_URL = registry.RESOLVER_URL
+RESOLVE_CONFIDENCE_FLOOR = registry.RESOLVE_CONFIDENCE_FLOOR
 
 # HF resolves a renamed/aliased repo id to its current one on GET. Used only to
 # adjudicate a path/config disagreement — see evaluated_model_repo.
@@ -165,53 +165,10 @@ def list_result_files() -> list[str]:
     return out
 
 
-def resolve_model_id(raw_repo: str, *, enabled: bool = True, timeout: float = 15.0) -> tuple[str, dict]:
-    """Canonicalize an HF ``developer/model`` id via the hosted eval-card-registry
-    resolver, for use as ``model_info.id``. Returns ``(model_id, provenance)``.
-
-    Never fatal: the opt-out and any network error fall back to the path id and
-    record which (``offline`` / ``unreachable``). The resolver's last strategy is
-    to auto-create a draft, so ``created_new`` / ``review_status`` / ``confidence``
-    come back in the provenance for ``_needs_registry_review`` to judge.
-    """
-    if not enabled:
-        return raw_repo, {"model_id_resolution": "offline"}
-    try:
-        resp = requests.post(
-            RESOLVER_URL,
-            json={"raw_value": raw_repo, "entity_type": "model"},
-            timeout=timeout,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-    except Exception as e:  # noqa: BLE001 — resolution is best-effort, never fatal
-        return raw_repo, {"model_id_resolution": "unreachable",
-                          "model_id_resolution_error": str(e)[:200]}
-    canonical = data.get("canonical_id") or raw_repo
-    return canonical, {
-        "model_id_resolution": "registry",
-        "model_id_resolution_strategy": data.get("strategy"),
-        "model_id_resolution_confidence": data.get("confidence"),
-        "model_id_created_new": data.get("created_new"),
-        "model_id_review_status": data.get("review_status"),
-    }
-
-
-def _needs_registry_review(prov: dict | None) -> bool:
-    """True when a resolved id is not a confident, already-reviewed canonical:
-    unreachable resolver, a freshly auto-created draft, a non-``reviewed`` status,
-    or confidence below the floor. (``offline`` is reported once, not per model.)"""
-    if not prov:
-        return False
-    if prov.get("model_id_resolution") == "unreachable":
-        return True
-    if prov.get("model_id_created_new"):
-        return True
-    status = prov.get("model_id_review_status")
-    if status not in (None, "reviewed"):
-        return True
-    conf = prov.get("model_id_resolution_confidence")
-    return isinstance(conf, (int, float)) and conf < RESOLVE_CONFIDENCE_FLOOR
+#: Re-exported so this module's callers and tests keep one import site; the
+#: implementation is shared with every other adapter that canonicalizes an id.
+resolve_model_id = registry.resolve_model_id
+_needs_registry_review = registry.needs_review
 
 
 def pretrained_repo(config: dict) -> str | None:
