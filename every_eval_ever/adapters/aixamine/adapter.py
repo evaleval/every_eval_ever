@@ -76,8 +76,20 @@ def _model_details(access_type):
     return {"deployment_type": "externally_managed", "model_availability": "closed_weights"}
 
 
-def _model_id(model):
+def _access_date(model):
+    ts = model.get("createdAt") or ""
+    return ts[:10] if len(ts) >= 10 else None
+
+
+def _dated_name(model):
     name = model["name"]
+    if model.get("accessType") == "huggingface":
+        return name
+    date = _access_date(model)
+    return f"{name}-{date}" if date else name
+
+
+def _model_id(name, model):
     if "/" in name:
         return name
     dev = model.get("developer")
@@ -141,9 +153,10 @@ def _static_categories(cats):
 
 def build_service_logs(report, model, catalog, retrieved_ts):
     """One EvaluationLog per service present in the report (static + dynamic)."""
-    model_id = _model_id(model)
+    name = _dated_name(model)
     developer = _resolve_developer(model)
-    mi = ModelInfo(name=model["name"], id=model_id, developer=developer,
+    model_id = _model_id(name, model)
+    mi = ModelInfo(name=name, id=model_id, developer=developer,
                    additional_details=_model_details(model.get("accessType")))
 
     # catalog lookups: service_value -> {name, tests:{test_value:{name,description}}}
@@ -186,7 +199,7 @@ def build_service_logs(report, model, catalog, retrieved_ts):
         collection = collection_for(svc_value)
         log = EvaluationLog(
             schema_version=SCHEMA_VERSION,
-            evaluation_id=f"{collection}/{developer}_{model['name'].replace('/', '_')}",
+            evaluation_id=f"{collection}/{developer}_{name.replace('/', '_')}",
             retrieved_timestamp=retrieved_ts,
             source_metadata=SourceMetadata(
                 source_name=collection,
@@ -205,7 +218,7 @@ def build_service_logs(report, model, catalog, retrieved_ts):
             model_info=mi,
             evaluation_results=results,
         )
-        logs.append((collection, developer, model["name"], log))
+        logs.append((collection, developer, name, log))
     return logs
 
 
