@@ -53,8 +53,10 @@ REPORT = {
     },
 }
 
-MODEL_HF = {"name": "meta-llama/Llama-3.1-8B-Instruct", "developer": "meta-llama", "accessType": "huggingface"}
-MODEL_API = {"name": "gpt-5", "developer": "OpenAI", "accessType": "openai"}
+MODEL_HF = {"name": "meta-llama/Llama-3.1-8B-Instruct", "developer": "meta-llama",
+            "accessType": "huggingface", "createdAt": "2026-01-15T10:00:00.000Z"}
+MODEL_API = {"name": "gpt-5", "developer": "OpenAI", "accessType": "openai",
+             "createdAt": "2026-01-15T10:00:00.000Z"}
 
 
 def _save_and_validate(logs, tmp_path) -> list[Path]:
@@ -94,11 +96,21 @@ def test_canonical_mapping_bare_names_and_categories(tmp_path):
 
 def test_api_model_marked_closed_weights(tmp_path):
     logs = aix.build_service_logs(REPORT, MODEL_API, CATALOG, "123")
-    _, _, _, log = logs[0]
-    assert log.model_info.id == "OpenAI/gpt-5"
+    collection, dev, model_name, log = logs[0]
+    # API models get the aiXamine access date appended as a snapshot suffix.
+    assert log.model_info.id == "OpenAI/gpt-5-2026-01-15"
+    assert log.model_info.name == "gpt-5-2026-01-15"
+    assert model_name == "gpt-5-2026-01-15"
     assert log.model_info.additional_details["model_availability"] == "closed_weights"
     assert log.model_info.additional_details["deployment_type"] == "externally_managed"
     _save_and_validate(logs, tmp_path)
+
+
+def test_hf_model_not_date_stamped(tmp_path):
+    logs = aix.build_service_logs(REPORT, MODEL_HF, CATALOG, "123")
+    _, _, model_name, log = logs[0]
+    assert log.model_info.id == "meta-llama/Llama-3.1-8B-Instruct"
+    assert model_name == "meta-llama/Llama-3.1-8B-Instruct"
 
 
 def test_source_metadata_is_first_party_documentation(tmp_path):
