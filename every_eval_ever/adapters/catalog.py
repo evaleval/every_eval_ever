@@ -320,6 +320,18 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         timeout_minutes=30,
     ),
     AdapterSpec(
+        key='lm_harmony',
+        module='every_eval_ever.adapters.lm_harmony.adapter',
+        collections=('lm-harmony',),
+        notes=(
+            'Reads one file, notebooks/all_results.json, from '
+            'socialfoundations/lm-harmony at a resolved commit; '
+            '--emit-source-version reports that commit so an unchanged '
+            'repository is skipped. Publishes both the zero-shot and the '
+            'train-before-test protocol, kept apart by metric_id.'
+        ),
+    ),
+    AdapterSpec(
         key='mercor_eval',
         module='every_eval_ever.adapters.mercor_eval.adapter',
         # One collection per Mercor benchmark slug. A new benchmark on their
