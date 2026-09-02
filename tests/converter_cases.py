@@ -99,6 +99,37 @@ CASES: tuple[ConverterCase, ...] = (
         ),
     ),
     ConverterCase(
+        source='lm_eval',
+        log_path=REPO_ROOT
+        / 'tests/data/lm_eval_v03/results_v03_no_comma_metric_keys.json',
+        # lm-eval v0.3 and earlier write bare `acc` / `acc_stderr` keys, without the
+        # `,filter` suffix v0.4 added. Only the comma form was recognised, so every
+        # standard error here fell through as a metric of its own and a record
+        # reported the spread as the score. Two tasks, two real metrics each.
+        aggregates=2,
+        results=4,
+        model_id='bigscience/bloom-3b',
+        scores={
+            'sciq/acc': 0.891,
+            'sciq/acc_norm': 0.816,
+            'arc_easy/acc': 0.5942760942760943,
+            'arc_easy/acc_norm': 0.5328282828282829,
+        },
+        metric_names=frozenset({'acc', 'acc_norm'}),
+        # `acc_norm` is length-normalized accuracy, which the registry carries as
+        # `normalized-accuracy` rather than folding into `accuracy`. Both ids being
+        # present is what says the two were not merged.
+        metric_ids=frozenset({'accuracy', 'normalized-accuracy'}),
+        # Each score keeps its own companion standard error. No `num_samples`: the
+        # v0.3 format records no `n-samples` block.
+        uncertainty_keys=frozenset({'standard_error'}),
+        required_source_paths=(
+            'config.model',
+            'config.model_args',
+            'results.*',
+        ),
+    ),
+    ConverterCase(
         source='inspect',
         log_path=REPO_ROOT
         / 'tests/data/inspect/data_cyse2_vuln_exploit_challenges.json',

@@ -320,6 +320,19 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         timeout_minutes=30,
     ),
     AdapterSpec(
+        key='stablelm_evals',
+        module='every_eval_ever.adapters.stablelm_evals.adapter',
+        collections=('stablelm-evals',),
+        cadence='weekly',
+        weekday=5,
+        notes=(
+            'Wraps the in-tree lm_eval converter around the harness outputs '
+            'committed under evals/ in Stability-AI/StableLM. The repository is '
+            'archived research output rather than a live leaderboard, so this is '
+            'weekly and --emit-source-version skips it while the commit holds.'
+        ),
+    ),
+    AdapterSpec(
         key='mercor_eval',
         module='every_eval_ever.adapters.mercor_eval.adapter',
         # One collection per Mercor benchmark slug. A new benchmark on their
