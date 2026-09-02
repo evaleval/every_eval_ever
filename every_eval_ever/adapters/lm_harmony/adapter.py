@@ -224,10 +224,9 @@ class Metric:
     """One harness metric, on the scale its own definition fixes.
 
     ``registry_id`` is ``None`` where the eval-card-registry carries no canonical
-    entry for the metric. ``acc_norm`` is the case that matters -- it scores 9 of
-    the 24 tasks, including the two this adapter was built for -- and no spelling
-    of it resolves, so it keeps the harness's own key as its id rather than being
-    folded into ``accuracy``, which measures something else.
+    entry for the metric. Every metric this adapter emits does have one, including
+    ``acc_norm`` (``normalized-accuracy``), which scores 9 of the 24 tasks --
+    folding it into ``accuracy`` would merge two different computations.
     """
 
     #: lm-eval's own metric key, which is also the dict key in METRICS.
@@ -244,13 +243,13 @@ class Metric:
 
 METRICS: dict[str, Metric] = {
     'acc': Metric('acc', 'Accuracy', 'accuracy', 'accuracy', 'accuracy', 'proportion', 0.0, 1.0),
-    # Length-normalized accuracy. A distinct quantity from `acc`, and absent from
-    # the registry under every spelling tried (`acc_norm`, `accuracy-norm`,
-    # `normalized accuracy`, `length-normalized accuracy`, `accuracy_norm`), so it
-    # keeps the harness key that other harness-derived sources would also use.
+    # Length-normalized accuracy, a distinct quantity from `acc`. The registry
+    # carries it as `normalized-accuracy` with `acc_norm` already an alias; the
+    # hosted resolver misses it only because the live Space lags the seed, so
+    # resolve against the seed rather than trusting a no_match from the API.
     'acc_norm': Metric(
-        'acc_norm', 'Length-normalized accuracy', None, 'acc_norm', 'accuracy', 'proportion',
-        0.0, 1.0,
+        'acc_norm', 'Length-normalized accuracy', 'normalized-accuracy',
+        'normalized-accuracy', 'accuracy', 'proportion', 0.0, 1.0,
     ),
     'exact_match': Metric(
         'exact_match', 'Exact match', 'exact-match', 'exact-match', 'exact_match', 'proportion',

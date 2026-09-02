@@ -140,17 +140,20 @@ def test_direct_eval_uses_the_registry_canonical_metric_id(payload, tmp_path):
         r.evaluation_result_id: r.metric_config.metric_id
         for o in result.records for r in o.eval_log.evaluation_results
     }
-    assert ids['lm_harmony.sciq.direct_eval'] == 'acc_norm'
+    assert ids['lm_harmony.sciq.direct_eval'] == 'normalized-accuracy'
     assert ids['lm_harmony.cola.direct_eval'] == 'matthews-correlation'
     assert ids['lm_harmony.gsm8k.direct_eval'] == 'exact-match'
 
 
 def test_acc_norm_is_not_folded_into_accuracy():
-    """`acc_norm` measures something else, and no spelling of it resolves in the
-    registry, so it keeps the harness key rather than borrowing `accuracy`."""
-    assert adapter.METRICS['acc_norm'].registry_id is None
-    assert adapter.METRICS['acc_norm'].fallback_id == 'acc_norm'
+    """`acc_norm` is length-normalized accuracy, a different computation from
+    `acc` on the same items. The registry keeps them apart and so must we."""
+    assert adapter.METRICS['acc_norm'].registry_id == 'normalized-accuracy'
     assert adapter.METRICS['acc'].registry_id == 'accuracy'
+    assert (
+        adapter.METRICS['acc_norm'].registry_id
+        != adapter.METRICS['acc'].registry_id
+    )
 
 
 # --------------------------------------------------------------------------- #

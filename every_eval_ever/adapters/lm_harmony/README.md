@@ -51,7 +51,7 @@ Per-task metric selection follows the repository's own
 | Metric | Tasks | `metric_id` | Bounds |
 |---|---|---|---|
 | `acc` | 12 GLUE/SuperGLUE-style and commonsense tasks | `accuracy` | `[0, 1]` |
-| `acc_norm` | 9 multiple-choice tasks, incl. `mathqa` and `sciq` | `acc_norm` | `[0, 1]` |
+| `acc_norm` | 9 multiple-choice tasks, incl. `mathqa` and `sciq` | `normalized-accuracy` | `[0, 1]` |
 | `exact_match` | `gsm8k`, `nq_open` | `exact-match` | `[0, 1]` |
 | `mcc` | `cola` | `matthews-correlation` | `[-1, 1]` |
 
@@ -59,11 +59,11 @@ Per-task metric selection follows the repository's own
 nine of the 61 models score below zero, so `[0, 1]` bounds would be a hard
 validator error rather than a rounding quibble.
 
-`acc_norm` resolves to no registry metric under any spelling tried (`acc_norm`,
-`accuracy-norm`, `normalized accuracy`, `length-normalized accuracy`,
-`accuracy_norm`), so it keeps the harness's own key as its id. Folding it into
-`accuracy` would merge two different quantities. Registering it upstream is the
-right fix and would let these results join with any other harness-derived source.
+`acc_norm` is length-normalized accuracy, a different computation from `acc` on
+the same items, and the registry keeps the two apart — it is `normalized-accuracy`
+there, with `acc_norm` already an alias. The hosted resolver returns no match for
+it because the live Space lags the seed data, so resolve metric ids against the
+seed rather than trusting a `no_match` from the API.
 
 ## Dataset provenance
 
