@@ -187,7 +187,9 @@ def test_score_and_cost_results_carry_source_fields():
     assert cost_result.score_details.score == 8.42
     assert cost_result.metric_config.lower_is_better is True
     # Bounds come from the largest observed value across the payload.
-    assert cost_result.metric_config.max_score == 17.0
+    # Cost has no ceiling. Declaring the batch's dearest model as one made the
+    # same metric a different scale on every refresh.
+    assert cost_result.metric_config.max_score == float('inf')
 
 
 def test_cost_metric_used_when_cost_per_task_missing():
