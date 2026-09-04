@@ -622,3 +622,52 @@ def test_directory_conversion_tracks_each_results_file_parent(tmp_path):
         for log in result.records
     }
     assert parents == {str(model_a), str(model_b)}
+
+
+def _bleu_log(tmp_path, stderr=None):
+    """A minimal lm-eval results file reporting sacrebleu's BLEU on 0-100."""
+    metric = {'bleu,none': 31.4}
+    if stderr is not None:
+        metric['bleu_stderr,none'] = stderr
+    payload = {
+        'results': {'wmt16': metric},
+        'configs': {'wmt16': {'metric_list': [{'metric': 'bleu'}]}},
+        'higher_is_better': {'wmt16': {'bleu': True}},
+        'n-samples': {'wmt16': {'effective': 2000, 'original': 2000}},
+        'model_name': 'openai/gpt-4o',
+        'config': {'model': 'hf', 'model_args': 'pretrained=openai/gpt-4o'},
+    }
+    path = tmp_path / 'results_bleu.json'
+    path.write_text(json.dumps(payload))
+    logs = LMEvalAdapter().transform_from_file(path, _make_metadata_args())
+    return logs[0].evaluation_results[0]
+
+
+def test_a_percentage_is_converted_onto_the_canonical_proportion(tmp_path):
+    """`bleu` resolves, so the record declares the entry's scale and converts.
+
+    Publishing 31.4 under the canonical id `bleu` while declaring `[0, 100]` left
+    a consumer to average it with another source's 0.314.
+    """
+    result = _bleu_log(tmp_path)
+
+    assert result.score_details.score == pytest.approx(0.314)
+    assert result.metric_config.max_score == 1.0
+    assert result.metric_config.metric_id == 'bleu'
+    details = result.score_details.details
+    assert details['canonical_rescale_factor'] == '0.01'
+    assert details['source_score'] == '31.4'
+
+
+def test_the_spread_moves_with_the_score(tmp_path):
+    """A spread is in the score's units.
+
+    Left unconverted beside a converted score it reads as wider than the
+    metric's whole range, which is the shape of the bug #276 fixed elsewhere.
+    """
+    result = _bleu_log(tmp_path, stderr=0.82)
+
+    assert result.score_details.uncertainty.standard_error.value == pytest.approx(
+        0.0082
+    )
+    assert result.score_details.details['source_standard_error'] == '0.82'
