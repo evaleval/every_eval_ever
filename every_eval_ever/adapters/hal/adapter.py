@@ -302,6 +302,7 @@ MODEL_ID_OVERRIDES: dict[str, str] = {
     'claude opus 4.1': 'anthropic/claude-opus-4-1',
     'claude sonnet 4.1': 'anthropic/claude-sonnet-4-1',
     'claude haiku 4.1': 'anthropic/claude-haiku-4-1',
+    'claude haiku 4.5': 'anthropic/claude-haiku-4-5',
     'claude-3.7 sonnet': 'anthropic/claude-3-7-sonnet-20250219',
     'gemini 2.0 flash': 'google/gemini-2.0-flash',
     'gemini 2.5 pro': 'google/gemini-2.5-pro',
@@ -850,7 +851,8 @@ def build_eee_record(
         'evaluation_results': eval_results,
     }
 
-    return record, developer, slugify(model_slug_clean)
+    # Not slugified — the directory has to stay the one `model_info.id` names.
+    return record, developer, model_slug_clean
 
 
 # ---------------------------------------------------------------------------
