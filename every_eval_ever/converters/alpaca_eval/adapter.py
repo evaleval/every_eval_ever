@@ -247,7 +247,9 @@ def _build_evaluation_results(
                     lower_is_better=False,
                     score_type=ScoreType.continuous,
                     min_score=0.0,
-                    max_score=100000.0,
+                    # A mean response length has no ceiling. 100000 was a
+                    # nominal one, picked to satisfy `continuous`.
+                    max_score=float('inf'),
                 ),
                 score_details=ScoreDetails(score=avg_length),
                 source_data=source_data,

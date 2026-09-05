@@ -55,7 +55,7 @@ class MetricSpec:
     lower_is_better: bool
     min_score: float
     max_score: float | None = None
-    use_observed_max: bool = False
+    unbounded_above: bool = False
 
 
 METRIC_SPECS = [
@@ -68,7 +68,7 @@ METRIC_SPECS = [
         metric_unit='position',
         lower_is_better=True,
         min_score=1.0,
-        use_observed_max=True,
+        unbounded_above=True,
     ),
     MetricSpec(
         evaluation_name='bfcl.overall.overall_accuracy',
@@ -90,7 +90,7 @@ METRIC_SPECS = [
         metric_unit='usd',
         lower_is_better=True,
         min_score=0.0,
-        use_observed_max=True,
+        unbounded_above=True,
     ),
     MetricSpec(
         evaluation_name='bfcl.overall.latency_mean_s',
@@ -101,7 +101,7 @@ METRIC_SPECS = [
         metric_unit='seconds',
         lower_is_better=True,
         min_score=0.0,
-        use_observed_max=True,
+        unbounded_above=True,
     ),
     MetricSpec(
         evaluation_name='bfcl.overall.latency_std_s',
@@ -112,7 +112,7 @@ METRIC_SPECS = [
         metric_unit='seconds',
         lower_is_better=True,
         min_score=0.0,
-        use_observed_max=True,
+        unbounded_above=True,
     ),
     MetricSpec(
         evaluation_name='bfcl.overall.latency_p95_s',
@@ -123,7 +123,7 @@ METRIC_SPECS = [
         metric_unit='seconds',
         lower_is_better=True,
         min_score=0.0,
-        use_observed_max=True,
+        unbounded_above=True,
     ),
     MetricSpec(
         evaluation_name='bfcl.non_live.ast_accuracy',
@@ -457,43 +457,17 @@ def make_source_data() -> dict:
     }
 
 
-def compute_observed_max_scores(rows: list[dict]) -> dict[str, float]:
-    observed_max_scores: dict[str, float] = {}
-    for spec in METRIC_SPECS:
-        if not spec.use_observed_max:
-            continue
-
-        values = []
-        for row in rows:
-            try:
-                value = parse_value(row.get(spec.column, ''))
-            except (TypeError, ValueError):
-                continue
-            if value is not None:
-                values.append(value)
-
-        if not values:
-            raise SystemExit(
-                f'Could not determine max_score for {spec.column!r}; no numeric values were found.'
-            )
-
-        observed_max_scores[spec.column] = max(values)
-
-    return observed_max_scores
-
-
 def make_result(
     row: dict,
     spec: MetricSpec,
-    observed_max_scores: dict[str, float],
 ) -> dict | None:
     value = parse_value(row[spec.column])
     if value is None:
         return None
 
     max_score = spec.max_score
-    if spec.use_observed_max:
-        max_score = observed_max_scores[spec.column]
+    if spec.unbounded_above:
+        max_score = float('inf')
 
     return {
         'evaluation_result_id': f'{spec.evaluation_name}::{spec.metric_id.split(".")[-1]}',
@@ -519,11 +493,11 @@ def make_result(
 
 
 def make_results(
-    row: dict, observed_max_scores: dict[str, float]
+    row: dict
 ) -> list[dict]:
     results = []
     for spec in METRIC_SPECS:
-        result = make_result(row, spec, observed_max_scores)
+        result = make_result(row, spec)
         if result is not None:
             results.append(result)
     return results
@@ -531,7 +505,6 @@ def make_results(
 
 def make_log(
     row: dict,
-    observed_max_scores: dict[str, float],
     retrieved_timestamp: str,
 ) -> tuple[dict, str, str]:
     raw_model = row['Model']
@@ -578,7 +551,7 @@ def make_log(
             'developer': developer,
             'additional_details': additional_details,
         },
-        'evaluation_results': make_results(row, observed_max_scores),
+        'evaluation_results': make_results(row),
     }
 
     return log, developer, model
@@ -587,7 +560,6 @@ def make_log(
 def convert_rows(
     rows: list[dict],
     out_root: Path,
-    observed_max_scores: dict[str, float],
     retrieved_timestamp: str,
 ) -> SourceConversionResult[EvaluationLogOutput]:
     outputs = []
@@ -595,7 +567,7 @@ def convert_rows(
     for index, row in enumerate(rows, start=2):
         try:
             raw_log, developer, model = make_log(
-                row, observed_max_scores, retrieved_timestamp
+                row, retrieved_timestamp
             )
             log = EvaluationLog.model_validate(raw_log)
             if not log.evaluation_results:
@@ -642,7 +614,6 @@ def main(argv: list[str] | None = None) -> None:
     args = parse_args(argv)
 
     rows = load_rows(args.input_csv)
-    observed_max_scores = compute_observed_max_scores(rows)
     retrieved_timestamp = str(time.time())
 
     if args.model is not None:
@@ -656,7 +627,6 @@ def main(argv: list[str] | None = None) -> None:
     result = convert_rows(
         rows,
         args.output_dir,
-        observed_max_scores,
         retrieved_timestamp,
     )
     paths = save_evaluation_logs(result.records)

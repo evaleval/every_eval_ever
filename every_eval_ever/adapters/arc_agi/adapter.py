@@ -225,14 +225,15 @@ def compute_metric_bounds(rows: list[dict]) -> dict[str, dict[str, float]]:
         float(row['cost']) for row in rows if row.get('cost') is not None
     ]
 
+    # Cost has no ceiling. An observed maximum is whatever the dearest model in
+    # this batch happened to cost, so declaring it makes the same metric a
+    # different scale on every refresh and two records incomparable.
+    unbounded = {'min_score': 0.0, 'max_score': float('inf')}
     bounds = {'score': {'min_score': 0.0, 'max_score': 1.0}}
     if cost_per_task_values:
-        bounds['cost_per_task'] = {
-            'min_score': 0.0,
-            'max_score': max(cost_per_task_values),
-        }
+        bounds['cost_per_task'] = dict(unbounded)
     if cost_values:
-        bounds['cost'] = {'min_score': 0.0, 'max_score': max(cost_values)}
+        bounds['cost'] = dict(unbounded)
     return bounds
 
 

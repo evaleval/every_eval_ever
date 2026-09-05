@@ -1,6 +1,7 @@
 from every_eval_ever.adapters.artificial_analysis.adapter import (
-    compute_observed_max_scores,
+    METRIC_SPECS,
     convert_models,
+    make_metric_config,
 )
 
 
@@ -26,13 +27,11 @@ def test_bad_metric_keeps_model_with_other_valid_metrics(tmp_path):
             'mmlu_pro': 'not-a-score',
         },
     )
-    bounds = compute_observed_max_scores([valid])
 
     result = convert_models(
         [valid],
         {},
         tmp_path / 'data' / 'artificial-analysis-llms',
-        bounds,
         '1234',
     )
 
@@ -55,16 +54,35 @@ def test_bad_identity_does_not_discard_other_models(tmp_path):
         '',
         {'artificial_analysis_intelligence_index': 25},
     )
-    bounds = compute_observed_max_scores([good, bad])
 
     result = convert_models(
         [good, bad],
         {},
         tmp_path / 'data' / 'artificial-analysis-llms',
-        bounds,
         '1234',
     )
 
     assert len(result.records) == 1
     assert len(result.failures) == 1
     assert result.failures[0].source_record == bad
+
+
+def _spec(name):
+    return next(s for s in METRIC_SPECS if s.evaluation_name.endswith(name))
+
+
+def test_an_unbounded_quantity_declares_no_ceiling():
+    """A price has none, and the dearest model in a batch is not one."""
+    config = make_metric_config(_spec('price_1m_input_tokens'), {})
+    assert config.max_score == float('inf')
+    assert config.additional_details['bound_strategy'] == 'unbounded_above'
+
+
+def test_a_metric_with_no_published_range_declares_no_bounds():
+    config = make_metric_config(
+        _spec('artificial_analysis_intelligence_index'), {}
+    )
+    assert config.min_score is None
+    assert config.max_score is None
+    assert config.score_type is None
+    assert config.additional_details['bounds_status'] == 'unknown'
