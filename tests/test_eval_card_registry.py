@@ -10,6 +10,7 @@ import pytest
 from every_eval_ever.helpers.eval_card_registry import (
     Registry,
     gaps,
+    hf_namespace_of,
     iter_org_identities,
     normalize,
     second_name_of,
@@ -17,6 +18,7 @@ from every_eval_ever.helpers.eval_card_registry import (
 )
 from every_eval_ever.tools.refresh_eval_card_registry import (
     org_alias_spellings,
+    org_hf_namespaces,
     org_identities,
     org_identity_spellings,
     org_second_names,
@@ -47,6 +49,20 @@ def test_a_recorded_namespace_is_an_identity_not_an_alias():
     assert identities['metallama'] == 'meta'
     assert identities['meta'] == 'meta'
     assert identities['cohere'] == 'cohere'
+
+
+def test_namespaces_are_recorded_only_where_the_registry_declares_one():
+    """An organization with no HuggingFace presence must stay absent.
+
+    Mapping it to itself would let a caller publish a namespace nobody declared,
+    which is the pattern guess this direction exists to avoid.
+    """
+    namespaces = org_hf_namespaces(
+        [_org('meta', 'meta-llama'), _org('mistralai', 'mistralai'),
+         _org('amazon'), _org('acme', '')]
+    )
+
+    assert namespaces == {'meta': 'meta-llama', 'mistralai': 'mistralai'}
 
 
 def test_a_spelling_two_organizations_answer_to_names_neither():
@@ -158,6 +174,20 @@ def test_normalize_collapses_case_and_punctuation():
     )
     assert normalize('  Z.AI  ') == 'zai'
     assert normalize('Win Rate') == normalize('win_rate') == 'winrate'
+
+
+def test_hf_namespace_of_reads_the_curated_namespace():
+    """The direction from organization to publishing namespace.
+
+    ``meta`` names the company and ``meta-llama`` is where its repos live, so a
+    source that offers only a website needs this to reach a repo id that
+    resolves. An organization the registry records no namespace for gets
+    ``None``, so a caller keeps whatever it already had.
+    """
+    assert hf_namespace_of('meta') == 'meta-llama'
+    assert hf_namespace_of(' alibaba ') == 'qwen'
+    assert hf_namespace_of('amazon') is None
+    assert hf_namespace_of('an-organization-no-registry-records') is None
 
 
 def test_second_name_of_answers_only_for_a_different_name():

@@ -49,6 +49,7 @@ from typing import Any, Dict, Iterable, Mapping, Optional
 from urllib.parse import urlparse
 
 from every_eval_ever.helpers.developer import get_developer, get_model_id
+from every_eval_ever.helpers.eval_card_registry import hf_namespace_of
 
 # ---------------------------------------------------------------------------
 # Evidence vocabularies
@@ -479,6 +480,15 @@ def hf_canonical_map(payload: Dict[str, Any]) -> Dict[str, str]:
     }
 
 
+def hf_org_namespace(org_id: str) -> Optional[str]:
+    """The HuggingFace namespace *org_id* publishes under, or ``None``.
+
+    Thin seam over the registry so a test can substitute a map and so
+    :func:`resolve_identity` can be told to consult nothing.
+    """
+    return hf_namespace_of(org_id)
+
+
 @lru_cache(maxsize=1)
 def hf_canonical_ids() -> Mapping[str, str]:
     """Return the vendored ``referenced repo id -> current repo id`` map.
@@ -501,6 +511,7 @@ def resolve_identity(
     config: Optional[Dict[str, Any]],
     casing: Optional[Dict[str, str]] = None,
     hf_canonical: Optional[Mapping[str, str]] = None,
+    hf_namespaces: Optional[Mapping[str, str]] = None,
 ) -> Optional[ModelIdentity]:
     """Resolve one leaderboard slug against its upstream model config.
 
@@ -513,6 +524,9 @@ def resolve_identity(
         hf_canonical: ``referenced repo id -> current repo id`` overrides,
             defaulting to the vendored :func:`hf_canonical_ids` map. Pass ``{}``
             to publish repo ids exactly as the source spells them.
+        hf_namespaces: ``canonical org id -> hf_org`` overrides for the
+            ``vendor_site`` rung, defaulting to the registry snapshot. Pass
+            ``{}`` to publish the website's own name as the namespace.
 
     Returns:
         A :class:`ModelIdentity`, or ``None`` when no rung applies (the caller
@@ -549,6 +563,7 @@ def resolve_identity(
     if hf_repo:
         casing.setdefault(hf_repo.lower(), hf_repo)
     renames = hf_canonical_ids() if hf_canonical is None else hf_canonical
+    namespaces = hf_namespaces
 
     def _identity(
         model_id: str, developer: str, source: str
@@ -567,6 +582,25 @@ def resolve_identity(
             current = renames.get(model_id.lower())
             if current and current != model_id:
                 referenced, model_id = model_id, current
+
+        # A vendor's own website names the *organization* (``ai.meta.com`` ->
+        # ``meta``), and building a repo id out of that publishes a namespace
+        # that does not exist while the real one does (``meta`` hosts no Llama
+        # repo, ``meta-llama`` hosts ``Llama-2-70b-chat-hf``). The registry
+        # records the namespace per org, so this is a lookup rather than a
+        # pattern guess, and the website's spelling stays in provenance. Casing
+        # is left to the next ``refresh_hf_canonical_ids`` sweep, which follows
+        # HuggingFace's redirect and vendors the spelling it lands on.
+        if source == 'vendor_site':
+            namespace, _, repo_name = model_id.partition('/')
+            lifted = (
+                namespaces.get(namespace)
+                if namespaces is not None
+                else hf_org_namespace(namespace)
+            )
+            if lifted and lifted != namespace and repo_name:
+                referenced = referenced or model_id
+                model_id, developer = f'{lifted}/{repo_name}', lifted
 
         return ModelIdentity(
             slug=slug,

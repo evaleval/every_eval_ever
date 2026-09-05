@@ -211,6 +211,26 @@ def org_identities(orgs: List[Dict[str, Any]]) -> Dict[str, str]:
     return identities
 
 
+def org_hf_namespaces(orgs: List[Dict[str, Any]]) -> Dict[str, str]:
+    """``canonical org id -> hf_org``, the namespace that org publishes under.
+
+    The reverse of the namespace tier in :func:`org_identities`. A vendor's own
+    website names the organization (``ai.meta.com`` -> ``meta``) while a model
+    repo lives under the namespace (``meta-llama``), so a source that offers
+    only a website needs this direction to reach a repo id that resolves.
+
+    Recorded only where the registry declares one, so an org with no HuggingFace
+    presence stays absent rather than mapping to itself.
+    """
+    return {
+        record['id']: record['hf_org']
+        for record in orgs
+        if isinstance(record.get('id'), str)
+        and isinstance(record.get('hf_org'), str)
+        and record['hf_org']
+    }
+
+
 def org_second_names(
     org_aliases: List[Dict[str, Any]], identities: Dict[str, str]
 ) -> Dict[str, str]:
@@ -291,6 +311,7 @@ def build_snapshot(base_url: str = REGISTRY_BASE_URL) -> Dict[str, Any]:
     second_names = org_second_names(aliases, identities)
     review_status = org_review_status(orgs)
     spellings = org_identity_spellings(orgs)
+    hf_namespaces = org_hf_namespaces(orgs)
     alias_spellings = org_alias_spellings(aliases, spellings)
 
     return {
@@ -324,6 +345,7 @@ def build_snapshot(base_url: str = REGISTRY_BASE_URL) -> Dict[str, Any]:
                 'org_aliases_confirmed': len(second_names),
                 'org_identities': len(identities),
                 'org_identity_spellings': len(spellings),
+                'org_hf_namespaces': len(hf_namespaces),
                 'org_alias_spellings': len(alias_spellings),
                 'metrics': len(metrics),
                 'benchmarks': len(benchmarks),
@@ -335,6 +357,7 @@ def build_snapshot(base_url: str = REGISTRY_BASE_URL) -> Dict[str, Any]:
         'org_identities': dict(sorted(identities.items())),
         'org_aliases': dict(sorted(second_names.items())),
         'org_review_status': dict(sorted(review_status.items())),
+        'org_hf_namespaces': dict(sorted(hf_namespaces.items())),
         'metrics': {
             query: (_metric_entry(record) if record else None)
             for query, record in _pick(metrics, METRIC_QUERIES).items()

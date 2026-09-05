@@ -364,6 +364,20 @@ def iter_org_identities() -> Iterable[Tuple[str, str]]:
     return _snapshot()['org_identities'].items()
 
 
+def hf_namespace_of(org_id: str) -> Optional[str]:
+    """Return the HuggingFace namespace *org_id* publishes model repos under.
+
+    ``meta`` -> ``meta-llama``, ``alibaba`` -> ``Qwen``. A source that names a
+    publisher only by its own website reaches a repo id that resolves this way;
+    the org id alone names a company, which is rarely a namespace. ``None`` when
+    the registry records no ``hf_org``, so a caller keeps whatever it had rather
+    than inventing a namespace.
+    """
+    if not isinstance(org_id, str):
+        return None
+    return (_snapshot().get('org_hf_namespaces') or {}).get(org_id.strip())
+
+
 def second_name_of(slug: str) -> Optional[str]:
     """Return the canonical org id when ``slug`` is a *second name* for it.
 

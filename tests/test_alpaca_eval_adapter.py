@@ -866,7 +866,8 @@ def test_identity_rejects_a_serving_version_reference_as_a_repo_id():
     resolved = identity_mod.resolve_identity('llama-2-70b-chat-hf', config)
 
     assert ':' not in resolved.model_id
-    assert resolved.developer == 'meta'
+    assert resolved.model_id == 'meta-llama/llama-2-70b-chat-hf'
+    assert resolved.developer == 'meta-llama'
     assert resolved.identity_source == 'vendor_site'
     # The reference actually served is still recorded.
     assert resolved.upstream_model_name.endswith(':e951')
@@ -1089,6 +1090,64 @@ def test_renames_can_be_switched_off_for_verbatim_source_ids():
 
     assert resolved.model_id == 'WizardLM/WizardLM-70B-V1.0'
     assert resolved.model_id_as_referenced is None
+
+
+def test_a_vendor_site_publishes_the_registrys_huggingface_namespace():
+    """``ai.meta.com`` names Meta, whose repos live under ``meta-llama``.
+
+    ``meta`` hosts no Llama repo, so an id built out of the website's own name
+    joins with nothing. The namespace the registry records for the organization
+    replaces it, and the derived spelling stays in ``model_id_as_referenced``.
+    """
+    config = {'link': 'https://ai.meta.com/llama/'}
+    resolved = identity_mod.resolve_identity('llama-2-70b-chat-hf', config)
+
+    assert resolved.identity_source == 'vendor_site'
+    assert resolved.model_id == 'meta-llama/llama-2-70b-chat-hf'
+    assert resolved.developer == 'meta-llama'
+    assert resolved.model_id_as_referenced == 'meta/llama-2-70b-chat-hf'
+
+
+def test_the_namespace_lift_can_be_switched_off():
+    config = {'link': 'https://ai.meta.com/llama/'}
+    resolved = identity_mod.resolve_identity(
+        'llama-2-70b-chat-hf', config, hf_namespaces={}
+    )
+
+    assert resolved.model_id == 'meta/llama-2-70b-chat-hf'
+    assert resolved.developer == 'meta'
+    assert resolved.model_id_as_referenced is None
+
+
+def test_a_vendor_site_keeps_its_name_where_no_namespace_is_recorded():
+    """An organization with no HuggingFace presence has nothing to lift to.
+
+    The website's name is then the only spelling there is, so it is published as
+    derived rather than replaced by a pattern guess.
+    """
+    config = {'link': 'https://ai.meta.com/llama/'}
+    resolved = identity_mod.resolve_identity(
+        'llama-2-70b-chat-hf', config, hf_namespaces={'alibaba': 'qwen'}
+    )
+
+    assert resolved.developer == 'meta'
+    assert resolved.model_id_as_referenced is None
+
+
+def test_the_namespace_lift_is_confined_to_the_vendor_site_rung():
+    """A HuggingFace link already names a namespace that resolves.
+
+    Rewriting it would trade a spelling the source read off HuggingFace for one
+    derived from an organization id.
+    """
+    config = {'link': 'https://huggingface.co/meta/llama-2-70b-chat-hf'}
+    resolved = identity_mod.resolve_identity(
+        'llama-2-70b-chat-hf', config, hf_namespaces={'meta': 'meta-llama'}
+    )
+
+    assert resolved.identity_source == 'hf_model_link'
+    assert resolved.model_id == 'meta/llama-2-70b-chat-hf'
+    assert resolved.developer == 'meta'
 
 
 def test_a_constructed_id_is_never_canonicalized_against_huggingface():
