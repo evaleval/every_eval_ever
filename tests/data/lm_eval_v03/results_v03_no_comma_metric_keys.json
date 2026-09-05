@@ -1,0 +1,32 @@
+{
+ "results": {
+  "sciq": {
+   "acc": 0.891,
+   "acc_stderr": 0.009859828407037191,
+   "acc_norm": 0.816,
+   "acc_norm_stderr": 0.012259457340938588
+  },
+  "arc_easy": {
+   "acc": 0.5942760942760943,
+   "acc_stderr": 0.010075755540128871,
+   "acc_norm": 0.5328282828282829,
+   "acc_norm_stderr": 0.010237645778853869
+  }
+ },
+ "versions": {
+  "sciq": 0,
+  "arc_easy": 0
+ },
+ "config": {
+  "model": "gpt2",
+  "model_args": "use_fast=True,pretrained=bigscience/bloom-3b,trust_remote_code=True,low_cpu_mem_usage=True,dtype=auto",
+  "num_fewshot": 0,
+  "batch_size": "8",
+  "batch_sizes": [],
+  "device": null,
+  "no_cache": true,
+  "limit": null,
+  "bootstrap_iters": 100000,
+  "description_dict": {}
+ }
+}
