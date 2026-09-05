@@ -14,7 +14,7 @@ def _entry(**overrides):
         'agent_org': 'Example Org',
         'model_org': 'OpenAI',
         'accuracy': 50.0,
-        'stderr': 2.0,
+        'ci95_half_width': 2.0,
     }
     entry.update(overrides)
     return entry
@@ -75,20 +75,97 @@ def test_rejected_entry_retains_source_provenance():
         raise AssertionError('expected invalid Terminal-Bench entry to fail')
 
 
-def test_html_parser_uses_live_table_shape_and_keeps_bad_rows():
-    html = """
-    <table><tbody>
-      <tr><td><input></td><td>1</td><td>Example Agent</td>
-          <td>GPT-5</td><td>2026-01-01</td><td>Example Org</td>
-          <td>OpenAI</td><td>50.0%± 2.0</td></tr>
-      <tr><td><input></td><td>2</td><td>Bad Agent</td>
-          <td>GPT-5</td><td>2026-01-01</td><td>Example Org</td>
-          <td>OpenAI</td><td>unknown</td></tr>
-    </tbody></table>
-    """
+def _row(**overrides):
+    row = {
+        'rank': 1,
+        'status': 'display',
+        'metadata': {
+            'agent_display': {'label': 'Example Agent', 'url': 'https://e.dev'},
+            'agent_name': 'example',
+            'agent_org': 'Example Org',
+            'model_display': 'GPT-5',
+            'model_names': ['gpt-5'],
+            'model_org': 'OpenAI',
+            'date': '2026-01-01',
+        },
+        'metrics': {
+            'accuracy': 50.0,
+            'accuracy_ci95_half_width': 2.0,
+            'display_accuracy': '**50.0%** \u00b1 2.0',
+        },
+    }
+    row.update(overrides)
+    return row
 
-    result = adapter.parse_leaderboard_html(html)
+
+def test_payload_rows_normalize_to_entries_and_keep_bad_rows():
+    payload = {
+        'rows': [
+            _row(),
+            _row(rank='second', metadata={}, metrics={}),
+        ]
+    }
+
+    result = adapter.parse_leaderboard_payload(payload)
 
     assert result.records == [_entry()]
     assert len(result.failures) == 1
-    assert result.failures[0].source_record['cells'][-1] == 'unknown'
+    assert result.failures[0].source_ref == 'leaderboard row 2'
+
+
+def test_a_row_the_source_withholds_is_excluded_with_its_reason():
+    payload = {'rows': [_row(), _row(rank=2, status='hidden')]}
+
+    result = adapter.parse_leaderboard_payload(payload)
+
+    assert result.records == [_entry()]
+    assert result.failures == []
+    assert len(result.exclusions) == 1
+    assert "'hidden'" in result.exclusions[0].reason
+
+
+def test_a_leaderboard_that_displays_nothing_fails_instead_of_publishing_none():
+    result = adapter.parse_leaderboard_payload(
+        {'rows': [_row(status='hidden')]}
+    )
+
+    assert result.records == []
+    assert len(result.exclusions) == 1
+    assert 'withheld all 1 of its rows' in result.failures[0].reason
+
+
+def test_an_agent_without_a_display_label_falls_back_to_its_name():
+    metadata = dict(_row()['metadata'])
+    del metadata['agent_display']
+    metadata['model_display'] = ''
+
+    entry = adapter.parse_leaderboard_payload(
+        {'rows': [_row(metadata=metadata)]}
+    ).records[0]
+
+    assert entry['agent'] == 'example'
+    assert entry['model'] == 'gpt-5'
+
+
+def test_the_reported_half_width_is_recorded_as_a_confidence_interval():
+    """The source publishes a 95% CI half-width, not a standard error.
+
+    It was written into ``standard_error``, which overstates the standard error
+    by roughly the 1.96 factor between the two quantities.
+    """
+    bundles = adapter.make_logs([_entry()], retrieved_timestamp='1234567890.0')
+
+    uncertainty = bundles[0][0].evaluation_results[0].score_details.uncertainty
+    assert uncertainty.standard_error is None
+    interval = uncertainty.confidence_interval
+    assert (interval.lower, interval.upper) == (48.0, 52.0)
+    assert interval.confidence_level == 0.95
+
+
+def test_a_row_without_a_half_width_carries_no_uncertainty():
+    bundles = adapter.make_logs(
+        [_entry(ci95_half_width=None)],
+        retrieved_timestamp='1234567890.0',
+    )
+
+    assert bundles[0][0].evaluation_results[0].score_details.uncertainty is None
