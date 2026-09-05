@@ -1,42 +1,19 @@
-"""CLI for converting AlpacaEval leaderboard data to every_eval_ever format."""
+"""``python -m every_eval_ever.converters.alpaca_eval`` — the shared CLI.
 
-import argparse
+Every option comes from ``every_eval_ever.cli``'s ``convert alpaca_eval``
+parser, so this entry point cannot fall behind it.
+"""
 
-from .adapter import LEADERBOARDS
+import sys
+from typing import List, Optional
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        description=(
-            'Fetch AlpacaEval leaderboard data from GitHub and convert it '
-            'to Every Eval Ever schema JSON files.'
-        )
-    )
-    parser.add_argument(
-        '--version',
-        choices=list(LEADERBOARDS.keys()),
-        default=None,
-        help=(
-            'Which leaderboard to convert. '
-            'Omit to convert all versions (default).'
-        ),
-    )
-    parser.add_argument(
-        '--output_dir',
-        default='data',
-        help='Base output directory (default: data).',
-    )
-    args = parser.parse_args()
-    args.source_organization_name = 'unknown'
-    args.evaluator_relationship = 'third_party'
-    args.source_organization_url = None
-    args.source_organization_logo_url = None
-    args.eval_library_name = 'alpaca_eval'
-    args.eval_library_version = 'unknown'
+def main(argv: Optional[List[str]] = None) -> int:
+    from every_eval_ever.cli import main as cli_main
 
-    from every_eval_ever.cli import _cmd_convert_alpaca_eval
-
-    return _cmd_convert_alpaca_eval(args)
+    if argv is None:
+        argv = sys.argv[1:]
+    return cli_main(['convert', 'alpaca_eval', *argv])
 
 
 if __name__ == '__main__':
