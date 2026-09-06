@@ -399,7 +399,7 @@ Beyond the shared converter arguments:
 
 ## sayf-eval
 
-[sayf-eval](https://pypi.org/project/sayf-eval/) (`pip install sayf-eval`) is a
+[sayf-eval](https://pypi.org/project/sayf-eval/) (`uv pip install sayf-eval`) is a
 model-agnostic cybersecurity LLM-evaluation framework
 ([source](https://github.com/qcri/sayf-eval)). Each run writes a canonical
 *results record* (`<output_dir>/results/<model>/results_<ts>.json`) that embeds
