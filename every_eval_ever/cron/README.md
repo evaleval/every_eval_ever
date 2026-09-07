@@ -347,3 +347,122 @@ This is a deliberate MVP.
 - The write token is checked for a reported read-only role, which a
   fine-grained token need not report. Only a commit proves those scopes, so
   such a token still fails at the publish step rather than up front.
+
+## Flat datastore rebuild
+
+`flat_rebuild.py` refreshes the datastore's `flat/` view (content-addressed
+objects, per-collection indexes, snapshot manifests) after ingestion. It runs
+as the `Flat rebuild` workflow — triggered when `Adapter ingestion` completes,
+on manual dispatch, and on a nightly catch-up sweep — and can be run by
+hand against any snapshot of the datastore's state on the Hub:
+
+```bash
+uv run python -m every_eval_ever.cron.flat_rebuild --dry-run
+uv run python -m every_eval_ever.cron.flat_rebuild --repo-id evaleval/EEE_datastore
+```
+
+It does not clone the datastore (`data/` is ~15 GB, more than a runner
+holds). Instead it diffs the current `data/` tree against the published
+snapshot by path and size, downloads new and size-changed source files,
+and writes the flat row and manifest format in bounded commit batches.
+Unlike the checkout builder, it supports semantic reserialization and
+reports conflicting UUID reuse while preserving published objects. Commit
+conflicts use the ingestion retry helpers; adoption verifies file content.
+
+Three policies are built in, all decided in the 2026-09 design round:
+
+- **Retire, don't destroy.** A collection index whose collection no longer
+  exists under `data/` (renames are routine — `live_bench` became
+  `livebench`) is moved to `flat/indexes/retired/` rather than deleted, so
+  the removed collection stays browsable.
+- **Retention keeps the last reference.** Snapshots older than
+  `--retain-days` (default 90) are trimmed, except any manifest that is the
+  last remaining index into an object — so no object in `flat/objects/`
+  ever loses its row. Unscannable snapshots are conservatively kept.
+- **Conflicts are excluded, loudly.** A record re-emitted under a known
+  UUID with different content (a schema migration that reused UUIDs — 195
+  of them rode in with `livebench`'s 0.3.0 re-emission) cannot enter the
+  flat view without breaking object immutability. It is excluded, the
+  published object stays, the run exits 2 with every conflict enumerated,
+  and it stays red until upstream re-emits with fresh UUIDs. A pure
+  re-serialization of the same evaluation (byte-different, semantically
+  identical) is not a conflict: the row is re-pointed and the published
+  bytes stay.
+
+The nightly diff detects changes by size, which cannot see a same-length
+edit. `--verify` hashes inherited aggregate and companion source files
+against their snapshot sha256 values. Missing inherited files and content
+drift are errors; reserialization is accepted only against intact published
+objects. Objects explicitly planned for first upload are excluded from this
+inherited-file check. The
+workflow runs it in a weekly Sunday sweep; expect it to be slow.
+
+Exit codes follow the house convention: 0 clean or no-op, 1 error, 2
+completed with excluded conflicts (the job stays red until they are
+resolved). Records are not validated here: the ingestion cron validated
+each one before committing it. A run whose rebuilt manifest core hash
+matches the published one and that has no missing index, retire, or
+retention work commits nothing. Conflicts still produce exit code 2 on a no-op. A full initial build (no snapshot published yet) is expensive and
+gated behind `--allow-bootstrap`.
+
+The repository defaults to `evaleval/EEE_datastore` when
+`EEE_DATASTORE_REPO_ID` is unset or empty, matching the workflow's optional
+repository variable. An explicitly empty `--repo-id` is an error. The run
+summary prints the selected repository.
+
+Companion additions and removals are tracked independently of aggregate
+changes. A semantic change to a known companion is reported as a conflict;
+its published bytes remain intact. Existing rows retain their published
+companion, while a newly attached conflicting companion is omitted. An
+unreadable comparison is a hard error. Duplicate UUIDs across live paths
+are errors. Retention accounts for companion objects and protects both the
+previous and destination snapshots.
+
+A failed commit is accepted only after verifying the expected file content
+and deletions. An unverifiable commit outcome stops the run with an error.
+Unreadable retention entries are kept with a warning naming the snapshot
+and failure; unscanned snapshots are listed in the summary. Unchanged
+same-size source files still use the agreed size-based change detection.
+
+### Reviewer comments and changes
+
+The review found that companion reattachment could overwrite historical
+objects, adopted companions could advertise the wrong hash, and the deep
+verification pass skipped companions. The fixes apply these rules:
+
+- **Check the destination before attaching samples.** Compute the canonical
+  companion object path from the UUID even when the current row has no
+  companion path. The same attachment helper handles existing aggregates,
+  moved aggregates, and UUIDs returning from historical snapshots. An
+  existing destination is adopted only when its content matches; a
+  conflicting destination is preserved and reported, with no upload.
+- **Describe the bytes that are actually published.** When adopting an
+  existing companion, derive its hash and size from the published bytes.
+  Incoming whitespace or key-order differences must not alter this metadata.
+- **Compare JSONL as ordered records.** Identical bytes match immediately.
+  Otherwise parse companions one nonblank line at a time and compare the
+  resulting records without reordering or dropping duplicates. Aggregate
+  JSON remains a single document. Comparisons preserve value types,
+  including nested booleans versus numbers; numeric representation type
+  changes such as integer to float are treated conservatively as conflicts.
+- **Verify inherited companions too.** The deep pass hashes both aggregate
+  and companion source files. A source hash mismatch requires comparison
+  against a published object whose bytes still match the manifest hash.
+  Missing inherited sources or objects are reported as drift. Only object
+  paths explicitly scheduled for first upload are skipped; absence alone
+  never makes verification pass.
+- **Keep failure outcomes visible.** Conflicts are enumerated and yield
+  exit code 2. Missing comparison data and deep verification drift stop the
+  run before publication with exit code 1. Unreadable retention snapshots
+  remain preserved with warnings and entries in the run summary.
+
+Regression tests cover all three companion attachment paths, historical
+hash/size preservation, identical and reformatted multi-line JSONL, record
+order and count, nested JSON type differences, same-length companion drift,
+missing inherited objects, and explicit bootstrap uploads. Run the focused
+checks with:
+
+```bash
+uv run --frozen python -m pytest tests/test_flat_rebuild.py -q
+uv run --frozen ruff check every_eval_ever/cron/flat_rebuild.py tests/test_flat_rebuild.py
+```
