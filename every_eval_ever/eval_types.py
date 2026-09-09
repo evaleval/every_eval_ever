@@ -232,7 +232,7 @@ class GenerationArgs(BaseModel):
     )
     sandbox: Sandbox | None = None
     max_attempts: int | None = Field(
-        1, description='Maximum number of submission attempts (default 1).'
+        None, description='Maximum number of submission attempts.'
     )
     incorrect_attempt_feedback: str | None = Field(
         None, description='Feedback from the model after incorrect attempt.'
