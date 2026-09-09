@@ -402,7 +402,8 @@ completed with excluded conflicts (the job stays red until they are
 resolved). Records are not validated here: the ingestion cron validated
 each one before committing it. A run whose rebuilt manifest core hash
 matches the published one and that has no missing index, retire, or
-retention work commits nothing. Conflicts still produce exit code 2 on a no-op. A full initial build (no snapshot published yet) is expensive and
+retention work commits nothing. Conflicts still produce exit code 2 on a
+no-op. A full initial build (no snapshot published yet) is expensive and
 gated behind `--allow-bootstrap`.
 
 The repository defaults to `evaleval/EEE_datastore` when

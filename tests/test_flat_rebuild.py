@@ -181,6 +181,26 @@ def test_row_dict_omits_absent_samples() -> None:
     assert 'instance_level_path' not in row.to_dict()
 
 
+def test_row_from_dict_normalizes_absent_samples() -> None:
+    row = make_row(str(uuid4()), 'gsm8k')
+    loaded = fr.Row.from_dict(
+        {
+            **row.to_dict(),
+            'instance_level_path': 'flat/objects/keep-me-out.jsonl',
+            'instance_sha': 'abc',
+            'instance_level_size_bytes': 1,
+        }
+    )
+    assert loaded == row
+
+
+def test_row_from_dict_rejects_incomplete_samples() -> None:
+    row = make_row(str(uuid4()), 'gsm8k').to_dict()
+    row['instance_level_available'] = True
+    with pytest.raises(ValueError, match='companion metadata'):
+        fr.Row.from_dict(row)
+
+
 def test_manifest_shape_matches_builder() -> None:
     rows = [make_row(str(uuid4()), 'gsm8k')]
     manifest = fr.manifest_for(rows, created_at='2026-01-01T00:00:00+00:00')
@@ -300,6 +320,25 @@ def test_same_uuid_semantic_change_becomes_conflict() -> None:
     # without the existing object there is nothing to compare against
     result = fr.build_rows([old_row], diff, contents)
     assert 'could not be fetched' in result.errors[0]
+
+
+def test_changed_samples_conflict_excludes_samples_path() -> None:
+    row = fr._row_with_samples(make_row(str(uuid4()), 'gsm8k'), b'{"x":1}\n')
+    sample_path = fr.samples_path_for(row.legacy_path)
+    changed = b'{"x":2000}\n'
+    result = fr.build_rows(
+        [row],
+        fr.diff_against_snapshot(
+            [row], {row.legacy_path: row.size_bytes, sample_path: len(changed)}
+        ),
+        {sample_path: changed},
+        lambda object_path: (
+            b'{"x":1}\n' if object_path == row.instance_level_path else None
+        ),
+    )
+    assert not result.errors
+    assert len(result.conflicts) == 1
+    assert result.excluded_paths == {sample_path}
 
 
 def test_reserialized_move_is_accepted() -> None:
@@ -619,6 +658,7 @@ def test_orchestrate_rebuild_then_noop(
     assert report.commits >= 1
     latest = json.loads(api.files[fr.LATEST_MANIFEST_PATH])
     assert latest['aggregate_file_count'] == 3
+    assert latest['created_at'] == NOW.isoformat()
     assert 'flat/indexes/by_collection/gsm8k.jsonl' in api.files
     assert 'flat/indexes/by_collection/hle.jsonl' in api.files
     assert 'flat/indexes/by_legacy_path.jsonl' in api.files
@@ -1098,6 +1138,31 @@ def test_moved_multiline_companion_is_not_a_conflict(incoming):
     assert not result.conflicts
     assert result.rows[0].instance_sha == row.instance_sha
     assert not result.upload_samples
+
+
+def test_moved_companion_conflict_excludes_samples_path():
+    published = b'{"x":1}\n'
+    row = fr._row_with_samples(make_row(str(uuid4()), 'gsm8k'), published)
+    path = row.legacy_path.replace('/gsm8k/', '/other/')
+    sample_path = fr.samples_path_for(path)
+    result = fr.build_rows(
+        [row],
+        fr.diff_against_snapshot(
+            [row],
+            {
+                path: len(record_bytes(row.object_uuid, 'gsm8k')),
+                sample_path: len(b'{"x":2000}\n'),
+            },
+        ),
+        {
+            path: record_bytes(row.object_uuid, 'gsm8k'),
+            sample_path: b'{"x":2000}\n',
+        },
+        lambda object_path: published if object_path == row.instance_level_path else None,
+    )
+    assert not result.errors
+    assert len(result.conflicts) == 1
+    assert result.excluded_paths == {sample_path}
 
 
 @pytest.mark.parametrize(

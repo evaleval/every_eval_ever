@@ -102,6 +102,21 @@ class Row:
     instance_sha: str | None = None
     instance_level_size_bytes: int | None = None
 
+    def __post_init__(self) -> None:
+        if self.instance_level_available:
+            if (
+                self.instance_level_path is None
+                or self.instance_sha is None
+                or self.instance_level_size_bytes is None
+            ):
+                raise ValueError(
+                    'instance_level_available rows require companion metadata'
+                )
+            return
+        object.__setattr__(self, 'instance_level_path', None)
+        object.__setattr__(self, 'instance_sha', None)
+        object.__setattr__(self, 'instance_level_size_bytes', None)
+
     def to_dict(self) -> dict[str, Any]:
         row: dict[str, Any] = {
             'object_uuid': self.object_uuid,
@@ -617,7 +632,7 @@ def build_rows(
                 f'{samples_path_for(path)}: samples changed under immutable '
                 f'UUID {old_row.object_uuid}; the row keeps its published object'
             )
-            excluded.add(path)
+            excluded.add(samples_path_for(path))
     seen = {uuid: row.legacy_path for uuid, row in rows.items()}
     added = 0
     moved = 0
@@ -674,7 +689,7 @@ def build_rows(
             )
             if conflict:
                 conflicts.append(conflict)
-                excluded.add(path)
+                excluded.add(samples_path_for(path))
             if row is None:
                 continue
             if (
@@ -1317,7 +1332,7 @@ def orchestrate(
     report.records = len(rows)
     report.collections = len({row.benchmark for row in rows})
 
-    new_manifest = manifest_for(rows, created_at=utc_now())
+    new_manifest = manifest_for(rows, created_at=now.isoformat())
     report.manifest_core_sha256 = new_manifest['manifest_core_sha256']
     noop_core = bool(manifest) and manifest_core(manifest) == manifest_core(
         new_manifest
