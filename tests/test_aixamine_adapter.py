@@ -1,0 +1,160 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+from every_eval_ever.adapters.aixamine import adapter as aix
+from every_eval_ever.eval_types import EvaluationLog
+from every_eval_ever.helpers import EvaluationLogOutput, save_evaluation_logs
+from every_eval_ever.validate import validate_file
+
+CATALOG = [
+    {
+        "value": "hallucination",
+        "name": "Hallucination",
+        "tests": [
+            {"value": "halueval", "name": "HaluEval", "description": "Hallucination eval."},
+            {"value": "simpleqa", "name": "SimpleQA", "description": "Short-form factuality."},
+            {"value": "factqa", "name": "FactQA", "description": "Dynamic factual QA.", "dynamic": True},
+        ],
+    },
+    {
+        "value": "fairness-bias",
+        "name": "Fairness & Bias",
+        "tests": [{"value": "bbq", "name": "BBQ", "description": "Bias benchmark."}],
+    },
+]
+
+REPORT = {
+    "_id": "r1",
+    "model": "m1",
+    "services": {
+        "hallucination": {
+            "tests": {
+                "halueval": {"score": 55.3, "categories": {"QA": {"score": 44.2, "subcategories": []}}},
+                "simpleqa": {"score": 30.0, "categories": {}},
+            }
+        },
+        "fairness-bias": {"tests": {"bbq": {"score": 71.4, "categories": {}}}},
+    },
+    "dynamic": {
+        "services": {
+            "hallucination": {
+                "tests": {
+                    "factqa": {
+                        "versions": [
+                            {"score": 83.5, "testVersion": "v1",
+                             "generatedAt": "2026-06-29T08:22:39.894Z",
+                             "categories": {"LA": 65, "ST": 91.6}}
+                        ]
+                    }
+                }
+            }
+        }
+    },
+}
+
+MODEL_HF = {"name": "meta-llama/Llama-3.1-8B-Instruct", "developer": "meta-llama",
+            "accessType": "huggingface", "createdAt": "2026-01-15T10:00:00.000Z"}
+MODEL_API = {"name": "gpt-5", "developer": "OpenAI", "accessType": "openai",
+             "createdAt": "2026-01-15T10:00:00.000Z"}
+
+
+def _save_and_validate(logs, tmp_path) -> list[Path]:
+    outputs = [
+        EvaluationLogOutput(
+            eval_log=EvaluationLog.model_validate(log.model_dump()),
+            base_dir=tmp_path / "data" / collection,
+            developer=dev,
+            model_name=model_name,
+        )
+        for collection, dev, model_name, log in logs
+    ]
+    paths = save_evaluation_logs(outputs)
+    assert paths
+    for path in paths:
+        report = validate_file(path)
+        assert report.valid, report.errors
+    return paths
+
+
+def test_one_log_per_service_and_validates(tmp_path):
+    logs = aix.build_service_logs(REPORT, MODEL_HF, CATALOG, "123")
+    collections = {c for c, _, _, _ in logs}
+    assert collections == {"aixamine_hallucination", "aixamine_fairness_bias"}
+    _save_and_validate(logs, tmp_path)
+
+
+def test_canonical_mapping_bare_names_and_categories(tmp_path):
+    logs = aix.build_service_logs(REPORT, MODEL_HF, CATALOG, "123")
+    names = {r.evaluation_name for _, _, _, log in logs for r in log.evaluation_results}
+    assert "bbq" in names            # canonical id for a confident match
+    assert "halueval" in names       # bare aiXamine name otherwise
+    assert "halueval.QA" in names    # static category sub-result
+    assert "factqa" in names         # dynamic test (latest version)
+    assert "factqa.LA" in names      # dynamic category sub-result
+
+
+def test_api_model_marked_closed_weights(tmp_path):
+    logs = aix.build_service_logs(REPORT, MODEL_API, CATALOG, "123")
+    collection, dev, model_name, log = logs[0]
+    # API models get the aiXamine access date appended as a snapshot suffix.
+    assert log.model_info.id == "OpenAI/gpt-5-2026-01-15"
+    assert log.model_info.name == "gpt-5-2026-01-15"
+    assert model_name == "gpt-5-2026-01-15"
+    assert log.model_info.additional_details["model_availability"] == "closed_weights"
+    assert log.model_info.additional_details["deployment_type"] == "externally_managed"
+    _save_and_validate(logs, tmp_path)
+
+
+def test_hf_model_not_date_stamped(tmp_path):
+    logs = aix.build_service_logs(REPORT, MODEL_HF, CATALOG, "123")
+    _, _, model_name, log = logs[0]
+    assert log.model_info.id == "meta-llama/Llama-3.1-8B-Instruct"
+    assert model_name == "meta-llama/Llama-3.1-8B-Instruct"
+
+
+def test_missing_developer_records_failure(tmp_path):
+    model_no_dev = {"name": "mystery-model", "accessType": "openai",
+                    "createdAt": "2026-01-15T10:00:00.000Z"}
+    outputs, failures = [], []
+    aix._outputs_for(REPORT, model_no_dev, CATALOG, tmp_path, "123", outputs, failures)
+    assert outputs == []
+    assert len(failures) == 1
+    assert failures[0].source_record == {"model": "mystery-model"}
+    assert "developer" in failures[0].reason
+
+
+def test_missing_report_id_records_failure(tmp_path):
+    report_no_id = {k: v for k, v in REPORT.items() if k != "_id"}
+    outputs, failures = [], []
+    aix._outputs_for(report_no_id, MODEL_HF, CATALOG, tmp_path, "123", outputs, failures)
+    assert outputs == []
+    assert len(failures) == 1
+    assert "_id" in failures[0].reason
+
+
+def test_evaluation_id_stable_per_report_no_collision(tmp_path):
+    r1, r2 = {**REPORT, "_id": "r1"}, {**REPORT, "_id": "r2"}
+    id1 = aix.build_service_logs(r1, MODEL_HF, CATALOG, "t1")[0][3].evaluation_id
+    id1b = aix.build_service_logs(r1, MODEL_HF, CATALOG, "t2")[0][3].evaluation_id
+    id2 = aix.build_service_logs(r2, MODEL_HF, CATALOG, "t1")[0][3].evaluation_id
+    assert id1 == id1b
+    assert id1 != id2
+    assert id1.endswith("/r1")
+    assert "meta-llama_meta-llama" not in id1
+
+
+def test_metric_id_is_per_test(tmp_path):
+    logs = aix.build_service_logs(REPORT, MODEL_HF, CATALOG, "123")
+    ids = {r.metric_config.metric_id for _, _, _, log in logs for r in log.evaluation_results}
+    assert "aixamine.halueval" in ids
+    assert "aixamine.bbq" in ids
+    assert "aixamine.rate" not in ids
+
+
+def test_source_metadata_is_first_party_evaluation_run(tmp_path):
+    logs = aix.build_service_logs(REPORT, MODEL_HF, CATALOG, "123")
+    _, _, _, log = logs[0]
+    assert log.eval_library.name == "aixamine"
+    assert log.source_metadata.source_type.value == "evaluation_run"
+    assert log.source_metadata.evaluator_relationship.value == "first_party"
