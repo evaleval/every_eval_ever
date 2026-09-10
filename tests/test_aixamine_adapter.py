@@ -124,6 +124,15 @@ def test_missing_developer_records_failure(tmp_path):
     assert "developer" in failures[0].reason
 
 
+def test_missing_report_id_records_failure(tmp_path):
+    report_no_id = {k: v for k, v in REPORT.items() if k != "_id"}
+    outputs, failures = [], []
+    aix._outputs_for(report_no_id, MODEL_HF, CATALOG, tmp_path, "123", outputs, failures)
+    assert outputs == []
+    assert len(failures) == 1
+    assert "_id" in failures[0].reason
+
+
 def test_evaluation_id_stable_per_report_no_collision(tmp_path):
     r1, r2 = {**REPORT, "_id": "r1"}, {**REPORT, "_id": "r2"}
     id1 = aix.build_service_logs(r1, MODEL_HF, CATALOG, "t1")[0][3].evaluation_id

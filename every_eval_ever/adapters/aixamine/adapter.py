@@ -199,7 +199,7 @@ def build_service_logs(report, model, catalog, retrieved_ts):
         collection = collection_for(svc_value)
         log = EvaluationLog(
             schema_version=SCHEMA_VERSION,
-            evaluation_id=f"{collection}/{model_id.replace('/', '_')}/{report.get('_id') or retrieved_ts}",
+            evaluation_id=f"{collection}/{model_id.replace('/', '_')}/{report['_id']}",
             retrieved_timestamp=retrieved_ts,
             source_metadata=SourceMetadata(
                 source_name=collection,
@@ -210,7 +210,7 @@ def build_service_logs(report, model, catalog, retrieved_ts):
                 additional_details={
                     "service": svc_value,
                     "service_name": smeta.get("name", svc_value),
-                    "paper": PAPER,
+                    "paper_url": PAPER,
                     "homepage": HOMEPAGE,
                 },
             ),
@@ -275,6 +275,12 @@ def enumerate_reports(base, access_type=None, page_size=50, max_pages=None):
 
 def _outputs_for(report, model, catalog, out_root, retrieved_ts, outputs, failures):
     """Append this (report, model)'s service logs to outputs / failures."""
+    if not report.get("_id"):
+        failures.append(SourceRecordFailure(
+            source_ref=f"{SRC} report {report.get('_id')}",
+            reason="report has no _id",
+            source_record={"model": model.get("name")}))
+        return
     if _resolve_developer(model) is None:
         failures.append(SourceRecordFailure(
             source_ref=f"{SRC} report {report.get('_id')}",
