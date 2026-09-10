@@ -135,6 +135,14 @@ def test_evaluation_id_stable_per_report_no_collision(tmp_path):
     assert "meta-llama_meta-llama" not in id1
 
 
+def test_metric_id_is_per_test(tmp_path):
+    logs = aix.build_service_logs(REPORT, MODEL_HF, CATALOG, "123")
+    ids = {r.metric_config.metric_id for _, _, _, log in logs for r in log.evaluation_results}
+    assert "aixamine.halueval" in ids
+    assert "aixamine.bbq" in ids
+    assert "aixamine.rate" not in ids
+
+
 def test_source_metadata_is_first_party_documentation(tmp_path):
     logs = aix.build_service_logs(REPORT, MODEL_HF, CATALOG, "123")
     _, _, _, log = logs[0]

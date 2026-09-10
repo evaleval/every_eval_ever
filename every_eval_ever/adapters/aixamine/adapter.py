@@ -108,7 +108,7 @@ def _metric_config(test_value, description):
     """aiXamine scores are a 0-100 rate (safe / pass / accepted); higher is better."""
     return MetricConfig(
         evaluation_description=description or None,
-        metric_id=f"{SRC}.rate",
+        metric_id=f"{SRC}.{test_value}",
         metric_name="score",
         metric_kind="accuracy",
         metric_unit="percent",
