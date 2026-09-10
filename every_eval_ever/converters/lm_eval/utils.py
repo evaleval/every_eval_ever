@@ -147,6 +147,8 @@ LM_EVAL_METRIC_BOUNDS = {
     'ter': (0.0, float('inf')),
     'word_perplexity': (1.0, float('inf')),
     'byte_perplexity': (1.0, float('inf')),
+    # v0.3's spelling of the same metric; see CANONICAL_METRIC_IDS.
+    'ppl': (1.0, float('inf')),
     'perplexity': (1.0, float('inf')),
     'bits_per_byte': (0.0, float('inf')),
 }
