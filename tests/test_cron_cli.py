@@ -214,7 +214,38 @@ def test_an_unknown_adapter_is_rejected(capsys) -> None:
 
 def test_an_unschedulable_adapter_is_rejected(capsys) -> None:
     assert cli.main(['run', '--adapter', 'bfcl']) == 1
-    assert 'not schedulable' in capsys.readouterr().err
+    err = capsys.readouterr().err
+    assert 'not schedulable' in err
+    # The refusal has to name the way out, or the next person edits the catalog.
+    assert '--backfill' in err
+
+
+def test_backfill_reaches_an_adapter_the_schedule_never_will(
+    monkeypatch, capsys
+) -> None:
+    """A frozen source is exactly what the runnable flag excludes."""
+    class Reached(Exception):
+        pass
+
+    def reached(*args, **kwargs):
+        raise Reached
+
+    monkeypatch.setattr(cli.runner, 'run', reached)
+
+    # Reaching the adapter is the whole assertion; what it then produces is
+    # the runner's business and is covered where the runner is.
+    with pytest.raises(Reached):
+        cli.main(['run', '--adapter', 'bfcl', '--backfill', '--dry-run'])
+
+    assert 'backfilling bfcl' in capsys.readouterr().out
+
+
+def test_backfill_is_refused_for_an_adapter_the_schedule_owns(capsys) -> None:
+    """Publishing outside the cadence skips the freshness checks that set it."""
+    assert cli.main(['run', '--adapter', 'hal', '--backfill']) == 1
+    err = capsys.readouterr().err
+    assert 'does not need --backfill' in err
+    assert '--force-full' in err
 
 
 def test_a_public_raw_store_stops_the_run_before_the_adapter(
