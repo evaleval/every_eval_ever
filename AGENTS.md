@@ -23,7 +23,12 @@ convert external eval sources into it.
   name belongs to `eval-card-registry`.
 - `every_eval_ever/cron/` is the daily ingestion run (`uv run python -m
   every_eval_ever.cron`): stage → validate → fingerprint → stamp → snapshot raw →
-  one datastore PR per adapter. See its `README.md`.
+  commit straight to the datastore's default branch. See its `README.md`.
+- `every_eval_ever/cron/flat_rebuild.py` refreshes the datastore's `flat/`
+  view against the Hub after ingestion (workflow `Flat rebuild`): retires stale
+  collection indexes into `flat/indexes/retired/`, trims old snapshots past the
+  retention window while pinning the last manifest that indexes each object,
+  and never modifies `data/` or overwrites/deletes existing `flat/objects/`.
 - `every_eval_ever/helpers/raw_capture.py` snapshots what an adapter fetched. Inert
   unless a sink is active, so a manual run behaves exactly as before.
 - `every_eval_ever/converters/` — in-tree converters (`inspect`/`helm`/`lm_eval`, plus `alpaca_eval`; shared code in `common`), run via `uv run python -m every_eval_ever convert <inspect|helm|lm_eval> ...`. Cover one by adding a `ConverterCase` to `tests/converter_cases.py`; see "Testing a converter" in `converters/README.md`.
