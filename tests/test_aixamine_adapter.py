@@ -143,9 +143,9 @@ def test_metric_id_is_per_test(tmp_path):
     assert "aixamine.rate" not in ids
 
 
-def test_source_metadata_is_first_party_documentation(tmp_path):
+def test_source_metadata_is_first_party_evaluation_run(tmp_path):
     logs = aix.build_service_logs(REPORT, MODEL_HF, CATALOG, "123")
     _, _, _, log = logs[0]
     assert log.eval_library.name == "aixamine"
-    assert log.source_metadata.source_type.value == "documentation"
+    assert log.source_metadata.source_type.value == "evaluation_run"
     assert log.source_metadata.evaluator_relationship.value == "first_party"

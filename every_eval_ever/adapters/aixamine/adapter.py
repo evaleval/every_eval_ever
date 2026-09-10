@@ -203,7 +203,7 @@ def build_service_logs(report, model, catalog, retrieved_ts):
             retrieved_timestamp=retrieved_ts,
             source_metadata=SourceMetadata(
                 source_name=collection,
-                source_type="documentation",
+                source_type="evaluation_run",
                 source_organization_name=ORG_NAME,
                 source_organization_url=HOMEPAGE,
                 evaluator_relationship=EvaluatorRelationship.first_party,
@@ -242,9 +242,9 @@ def _catalog(catalog):
 
 def _bundle_from_fixture(input_dir):
     d = Path(input_dir)
-    return (json.load(open(d / "report.json")),
-            json.load(open(d / "model.json")),
-            _catalog(json.load(open(d / "services.json"))))
+    return (json.loads((d / "report.json").read_text(encoding="utf-8")),
+            json.loads((d / "model.json").read_text(encoding="utf-8")),
+            _catalog(json.loads((d / "services.json").read_text(encoding="utf-8"))))
 
 
 def _bundle_live(base, report_id):
