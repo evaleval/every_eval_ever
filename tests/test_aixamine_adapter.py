@@ -113,6 +113,17 @@ def test_hf_model_not_date_stamped(tmp_path):
     assert model_name == "meta-llama/Llama-3.1-8B-Instruct"
 
 
+def test_missing_developer_records_failure(tmp_path):
+    model_no_dev = {"name": "mystery-model", "accessType": "openai",
+                    "createdAt": "2026-01-15T10:00:00.000Z"}
+    outputs, failures = [], []
+    aix._outputs_for(REPORT, model_no_dev, CATALOG, tmp_path, "123", outputs, failures)
+    assert outputs == []
+    assert len(failures) == 1
+    assert failures[0].source_record == {"model": "mystery-model"}
+    assert "developer" in failures[0].reason
+
+
 def test_source_metadata_is_first_party_documentation(tmp_path):
     logs = aix.build_service_logs(REPORT, MODEL_HF, CATALOG, "123")
     _, _, _, log = logs[0]

@@ -276,6 +276,10 @@ def enumerate_reports(base, access_type=None, page_size=50, max_pages=None):
 def _outputs_for(report, model, catalog, out_root, retrieved_ts, outputs, failures):
     """Append this (report, model)'s service logs to outputs / failures."""
     if _resolve_developer(model) is None:
+        failures.append(SourceRecordFailure(
+            source_ref=f"{SRC} report {report.get('_id')}",
+            reason="model has no developer and its name carries no namespace",
+            source_record={"model": model.get("name")}))
         return
     try:
         logs = build_service_logs(report, model, catalog, retrieved_ts)
