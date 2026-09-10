@@ -199,7 +199,7 @@ def build_service_logs(report, model, catalog, retrieved_ts):
         collection = collection_for(svc_value)
         log = EvaluationLog(
             schema_version=SCHEMA_VERSION,
-            evaluation_id=f"{collection}/{developer}_{name.replace('/', '_')}",
+            evaluation_id=f"{collection}/{model_id.replace('/', '_')}/{report.get('_id') or retrieved_ts}",
             retrieved_timestamp=retrieved_ts,
             source_metadata=SourceMetadata(
                 source_name=collection,

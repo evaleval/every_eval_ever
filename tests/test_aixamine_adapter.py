@@ -124,6 +124,17 @@ def test_missing_developer_records_failure(tmp_path):
     assert "developer" in failures[0].reason
 
 
+def test_evaluation_id_stable_per_report_no_collision(tmp_path):
+    r1, r2 = {**REPORT, "_id": "r1"}, {**REPORT, "_id": "r2"}
+    id1 = aix.build_service_logs(r1, MODEL_HF, CATALOG, "t1")[0][3].evaluation_id
+    id1b = aix.build_service_logs(r1, MODEL_HF, CATALOG, "t2")[0][3].evaluation_id
+    id2 = aix.build_service_logs(r2, MODEL_HF, CATALOG, "t1")[0][3].evaluation_id
+    assert id1 == id1b
+    assert id1 != id2
+    assert id1.endswith("/r1")
+    assert "meta-llama_meta-llama" not in id1
+
+
 def test_source_metadata_is_first_party_documentation(tmp_path):
     logs = aix.build_service_logs(REPORT, MODEL_HF, CATALOG, "123")
     _, _, _, log = logs[0]
