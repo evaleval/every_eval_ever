@@ -42,6 +42,15 @@ from every_eval_ever.helpers import (
 SOURCE_URL = 'https://open-llm-leaderboard-open-llm-leaderboard.hf.space/api/leaderboard/formatted'
 OUTPUT_DIR = 'data/hfopenllm_v2'
 
+# The archive predates Hugging Face namespacing every repository, so two rows
+# carry a bare model name. `gpt2` is the same weights as the namespaced rows
+# beside it (both report sha 607a30d783df), published under the namespace the
+# repository now lives at, so it is addressed there rather than dropped.
+LEGACY_UNNAMESPACED_IDS = {
+    'gpt2': 'openai-community/gpt2',
+}
+
+
 # Evaluation name mapping from API keys to display names
 EVALUATION_MAPPING = {
     'ifeval': 'IFEval',
@@ -112,6 +121,7 @@ def convert_model(
     list so valid metrics from the same model can still be published.
     """
     model_id = model_data['model']['name']
+    model_id = LEGACY_UNNAMESPACED_IDS.get(model_id, model_id)
     if '/' not in model_id:
         raise ValueError(f"Expected 'org/model' format, got: {model_id}")
     developer, model_name = model_id.split('/', 1)
@@ -232,6 +242,7 @@ def convert_models(
         failure_count_before = len(failures)
         try:
             model_id = model_data['model']['name']
+            model_id = LEGACY_UNNAMESPACED_IDS.get(model_id, model_id)
             if '/' not in model_id:
                 raise ValueError(
                     f"Expected 'org/model' format, got: {model_id}"
