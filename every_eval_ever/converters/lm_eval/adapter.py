@@ -51,6 +51,24 @@ from .utils import (
 )
 
 
+def _is_stderr_key(key: str) -> bool:
+    """True for the standard-error companion of a score key, in either format.
+
+    lm-eval v0.4 writes `acc_stderr,none`; v0.3 and earlier write a bare
+    `acc_stderr`. Matching only the comma form let every v0.3 standard error fall
+    through as if it were a metric of its own, so a record reported the spread as
+    the score.
+    """
+    return '_stderr,' in key or key.endswith('_stderr')
+
+
+def _stderr_key_for(metric_name: str, filter_name: str, key: str) -> str:
+    """The standard-error key that pairs with `key`, in `key`'s own format."""
+    if ',' in key:
+        return f'{metric_name}_stderr,{filter_name}'
+    return f'{metric_name}_stderr'
+
+
 class LMEvalAdapter(BaseEvaluationAdapter):
     """Converts lm-evaluation-harness results to every_eval_ever format."""
 
@@ -156,7 +174,7 @@ class LMEvalAdapter(BaseEvaluationAdapter):
                     'sample_len',
                     'sample_count',
                 )
-                and '_stderr,' not in k
+                and not _is_stderr_key(k)
             )
             if not has_metric:
                 continue
@@ -245,7 +263,7 @@ class LMEvalAdapter(BaseEvaluationAdapter):
                 'sample_count',
             ):
                 continue
-            if '_stderr,' in key:
+            if _is_stderr_key(key):
                 continue
             if not isinstance(value, (int, float)):
                 continue
@@ -256,7 +274,7 @@ class LMEvalAdapter(BaseEvaluationAdapter):
                 metric_name = key
                 filter_name = 'none'
 
-            stderr_key = f'{metric_name}_stderr,{filter_name}'
+            stderr_key = _stderr_key_for(metric_name, filter_name, key)
             stderr_val = task_results.get(stderr_key)
             # lm-eval writes the string 'N/A' when it computed no standard error
             # for a metric: its aggregation has no standard-error routine, or the
