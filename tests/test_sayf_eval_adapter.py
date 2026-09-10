@@ -54,6 +54,11 @@ def test_every_log_validates_and_is_evaluation_run():
         assert log.eval_library.version
 
 
+def test_source_metadata_carries_the_paper_link():
+    details = _logs_by_task()['mcq'].source_metadata.additional_details
+    assert (details or {})['paper'] == 'https://arxiv.org/abs/2609.08765'
+
+
 def test_accuracy_result_is_higher_is_better_bounded_unit_interval():
     acc = _logs_by_task()['mcq'].evaluation_results[0]
     assert acc.metric_config.metric_kind == 'accuracy'
