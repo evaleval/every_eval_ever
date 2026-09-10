@@ -401,7 +401,8 @@ Beyond the shared converter arguments:
 
 [sayf-eval](https://pypi.org/project/sayf-eval/) (`uv pip install sayf-eval`) is a
 model-agnostic cybersecurity LLM-evaluation framework
-([source](https://github.com/qcri/sayf-eval)). Each run writes a canonical
+([source](https://github.com/qcri/sayf-eval),
+[paper](https://arxiv.org/abs/2609.08765)). Each run writes a canonical
 *results record* (`<output_dir>/results/<model>/results_<ts>.json`) that embeds
 the full pipeline configuration (decoding params, `<think>` handling,
 denominator policy, judge model) and per-task dataset provenance alongside the
