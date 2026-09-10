@@ -363,20 +363,27 @@ class SayfEvalAdapter(BaseEvaluationAdapter):
         if not eval_results:
             raise ValueError(f'Task {task!r} has no numeric metrics to convert')
 
-        retrieved_timestamp = get_current_unix_timestamp()
-        # Stable identity: derive the evaluation_id's run segment from the source
+        # Stable identity: the evaluation_id's run segment comes from the source
         # run's created_at, so re-converting the same record yields the same id.
-        # The wall-clock retrieval time is kept separately in retrieved_timestamp.
-        run_token = None
+        # A record with no parseable created_at has no stable identity to give,
+        # and minting one from the clock publishes the same run twice under two
+        # ids. Fail the task instead. The per-task boundary in
+        # _transform_record_file records it and keeps its siblings.
         created_at = record.get('created_at')
-        if created_at:
-            try:
-                run_token = convert_timestamp_to_unix_format(created_at)
-            except Exception:
-                run_token = None
-        evaluation_id = (
-            f'{task}/{model_info.id}/{run_token or retrieved_timestamp}'
-        )
+        if not created_at:
+            raise ValueError(
+                f'Task {task!r} has no created_at to derive a stable '
+                'evaluation_id from'
+            )
+        try:
+            run_token = convert_timestamp_to_unix_format(created_at)
+        except Exception as exc:
+            raise ValueError(
+                f'Task {task!r} has an unparseable created_at '
+                f'{created_at!r}: {exc}'
+            ) from exc
+        retrieved_timestamp = get_current_unix_timestamp()
+        evaluation_id = f'{task}/{model_info.id}/{run_token}'
         eval_timestamp = run_token
 
         source_metadata = SourceMetadata(

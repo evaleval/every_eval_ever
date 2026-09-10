@@ -236,6 +236,42 @@ def test_partial_conversion_keeps_valid_siblings(tmp_path):
     assert any('mcq' in f.source_ref for f in result.failures)
 
 
+def test_missing_created_at_fails_task_no_published_log(tmp_path):
+    # A record with no created_at has no stable identity, so the task fails
+    # (into the report) instead of getting a fresh wall-clock id each run.
+    record = json.loads(FIXTURE.read_text())
+    del record['created_at']
+    rec_dir = tmp_path / 'results' / 'openai__gpt-4o'
+    rec_dir.mkdir(parents=True)
+    (rec_dir / 'results_2026-01-01T00-00-00.json').write_text(
+        json.dumps(record)
+    )
+    result = SayfEvalAdapter().transform_from_directory_result(
+        tmp_path, _meta()
+    )
+    assert result.records == []
+    assert result.failures
+    assert all('no created_at' in f.reason for f in result.failures)
+
+
+def test_unparseable_created_at_fails_task(tmp_path):
+    # An unparseable created_at is the same: no stable id to give, so fail
+    # rather than mint a clock-based one.
+    record = json.loads(FIXTURE.read_text())
+    record['created_at'] = 'not-a-timestamp'
+    rec_dir = tmp_path / 'results' / 'openai__gpt-4o'
+    rec_dir.mkdir(parents=True)
+    (rec_dir / 'results_2026-01-01T00-00-00.json').write_text(
+        json.dumps(record)
+    )
+    result = SayfEvalAdapter().transform_from_directory_result(
+        tmp_path, _meta()
+    )
+    assert result.records == []
+    assert result.failures
+    assert all('unparseable created_at' in f.reason for f in result.failures)
+
+
 def test_cli_routes_each_task_to_its_own_collection(tmp_path):
     # End-to-end: the CLI routes each task into data/sayf-eval-<task>/... so
     # EEE's per-collection Community-Evals tool maps one collection per benchmark.
