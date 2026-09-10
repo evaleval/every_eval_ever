@@ -307,6 +307,41 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         collections=('hle',),
     ),
     AdapterSpec(
+        key='kaggle',
+        module='every_eval_ever.adapters.kaggle.adapter',
+        collections=('kaggle',),
+        # `--all` means every published benchmark; what a scheduled sweep leaves
+        # out is declared here rather than hidden in the adapter.
+        # cohere-labs/global-mmlu-lite is excluded because the
+        # global_mmlu_lite adapter owns that collection, and publishing one
+        # leaderboard under two collections is the same numbers twice.
+        extra_args=(
+            '--all',
+            '--exclude',
+            'cohere-labs/global-mmlu-lite',
+        ),
+        # One GET per leaderboard over every published benchmark: a serial
+        # sweep of the ~1,080 that exist takes about five minutes, and Kaggle
+        # answers a faster one with 429s, so the budget is the sweep plus room
+        # for the retries rather than a figure the usual case needs.
+        cadence='weekly',
+        weekday=4,
+        timeout_minutes=30,
+        # ListBenchmarks reports a benchmark's definition, not its
+        # submissions, so nothing cheap here changes when a new result lands —
+        # a source version would skip runs that had new data to convert.
+        skip_if_unchanged=False,
+        notes=(
+            'Community benchmarks, so a run publishes whatever their authors '
+            'submitted. Kaggle publishes no unit or bounds for a numeric '
+            'metric, and its rendering hints do not imply one, so numeric '
+            'scores carry no metric_unit, no score_type and no bounds; boolean '
+            'task results are binary. Model ids are resolved against the '
+            'eval-card-registry, which is what keeps Kaggle effort tiers such '
+            'as claude-opus-4-6-default out of model_info.id.'
+        ),
+    ),
+    AdapterSpec(
         key='lexam',
         module='every_eval_ever.adapters.lexam.adapter',
         collections=('lexam',),
