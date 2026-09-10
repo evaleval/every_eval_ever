@@ -445,12 +445,33 @@ def cmd_run(args: argparse.Namespace) -> int:
     except catalog.UnknownAdapterError as exc:
         print(str(exc), file=sys.stderr)
         return 1
-    if not spec.runnable:
+    if spec.runnable and args.backfill:
+        # A backfill exists to reach what the schedule cannot. Letting it run a
+        # scheduled adapter would publish outside the cadence the catalog sets,
+        # with none of the freshness checks that decide when the source is
+        # worth refetching.
+        print(
+            f'{spec.key} is runnable, so it does not need --backfill. Let the '
+            f'schedule run it, or pass --force-full to republish.',
+            file=sys.stderr,
+        )
+        return 1
+    if not spec.runnable and not args.backfill:
         print(
             f'{spec.key} is not schedulable: {spec.unrunnable_reason}',
             file=sys.stderr,
         )
+        print(
+            'Pass --backfill to run it anyway, which is how a frozen source '
+            'is carried forward once.',
+            file=sys.stderr,
+        )
         return 1
+    if args.backfill:
+        # Say what is being overridden, so the reason is in the run log rather
+        # than only in the catalog.
+        print(f'backfilling {spec.key}, which the catalog marks unrunnable: '
+              f'{spec.unrunnable_reason}')
 
     run_date = args.date or _today()
     run_url = args.run_url or _run_url()
@@ -767,6 +788,15 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             'Convert and publish everything, ignoring both the freshness '
             'skip and the de-duplication ledger.'
+        ),
+    )
+    run_parser.add_argument(
+        '--backfill',
+        action='store_true',
+        help=(
+            'Run an adapter the catalog marks unrunnable. For carrying a '
+            'frozen source the schedule will never revisit; refused for an '
+            'adapter that is runnable, which belongs on the schedule.'
         ),
     )
     run_parser.add_argument(
