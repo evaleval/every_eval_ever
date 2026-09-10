@@ -30,43 +30,51 @@ def make_metric_config(
     description: str,
     lower_is_better: bool = False,
     score_type: ScoreType = ScoreType.continuous,
-    min_score: float = 0.0,
-    max_score: float = 1.0,
+    min_score: Optional[float] = None,
+    max_score: Optional[float] = None,
     level_names: Optional[List[str]] = None,
     has_unknown_level: Optional[bool] = None,
 ) -> MetricConfig:
-    """
-    Create a MetricConfig with sensible defaults.
+    """Build a ``MetricConfig``.
 
-    Most evaluations use continuous scores from 0-1 where higher is better,
-    so those are the defaults.
+    A ``continuous`` metric needs both bounds, and they are the caller's to
+    supply. There is no default pair, because `[0, 1]` is a claim about the
+    scale a score was computed on and a wrong one is a wrong number no reader
+    can detect. Pass ``float('inf')`` for a quantity with no ceiling.
 
     Args:
         description: Human-readable description of the metric
         lower_is_better: Whether lower scores are better (default: False)
         score_type: Type of score (default: continuous)
-        min_score: Minimum possible score (default: 0.0)
-        max_score: Maximum possible score (default: 1.0)
+        min_score: Low end of the scale this score is on. Required for
+            ``continuous``.
+        max_score: High end of the same scale. Required for ``continuous``.
         level_names: For level-based scores, the names of each level
         has_unknown_level: For level-based scores, whether -1 means unknown
 
-    Returns:
-        Configured MetricConfig instance
+    Raises:
+        ValueError: if a ``continuous`` metric is missing either bound.
     """
-    config = MetricConfig(
-        evaluation_description=description,
-        lower_is_better=lower_is_better,
-        score_type=score_type,
-    )
+    fields: dict = {
+        'evaluation_description': description,
+        'lower_is_better': lower_is_better,
+        'score_type': score_type,
+    }
 
     if score_type == ScoreType.continuous:
-        config.min_score = min_score
-        config.max_score = max_score
+        if min_score is None or max_score is None:
+            raise ValueError(
+                'a continuous metric needs min_score and max_score — the '
+                "scale the score was computed on. Pass float('inf') for a "
+                'quantity with no ceiling.'
+            )
+        fields['min_score'] = min_score
+        fields['max_score'] = max_score
     elif score_type == ScoreType.levels and level_names:
-        config.level_names = level_names
-        config.has_unknown_level = has_unknown_level
+        fields['level_names'] = level_names
+        fields['has_unknown_level'] = has_unknown_level
 
-    return config
+    return MetricConfig(**fields)
 
 
 def make_evaluation_result(
@@ -75,8 +83,8 @@ def make_evaluation_result(
     description: str,
     lower_is_better: bool = False,
     score_type: ScoreType = ScoreType.continuous,
-    min_score: float = 0.0,
-    max_score: float = 1.0,
+    min_score: Optional[float] = None,
+    max_score: Optional[float] = None,
     details: Optional[Dict[str, Any]] = None,
     generation_config: Optional[Dict[str, Any]] = None,
 ) -> EvaluationResult:
