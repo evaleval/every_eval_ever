@@ -1046,8 +1046,9 @@ class FlatPublisher:
                 landed = self._landed(operations)
                 if landed:
                     return
-                if attempt < store.COMMIT_ATTEMPTS and store.is_commit_conflict(
-                    exc
+                if (
+                    attempt < store.COMMIT_ATTEMPTS
+                    and store.is_retryable_commit_error(exc)
                 ):
                     store.wait_before_retry(attempt)
                     continue
