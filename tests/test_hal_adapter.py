@@ -2,6 +2,8 @@ from every_eval_ever.adapters.hal.adapter import (
     BENCHMARK_BY_SLUG,
     _parse_cost,
     _parse_percent,
+    build_eee_record,
+    get_model_id,
     parse_table_result,
 )
 
@@ -55,3 +57,18 @@ def test_invalid_optional_runs_is_recorded_but_score_row_is_retained():
     assert result.records[0].runs is None
     assert len(result.failures) == 1
     assert 'invalid run count' in result.failures[0].reason
+
+
+def test_model_directory_keeps_the_dots_the_model_id_uses():
+    benchmark = BENCHMARK_BY_SLUG['assistantbench']
+    html = '<table><tbody>' + _row(1, 'gpt-4.1', '50%') + '</tbody></table>'
+
+    row = parse_table_result(html, benchmark).records[0]
+    record, developer, model_slug = build_eee_record(benchmark, row, '0')
+
+    assert record['model_info']['id'] == 'openai/gpt-4.1'
+    assert (developer, model_slug) == ('openai', 'gpt-4.1')
+
+
+def test_an_anthropic_release_is_addressed_the_way_anthropic_spells_it():
+    assert get_model_id('Claude Haiku 4.5') == 'anthropic/claude-haiku-4-5'
