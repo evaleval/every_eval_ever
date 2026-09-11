@@ -55,7 +55,7 @@ from every_eval_ever.helpers.io import (
 # sayf-eval methodology paper, attached to every record's source_metadata so a
 # consumer can route back to the methodology behind the numbers. arXiv landing
 # page (not the PDF), matching the rest of the repo.
-_PAPER = 'https://arxiv.org/abs/2609.08765'
+_PAPER_URL = 'https://arxiv.org/abs/2609.08765'
 
 # API providers whose weights are not publicly available. Best-effort; anything
 # else is recorded as "unknown" rather than guessed.
@@ -406,7 +406,7 @@ class SayfEvalAdapter(BaseEvaluationAdapter):
             evaluator_relationship=EvaluatorRelationship(
                 metadata_args.get('evaluator_relationship', 'third_party')
             ),
-            additional_details={'paper': _PAPER},
+            additional_details={'paper_url': _PAPER_URL},
         )
 
         eval_library = EvalLibrary(
