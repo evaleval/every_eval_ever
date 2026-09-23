@@ -64,6 +64,9 @@ every_eval_ever = [
     "adapters/**/*.md",
     "adapters/**/*.sh",
     "adapters/**/registry_snapshot.json",
+    # Vendored mteb task/suite metadata the mteb adapter resolves against
+    # offline; without it an installed package cannot name a metric.
+    "adapters/**/task_metadata.json",
     "cron/*.md",
     "tools/*.md",
     # Vendored eval-card-registry vocabulary, resolved against offline.
