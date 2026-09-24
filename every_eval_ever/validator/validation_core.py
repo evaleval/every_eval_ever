@@ -32,6 +32,9 @@ _UUID_RE = (
 )
 _AGGREGATE_FILE_RE = re.compile(rf'{_UUID_RE}\.json$')
 _INSTANCE_FILE_RE = re.compile(rf'{_UUID_RE}_samples\.jsonl$')
+# Placeholder a secret or PII scrubber writes in place of what it matched,
+# e.g. <AWS-SECRET-KEY>, <REDACTED>, <EMAIL_ADDRESS>.
+_REDACTION_PLACEHOLDER_RE = re.compile(r'<[A-Z][A-Z0-9]+(?:[-_][A-Z0-9]+)*>')
 
 _DEPLOYMENT_TYPES = ('self_deployed', 'externally_managed', 'unknown')
 _MODEL_AVAILABILITY_TYPES = ('open_weights', 'closed_weights', 'unknown')
@@ -75,6 +78,7 @@ class InstanceFileSummary:
     evaluation_ids: frozenset[str]
     model_ids: frozenset[str]
     content_valid: bool = True
+    redacted_sample_ids: frozenset[str] = frozenset()
 
 
 CheckScope = Literal['aggregate', 'instance', 'file']
@@ -471,6 +475,19 @@ def check_instance_companion(
     return errors
 
 
+def check_sample_id_redaction(samples: InstanceFileSummary) -> list[str]:
+    """Warn when sample_ids contain a scrubber's redaction placeholder."""
+    if not samples.redacted_sample_ids:
+        return []
+    ids = sorted(samples.redacted_sample_ids)
+    return [
+        f'sample_id: {len(ids)} distinct sample_id(s) contain a redaction '
+        f'placeholder, e.g. {ids[0]!r}. A secret or PII scrubber has '
+        'rewritten the identifier, so different samples can now share one '
+        'sample_id. Restore the source ids, or redact before the id is built.'
+    ]
+
+
 def check_score_metadata(data: dict[str, Any]) -> list[str]:
     """Validate supplied bounds and require them for continuous metrics."""
     warnings: list[str] = []
@@ -754,6 +771,14 @@ def _instance_check_companion(
     )
 
 
+def _instance_check_sample_id_redaction(
+    context: ValidationContext, data: ValidationPayload
+) -> list[str]:
+    if not isinstance(data, InstanceFileSummary):
+        return []
+    return check_sample_id_redaction(data)
+
+
 def _aggregate_check_score_metadata(
     context: ValidationContext, data: ValidationPayload
 ) -> list[str]:
@@ -785,6 +810,12 @@ REGISTERED_CHECKS: tuple[ValidationCheck, ...] = (
     ),
     ValidationCheck(
         'aggregate file', 'instance', 'error', _instance_check_companion
+    ),
+    ValidationCheck(
+        'sample id redaction',
+        'instance',
+        'warning',
+        _instance_check_sample_id_redaction,
     ),
     ValidationCheck(
         'score metadata', 'aggregate', 'error', _aggregate_check_score_metadata
@@ -972,6 +1003,7 @@ def validate_instance_file(
 
     evaluation_ids: set[str] = set()
     model_ids: set[str] = set()
+    redacted_sample_ids: set[str] = set()
     content_valid = True
     with handle:
         for line_num, line in enumerate(handle, start=1):
@@ -986,6 +1018,11 @@ def validate_instance_file(
                     _summary_identifier(data.get('evaluation_id'))
                 )
                 model_ids.add(_summary_identifier(data.get('model_id')))
+                sample_id = data.get('sample_id')
+                if isinstance(
+                    sample_id, str
+                ) and _REDACTION_PLACEHOLDER_RE.search(sample_id):
+                    redacted_sample_ids.add(sample_id)
             if not line_errors:
                 continue
 
@@ -1023,6 +1060,7 @@ def validate_instance_file(
         evaluation_ids=frozenset(evaluation_ids),
         model_ids=frozenset(model_ids),
         content_valid=content_valid,
+        redacted_sample_ids=frozenset(redacted_sample_ids),
     )
 
     if run_semantic_checks:
