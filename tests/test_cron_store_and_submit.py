@@ -1138,10 +1138,12 @@ def test_a_record_and_its_sidecar_are_never_split_across_commits(
 
 def test_a_failure_before_anything_landed_reports_nothing_committed(
     tmp_path,
+    retry_waits,
 ) -> None:
+    """A Hub that faults for the whole retry budget still reports honestly."""
     tree = _upload_tree(tmp_path, 2)
     hub = FakeHub()
-    hub.commit_error = RuntimeError('502 Bad Gateway')
+    hub.commit_error = RuntimeError("Server error '502 Bad Gateway' for url...")
     sub = submit.DatastoreSubmitter(hub)
 
     with pytest.raises(submit.PartialSubmissionError) as caught:
@@ -1408,3 +1410,64 @@ def test_is_commit_conflict_detects_precondition_failed_messages() -> None:
     assert store.is_commit_conflict(exc1)
     assert store.is_commit_conflict(exc2)
     assert store.is_commit_conflict(exc3)
+
+
+def test_a_hub_server_error_is_retried_not_reported(retry_waits) -> None:
+    """A 5xx never applied the commit, so sending it again is the whole fix."""
+    hub = FakeHub(sha='headsha')
+    raw_store = store.RawStore(hub)
+    state = raw_store.read_state('hle')
+    state.fingerprints.add('a')
+    faulted = _conflict(500, "Server error '500 Internal Server Error' for url...")
+    attempts: list[dict] = []
+    real_create_commit = hub.create_commit
+
+    def fault_once(**kwargs):
+        attempts.append(kwargs)
+        if len(attempts) == 1:
+            raise faulted
+        return real_create_commit(**kwargs)
+
+    hub.create_commit = fault_once
+
+    raw_store.commit(store.state_operations(state), message='hle')
+
+    assert hub.files['state/hle.fingerprints'].split() == ['a']
+    assert retry_waits == [1], 'one wait, before the second attempt'
+
+
+def test_a_hub_that_stays_broken_still_fails(retry_waits) -> None:
+    """The retry budget bounds a Hub outage as well as it bounds a lock."""
+    hub = FakeHub(sha='headsha')
+    raw_store = store.RawStore(hub)
+    state = raw_store.read_state('hle')
+    hub.commit_error = _conflict(503, "Server error '503 Service Unavailable'")
+
+    with pytest.raises(store.StoreError, match='could not write'):
+        raw_store.commit(store.state_operations(state), message='hle')
+
+    assert retry_waits == list(range(1, store.COMMIT_ATTEMPTS))
+
+
+def test_transient_and_conflict_stay_separate_judgements() -> None:
+    """Each predicate answers only its own question, so neither name lies."""
+    server = RuntimeError("Server error '502 Bad Gateway' for url...")
+    lock = RuntimeError('409 Client Error: Conflict for url...')
+    denied = RuntimeError("Client error '403 Forbidden' for url...")
+
+    assert store.is_transient_hub_error(server)
+    assert not store.is_commit_conflict(server)
+    assert store.is_commit_conflict(lock)
+    assert not store.is_transient_hub_error(lock)
+    assert not store.is_retryable_commit_error(denied)
+
+
+def test_a_request_id_holding_a_status_number_is_not_a_status() -> None:
+    """Hub errors carry request ids; a 500 inside one must not read as a fault."""
+    exc = RuntimeError(
+        "Client error '403 Forbidden' for url 'https://huggingface.co/api' "
+        '(Request ID: Root=1-500-502503504)'
+    )
+
+    assert not store.is_transient_hub_error(exc)
+    assert not store.is_retryable_commit_error(exc)
