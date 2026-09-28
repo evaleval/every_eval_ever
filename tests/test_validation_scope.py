@@ -770,3 +770,56 @@ def test_local_command_runs_the_same_repository_checks(
     assert exit_code == 1
     errors = json.loads(capsys.readouterr().out)[0]['errors']
     assert any('was not found' in error['msg'] for error in errors)
+
+
+def _validate_samples_with_aggregate(tmp_path: Path, rows: list[dict]):
+    aggregate = valid_aggregate()
+    aggregate['detailed_evaluation_results'] = {
+        'format': 'jsonl',
+        'file_path': COMPANION_REPO_PATH,
+        'total_rows': len(rows),
+    }
+    return validate_instance_file(
+        write_samples(tmp_path, rows),
+        repo_path=COMPANION_REPO_PATH,
+        available_files={AGGREGATE_REPO_PATH, COMPANION_REPO_PATH},
+        read_repo_file={
+            AGGREGATE_REPO_PATH: json.dumps(aggregate),
+        }.__getitem__,
+        run_semantic_checks=True,
+    )
+
+
+def test_redacted_sample_ids_warn_without_failing_validation(tmp_path):
+    # A secret scrubber matched the 40-hex commit hash in SWE-Bench Pro ids,
+    # so two different tasks now share one sample_id.
+    rows = [valid_sample(), valid_sample()]
+    for row in rows:
+        row['sample_id'] = 'instance_future-architect__vuls-<AWS-SECRET-KEY>'
+
+    report = _validate_samples_with_aggregate(tmp_path, rows)
+
+    assert report.valid is True, report.errors
+    messages = [warning['msg'] for warning in report.warnings]
+    assert len(messages) == 1, messages
+    assert '1 distinct sample_id(s)' in messages[0]
+    assert 'instance_future-architect__vuls-<AWS-SECRET-KEY>' in messages[0]
+
+
+def test_source_sample_ids_do_not_warn(tmp_path):
+    rows = []
+    for sample_id in (
+        'instance_future-architect__vuls-'
+        '50580f6e98eeb36f53f27222f7f4fdfea0b21e8d',
+        'gsm8k_0001',
+        'what is <b>bold</b>?',
+        'pick <A> or <B>',
+    ):
+        row = valid_sample()
+        row['sample_id'] = sample_id
+        rows.append(row)
+
+    report = _validate_samples_with_aggregate(tmp_path, rows)
+
+    assert report.valid is True, report.errors
+    assert report.warnings == []
