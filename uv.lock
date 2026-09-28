@@ -886,6 +886,11 @@ wild = [
 ]
 
 [package.dev-dependencies]
+cron = [
+    { name = "datasets" },
+    { name = "pgdumplib" },
+    { name = "pyarrow" },
+]
 dev = [
     { name = "datamodel-code-generator" },
     { name = "pytest" },
@@ -920,6 +925,11 @@ requires-dist = [
 provides-extras = ["inspect", "helm", "paperswithcode", "wild", "all"]
 
 [package.metadata.requires-dev]
+cron = [
+    { name = "datasets", specifier = ">=3.6.0" },
+    { name = "pgdumplib", specifier = ">=4.0.0" },
+    { name = "pyarrow", specifier = ">=14.0" },
+]
 dev = [
     { name = "datamodel-code-generator", specifier = ">=0.43.1" },
     { name = "pytest", specifier = ">=9.0.2" },

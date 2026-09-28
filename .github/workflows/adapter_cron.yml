@@ -119,14 +119,16 @@ jobs:
       - name: Install dependencies
         env:
           UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/eee-venv
-        run: uv sync --locked
+        # Install every dependency a scheduled adapter may need before any
+        # credential is placed in a step environment. --locked makes the
+        # reviewed uv.lock the complete resolver input.
+        run: uv sync --locked --group cron
 
       - name: Ingest
         env:
           UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/eee-venv
           # Interpolate through the environment rather than into the script.
           ADAPTER: ${{ matrix.adapter }}
-          PACKAGES: ${{ matrix.packages }}
           FORCE_FULL: ${{ inputs.force_full }}
           DRY_RUN: ${{ inputs.dry_run }}
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
@@ -142,10 +144,6 @@ jobs:
           EEE_RAW_REPO_ID: ${{ vars.EEE_RAW_REPO_ID }}
         run: |
           set -euo pipefail
-          with_args=()
-          for package in ${PACKAGES}; do
-              with_args+=(--with "${package}")
-          done
           args=(run --adapter "${ADAPTER}")
           if [ "${FORCE_FULL}" = "true" ]; then
               args+=(--force-full)
@@ -153,8 +151,11 @@ jobs:
           if [ "${DRY_RUN}" = "true" ]; then
               args+=(--dry-run)
           fi
-          uv run --locked ${with_args[@]+"${with_args[@]}"} \
-              python -m every_eval_ever.cron "${args[@]}"
+          # Deliberately bypass uv here. This step carries credentials, so
+          # dependency resolution, downloads, and build hooks must already be
+          # finished before it starts.
+          "${UV_PROJECT_ENVIRONMENT}/bin/python" -m every_eval_ever.cron \
+              "${args[@]}"
 
   summary:
     name: Summary
