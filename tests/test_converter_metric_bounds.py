@@ -124,17 +124,30 @@ def test_a_dispersion_metric_claims_no_direction():
     assert config.additional_details == {'polarity': 'not_applicable'}
 
 
-def test_the_same_metric_name_can_mean_two_scales():
-    """lm-eval's `bleu` is sacrebleu's 0-100; HELM's `bleu_1` is nltk's 0-1.
+def test_a_harness_percentage_is_declared_on_its_canonical_scale():
+    """lm-eval reports sacrebleu's `bleu` on 0-100, and `bleu` resolves.
 
-    This is why the bounds are layered per harness rather than kept in one table
-    keyed by a bare metric name.
+    `fields.md` takes the bounds from the resolved registry entry when the metric
+    resolves, and that entry is a proportion, so the record declares `[0, 1]` and
+    the adapter converts the value onto it. HELM's `bleu_1` is nltk's proportion
+    already and needs no conversion.
     """
     lm_eval_bleu = _config('bleu', LM_EVAL_METRIC_BOUNDS)
     helm_bleu = _config('bleu_1', HELM_METRIC_BOUNDS)
 
-    assert (lm_eval_bleu.min_score, lm_eval_bleu.max_score) == (0.0, 100.0)
+    assert (lm_eval_bleu.min_score, lm_eval_bleu.max_score) == (0.0, 1.0)
     assert (helm_bleu.min_score, helm_bleu.max_score) == (0.0, 1.0)
+
+
+def test_a_percentage_that_resolves_to_nothing_keeps_the_harness_scale():
+    """`chrf` is a percentage and is in no registry entry.
+
+    So it is published namespaced on the scale the harness used, which is why the
+    bounds stay layered per harness rather than folded into one table keyed by a
+    bare metric name.
+    """
+    chrf = _config('chrf', LM_EVAL_METRIC_BOUNDS)
+    assert (chrf.min_score, chrf.max_score) == (0.0, 100.0)
 
 
 def test_a_multi_class_brier_score_is_allowed_its_full_range():
@@ -231,11 +244,12 @@ def test_a_parameter_in_the_name_keeps_the_bounds_but_not_the_id():
     assert config.metric_parameters == {'k': 5}
 
 
-def test_the_unit_follows_the_scale_the_harness_actually_reported():
-    """lm-eval's `bleu` is sacrebleu's 0-100, HELM's `bleu_1` nltk's 0-1.
+def test_the_unit_follows_the_declared_scale():
+    """Two BLEUs under one canonical id now agree on their unit.
 
-    Both are BLEU and both say so in `metric_kind`; the unit is what keeps a
-    consumer from averaging 31.4 with 0.314.
+    Both say `text_overlap` in `metric_kind`. Before the conversion the unit was
+    the only thing keeping a consumer from averaging 31.4 with 0.314, and a join
+    key should not need a second field to be read safely.
     """
     lm_eval_bleu = _identified(
         'bleu', harness=LM_EVAL_HARNESS_ID, bounds_table=LM_EVAL_METRIC_BOUNDS
@@ -244,9 +258,14 @@ def test_the_unit_follows_the_scale_the_harness_actually_reported():
         'bleu_1', harness=HELM_HARNESS_ID, bounds_table=HELM_METRIC_BOUNDS
     )
 
-    assert lm_eval_bleu.metric_unit == 'percent'
+    assert lm_eval_bleu.metric_unit == 'proportion'
     assert helm_bleu.metric_unit == 'proportion'
     assert lm_eval_bleu.metric_kind == helm_bleu.metric_kind == 'text_overlap'
+
+    chrf = _identified(
+        'chrf', harness=LM_EVAL_HARNESS_ID, bounds_table=LM_EVAL_METRIC_BOUNDS
+    )
+    assert chrf.metric_unit == 'percent'
 
 
 def test_a_metric_with_no_resolved_range_claims_no_unit():

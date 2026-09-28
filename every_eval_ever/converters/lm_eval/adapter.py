@@ -39,6 +39,7 @@ from every_eval_ever.helpers.io import (
 )
 
 from .utils import (
+    CANONICAL_RESCALE,
     LM_EVAL_HARNESS_ID,
     LM_EVAL_METRIC_BOUNDS,
     MODEL_TYPE_TO_INFERENCE_ENGINE,
@@ -314,6 +315,27 @@ class LMEvalAdapter(BaseEvaluationAdapter):
                     ),
                 )
 
+            # A percentage converted onto its canonical proportion scale. The
+            # source figure is kept, and the spread moves with the score — a
+            # spread is in the score's units, and left alone it reads as wider
+            # than the metric's whole range.
+            details = None
+            factor = CANONICAL_RESCALE.get(metric_name)
+            if factor is not None and isinstance(value, (int, float)):
+                details = {
+                    'canonical_rescale_factor': str(factor),
+                    'rescale_basis': 'harness_percent_to_canonical_proportion',
+                    'source_score': str(value),
+                }
+                value = value * factor
+                if uncertainty is not None and uncertainty.standard_error:
+                    details['source_standard_error'] = str(
+                        uncertainty.standard_error.value
+                    )
+                    uncertainty.standard_error.value = (
+                        uncertainty.standard_error.value * factor
+                    )
+
             eval_name = task_name
             if filter_name != 'none':
                 eval_name = f'{task_name}/{filter_name}'
@@ -330,6 +352,7 @@ class LMEvalAdapter(BaseEvaluationAdapter):
                     score_details=ScoreDetails(
                         score=value,
                         uncertainty=uncertainty,
+                        details=details,
                     ),
                     generation_config=gen_config,
                 )
