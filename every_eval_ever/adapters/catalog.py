@@ -250,7 +250,11 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         notes=(
             'Repointed 2026-08-12 to the JSON files behind '
             'arcprize.org/leaderboard; the old '
-            '/media/data/leaderboard/evaluations.json endpoint is gone.'
+            '/media/data/leaderboard/evaluations.json endpoint is gone. '
+            'Also clones the two arcprize public-eval log datasets (full '
+            'no-checkout clones, about 130 MB of packs, then a sparse '
+            'checkout at the pinned commits); a live run measured 24 s, so '
+            'the default timeout stands.'
         ),
     ),
     AdapterSpec(
@@ -315,6 +319,7 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         weekday=4,
         timeout_minutes=45,
         runnable=False,
+        with_packages=('pyarrow',),
         unrunnable_reason=(
             'the Open LLM Leaderboard is no longer maintained upstream '
             '(space discussion 1135); the archive is frozen, so a scheduled '
@@ -322,7 +327,11 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         ),
         notes=(
             'The adapter still works for a one-off manual conversion of the '
-            'frozen archive (around 4,576 models).'
+            'frozen archive (4,576 model and precision rows): it reads the '
+            'leaderboard table from the open-llm-leaderboard/contents '
+            'parquet and the harness dumps from open-llm-leaderboard/results, '
+            'both at pinned revisions (pyarrow, from with_packages, or `uv run --with pyarrow`). The Space API is '
+            'no longer served and is only read with --source-api.'
         ),
     ),
     AdapterSpec(
