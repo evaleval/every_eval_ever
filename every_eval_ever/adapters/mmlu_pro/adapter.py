@@ -12,8 +12,9 @@ Data source:
 Each CSV row carries a model's overall accuracy plus 14 per-subject
 accuracies (Biology, Business, Chemistry, Computer Science, Economics,
 Engineering, Health, History, Law, Math, Philosophy, Physics, Psychology,
-Other), all reported as proportions in [0, 1] from a 5-shot CoT setup
-described in Wang et al. 2024.
+Other), all reported as proportions in [0, 1]. The leaderboard has no
+prompt-setup column; ``prompt_style`` is recorded only when the model name
+carries an ``(N-shot)`` marker, e.g. ``Athene-V2-Chat (0-shot)``.
 
 For every model the adapter emits one ``EvaluationLog`` with 15
 ``EvaluationResult`` entries: ``mmlu_pro/overall`` and one
@@ -158,6 +159,8 @@ DEVELOPER_OVERRIDES: dict[str, str] = {
     'rho': 'microsoft',
 }
 
+SHOT_MARKER = re.compile(r'\((\d+)-shot\)', re.IGNORECASE)
+
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -251,21 +254,29 @@ def normalize_developer(model_name: str) -> str:
     return get_developer(model_name)
 
 
-def make_source_data() -> SourceDataHf:
+def prompt_style_from_name(model_name: str) -> str | None:
+    """Return the ``N-shot`` label stated by a ``(N-shot)`` name marker."""
+    match = SHOT_MARKER.search(model_name)
+    return f'{int(match.group(1))}-shot' if match else None
+
+
+def make_source_data(prompt_style: str | None = None) -> SourceDataHf:
+    additional_details = {
+        'results_csv_url': RESULTS_CSV_URL,
+        'leaderboard_space_url': LEADERBOARD_SPACE_URL,
+        'benchmark_hf_repo': BENCHMARK_HF_REPO,
+        'paper_url': PAPER_URL,
+        'github_url': GITHUB_URL,
+        'dataset_total_questions': str(DATASET_TOTAL_QUESTIONS),
+    }
+    if prompt_style:
+        additional_details['prompt_style'] = prompt_style
     return SourceDataHf(
         dataset_name='MMLU-Pro leaderboard submissions (TIGER-Lab)',
         source_type='hf_dataset',
         hf_repo=RESULTS_HF_REPO,
         hf_split='train',
-        additional_details={
-            'results_csv_url': RESULTS_CSV_URL,
-            'leaderboard_space_url': LEADERBOARD_SPACE_URL,
-            'benchmark_hf_repo': BENCHMARK_HF_REPO,
-            'paper_url': PAPER_URL,
-            'github_url': GITHUB_URL,
-            'dataset_total_questions': str(DATASET_TOTAL_QUESTIONS),
-            'prompt_style': '5-shot CoT',
-        },
+        additional_details=additional_details,
     )
 
 
@@ -274,7 +285,11 @@ def make_metric_config(
     metric_id: str,
     metric_name: str,
     description: str,
+    prompt_style: str | None = None,
 ) -> MetricConfig:
+    additional_details = {'aggregation': 'accuracy_over_subset'}
+    if prompt_style:
+        additional_details['prompt_style'] = prompt_style
     return MetricConfig(
         evaluation_description=description,
         metric_id=metric_id,
@@ -285,24 +300,27 @@ def make_metric_config(
         score_type=ScoreType.continuous,
         min_score=0.0,
         max_score=1.0,
-        additional_details={
-            'aggregation': 'accuracy_over_subset',
-            'prompt_style': '5-shot CoT',
-        },
+        additional_details=additional_details,
     )
 
 
 def make_evaluation_result(
-    *, result_id: str, name: str, description: str, score: float
+    *,
+    result_id: str,
+    name: str,
+    description: str,
+    score: float,
+    prompt_style: str | None = None,
 ) -> EvaluationResult:
     return EvaluationResult(
         evaluation_result_id=result_id,
         evaluation_name=name,
-        source_data=make_source_data(),
+        source_data=make_source_data(prompt_style),
         metric_config=make_metric_config(
             metric_id=result_id,
             metric_name=name,
             description=description,
+            prompt_style=prompt_style,
         ),
         score_details=ScoreDetails(score=score),
     )
@@ -354,6 +372,7 @@ def make_log(
     raw_data_source = row.get('Data Source', '').strip()
     data_source = normalize_data_source(raw_data_source)
     size_b = parse_size(row.get('Model Size(B)', ''))
+    prompt_style = prompt_style_from_name(model_name)
 
     results: list[EvaluationResult] = [
         make_evaluation_result(
@@ -361,9 +380,10 @@ def make_log(
             name='MMLU-Pro (overall)',
             description=(
                 'Overall accuracy across the ~12,000-question MMLU-Pro '
-                'benchmark, evaluated 5-shot with chain-of-thought.'
+                'benchmark.'
             ),
             score=overall,
+            prompt_style=prompt_style,
         )
     ]
     for subject in SUBJECTS:
@@ -375,11 +395,9 @@ def make_log(
             make_evaluation_result(
                 result_id=f'mmlu_pro/{slug}',
                 name=f'MMLU-Pro ({subject})',
-                description=(
-                    f'Accuracy on the MMLU-Pro {subject} subset, '
-                    'evaluated 5-shot with chain-of-thought.'
-                ),
+                description=f'Accuracy on the MMLU-Pro {subject} subset.',
                 score=subject_score,
+                prompt_style=prompt_style,
             )
         )
 
