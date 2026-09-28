@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html><body>
+<astro-island uid="fixture" component-url="/_astro/BenchmarkView.fixture.js" component-export="default" props="{&quot;benchmarkView&quot;:[0,{&quot;default&quot;:[0,{&quot;metadata&quot;:[0,{&quot;benchmark&quot;:[0,&quot;MMMU Pro&quot;],&quot;slug&quot;:[0,&quot;mmmu&quot;],&quot;description&quot;:[0,&quot;Multimodal Multi-task Benchmark&quot;],&quot;benchmark_id&quot;:[0,&quot;mmmu&quot;],&quot;family&quot;:[0,&quot;mmmu&quot;],&quot;version&quot;:[0,&quot;1&quot;],&quot;updated&quot;:[0,&quot;2026-09-01&quot;],&quot;dataset_type&quot;:[0,&quot;public&quot;],&quot;industry&quot;:[0,&quot;academic&quot;],&quot;tasks&quot;:[0,{&quot;overall&quot;:[0,&quot;Overall&quot;]}],&quot;models&quot;:[1,[[0,&quot;google/gemini-2.0-flash-001&quot;],[0,&quot;openai/o1-2024-12-17&quot;]]],&quot;showBadge&quot;:[0,false],&quot;visible&quot;:[0,true],&quot;use_cost_per_test&quot;:[0,false],&quot;runner&quot;:[0,&quot;custom&quot;],&quot;mode&quot;:[0,&quot;one-shot&quot;],&quot;archived&quot;:[0,false],&quot;partner&quot;:[0,false],&quot;total_models&quot;:[0,93]}],&quot;tasks&quot;:[0,{&quot;overall&quot;:[0,{&quot;google/gemini-2.0-flash-001&quot;:[0,{&quot;accuracy&quot;:[0,69.786],&quot;latency&quot;:[0,45.203],&quot;stderr&quot;:[0,1.104],&quot;cost_per_test&quot;:[0,0.000365],&quot;temperature&quot;:[0,null],&quot;top_p&quot;:[0,null],&quot;max_output_tokens&quot;:[0,8192],&quot;reasoning&quot;:[0,null],&quot;reasoning_effort&quot;:[0,null],&quot;verbosity&quot;:[0,null],&quot;compute_effort&quot;:[0,null],&quot;provider&quot;:[0,&quot;Google&quot;],&quot;harness&quot;:[0,null]}],&quot;openai/o1-2024-12-17&quot;:[0,{&quot;accuracy&quot;:[0,77.412],&quot;latency&quot;:[0,26.415],&quot;stderr&quot;:[0,1.005],&quot;cost_per_test&quot;:[0,0.14586],&quot;temperature&quot;:[0,null],&quot;top_p&quot;:[0,null],&quot;max_output_tokens&quot;:[0,16384],&quot;reasoning&quot;:[0,null],&quot;reasoning_effort&quot;:[0,&quot;high&quot;],&quot;verbosity&quot;:[0,null],&quot;compute_effort&quot;:[0,null],&quot;provider&quot;:[0,&quot;OpenAI&quot;],&quot;harness&quot;:[0,null]}]}]}]}]}]}"></astro-island>
+<article class="benchmark-details prose-vals flex w-full max-w-full flex-col gap-4">
+<h2 id="key-takeaways">Key Takeaways</h2>
+<p>Trimmed fixture.</p>
+<h2 id="methodology">Methodology</h2>
+<p>We adhered closely to the official MMMU Pro evaluation protocol with the following implementation details:</p>
+<ol>
+<li><strong>Prompt Structure</strong>: We used the chain-of-thought prompt from the <a href="https://github.com/MMMU-Benchmark/MMMU/blob/main/mmmu-pro/prompts.yaml">original MMMU repository</a>. Each question-answer set followed this format:</li>
+</ol>
+<pre class="astro-code css-variables" style="background-color:var(--astro-code-color-background);color:var(--astro-code-color-text);overflow-x:auto" tabindex="0" data-language="plaintext"><code><span class="line"><span>Which of the following best explains the overall trend shown in the &lt;image&gt;?</span></span>
+<span class="line"><span>A. Migrations to areas of Central Asia for resettlement</span></span>
+<span class="line"><span>B. The spread of pathogens across the Silk Road</span></span>
+<span class="line"><span>C. Invasions by Mongol tribes</span></span>
+<span class="line"><span>D. Large-scale famine due to crop failures</span></span>
+<span class="line"><span>Answer the preceding multiple choice question. The last line of your response should be of the following format: &#39;Answer: $LETTER&#39; (without quotes) where LETTER is one of options. Think step by step before answering.</span></span>
+<span class="line"><span></span></span></code></pre>
+<ol start="2">
+<li>
+<p><strong>Image Processing</strong>: All <code>&lt;image&gt;</code> tags were replaced with actual image bytes during model inference, replicating the original methodology exactly.</p>
+</li>
+<li>
+<p><strong>Standardization</strong>: We established a consistent baseline by using a default configuration of 8192 maximum output tokens for all models to ensure that outputs were not truncated. All models were ran with a temperature of 0.</p>
+</li>
+<li>
+<p><strong>Parsing Adaptation</strong>: We modified the answer extraction regex to handle markdown output from some models, ensuring reliable parsing across all responses.</p>
+</li>
+<li>
+<p><strong>Statistical Validity</strong>: This was a pass@1 evaluation (one attempt per question), with the large dataset size (1,700 questions). We found a standard deviation approximately 1% (calculated using the methodology from <a href="https://arxiv.org/pdf/2411.00640">Adding Error Bars to Evals: A Statistical Approach to Language Model Evaluations</a>)</p>
+</li>
+<li>
+<p><strong>Thinking Models Configuration</strong>: For models with “thinking” capabilities (Claude 3.7 Sonnet Thinking, o1, etc.), we set the maximum output token limit to 16,384 to accommodate extended reasoning.</p>
+</li>
+</ol> <h2 id="results">Results</h2>
+<p>Not methodology.</p>
+</article>
+</body></html>
