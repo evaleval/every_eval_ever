@@ -428,6 +428,47 @@ Unreadable retention entries are kept with a warning naming the snapshot
 and failure; unscanned snapshots are listed in the summary. Unchanged
 same-size source files still use the agreed size-based change detection.
 
+### Supersession
+
+Every row carries `evaluation_id`, `retrieved_timestamp`, `cron_adapter`
+and `cron_run_date` (read from the record; the cron fields only when its
+`type_of_addition` is `cron`) and `superseded_by` / `superseded_reason`,
+recomputed on every run from two rules, in this order:
+
+- **Retired.** `flat/retired.jsonl` in the datastore, maintained by pull
+  request, lists `{"object_uuid", "reason", "replaced_by"?}` per line:
+  `superseded_by` = `replaced_by`, or `"retired"` without one, and reason
+  `retired`. A malformed line, a duplicate UUID or a self-replacement fails
+  the run; an entry whose UUID is not in the index is skipped and listed as
+  stale in the summary, and one whose `replaced_by` is not in the index is
+  applied and listed as dangling.
+- **Newer capture.** Only cron-ingested rows join a series, keyed by
+  collection, `cron_adapter` and `evaluation_id` minus its trailing
+  segment, and only when that segment is an epoch number equal to
+  `retrieved_timestamp`. Among the series' rows that are not retired, the
+  newest by `retrieved_timestamp` (then UUID) is current; the others get
+  `superseded_by` = its UUID and reason `newer_capture`. Retiring the
+  newest capture therefore makes the previous one current again. A series
+  whose newest row has fewer `evaluation_results` than an older one
+  (`result_count`, also stored on the row) is left unmarked and listed as
+  regressed, for a maintainer to settle with a retire entry. A series
+  where two rows share a `cron_run_date` is ambiguous and left unmarked, and
+  a collection whose rows still have ids pending is skipped; both are
+  listed in the summary. Hand-submitted and converted records are only ever
+  superseded by the retire list.
+
+Consumers keep rows where `superseded_by` is null. Nothing is deleted:
+`data/` and `flat/objects/` are untouched, and the fields enter the
+manifest core hash through the entries hash, so a supersession change
+publishes a new snapshot while an unchanged rebuild stays a no-op.
+
+Rows from snapshots older than these fields serialize without
+`evaluation_id` until filled. The first fill is a manual run with
+`--bootstrap-ids`: one bulk download of the aggregate objects
+(`flat/objects/**/*.json`, about 1.4 GB) into a temporary directory, read
+locally. Afterwards `--backfill-limit` (default 500, `0` disables) fetches
+any stragglers one by one per run.
+
 ### Reviewer comments and changes
 
 The review found that companion reattachment could overwrite historical

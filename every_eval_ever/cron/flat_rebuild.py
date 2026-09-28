@@ -13,6 +13,8 @@ writes the same flat layout against the Hub API instead:
    behind ``--allow-bootstrap``);
 4. rebuild rows, collection indexes and the manifest, preserving published
    bytes, accepting reserialization and reporting conflicting UUID reuse;
+   mark superseded rows (see ``apply_supersession``), backfilling the
+   ``evaluation_id`` of inherited rows that predate the field;
 5. retire collection indexes whose collection no longer exists under
    ``data/`` (moved to ``flat/indexes/retired/``), trim snapshots past the
    retention window, and commit everything in bounded batches with the
@@ -37,13 +39,16 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import sys
+import tempfile
 import time
 import warnings
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from pathlib import Path, PurePosixPath
 from typing import Any, Callable, Sequence
 from uuid import UUID
@@ -68,6 +73,7 @@ INDEXES_PREFIX = 'flat/indexes/by_collection'
 RETIRE_PREFIX = 'flat/indexes/retired'
 BY_LEGACY_PATH = 'flat/indexes/by_legacy_path.jsonl'
 MANIFESTS_PREFIX = 'flat/manifests'
+RETIRED_LIST_PATH = 'flat/retired.jsonl'
 DATA_PREFIX = 'data/'
 #: Fields of a manifest excluded from its content hash, mirroring
 #: ``manifest_core`` in ``tools/build_flat_datastore.py``.
@@ -80,6 +86,13 @@ DEFAULT_KEEP_NEWEST = 2
 #: decide between trim and pin; unscanned ones are conservatively kept.
 DEFAULT_SCAN_BUDGET = 20
 DOWNLOAD_WORKERS = 8
+#: Inherited rows whose ids are fetched one by one per run by default; a
+#: first fill uses ``--bootstrap-ids`` instead.
+DEFAULT_BACKFILL_LIMIT = 500
+BACKFILL_CHUNK = 500
+OBJECT_PATTERNS = ('flat/objects/**/*.json',)
+SUPERSEDED_REASONS = frozenset({'newer_capture', 'retired'})
+_NUMERIC = re.compile(r'\d+(?:\.\d+)?')
 #: Excluded paths a maintainer has acknowledged; see ``exit_code_for``.
 ACKNOWLEDGED_CONFLICTS = Path(__file__).with_name(
     'flat_acknowledged_conflicts.txt'
@@ -105,8 +118,34 @@ class Row:
     instance_level_path: str | None = None
     instance_sha: str | None = None
     instance_level_size_bytes: int | None = None
+    evaluation_id: str | None = None
+    retrieved_timestamp: str | None = None
+    #: Set only for records whose provenance says ``type_of_addition`` is
+    #: ``cron``.
+    cron_adapter: str | None = None
+    cron_run_date: str | None = None
+    #: ``len(evaluation_results)``; None when the record has no such list.
+    result_count: int | None = None
+    #: False for an inherited row written before the record ids were
+    #: indexed; such a row serializes without them until backfilled.
+    ids_recorded: bool = True
+    superseded_by: str | None = None
+    superseded_reason: str | None = None
 
     def __post_init__(self) -> None:
+        if (self.superseded_by is None) != (self.superseded_reason is None):
+            raise FlatRebuildError(
+                f'{self.object_uuid}: superseded_by and superseded_reason '
+                'are set together'
+            )
+        if (
+            self.superseded_reason is not None
+            and self.superseded_reason not in SUPERSEDED_REASONS
+        ):
+            raise FlatRebuildError(
+                f'{self.object_uuid}: unknown superseded_reason '
+                f'{self.superseded_reason!r}'
+            )
         if self.instance_level_available:
             if (
                 self.instance_level_path is None
@@ -137,6 +176,14 @@ class Row:
             row['instance_level_path'] = self.instance_level_path
             row['instance_sha'] = self.instance_sha
             row['instance_level_size_bytes'] = self.instance_level_size_bytes
+        if self.ids_recorded:
+            row['evaluation_id'] = self.evaluation_id
+            row['retrieved_timestamp'] = self.retrieved_timestamp
+            row['cron_adapter'] = self.cron_adapter
+            row['cron_run_date'] = self.cron_run_date
+            row['result_count'] = self.result_count
+        row['superseded_by'] = self.superseded_by
+        row['superseded_reason'] = self.superseded_reason
         return row
 
     @classmethod
@@ -153,7 +200,64 @@ class Row:
             instance_level_path=row.get('instance_level_path'),
             instance_sha=row.get('instance_sha'),
             instance_level_size_bytes=row.get('instance_level_size_bytes'),
+            evaluation_id=row.get('evaluation_id'),
+            retrieved_timestamp=row.get('retrieved_timestamp'),
+            cron_adapter=row.get('cron_adapter'),
+            cron_run_date=row.get('cron_run_date'),
+            result_count=row.get('result_count'),
+            ids_recorded='evaluation_id' in row,
+            superseded_by=row.get('superseded_by'),
+            superseded_reason=row.get('superseded_reason'),
         )
+
+
+@dataclass(frozen=True)
+class RecordIds:
+    """The identity and provenance fields a row copies from its record."""
+
+    evaluation_id: str | None = None
+    retrieved_timestamp: str | None = None
+    cron_adapter: str | None = None
+    cron_run_date: str | None = None
+    result_count: int | None = None
+
+    def apply(self, row: 'Row') -> 'Row':
+        return replace(
+            row,
+            evaluation_id=self.evaluation_id,
+            retrieved_timestamp=self.retrieved_timestamp,
+            cron_adapter=self.cron_adapter,
+            cron_run_date=self.cron_run_date,
+            result_count=self.result_count,
+            ids_recorded=True,
+        )
+
+
+@dataclass(frozen=True)
+class Supersession:
+    """Rows with supersession applied, plus what the rules declined."""
+
+    rows: tuple['Row', ...]
+    #: Series keys left unmarked because two captures share a run date.
+    ambiguous_series: tuple[str, ...] = ()
+    #: Series left unmarked because the newest capture has fewer results
+    #: than an older one.
+    regressed_series: tuple[str, ...] = ()
+    #: Collections skipped by the automatic rule while ids are pending.
+    pending_collections: tuple[str, ...] = ()
+    #: Retire-list entries naming a uuid absent from the index.
+    stale_retired: tuple[str, ...] = ()
+    #: Retire-list entries whose ``replaced_by`` is absent from the index.
+    dangling_replaced_by: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class RetiredEntry:
+    """One ``flat/retired.jsonl`` line: a record a maintainer retired."""
+
+    object_uuid: str
+    reason: str
+    replaced_by: str | None = None
 
 
 @dataclass(frozen=True)
@@ -233,6 +337,15 @@ class RebuildReport:
     manifest_core_sha256: str | None = None
     verified_files: int = 0
     verified_reserialized: int = 0
+    ids_backfilled: int = 0
+    ids_pending: int = 0
+    superseded_captures: int = 0
+    superseded_retired: int = 0
+    ambiguous_series: tuple[str, ...] = ()
+    regressed_series: tuple[str, ...] = ()
+    pending_collections: tuple[str, ...] = ()
+    stale_retired: tuple[str, ...] = ()
+    dangling_replaced_by: tuple[str, ...] = ()
     commits: int = 0
     uploads: int = 0
     duration_seconds: float = 0.0
@@ -672,6 +785,7 @@ def build_rows(
         schema_version = schema_version_of(data, path, errors)
         if schema_version is None:
             continue
+        ids = record_ids(data)
         sha256 = sha256_bytes(data)
         old = old_by_uuid.get(object_uuid)
         if old is not None:
@@ -698,6 +812,8 @@ def build_rows(
                 excluded.add(samples_path_for(path))
             if row is None:
                 continue
+            if not row.ids_recorded:
+                row = ids.apply(row)
             if (
                 row.instance_level_available
                 and not old.instance_level_available
@@ -706,14 +822,16 @@ def build_rows(
                 upload_samples.add(object_uuid)
             rows[object_uuid] = row
             continue
-        row = Row(
-            object_uuid=object_uuid,
-            object_path=object_path_for(object_uuid, suffix='.json'),
-            sha256=sha256,
-            size_bytes=len(data),
-            legacy_path=path,
-            benchmark=benchmark,
-            eval_schema_version=schema_version,
+        row = ids.apply(
+            Row(
+                object_uuid=object_uuid,
+                object_path=object_path_for(object_uuid, suffix='.json'),
+                sha256=sha256,
+                size_bytes=len(data),
+                legacy_path=path,
+                benchmark=benchmark,
+                eval_schema_version=schema_version,
+            )
         )
         if listing is not None and row.object_path in listing:
             old_object = _fetch_existing(
@@ -888,6 +1006,246 @@ def schema_version_of(data: bytes, path: str, errors: list[str]) -> str | None:
         errors.append(f'{path}: missing schema_version')
         return None
     return version
+
+
+def record_ids(data: bytes) -> RecordIds:
+    """Read the fields a row copies from its record; absent ones are None."""
+    try:
+        loaded = json.loads(data)
+    except json.JSONDecodeError:
+        return RecordIds()
+    if not isinstance(loaded, dict):
+        return RecordIds()
+
+    def text(mapping: Any, key: str) -> str | None:
+        value = mapping.get(key) if isinstance(mapping, dict) else None
+        return value if isinstance(value, str) else None
+
+    source = loaded.get('source_metadata')
+    details = (
+        source.get('additional_details') if isinstance(source, dict) else None
+    )
+    cron = text(details, 'type_of_addition') == 'cron'
+    results = loaded.get('evaluation_results')
+    return RecordIds(
+        evaluation_id=text(loaded, 'evaluation_id'),
+        retrieved_timestamp=text(loaded, 'retrieved_timestamp'),
+        cron_adapter=text(details, 'cron_adapter') if cron else None,
+        cron_run_date=text(details, 'cron_run_date') if cron else None,
+        result_count=len(results) if isinstance(results, list) else None,
+    )
+
+
+def backfill_ids(
+    rows: Sequence[Row],
+    fetch: Callable[[Sequence[str]], dict[str, bytes]],
+    *,
+    limit: int | None,
+    chunk: int = BACKFILL_CHUNK,
+) -> tuple[list[Row], int, int]:
+    """Fill record ids of inherited rows from their published objects.
+
+    At most ``limit`` rows (``None``: all), in ``legacy_path`` order, are
+    fetched, ``chunk`` objects at a time. Returns ``(rows, filled,
+    pending)``.
+    """
+    missing = sorted(
+        (row for row in rows if not row.ids_recorded),
+        key=lambda row: row.legacy_path,
+    )
+    todo = missing if limit is None else missing[: max(limit, 0)]
+    filled: dict[str, Row] = {}
+    for start in range(0, len(todo), chunk):
+        batch = todo[start : start + chunk]
+        contents = fetch([row.object_path for row in batch])
+        for row in batch:
+            filled[row.object_uuid] = record_ids(
+                contents[row.object_path]
+            ).apply(row)
+    return (
+        [filled.get(row.object_uuid, row) for row in rows],
+        len(filled),
+        len(missing) - len(filled),
+    )
+
+
+def local_object_reader(
+    root: Path,
+) -> Callable[[Sequence[str]], dict[str, bytes]]:
+    """Read published objects from a local ``snapshot_download`` tree."""
+
+    def fetch(paths: Sequence[str]) -> dict[str, bytes]:
+        contents: dict[str, bytes] = {}
+        for path in paths:
+            local = root / path
+            if not local.is_file():
+                raise FlatRebuildError(
+                    f'{path}: missing from the bulk object download'
+                )
+            contents[path] = local.read_bytes()
+        return contents
+
+    return fetch
+
+
+def parse_retired(data: bytes) -> list[RetiredEntry]:
+    """Parse ``flat/retired.jsonl``; malformed lines raise."""
+    entries: list[RetiredEntry] = []
+    problems: list[str] = []
+    seen: set[str] = set()
+    for number, line in enumerate(data.decode('utf-8').splitlines(), 1):
+        if not line.strip():
+            continue
+        try:
+            loaded = json.loads(line)
+        except json.JSONDecodeError as exc:
+            problems.append(f'line {number}: invalid JSON ({exc})')
+            continue
+        if not isinstance(loaded, dict):
+            problems.append(f'line {number}: expected a JSON object')
+            continue
+        object_uuid = loaded.get('object_uuid')
+        reason = loaded.get('reason')
+        replaced_by = loaded.get('replaced_by')
+        if not isinstance(object_uuid, str) or not object_uuid:
+            problems.append(f'line {number}: object_uuid is required')
+            continue
+        if not isinstance(reason, str) or not reason.strip():
+            problems.append(f'line {number}: reason is required')
+            continue
+        if replaced_by is not None and not isinstance(replaced_by, str):
+            problems.append(f'line {number}: replaced_by must be a uuid')
+            continue
+        if replaced_by == object_uuid:
+            problems.append(f'line {number}: {object_uuid} replaces itself')
+            continue
+        if object_uuid in seen:
+            problems.append(f'line {number}: {object_uuid} is listed twice')
+            continue
+        seen.add(object_uuid)
+        entries.append(RetiredEntry(object_uuid, reason, replaced_by))
+    if problems:
+        raise FlatRebuildError(
+            f'{RETIRED_LIST_PATH} is malformed:\n' + '\n'.join(problems)
+        )
+    return entries
+
+
+def _number(text: str | None) -> Decimal | None:
+    if text is None or not _NUMERIC.fullmatch(text):
+        return None
+    return Decimal(text)
+
+
+def series_key(row: Row) -> tuple[str, str, str] | None:
+    """Return ``(collection, cron_adapter, id prefix)``, or None.
+
+    Only cron-ingested rows with a run date and a result count form series, and only when the
+    ``evaluation_id``'s last ``/`` segment is a plain (possibly fractional)
+    epoch number equal to the record's ``retrieved_timestamp``.
+    """
+    if (
+        row.evaluation_id is None
+        or row.cron_adapter is None
+        or row.cron_run_date is None
+        or row.result_count is None
+    ):
+        return None
+    prefix, separator, tail = row.evaluation_id.rpartition('/')
+    number = _number(tail)
+    if (
+        not separator
+        or not prefix
+        or number is None
+        or number != _number(row.retrieved_timestamp)
+    ):
+        return None
+    return row.benchmark, row.cron_adapter, prefix
+
+
+def apply_supersession(
+    rows: Sequence[Row], retired: Sequence[RetiredEntry] = ()
+) -> Supersession:
+    """Recompute ``superseded_by`` for every row; order is preserved.
+
+    Explicit rule first: each retired entry points at its ``replaced_by``
+    or the literal ``'retired'``, with reason ``retired``; entries naming a
+    uuid absent from ``rows`` are skipped and reported as stale.
+
+    Automatic rule: rows sharing a ``series_key`` form a series. Among the
+    series' rows that are not retired, the newest capture (by
+    ``retrieved_timestamp``, then uuid) is current and every other one
+    points at it with reason ``newer_capture``. A series in which two rows
+    share a ``cron_run_date`` is ambiguous and left unmarked, as is one
+    whose newest capture has fewer results than an older one (reported as
+    regressed for a human to settle with a retire entry). A collection with
+    rows whose ids are still pending is skipped.
+    """
+    current = {
+        row.object_uuid: replace(
+            row, superseded_by=None, superseded_reason=None
+        )
+        for row in rows
+    }
+    stale: list[str] = []
+    dangling: list[str] = []
+    for entry in retired:
+        if entry.object_uuid not in current:
+            stale.append(entry.object_uuid)
+            continue
+        if entry.replaced_by is not None and entry.replaced_by not in current:
+            dangling.append(f'{entry.object_uuid} -> {entry.replaced_by}')
+        current[entry.object_uuid] = replace(
+            current[entry.object_uuid],
+            superseded_by=entry.replaced_by or 'retired',
+            superseded_reason='retired',
+        )
+    pending = {row.benchmark for row in rows if not row.ids_recorded}
+    series: dict[tuple[str, str, str], list[Row]] = defaultdict(list)
+    for row in current.values():
+        key = series_key(row)
+        if (
+            key is not None
+            and row.benchmark not in pending
+            and row.superseded_reason is None
+        ):
+            series[key].append(row)
+    ambiguous: list[str] = []
+    regressed: list[str] = []
+    for key, members in sorted(series.items()):
+        if len(members) < 2:
+            continue
+        run_dates = [row.cron_run_date for row in members]
+        if len(set(run_dates)) != len(run_dates):
+            ambiguous.append('/'.join(key))
+            continue
+        newest = max(
+            members,
+            key=lambda row: (_number(row.retrieved_timestamp), row.object_uuid),
+        )
+        older = [row for row in members if row is not newest]
+        fuller = max(older, key=lambda row: (row.result_count, row.object_uuid))
+        if fuller.result_count > newest.result_count:
+            regressed.append(
+                f'{"/".join(key)}: newest {newest.object_uuid} has '
+                f'{newest.result_count} result(s), {fuller.object_uuid} has '
+                f'{fuller.result_count}'
+            )
+            continue
+        for row in older:
+            current[row.object_uuid] = replace(
+                row,
+                superseded_by=newest.object_uuid,
+                superseded_reason='newer_capture',
+            )
+    return Supersession(
+        rows=tuple(current[row.object_uuid] for row in rows),
+        ambiguous_series=tuple(ambiguous),
+        regressed_series=tuple(regressed),
+        pending_collections=tuple(sorted(pending)),
+        stale_retired=tuple(stale),
+        dangling_replaced_by=tuple(dangling),
+    )
 
 
 def plan_retire(
@@ -1256,6 +1614,8 @@ def orchestrate(
     allow_bootstrap: bool = False,
     dry_run: bool = False,
     verify: bool = False,
+    backfill_limit: int = DEFAULT_BACKFILL_LIMIT,
+    bootstrap_ids: bool = False,
     now: datetime | None = None,
 ) -> RebuildReport:
     """Plan and, unless dry, publish one flat rebuild. Returns the report."""
@@ -1293,6 +1653,41 @@ def orchestrate(
         }
     )
     contents = download_bytes(api, repo_id, needed)
+    removed_uuids = {row.object_uuid for row in diff.removed_rows}
+    missing_objects = sorted(
+        row.object_path
+        for row in old_rows
+        if not row.ids_recorded
+        and row.object_uuid not in removed_uuids
+        and row.object_path not in listing
+    )
+    if missing_objects:
+        raise FlatRebuildError(
+            f'{len(missing_objects)} inherited object(s) are missing, so '
+            'their ids cannot be backfilled:\n' + '\n'.join(missing_objects)
+        )
+    inherited = [
+        row for row in old_rows if row.object_uuid not in removed_uuids
+    ]
+    if bootstrap_ids and any(not row.ids_recorded for row in inherited):
+        with tempfile.TemporaryDirectory() as bulk:
+            api.snapshot_download(
+                repo_id=repo_id,
+                repo_type='dataset',
+                allow_patterns=list(OBJECT_PATTERNS),
+                local_dir=bulk,
+            )
+            kept, report.ids_backfilled, report.ids_pending = backfill_ids(
+                inherited, local_object_reader(Path(bulk)), limit=None
+            )
+    else:
+        kept, report.ids_backfilled, report.ids_pending = backfill_ids(
+            inherited,
+            lambda paths: download_bytes(api, repo_id, paths),
+            limit=backfill_limit,
+        )
+    backfilled = {row.object_uuid: row for row in kept}
+    build_input = [backfilled.get(row.object_uuid, row) for row in old_rows]
     object_cache: dict[str, bytes] = {}
 
     def existing_object(object_path: str) -> bytes | None:
@@ -1303,7 +1698,7 @@ def orchestrate(
             object_cache.update(download_bytes(api, repo_id, [object_path]))
         return object_cache[object_path]
 
-    build = build_rows(old_rows, diff, contents, existing_object, listing)
+    build = build_rows(build_input, diff, contents, existing_object, listing)
     if build.errors:
         raise FlatRebuildError(
             f'{len(build.errors)} record(s) cannot be flattened:\n'
@@ -1311,7 +1706,24 @@ def orchestrate(
         )
     report.conflicts = build.conflicts
     report.excluded_paths = build.excluded_paths
-    rows = build.rows
+    retired: list[RetiredEntry] = []
+    if RETIRED_LIST_PATH in listing:
+        retired = parse_retired(
+            download_bytes(api, repo_id, [RETIRED_LIST_PATH])[RETIRED_LIST_PATH]
+        )
+    supersession = apply_supersession(build.rows, retired)
+    rows = supersession.rows
+    report.ambiguous_series = supersession.ambiguous_series
+    report.regressed_series = supersession.regressed_series
+    report.pending_collections = supersession.pending_collections
+    report.stale_retired = supersession.stale_retired
+    report.dangling_replaced_by = supersession.dangling_replaced_by
+    report.superseded_captures = sum(
+        1 for row in rows if row.superseded_reason == 'newer_capture'
+    )
+    report.superseded_retired = sum(
+        1 for row in rows if row.superseded_reason == 'retired'
+    )
     if verify:
         pending_objects = frozenset(
             [
@@ -1510,8 +1922,42 @@ def summary_lines(
         f'{len(report.manifests_trimmed)} trimmed, '
         f'{len(report.manifests_pinned)} pinned, '
         f'{len(report.manifests_unscanned)} unscanned',
+        f'- superseded: {report.superseded_captures} by a newer capture, '
+        f'{report.superseded_retired} retired',
         f'- manifest core sha256: `{report.manifest_core_sha256}`',
     ]
+    if report.ids_backfilled or report.ids_pending:
+        lines.append(
+            f'- evaluation_id backfill: {report.ids_backfilled} filled, '
+            f'{report.ids_pending} pending'
+        )
+    if report.pending_collections:
+        lines.append(
+            f'- automatic supersession skipped in '
+            f'{len(report.pending_collections)} collection(s) with ids '
+            'pending'
+        )
+    if report.ambiguous_series:
+        lines.append(
+            f'- **ambiguous series: {len(report.ambiguous_series)}** '
+            '(two captures share a cron run date; left unmarked)'
+        )
+    if report.regressed_series:
+        lines.append(
+            f'- **regressed series: {len(report.regressed_series)}** '
+            '(newest capture has fewer results than an older one; left '
+            'unmarked)'
+        )
+    if report.stale_retired:
+        lines.append(
+            f'- **stale retire entries: {len(report.stale_retired)}** '
+            f'uuid(s) in {RETIRED_LIST_PATH} are not in the index'
+        )
+    if report.dangling_replaced_by:
+        lines.append(
+            f'- **dangling replaced_by: {len(report.dangling_replaced_by)}** '
+            f'{RETIRED_LIST_PATH} entries point at uuids not in the index'
+        )
     if report.verified_files:
         lines.append(
             f'- deep verification: {report.verified_files} data file(s) '
@@ -1551,6 +1997,11 @@ def summary_lines(
     for label, paths in (
         ('Excluded records', report.conflicts),
         ('Stale acknowledgements', stale),
+        ('Ambiguous series', report.ambiguous_series),
+        ('Regressed series', report.regressed_series),
+        ('Collections with ids pending', report.pending_collections),
+        ('Stale retire entries', report.stale_retired),
+        ('Dangling replaced_by', report.dangling_replaced_by),
         ('Retired indexes', report.indexes_retired),
         ('Trimmed snapshots', report.manifests_trimmed),
         ('Pinned snapshots', report.manifests_pinned),
@@ -1623,6 +2074,25 @@ def main(argv: list[str] | None = None) -> int:
         ),
     )
     parser.add_argument(
+        '--backfill-limit',
+        type=int,
+        default=DEFAULT_BACKFILL_LIMIT,
+        help=(
+            'Max inherited rows per run whose ids are fetched one by one '
+            'from their published object (default: %(default)s; 0 '
+            'disables).'
+        ),
+    )
+    parser.add_argument(
+        '--bootstrap-ids',
+        action='store_true',
+        help=(
+            'Fill the ids of every inherited row from one bulk download of '
+            'the aggregate objects (about 1.4 GB) instead of per-file '
+            'fetches.'
+        ),
+    )
+    parser.add_argument(
         '--acknowledged-conflicts',
         type=Path,
         default=ACKNOWLEDGED_CONFLICTS,
@@ -1644,6 +2114,8 @@ def main(argv: list[str] | None = None) -> int:
             allow_bootstrap=args.allow_bootstrap,
             dry_run=args.dry_run,
             verify=args.verify,
+            backfill_limit=args.backfill_limit,
+            bootstrap_ids=args.bootstrap_ids,
         )
     except FlatRebuildError as exc:
         if os.environ.get('GITHUB_ACTIONS'):
