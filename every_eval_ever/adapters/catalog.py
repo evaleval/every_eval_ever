@@ -570,6 +570,19 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         captures_raw=False,
     ),
     AdapterSpec(
+        key='last_translation_benchmark',
+        module=(
+            'every_eval_ever.adapters.last_translation_benchmark.adapter'
+        ),
+        collections=('last-translation-benchmark',),
+        runnable=False,
+        unrunnable_reason=(
+            'requires --input-path to the LTB release v1.json; the release is '
+            'a periodic snapshot, not a live endpoint'
+        ),
+        captures_raw=False,
+    ),
+    AdapterSpec(
         key='sciarena',
         module='every_eval_ever.adapters.sciarena.adapter',
         collections=('sciarena',),
