@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html><body>
+<astro-island uid="fixture" component-url="/_astro/BenchmarkView.fixture.js" component-export="default" props="{&quot;benchmarkView&quot;:[0,{&quot;default&quot;:[0,{&quot;metadata&quot;:[0,{&quot;benchmark&quot;:[0,&quot;SAGE&quot;],&quot;slug&quot;:[0,&quot;sage&quot;],&quot;description&quot;:[0,&quot;Student Assessment with Generative Evaluation&quot;],&quot;benchmark_id&quot;:[0,&quot;sage&quot;],&quot;family&quot;:[0,&quot;sage&quot;],&quot;version&quot;:[0,&quot;1&quot;],&quot;updated&quot;:[0,&quot;2026-09-10&quot;],&quot;dataset_type&quot;:[0,&quot;private&quot;],&quot;industry&quot;:[0,&quot;education&quot;],&quot;tasks&quot;:[0,{&quot;calculus&quot;:[0,&quot;Calculus&quot;]}],&quot;models&quot;:[1,[[0,&quot;anthropic/claude-sonnet-4-6&quot;],[0,&quot;openai/gpt-5.5&quot;],[0,&quot;openai/gpt-5.6-sol&quot;]]],&quot;showBadge&quot;:[0,false],&quot;visible&quot;:[0,true],&quot;use_cost_per_test&quot;:[0,false],&quot;runner&quot;:[0,&quot;custom&quot;],&quot;mode&quot;:[0,&quot;one-shot&quot;],&quot;archived&quot;:[0,false],&quot;partner&quot;:[0,false],&quot;total_models&quot;:[0,81]}],&quot;tasks&quot;:[0,{&quot;calculus&quot;:[0,{&quot;anthropic/claude-sonnet-4-6&quot;:[0,{&quot;accuracy&quot;:[0,60.494],&quot;latency&quot;:[0,207.52],&quot;stderr&quot;:[0,6.324],&quot;cost_per_test&quot;:[0,0.458947],&quot;temperature&quot;:[0,1],&quot;top_p&quot;:[0,null],&quot;max_output_tokens&quot;:[0,30000],&quot;reasoning&quot;:[0,true],&quot;reasoning_effort&quot;:[0,null],&quot;verbosity&quot;:[0,null],&quot;compute_effort&quot;:[0,null],&quot;provider&quot;:[0,&quot;Anthropic&quot;],&quot;harness&quot;:[0,null]}],&quot;openai/gpt-5.5&quot;:[0,{&quot;accuracy&quot;:[0,72.222],&quot;latency&quot;:[0,54.876],&quot;stderr&quot;:[0,5.571],&quot;cost_per_test&quot;:[0,0.112212],&quot;temperature&quot;:[0,1],&quot;top_p&quot;:[0,null],&quot;max_output_tokens&quot;:[0,null],&quot;reasoning&quot;:[0,null],&quot;reasoning_effort&quot;:[0,&quot;xhigh&quot;],&quot;verbosity&quot;:[0,null],&quot;compute_effort&quot;:[0,null],&quot;provider&quot;:[0,&quot;OpenAI&quot;],&quot;harness&quot;:[0,null]}],&quot;openai/gpt-5.6-sol&quot;:[0,{&quot;accuracy&quot;:[0,67.284],&quot;latency&quot;:[0,46.739],&quot;stderr&quot;:[0,5.681],&quot;cost_per_test&quot;:[0,0.157303],&quot;temperature&quot;:[0,null],&quot;top_p&quot;:[0,null],&quot;max_output_tokens&quot;:[0,30000],&quot;reasoning&quot;:[0,null],&quot;reasoning_effort&quot;:[0,&quot;max&quot;],&quot;verbosity&quot;:[0,null],&quot;compute_effort&quot;:[0,null],&quot;provider&quot;:[0,&quot;OpenAI&quot;],&quot;harness&quot;:[0,null]}]}]}]}]}]}"></astro-island>
+<article class="benchmark-details prose-vals flex w-full max-w-full flex-col gap-4">
+<h2 id="key-takeaways">Key Takeaways</h2>
+<p>Trimmed fixture.</p>
+<h2 id="methodology">Methodology</h2>
+<p>The models are given student work samples and corresponding rubrics, expressed as a set of potential point deductions. We ask the models to determine which deductions apply to the given work.</p>
+<p>All student work in the dataset consists of handwritten mathematical solutions, which adds an additional layer of complexity as models must be able to parse handwritten text and mathematical notation.</p>
+<p>The evaluation process requires models to:</p>
+<ol>
+<li>Parse and understand the rubric criteria</li>
+<li>Analyze the student’s mathematical work and reasoning</li>
+<li>Apply appropriate scoring based on the rubric guidelines</li>
+<li>Provide clear justification for their scoring decisions</li>
+</ol>
+<p>This methodology tests not only the models’ mathematical understanding but also their ability to apply consistent evaluation standards—a critical skill for educational applications.</p>
+<p>All models are evaluated with default settings (the length of a short book - more than enough to adequately grade student work).</p>
+<hr/>
+<h2 id="results">Results</h2>
+<p>Not methodology.</p>
+</article>
+</body></html>
