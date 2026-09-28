@@ -242,6 +242,59 @@ def test_transform_from_file_generation_config():
         mode='json', exclude_none=True
     )
     assert gen.additional_details['num_fewshot'] == '0'
+    assert gen.additional_details['output_type'] == 'generate_until'
+
+
+def test_source_data_states_the_samples_scored():
+    adapter = LMEvalAdapter()
+    logs = adapter.transform_from_file(RESULTS_FILE, _make_metadata_args())
+
+    for log in logs:
+        source_data = log.evaluation_results[0].source_data
+        assert source_data.samples_number == 5000
+        assert source_data.additional_details is None
+
+
+def _multiple_choice_task(n_samples):
+    return {
+        'results': {'mc_task': {'acc,none': 0.25, 'acc_stderr,none': 0.01}},
+        'configs': {
+            'mc_task': {
+                'task': 'mc_task',
+                'dataset_path': 'org/mc_dataset',
+                'test_split': 'test',
+                'output_type': 'multiple_choice',
+                'num_fewshot': 5,
+            }
+        },
+        'n-samples': {'mc_task': n_samples},
+    }
+
+
+def test_multiple_choice_task_states_its_scoring_mode_and_no_generation_args():
+    adapter = LMEvalAdapter()
+    results = adapter._build_evaluation_results(
+        _multiple_choice_task({'original': 1000, 'effective': 1000}), 'mc_task'
+    )
+
+    gen = results[0].generation_config
+    assert gen.generation_args is None
+    assert gen.additional_details == {
+        'output_type': 'multiple_choice',
+        'num_fewshot': '5',
+    }
+
+
+def test_a_limited_run_states_how_many_samples_it_scored():
+    adapter = LMEvalAdapter()
+    results = adapter._build_evaluation_results(
+        _multiple_choice_task({'original': 1000, 'effective': 100}), 'mc_task'
+    )
+
+    source_data = results[0].source_data
+    assert source_data.samples_number == 100
+    assert source_data.additional_details == {'dataset_size': '1000'}
+    assert results[0].score_details.uncertainty.num_samples == 100
 
 
 def test_transform_from_file_eval_timestamp():
@@ -618,7 +671,8 @@ def test_directory_conversion_tracks_each_results_file_parent(tmp_path):
     second.write_text(json.dumps(second_source), encoding='utf-8')
 
     result = adapter.transform_from_directory_result(
-        tmp_path, {'parent_eval_output_dir': str(tmp_path)}
+        tmp_path,
+        _make_metadata_args(parent_eval_output_dir=str(tmp_path)),
     )
 
     parents = {
