@@ -159,17 +159,102 @@ def test_metric_config_uses_percent_scale_with_judge():
     assert judge.model_info.id == adapter.JUDGE_MODEL_ID
 
 
-def test_generation_config_carries_model_temperature():
-    """Per reviewer feedback on HF datastore PR #125: model-under-eval
-    temperature belongs on generation_config.generation_args.temperature
-    (schema L400), not in source/metric additional_details.
-    """
+def _log_for_note(note: str | None) -> EvaluationLog:
+    row = {
+        'model': 'test-model',
+        'rank': 1,
+        'score': 10.0,
+        'company': 'openai',
+        'calibrationError': 40,
+    }
+    if note is not None:
+        row['contaminationMessage'] = note
+    log = adapter.make_logs([row], retrieved_timestamp='123.0')[0][0]
+    assert len(log.evaluation_results) == 2
+    return log
+
+
+def test_no_row_note_leaves_temperature_null_and_records_policy():
+    log = _log_for_note(None)
+    for result in log.evaluation_results:
+        config = result.generation_config
+        assert config is None or config.generation_args is None
+    assert (
+        log.source_metadata.additional_details['source_generation_policy']
+        == adapter.SOURCE_GENERATION_POLICY
+    )
+    assert 'temperature 0.0 when configurable' in (
+        adapter.SOURCE_GENERATION_POLICY
+    )
+    assert 'source_row_note' not in log.model_info.additional_details
+
+
+def test_row_note_with_temperature_and_top_p_is_parsed():
+    note = 'Sampled at temperature = 1.0, top_p = 0.95.'
+    log = _log_for_note(note)
+    for result in log.evaluation_results:
+        args = result.generation_config.generation_args
+        assert args.temperature == 1.0
+        assert args.top_p == 0.95
+        assert (
+            result.generation_config.additional_details['source_row_note']
+            == note
+        )
+    assert log.model_info.additional_details['source_row_note'] == note
+
+
+def test_row_note_with_temperature_only_is_parsed():
+    log = _log_for_note('  Sampled at temperature 0.7 ')
+    for result in log.evaluation_results:
+        args = result.generation_config.generation_args
+        assert args.temperature == 0.7
+        assert args.top_p is None
+
+
+def test_default_temperature_note_parses_nothing():
+    note = 'Sampled at 32K Tokens, temp = null (default temp)'
+    log = _log_for_note(note)
+    for result in log.evaluation_results:
+        assert result.generation_config.generation_args is None
+        assert (
+            result.generation_config.additional_details['source_row_note']
+            == note
+        )
+
+
+def test_budget_and_effort_notes_are_kept_but_not_parsed():
+    for note in (
+        'Thinking budget: 16,000 tokens.',
+        "Sampled at reasoning_effort: 'high'.",
+    ):
+        log = _log_for_note(note)
+        for result in log.evaluation_results:
+            assert result.generation_config.generation_args is None
+            assert (
+                result.generation_config.additional_details['source_row_note']
+                == note
+            )
+
+
+def test_note_mentioning_temperature_in_other_prose_parses_nothing():
+    for note in (
+        'Sampled at temperature 0.7 with a custom system prompt.',
+        'Note: Sampled at temperature = 1.0, top_p = 0.95.',
+        'Sampled at temperature = 1.0, top_p = 0.95',
+        'The provider ignores temperature settings for this model.',
+    ):
+        log = _log_for_note(note)
+        for result in log.evaluation_results:
+            assert result.generation_config.generation_args is None
+
+
+def test_judge_prompt_carries_no_temperature():
+    assert 'temperature' not in adapter.JUDGE_PROMPT_DESCRIPTION.lower()
     bundles = adapter.make_logs(sample_rows(), retrieved_timestamp='123.0')
     for log, _, _ in bundles:
         for result in log.evaluation_results:
-            assert result.generation_config is not None
-            assert result.generation_config.generation_args is not None
-            assert result.generation_config.generation_args.temperature == 0.0
+            prompt = result.metric_config.llm_scoring.input_prompt
+            assert 'temperature' not in prompt.lower()
 
 
 def test_judge_and_temperature_not_duplicated_in_additional_details():

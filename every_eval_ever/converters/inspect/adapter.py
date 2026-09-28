@@ -117,6 +117,23 @@ _STDERR_METHODS = {'stderr': 'analytic', 'bootstrap_stderr': 'bootstrap'}
 _STDERR_PREFERENCE = ('analytic', 'bootstrap')
 _UNCERTAINTY_METRICS = _STDDEV_METRICS | frozenset(_STDERR_METHODS)
 
+# Plan-step parameter names that override a generation field for the calls
+# that step makes, keyed by the `GenerationArgs` field they override.
+_STEP_OVERRIDE_PARAMS = {
+    'temperature': frozenset({'temperature'}),
+    'max_tokens': frozenset(
+        {'max_tokens', 'max_completion_tokens', 'max_output_tokens'}
+    ),
+    'top_p': frozenset({'top_p'}),
+    'top_k': frozenset({'top_k'}),
+}
+_SCHEMA_SPLITS = {
+    'train': 'train',
+    'val': 'val',
+    'validation': 'val',
+    'test': 'test',
+}
+
 
 class InspectAIAdapter(BaseEvaluationAdapter):
     """
@@ -369,13 +386,26 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         return not cls._HF_REPO_RE.match(location)
 
     def _extract_source_data(
-        self, dataset: EvalDataset, task_name: str
+        self,
+        dataset: EvalDataset,
+        task_name: str,
+        task_args: Dict[str, Any] | None = None,
     ) -> SourceDataHf | SourceDataPrivate:
         sample_ids = (
             [str(sid) for sid in dataset.sample_ids]
             if dataset.sample_ids is not None
             else None
         )
+        samples_number = (
+            len(sample_ids) if sample_ids is not None else dataset.samples
+        )
+        dataset_size = (
+            str(dataset.samples)
+            if dataset.samples is not None and dataset.samples != samples_number
+            else None
+        )
+        split = (task_args or {}).get('split')
+        split = _SCHEMA_SPLITS.get(split) if isinstance(split, str) else None
 
         if self._looks_like_local_path(dataset.location):
             # dataset.location is not a valid HF repo identifier: it may
@@ -403,10 +433,14 @@ class InspectAIAdapter(BaseEvaluationAdapter):
                 )
             if dataset.name:
                 additional_details['inspect_dataset_name'] = dataset.name
-            if dataset.samples is not None:
-                additional_details['samples_number'] = str(dataset.samples)
+            if samples_number is not None:
+                additional_details['samples_number'] = str(samples_number)
+            if dataset_size is not None:
+                additional_details['dataset_size'] = dataset_size
             if sample_ids is not None:
                 additional_details['sample_ids'] = ','.join(sample_ids)
+            if split is not None:
+                additional_details['split'] = split
             return SourceDataPrivate(
                 source_type='other',
                 dataset_name=dataset_name,
@@ -421,13 +455,17 @@ class InspectAIAdapter(BaseEvaluationAdapter):
             if dataset.name
             else task_name.split('/')[-1]
         )
-        return SourceDataHf(  # TODO add hf_split
+        additional_details = {'shuffled': str(dataset.shuffled)}
+        if dataset_size is not None:
+            additional_details['dataset_size'] = dataset_size
+        return SourceDataHf(
             source_type='hf_dataset',
             dataset_name=dataset_name,
             hf_repo=dataset.location,
-            samples_number=dataset.samples,
+            hf_split=split,
+            samples_number=samples_number,
             sample_ids=sample_ids,
-            additional_details={'shuffled': str(dataset.shuffled)},
+            additional_details=additional_details,
         )
 
     def _safe_get(self, obj: Any, field: str):
@@ -477,10 +515,49 @@ class InspectAIAdapter(BaseEvaluationAdapter):
 
         return None
 
+    @staticmethod
+    def _param_names(params: Any) -> set[str]:
+        """Every dict key in a step's parameters, at any depth, outside tool definitions."""
+        if isinstance(params, dict):
+            if params.get('type') == 'tool':
+                return set()
+            names = {str(key) for key in params}
+            for key, value in params.items():
+                if key != 'tools':
+                    names |= InspectAIAdapter._param_names(value)
+            return names
+        if isinstance(params, (list, tuple)):
+            names = set()
+            for item in params:
+                names |= InspectAIAdapter._param_names(item)
+            return names
+        return set()
+
+    def _overridden_generation_fields(
+        self, inspect_plan: InspectEvalPlan
+    ) -> set[str]:
+        """Generation fields a plan step may set per call, out of the plan config's reach."""
+        steps = list(inspect_plan.steps)
+        named: set[str] = set()
+        for step in steps:
+            named |= self._param_names(step.params)
+            named |= self._param_names(step.params_passed)
+        overridden = {
+            field
+            for field, params in _STEP_OVERRIDE_PARAMS.items()
+            if named & params
+        }
+        if steps and (
+            (steps[-1].params or {}).get('model') is not None
+            or (steps[-1].params_passed or {}).get('model') is not None
+        ):
+            overridden |= set(_STEP_OVERRIDE_PARAMS)
+        return overridden
+
     def _extract_generation_config(
         self, spec: EvalSpec, inspect_plan: InspectEvalPlan
     ) -> GenerationConfig:
-        eval_config = spec.model_generate_config
+        eval_config = spec.model_generate_config.merge(inspect_plan.config)
         eval_generation_config = {
             gen_config: json.dumps(value)
             for gen_config, value in vars(eval_config).items()
@@ -515,25 +592,55 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         )
 
         max_attempts = (
-            spec.task_args.get('max_attempts') or eval_config.max_retries
+            spec.task_args.get('max_attempts')
+            or spec.model_generate_config.max_retries
         )  # TODO not sure if max_attempts == max_retries in this case
 
+        reasoning_effort = eval_config.reasoning_effort
         reasoning = (
-            True
-            if eval_config.reasoning_effort
-            and eval_config.reasoning_effort.lower() != 'none'
-            else False
+            reasoning_effort.lower() != 'none'
+            if isinstance(reasoning_effort, str)
+            else None
         )
+
+        overridden = self._overridden_generation_fields(inspect_plan)
+        filled = {
+            field: getattr(eval_config, field)
+            for field in _STEP_OVERRIDE_PARAMS
+            if field not in overridden
+            and getattr(eval_config, field) is not None
+        }
+        for field in overridden:
+            eval_generation_config.pop(field, None)
+        if overridden:
+            eval_generation_config['overridden_by_step'] = ','.join(
+                sorted(overridden)
+            )
+        if filled:
+            from_plan = {
+                getattr(inspect_plan.config, field) is not None
+                for field in filled
+            }
+            eval_generation_config['generation_args_source'] = (
+                'mixed'
+                if len(from_plan) > 1
+                else 'plan_config'
+                if True in from_plan
+                else 'model_config'
+            )
+
+        if steps := inspect_plan.steps:
+            eval_generation_config['terminal_solver'] = steps[-1].solver
 
         available_tools: List[AvailableTool] = self._extract_available_tools(
             inspect_plan
         )
 
         generation_args = GenerationArgs(
-            temperature=eval_config.temperature,
-            top_p=eval_config.top_p,
-            top_k=eval_config.top_k,
-            max_tokens=eval_config.max_tokens,
+            temperature=filled.get('temperature'),
+            top_p=filled.get('top_p'),
+            top_k=filled.get('top_k'),
+            max_tokens=filled.get('max_tokens'),
             reasoning=reasoning,
             prompt_template=self._extract_prompt_template(inspect_plan),
             agentic_eval_config=AgenticEvalConfig(
@@ -552,11 +659,16 @@ class InspectAIAdapter(BaseEvaluationAdapter):
             additional_details=additional_details or None,
         )
 
-    def _extract_library_version(self, packages: Dict[str, str]) -> str:
-        parts = [
-            f'{name}:{version}' for name, version in packages.items() if version
-        ]
-        return ','.join(parts)
+    def _extract_library_version(
+        self, packages: Dict[str, str]
+    ) -> tuple[str | None, dict[str, str] | None]:
+        """The inspect_ai version, and the other packages the log records."""
+        others = {
+            str(name): str(version)
+            for name, version in packages.items()
+            if version and name != 'inspect_ai'
+        }
+        return packages.get('inspect_ai') or None, others or None
 
     def transform_from_directory(
         self, dir_path: Union[str, Path], metadata_args: Dict[str, Any] = None
@@ -680,11 +792,14 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         if not evaluation_unix_timestamp:
             evaluation_unix_timestamp = retrieved_unix_timestamp
 
-        library_version = self._extract_library_version(eval_spec.packages)
+        library_version, library_packages = self._extract_library_version(
+            eval_spec.packages
+        )
         eval_library = EvalLibrary(
             name=metadata_args.get('eval_library_name', 'inspect_ai'),
             version=library_version
             or metadata_args.get('eval_library_version', 'unknown'),
+            additional_details=library_packages,
         )
 
         evaluator_relationship = metadata_args.get(
@@ -696,7 +811,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
             )
 
         source_data = self._extract_source_data(
-            eval_spec.dataset, eval_spec.task
+            eval_spec.dataset, eval_spec.task, eval_spec.task_args
         )
 
         model_path = eval_spec.model

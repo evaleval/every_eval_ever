@@ -90,6 +90,14 @@ from every_eval_ever.helpers.io import (
     require_uuid4,
 )
 
+_SCHEMA_SPLITS = {
+    'train': 'train',
+    'val': 'val',
+    'valid': 'val',
+    'validation': 'val',
+    'test': 'test',
+}
+
 
 def _instance_counts_by_result_id(per_instance_stats: List) -> Dict[str, int]:
     """How many distinct instances each aggregate result was computed over.
@@ -533,7 +541,11 @@ class HELMAdapter(BaseEvaluationAdapter):
             samples_number=len(
                 set(state.instance.id for state in request_states)
             ),
-            sample_ids=[str(state.instance.id) for state in request_states],
+            sample_ids=list(
+                dict.fromkeys(
+                    str(state.instance.id) for state in request_states
+                )
+            ),
             additional_details={
                 'scenario_name': str(run_spec.scenario_spec.class_name),
                 'scenario_args': json.dumps(run_spec.scenario_spec.args)
@@ -617,11 +629,17 @@ class HELMAdapter(BaseEvaluationAdapter):
                 or None
             )
 
+            hf_split = _SCHEMA_SPLITS.get(_stat_name_part(split) or '')
+
             evaluation_results.append(
                 EvaluationResult(
                     evaluation_result_id=evaluation_result_id,
                     evaluation_name=source_data.dataset_name,
-                    source_data=source_data,
+                    source_data=(
+                        source_data.model_copy(update={'hf_split': hf_split})
+                        if hf_split
+                        else source_data
+                    ),
                     evaluation_timestamp=evaluation_timestamp,
                     metric_config=metric_config,
                     score_details=ScoreDetails(
@@ -663,6 +681,11 @@ class HELMAdapter(BaseEvaluationAdapter):
                             ),
                             'num_completions': str(
                                 request_states[0].request.num_completions
+                            ),
+                            **(
+                                {'adapter_method': str(adapter_spec.method)}
+                                if adapter_spec.method
+                                else {}
                             ),
                         },
                     ),

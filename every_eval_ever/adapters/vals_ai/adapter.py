@@ -15,6 +15,7 @@ from urllib.error import URLError
 from urllib.request import Request, urlopen
 
 from every_eval_ever.eval_types import (
+    AgenticEvalConfig,
     EvalLibrary,
     EvaluationLog,
     EvaluationResult,
@@ -61,6 +62,87 @@ NAMESPACE_DEVELOPER_ALIASES = {
     'qwen': 'alibaba',
     'togethercomputer': 'together',
 }
+METHODOLOGY_BLOCK_TAGS = frozenset(
+    {
+        'blockquote',
+        'br',
+        'dd',
+        'div',
+        'dl',
+        'dt',
+        'h3',
+        'h4',
+        'h5',
+        'h6',
+        'hr',
+        'li',
+        'ol',
+        'p',
+        'pre',
+        'table',
+        'td',
+        'th',
+        'tr',
+        'ul',
+    }
+)
+METHODOLOGY_SKIPPED_TAGS = frozenset(
+    {'astro-island', 'script', 'style', 'template'}
+)
+
+
+class ValsMethodologyStatementMissing(RuntimeError):
+    """A benchmark page no longer states a value the adapter fills from it."""
+
+
+@dataclass(frozen=True)
+class PageStatement:
+    """A generation setting stated as a number in a benchmark's methodology."""
+
+    field: str
+    value: float | int
+    sentence: str
+
+
+_SAGE_SENTENCE = (
+    'All models are evaluated with temperature 1, and produce at most 30K '
+    'tokens (the length of a short book - more than enough to adequately '
+    'grade student work).'
+)
+_MED_SENTENCE = (
+    'All models are evaluated with temperature 1, and produce at most 30k '
+    'tokens.'
+)
+_MMMU_SENTENCE = 'All models were ran with a temperature of 0.'
+
+PAGE_STATEMENTS: dict[str, tuple[PageStatement, ...]] = {
+    'sage': (
+        PageStatement('temperature', 1.0, _SAGE_SENTENCE),
+        PageStatement('max_tokens', 30000, _SAGE_SENTENCE),
+    ),
+    'medcode': (
+        PageStatement('temperature', 1.0, _MED_SENTENCE),
+        PageStatement('max_tokens', 30000, _MED_SENTENCE),
+    ),
+    'medscribe': (
+        PageStatement('temperature', 1.0, _MED_SENTENCE),
+        PageStatement('max_tokens', 30000, _MED_SENTENCE),
+    ),
+    'mmmu': (PageStatement('temperature', 0.0, _MMMU_SENTENCE),),
+}
+PAGE_METADATA_DETAILS = {
+    'version': 'benchmark_version',
+    'runner': 'vals_runner',
+    'mode': 'vals_mode',
+    'family': 'vals_family',
+    'archived': 'vals_archived',
+}
+ROW_OUTCOME_FIELDS = (
+    'token_totals',
+    'usage',
+    'task_results',
+    'tie_breaker_score',
+)
 
 
 @dataclass(frozen=True)
@@ -75,6 +157,9 @@ class ValsMetric:
     model_id: str
     metrics: dict[str, Any]
     source_url: str
+    page_details: dict[str, Any] | None = None
+    page_fills: dict[str, float | int] | None = None
+    harness_label: str | None = None
 
 
 @dataclass(frozen=True)
@@ -124,6 +209,73 @@ class AstroIslandParser(HTMLParser):
         props = attr_map.get('props')
         if props:
             self.props.append(props)
+
+
+class MethodologyParser(HTMLParser):
+    """Collect the text of the methodology section of a benchmark page."""
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.parts: list[str] = []
+        self.found = False
+        self._article_depth = 0
+        self._capturing = False
+        self._heading_open = False
+        self._skip_depth = 0
+
+    def handle_starttag(
+        self, tag: str, attrs: list[tuple[str, str | None]]
+    ) -> None:
+        attr_map = {name: value or '' for name, value in attrs}
+        if tag == 'article':
+            if self._article_depth:
+                self._article_depth += 1
+            elif 'benchmark-details' in attr_map.get('class', '').split():
+                self._article_depth = 1
+            return
+        if not self._article_depth:
+            return
+        if tag == 'h2':
+            if self._capturing:
+                self._capturing = False
+            elif not self.found and attr_map.get('id') == 'methodology':
+                self.found = True
+                self._capturing = True
+                self._heading_open = True
+            return
+        if tag in METHODOLOGY_SKIPPED_TAGS:
+            self._skip_depth += 1
+        elif tag in METHODOLOGY_BLOCK_TAGS:
+            self.parts.append(' ')
+
+    def handle_endtag(self, tag: str) -> None:
+        if not self._article_depth:
+            return
+        if tag == 'article':
+            self._article_depth -= 1
+            if not self._article_depth:
+                self._capturing = False
+        elif tag == 'h2':
+            self._heading_open = False
+        elif tag in METHODOLOGY_SKIPPED_TAGS:
+            self._skip_depth = max(0, self._skip_depth - 1)
+        elif tag in METHODOLOGY_BLOCK_TAGS:
+            self.parts.append(' ')
+
+    def handle_data(self, data: str) -> None:
+        if self._capturing and not self._heading_open and not self._skip_depth:
+            self.parts.append(data)
+
+
+def extract_methodology_text(page_html: str) -> str | None:
+    """Return the whitespace-normalised text under the methodology heading."""
+    parser = MethodologyParser()
+    parser.feed(page_html)
+    parser.close()
+    if not parser.found:
+        return None
+    text = ' '.join(''.join(parser.parts).split())
+    return text or None
 
 
 def fetch_text(url: str) -> str:
@@ -211,11 +363,15 @@ def normalize_benchmark_page(page_html: str, source_url: str) -> dict[str, Any]:
     if not isinstance(metadata, dict) or not isinstance(tasks, dict):
         raise ValueError('BenchmarkView payload has invalid metadata/tasks')
 
-    return {
+    normalized = {
         'metadata': metadata,
         'tasks': tasks,
         'source_url': source_url,
     }
+    methodology_text = extract_methodology_text(page_html)
+    if methodology_text is not None:
+        normalized['methodology_text'] = methodology_text
+    return normalized
 
 
 def extract_collection(
@@ -273,7 +429,11 @@ def iter_vals_metrics_result(
     metrics: list[ValsMetric] = []
     failures: list[SourceRecordFailure] = []
     total_records = 0
-    for benchmark_index, benchmark in enumerate(payload.get('benchmarks', [])):
+    slug_routes: dict[str, str] = {}
+    for benchmark_index, benchmark in sorted(
+        enumerate(payload.get('benchmarks', [])),
+        key=lambda item: _benchmark_order(item[1]),
+    ):
         if not isinstance(benchmark, dict):
             failures.append(
                 SourceRecordFailure(
@@ -311,6 +471,32 @@ def iter_vals_metrics_result(
             total_records += 1
             continue
         benchmark_slug = str(raw_benchmark_slug)
+        first_route = slug_routes.setdefault(benchmark_slug, source_url)
+        if first_route != source_url:
+            failures.append(
+                SourceRecordFailure(
+                    source_ref=source_url,
+                    reason=(
+                        f'Vals.ai route {source_url!r} serves benchmark slug '
+                        f'{benchmark_slug!r}, already converted from '
+                        f'{first_route!r}; route skipped'
+                    ),
+                    source_record={
+                        'benchmark_slug': benchmark_slug,
+                        'source_url': source_url,
+                        'first_source_url': first_route,
+                    },
+                )
+            )
+            skipped = _skipped_row_failures(
+                source_url,
+                tasks,
+                f'Vals.ai route {source_url!r} skipped: benchmark slug '
+                f'{benchmark_slug!r} already converted from {first_route!r}',
+            )
+            failures.extend(skipped)
+            total_records += 1 + len(skipped)
+            continue
         benchmark_name = str(metadata.get('benchmark') or benchmark_slug)
         task_names = metadata.get('tasks') or {}
         if not isinstance(tasks, dict):
@@ -323,6 +509,33 @@ def iter_vals_metrics_result(
             )
             total_records += 1
             continue
+
+        methodology_text = _optional_str(benchmark.get('methodology_text'))
+        statements = PAGE_STATEMENTS.get(benchmark_slug, ())
+        missing_sentences = sorted(
+            {
+                statement.sentence
+                for statement in statements
+                if statement.sentence not in (methodology_text or '')
+            }
+        )
+        if missing_sentences:
+            raise ValsMethodologyStatementMissing(
+                f'Vals.ai benchmark {benchmark_slug!r} ({source_url}): the '
+                'methodology section no longer contains the sentence the '
+                f'page fill relies on: {missing_sentences!r}. Update '
+                'PAGE_STATEMENTS before publishing.'
+            )
+        page_fills = {
+            statement.field: statement.value for statement in statements
+        } or None
+        page_details = {
+            detail_key: metadata.get(key)
+            for key, detail_key in PAGE_METADATA_DETAILS.items()
+        }
+        if methodology_text is not None:
+            page_details['vals_methodology_url'] = f'{source_url}#methodology'
+        harness_label = _optional_str(metadata.get('harness_label'))
 
         for task_key, model_rows in tasks.items():
             if not isinstance(model_rows, dict):
@@ -386,6 +599,9 @@ def iter_vals_metrics_result(
                         model_id=str(model_id),
                         metrics=row,
                         source_url=source_url,
+                        page_details=page_details,
+                        page_fills=page_fills,
+                        harness_label=harness_label,
                     )
                 )
 
@@ -395,6 +611,40 @@ def iter_vals_metrics_result(
         records=metrics,
         failures=failures,
     )
+
+
+def _benchmark_order(benchmark: Any) -> tuple[bool, str]:
+    """Sort key preferring the route whose last segment is the embedded slug."""
+    if not isinstance(benchmark, dict):
+        return (True, '')
+    route = str(benchmark.get('source_url') or BENCHMARKS_URL)
+    metadata = benchmark.get('metadata')
+    slug = (
+        metadata.get('slug') or metadata.get('benchmark_id')
+        if isinstance(metadata, dict)
+        else None
+    )
+    return (route.rstrip('/').rsplit('/', 1)[-1] != str(slug), route)
+
+
+def _skipped_row_failures(
+    ref_prefix: str,
+    tasks: Any,
+    reason: str,
+) -> list[SourceRecordFailure]:
+    """One failure per model/task row of a benchmark page that was skipped."""
+    if not isinstance(tasks, dict):
+        return []
+    return [
+        SourceRecordFailure(
+            source_ref=f'{ref_prefix}/{task_key}/{model_id}',
+            reason=reason,
+            source_record=row,
+        )
+        for task_key, model_rows in tasks.items()
+        if isinstance(model_rows, dict)
+        for model_id, row in model_rows.items()
+    ]
 
 
 def build_index(
@@ -533,6 +783,7 @@ def _make_bundle(
                     'industry': first.industry,
                     'leaderboard_page_url': first.source_url,
                     'extraction_method': 'static_astro_benchmark_view_props',
+                    **(first.page_details or {}),
                 }
             ),
         ),
@@ -679,6 +930,8 @@ def make_result(
             'verbosity': row.metrics.get('verbosity'),
             'compute_effort': row.metrics.get('compute_effort'),
             'provider': row.metrics.get('provider'),
+            'harness': row.metrics.get('harness'),
+            **{field: row.metrics.get(field) for field in ROW_OUTCOME_FIELDS},
         }
     )
 
@@ -738,26 +991,65 @@ def make_result(
             details=details,
             uncertainty=uncertainty,
         ),
-        generation_config=make_generation_config(row.metrics),
+        generation_config=make_generation_config(
+            row.metrics,
+            page_fills=row.page_fills,
+            harness_label=row.harness_label,
+        ),
     )
 
 
-def make_generation_config(metrics: dict[str, Any]) -> GenerationConfig | None:
-    explicit_generation_args = {
-        'temperature': _optional_float(metrics.get('temperature')),
-        'top_p': _optional_float(metrics.get('top_p')),
-        'max_tokens': _optional_positive_int(metrics.get('max_output_tokens')),
-    }
-    generation_args = None
-    if any(value is not None for value in explicit_generation_args.values()):
-        generation_args = GenerationArgs(**explicit_generation_args)
+def make_generation_config(
+    metrics: dict[str, Any],
+    *,
+    page_fills: dict[str, float | int] | None = None,
+    harness_label: str | None = None,
+) -> GenerationConfig | None:
+    """Map one Vals.ai row to generation settings, filling nulls from the page.
 
+    ``page_fills`` holds values the benchmark's methodology section states for
+    every model and fills only a field the row leaves null; a row value that is
+    present but unusable (unparseable, or a non-positive cap) stays unset.
+    ``<field>_source`` records which one was used.
+    """
+    row_fields = {
+        'temperature': ('temperature', _optional_float),
+        'max_tokens': ('max_output_tokens', _optional_positive_int),
+    }
+    values: dict[str, Any] = {}
+    sources: dict[str, str] = {}
+    for field, (row_key, parse) in row_fields.items():
+        raw_value = metrics.get(row_key)
+        if raw_value is None or raw_value is ASTRO_UNDEFINED:
+            page_value = (page_fills or {}).get(field)
+            if page_value is not None:
+                values[field] = page_value
+                sources[f'{field}_source'] = 'page_methodology'
+            continue
+        row_value = parse(raw_value)
+        if row_value is not None:
+            values[field] = row_value
+            sources[f'{field}_source'] = 'row'
+
+    top_p = _optional_float(metrics.get('top_p'))
+    if top_p is not None:
+        values['top_p'] = top_p
+    reasoning = metrics.get('reasoning')
+    if isinstance(reasoning, bool):
+        values['reasoning'] = reasoning
+    harness = _optional_str(metrics.get('harness'))
+    if harness is not None:
+        values['agentic_eval_config'] = AgenticEvalConfig(
+            additional_details={_harness_detail_key(harness_label): harness}
+        )
+
+    generation_args = GenerationArgs(**values) if values else None
     additional_details = _clean_details(
         {
-            'reasoning': metrics.get('reasoning'),
             'reasoning_effort': metrics.get('reasoning_effort'),
             'verbosity': metrics.get('verbosity'),
             'compute_effort': metrics.get('compute_effort'),
+            **sources,
         }
     )
     if generation_args is not None or additional_details:
@@ -766,6 +1058,11 @@ def make_generation_config(metrics: dict[str, Any]) -> GenerationConfig | None:
             additional_details=additional_details,
         )
     return None
+
+
+def _harness_detail_key(harness_label: str | None) -> str:
+    label = re.sub(r'[^a-z0-9]+', '_', (harness_label or '').lower()).strip('_')
+    return f'vals_{label or "harness"}'
 
 
 def make_source_data(row: ValsMetric) -> SourceDataPrivate | SourceDataUrl:
