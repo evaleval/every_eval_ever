@@ -85,12 +85,24 @@ HLE_DATASET_HF_URL = 'https://huggingface.co/datasets/cais/hle'
 DEFAULT_OUTPUT_DIR = 'data/hle'
 JUDGE_MODEL_ID = 'openai/o3-mini-2025-01-31'
 JUDGE_PROMPT_DESCRIPTION = (
-    "Scale SEAL evaluates Humanity's Last Exam at temperature 0.0. The "
-    'judge model o3-mini-2025-01-31 acts as an automatic answer extractor '
+    'The judge model o3-mini-2025-01-31 acts as an automatic answer extractor '
     'and grader against ground-truth solutions for each of the 2,500 '
     'frozen questions.'
 )
 DATASET_TOTAL_QUESTIONS = 2500
+SOURCE_GENERATION_POLICY = (
+    'Each model on the leaderboard is evaluated on all public questions of '
+    "Humanity's Last Exam with temperature 0.0 when configurable or stated "
+    'otherwise.'
+)
+_NUMBER = r'\d+(?:\.\d+)?'
+ROW_NOTE_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(
+        rf'Sampled at temperature = (?P<temperature>{_NUMBER}), '
+        rf'top_p = (?P<top_p>{_NUMBER})\.'
+    ),
+    re.compile(rf'Sampled at temperature (?P<temperature>{_NUMBER})\.?'),
+)
 
 # Map the leaderboard's lowercase company slug to the canonical developer
 # slug used elsewhere in the EEE data tree (matches helpers/developer.py
@@ -143,7 +155,7 @@ class LeaderboardRow:
         return str(value) if value else None
 
     @property
-    def contamination_message(self) -> str | None:
+    def row_note(self) -> str | None:
         value = self.raw.get('contaminationMessage')
         return str(value) if value else None
 
@@ -305,13 +317,39 @@ def make_judge_model_info() -> ModelInfo:
     )
 
 
-def make_generation_config() -> GenerationConfig:
-    """Per Scale SEAL's published methodology, the model under evaluation
-    runs at temperature 0.0. Per the schema, that belongs on
-    ``EvaluationResult.generation_config.generation_args.temperature``
-    (eval.schema.json L400) — not in source/metric ``additional_details``.
+def parse_row_note(note: str) -> GenerationArgs | None:
+    """Return the sampling settings stated by a per-row note.
+
+    Only notes that fully match one of ``ROW_NOTE_PATTERNS`` yield values;
+    any other note yields ``None``.
     """
-    return GenerationConfig(generation_args=GenerationArgs(temperature=0.0))
+    stripped = note.strip()
+    for pattern in ROW_NOTE_PATTERNS:
+        match = pattern.fullmatch(stripped)
+        if match is None:
+            continue
+        values = {
+            key: float(value)
+            for key, value in match.groupdict().items()
+            if value is not None
+        }
+        return GenerationArgs(**values)
+    return None
+
+
+def make_generation_config(row: LeaderboardRow) -> GenerationConfig | None:
+    """Build the generation config from the row's own note, if any.
+
+    Sampling values are set only when the note states them in a reviewed
+    sentence form; the note itself is kept verbatim as ``source_row_note``.
+    """
+    note = row.row_note
+    if note is None:
+        return None
+    return GenerationConfig(
+        generation_args=parse_row_note(note),
+        additional_details={'source_row_note': note},
+    )
 
 
 def make_source_data() -> SourceDataUrl:
@@ -383,7 +421,7 @@ def make_accuracy_result(
             },
         ),
         score_details=ScoreDetails(**score_details_kwargs),
-        generation_config=make_generation_config(),
+        generation_config=make_generation_config(row),
     )
 
 
@@ -417,7 +455,7 @@ def make_calibration_result(
             ),
         ),
         score_details=ScoreDetails(score=row.calibration_error),
-        generation_config=make_generation_config(),
+        generation_config=make_generation_config(row),
     )
 
 
@@ -441,9 +479,9 @@ def make_log(
         'raw_model_display_name': row.model_display,
         'rank': str(row.raw.get('rank')),
     }
-    contamination = row.contamination_message
-    if contamination:
-        additional_details['contamination_message'] = contamination
+    note = row.row_note
+    if note:
+        additional_details['source_row_note'] = note
     deprecated = row.raw.get('deprecated')
     if deprecated is not None:
         additional_details['deprecated'] = 'true' if deprecated else 'false'
@@ -464,6 +502,7 @@ def make_log(
                 'leaderboard_url': LEADERBOARD_URL,
                 'hle_home_url': HLE_HOME_URL,
                 'hle_dataset_hf_url': HLE_DATASET_HF_URL,
+                'source_generation_policy': SOURCE_GENERATION_POLICY,
             },
         ),
         eval_library=EvalLibrary(
