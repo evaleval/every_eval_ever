@@ -34,6 +34,9 @@ SAME_MODEL_TWO_SPELLINGS = [
     ('allenai/OLMo-2-1124-7B', 'olmo-2-1124-7b'),
     ('microsoft/phi-4', 'phi-4'),
     ('google/gemma-3-27b-it', 'gemma-3-27b-it'),
+    ('mistralai/Ministral-8B-Instruct-2410', 'ministral-8b-2410'),
+    ('mistralai/Codestral-22B-v0.1', 'codestral-2501'),
+    ('sarvamai/sarvam-m', 'sarvam-m'),
 ]
 
 
