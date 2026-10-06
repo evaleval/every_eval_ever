@@ -11,7 +11,8 @@ uv run python -m every_eval_ever validate 'data/mteb/*/*/*.json'
 ## Source
 
 [`embeddings-benchmark/results`](https://github.com/embeddings-benchmark/results),
-the dump MTEB's own leaderboard reads, pinned to a commit (`--ref` overrides):
+the dump MTEB's own leaderboard reads. `--ref` selects what to convert and
+defaults to `main`, so a scheduled run picks up new models:
 
 ```
 results/<org>__<model>/<model_revision>/<Task>.json
@@ -24,6 +25,13 @@ language)` row and drops the harness version, the evaluation dataset revision
 and every named sub-metric, all of which this schema has a field for. The mirror
 is still useful as an independent check: every score this adapter published in a
 5-model smoke run was compared against it, 4,904 of 4,904 exact, none missing.
+
+The ref is resolved to a commit before anything is fetched, and that commit is
+recorded on every record it produces
+(`source_metadata.additional_details.source_commit`), so `--ref <sha>`
+re-converts exactly what a given record was built from. `--emit-source-version`
+resolves the same ref, which is what lets the scheduler's
+`skip_if_unchanged` notice when upstream has actually moved.
 
 The whole repository is fetched once as a tarball rather than one request per
 file. The dump holds hundreds of thousands of small JSONs, so a per-file fetch

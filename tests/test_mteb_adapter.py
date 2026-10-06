@@ -8,10 +8,12 @@ high-fan-out task. Nothing here touches the network.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import pytest
 
+from every_eval_ever.adapters import catalog
 from every_eval_ever.adapters.mteb import adapter
 from every_eval_ever.eval_types import EvaluationLog
 from every_eval_ever.helpers.eval_card_registry import Registry
@@ -275,6 +277,30 @@ def test_models_filter_restricts_the_run(tmp_path):
 )
 def test_model_repo_from_dir(directory, expected):
     assert adapter.model_repo_from_dir(directory) == expected
+
+
+def test_default_ref_is_a_branch_so_the_cron_follows_upstream():
+    """A pinned default would freeze the scheduled run.
+
+    The cron passes only ``--output-dir``, so it runs on this default. Pinning
+    it to a sha makes every scheduled run re-convert one snapshot, and since
+    ``--emit-source-version`` resolves the same ref, the freshness token would
+    never change and the run would be skipped permanently after the first.
+    """
+    default = adapter.parse_args(['--output-dir', '.']).ref
+
+    assert default == adapter.DEFAULT_REF
+    assert not re.fullmatch(r'[0-9a-f]{7,40}', default), (
+        f'--ref defaults to what looks like a pinned commit ({default!r}); '
+        'the scheduled run would never pick up new data'
+    )
+
+
+def test_catalog_argv_does_not_override_the_ref():
+    """Nothing in the scheduled argv re-pins the ref behind the default."""
+    spec = next(s for s in catalog.ADAPTERS if s.key == 'mteb')
+
+    assert '--ref' not in spec.argv('data')
 
 
 def test_every_task_in_the_snapshot_has_a_publishable_metric():

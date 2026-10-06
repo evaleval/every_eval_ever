@@ -75,10 +75,20 @@ COLLECTION = 'mteb'
 
 RESULTS_REPO = 'embeddings-benchmark/results'
 RESULTS_REPO_URL = f'https://github.com/{RESULTS_REPO}'
-#: The commit this adapter reads by default. Pinned rather than tracking
-#: ``main`` so a re-run converts the same bytes; ``--ref`` overrides it and the
-#: scheduled run passes the current head.
-SOURCE_COMMIT = 'fe1eb0571d7c1c261d3cb892c558477451ba5232'
+#: The ref this adapter reads by default, resolved to a commit on every run.
+#:
+#: A **branch, not a pinned commit**. The scheduled run passes only
+#: ``--output-dir`` (see ``catalog.AdapterSpec.argv``), so it gets this default:
+#: a pin here would make the cron re-convert one frozen snapshot forever, and
+#: because ``--emit-source-version`` resolves this same ref, the freshness token
+#: would never change either and the run would be skipped permanently after the
+#: first.
+#:
+#: Reproducibility does not depend on the default. Every run resolves the ref
+#: to a sha before fetching and records it on each record
+#: (``source_metadata.additional_details.source_commit``), so ``--ref <sha>``
+#: re-converts exactly what a given record was built from.
+DEFAULT_REF = 'main'
 TARBALL = 'https://codeload.github.com/{repo}/tar.gz/{ref}'
 COMMITS_API = 'https://api.github.com/repos/{repo}/commits/{ref}'
 
@@ -871,8 +881,13 @@ def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     )
     parser.add_argument(
         '--ref',
-        default=SOURCE_COMMIT,
-        help=f'{RESULTS_REPO} ref to convert (default: the pinned commit)',
+        default=DEFAULT_REF,
+        help=(
+            f'{RESULTS_REPO} ref to convert (default: {DEFAULT_REF}). '
+            'Resolved to a commit before fetching, and that commit is recorded '
+            'on every record, so passing a sha re-converts exactly what a '
+            'record was built from.'
+        ),
     )
     parser.add_argument(
         '--results-dir',

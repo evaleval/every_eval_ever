@@ -372,10 +372,13 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         # converting.
         timeout_minutes=45,
         notes=(
-            'Scoped to the MTEB(eng, v2) and MTEB(Multilingual, v2) suites. '
-            'Tasks reporting more than --max-subsets-per-task per-language '
-            'cells are excluded by default and reported as exclusions; see '
-            'every_eval_ever/adapters/mteb/README.md.'
+            'Converts embeddings-benchmark/results at --ref, which defaults to '
+            'main and is resolved to a commit each run names, so a scheduled '
+            'run follows upstream and --emit-source-version reports real '
+            'movement. Scoped to the MTEB(eng, v2) and MTEB(Multilingual, v2) '
+            'suites. Tasks reporting more than --max-subsets-per-task '
+            'per-language cells are excluded by default and reported as '
+            'exclusions; see every_eval_ever/adapters/mteb/README.md.'
         ),
     ),
     AdapterSpec(
