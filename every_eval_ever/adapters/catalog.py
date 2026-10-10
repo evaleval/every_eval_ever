@@ -562,6 +562,17 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         captures_raw=False,
     ),
     AdapterSpec(
+        key='typed_decisions',
+        module='every_eval_ever.adapters.typed_decisions.adapter',
+        collections=('typed-decisions',),
+        runnable=False,
+        unrunnable_reason=(
+            'requires local --rows and --preds inputs; the run files are '
+            'not published, so there is no live fetch path'
+        ),
+        captures_raw=False,
+    ),
+    AdapterSpec(
         key='cocoabench',
         module='every_eval_ever.adapters.cocoabench.adapter',
         collections=('cocoabench',),
