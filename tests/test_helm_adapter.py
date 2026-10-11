@@ -551,3 +551,65 @@ def test_missing_model_deployment_falls_back_to_model():
     assert converted_eval.model_info.id == 'openai/gpt2'
     assert converted_eval.model_info.developer == 'openai'
     assert converted_eval.model_info.inference_platform == 'unknown'
+
+
+MMLU_RUN = (
+    'tests/data/helm/'
+    'mmlu-subject=philosophy,method=multiple_choice_joint,model=openai_gpt2'
+)
+NARRATIVE_QA_RUN = 'tests/data/helm/narrative_qa-model=openai_gpt2'
+_METADATA_ARGS = {
+    'source_organization_name': 'TestOrg',
+    'evaluator_relationship': EvaluatorRelationship.first_party,
+}
+
+
+@pytest.mark.parametrize(
+    ('run', 'method'),
+    [
+        (HELLASWAG_RUN, 'multiple_choice_joint'),
+        (NARRATIVE_QA_RUN, 'generation'),
+    ],
+)
+def test_adapter_method_is_recorded_verbatim(run, method):
+    converted_eval = _load_eval(HELMAdapter(), run, _METADATA_ARGS)
+
+    assert {
+        result.generation_config.additional_details['adapter_method']
+        for result in converted_eval.evaluation_results
+    } == {method}
+
+
+def test_hf_split_is_the_split_each_score_was_computed_on():
+    """HELM's `valid` split is the schema's `val`."""
+    converted_eval = _load_eval(HELMAdapter(), MMLU_RUN, _METADATA_ARGS)
+
+    splits = {
+        (result.score_details.details['split'], result.source_data.hf_split)
+        for result in converted_eval.evaluation_results
+    }
+    assert splits == {('test', 'test'), ('valid', 'val')}
+
+
+def test_sample_ids_count_each_instance_once(tmp_path):
+    """A run with two train trials requests every instance twice."""
+    import copy
+    import json
+    import shutil
+
+    destination = tmp_path / 'run'
+    shutil.copytree(Path(HELLASWAG_RUN), destination)
+    state_path = destination / 'scenario_state.json'
+    scenario_state = json.loads(state_path.read_text())
+    second_trial = copy.deepcopy(scenario_state['request_states'])
+    for state in second_trial:
+        state['train_trial_index'] = 1
+    scenario_state['request_states'] += second_trial
+    state_path.write_text(json.dumps(scenario_state), encoding='utf-8')
+
+    converted_eval = _load_eval(HELMAdapter(), destination, _METADATA_ARGS)
+
+    source_data = converted_eval.evaluation_results[0].source_data
+    assert source_data.samples_number == 10
+    assert len(source_data.sample_ids) == 10
+    assert len(set(source_data.sample_ids)) == 10

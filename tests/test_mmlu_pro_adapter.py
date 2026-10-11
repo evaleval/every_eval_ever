@@ -385,3 +385,104 @@ def test_source_data_is_hf_dataset_pointing_at_results_repo():
     overall = log.evaluation_results[0]
     assert overall.source_data.source_type == 'hf_dataset'
     assert overall.source_data.hf_repo == adapter.RESULTS_HF_REPO
+
+
+def _prompt_styles(log: EvaluationLog) -> set[str | None]:
+    styles: set[str | None] = set()
+    for result in log.evaluation_results:
+        styles.add(
+            (result.source_data.additional_details or {}).get('prompt_style')
+        )
+        styles.add(
+            (result.metric_config.additional_details or {}).get('prompt_style')
+        )
+    return styles
+
+
+def test_rows_without_shot_marker_carry_no_prompt_style():
+    bundles = adapter.make_logs(sample_rows(), retrieved_timestamp='123.0')
+    sources = {
+        (b[0].source_metadata.additional_details or {}).get(
+            'leaderboard_data_source'
+        )
+        for b in bundles
+    }
+    assert sources == {'TIGER-Lab', 'Self-Reported'}
+    for log, _, _ in bundles:
+        assert _prompt_styles(log) == {None}
+
+
+def test_zero_shot_name_marker_sets_prompt_style():
+    row = {
+        'Models': 'Athene-V2-Chat (0-shot)',
+        'Data Source': 'TIGER-Lab',
+        'Model Size(B)': '72',
+        'Overall': '0.7311',
+        'Math': '0.8',
+    }
+
+    [(log, _, _)] = adapter.make_logs([row], retrieved_timestamp='123.0')
+
+    assert len(log.evaluation_results) == 2
+    for result in log.evaluation_results:
+        assert result.source_data.additional_details['prompt_style'] == '0-shot'
+        assert (
+            result.metric_config.additional_details['prompt_style'] == '0-shot'
+        )
+
+
+def test_descriptions_make_no_shot_claim():
+    bundles = adapter.make_logs(sample_rows(), retrieved_timestamp='123.0')
+    descriptions = [
+        result.metric_config.evaluation_description
+        for log, _, _ in bundles
+        for result in log.evaluation_results
+    ]
+    assert descriptions
+    for description in descriptions:
+        assert '5-shot' not in description
+        assert 'chain-of-thought' not in description
+    assert '5-shot' not in (adapter.__doc__ or '')
+
+
+def test_blank_data_source_is_recorded_as_unknown():
+    row = {
+        'Models': 'GPT-4o (2024-05-13)',
+        'Data Source': '',
+        'Model Size(B)': 'unk',
+        'Overall': '0.7255',
+    }
+
+    [(log, _, _)] = adapter.make_logs([row], retrieved_timestamp='123.0')
+
+    assert (
+        log.source_metadata.additional_details['leaderboard_data_source']
+        == 'unknown'
+    )
+    assert 'leaderboard_data_source' not in (
+        log.model_info.additional_details or {}
+    )
+
+
+def test_blank_data_source_keeps_evaluation_id_shape():
+    row = {
+        'Models': 'GPT-4o (2024-05-13)',
+        'Data Source': '',
+        'Model Size(B)': 'unk',
+        'Overall': '0.7255',
+    }
+
+    [(log, _, _)] = adapter.make_logs([row], retrieved_timestamp='123.0')
+
+    assert log.evaluation_id == (
+        'mmlu-pro/openai_gpt-4o-2024-05-13/unknown/123.0'
+    )
+
+
+def test_evaluation_id_keeps_data_source_segment():
+    [(log, _, _)] = adapter.make_logs(
+        [sample_rows()[0]], retrieved_timestamp='123.0'
+    )
+    assert log.evaluation_id == (
+        'mmlu-pro/openai_gpt-4o-2024-05-13/tiger-lab/123.0'
+    )
