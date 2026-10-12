@@ -108,7 +108,72 @@
             ]
         },
         "model_info": {
-            "$ref": "#/$defs/model_info"
+            "type": "object",
+            "description": "Complete model specification including basic information, technical configuration and inference settings",
+            "required": [
+                "name",
+                "id",
+                "additional_details"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Model name provided by evaluation source"
+                },
+                "id": {
+                    "type": "string",
+                    "description": "Model name in HuggingFace format (e.g. meta-llama/Llama-3.1-8B-Instruct for models available on HuggingFace or openai/azure/gpt-4o-mini-2024-07-18 for closed API models)"
+                },
+                "developer": {
+                    "type": "string",
+                    "description": "Name of organization that provides the model (e.g. 'OpenAI'), as the source states it. The datastore directory is taken from id's prefix, not from this field, so the two may legitimately differ (id 'Qwen/Qwen3-32B', developer 'alibaba'); this field is read for the path only when id is flat."
+                },
+                "inference_platform": {
+                    "type": "string",
+                    "description": "Name of inference platform which provides an access to models by API to run the evaluations or provides models weights to run them locally (e.g. HuggingFace, Bedrock, Together AI)"
+                },
+                "inference_engine": {
+                    "type": "object",
+                    "description": "Name of inference engine which provides an access to optimized models to use them for local evaluations (e.g. vLLM, Ollama).",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "Name of the inference engine"
+                        },
+                        "version": {
+                            "type": "string",
+                            "description": "Version of the inference engine"
+                        }
+                    }
+                },
+                "additional_details": {
+                    "type": "object",
+                    "description": "Additional parameters (key-value pairs, all values must be strings)",
+                    "required": [
+                        "deployment_type",
+                        "model_availability"
+                    ],
+                    "properties": {
+                        "deployment_type": {
+                            "enum": [
+                                "self_deployed",
+                                "externally_managed",
+                                "unknown"
+                            ]
+                        },
+                        "model_availability": {
+                            "enum": [
+                                "open_weights",
+                                "closed_weights",
+                                "unknown"
+                            ]
+                        }
+                    },
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                }
+            }
         },
         "evaluation_results": {
             "type": "array",
@@ -130,21 +195,183 @@
                         "type": "string",
                         "description": "Name of the evaluation"
                     },
+                    "evaluation_run_location": {
+                        "description": "Location of the evaluation run or its artifacts.",
+                        "oneOf": [
+                            {
+                                "type": "object",
+                                "required": [
+                                    "location_type",
+                                    "location"
+                                ],
+                                "properties": {
+                                    "location_type": {
+                                        "const": "url"
+                                    },
+                                    "location": {
+                                        "type": "string",
+                                        "description": "URL for the evaluation run or its artifacts."
+                                    },
+                                    "additional_details": {
+                                        "type": "object",
+                                        "description": "Additional location metadata (key-value pairs, all values must be strings).",
+                                        "additionalProperties": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            },
+                            {
+                                "type": "object",
+                                "description": "Location of evaluation artifacts stored in a Hugging Face repository.",
+                                "required": [
+                                    "location_type",
+                                    "hf_repo"
+                                ],
+                                "properties": {
+                                    "location_type": {
+                                        "const": "hf_repo"
+                                    },
+                                    "hf_repo": {
+                                        "type": "string",
+                                        "description": "Hugging Face repository identifier."
+                                    },
+                                    "additional_details": {
+                                        "type": "object",
+                                        "description": "Additional location metadata (key-value pairs, all values must be strings).",
+                                        "additionalProperties": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            },
+                            {
+                                "type": "object",
+                                "description": "Indicates that the evaluation location is private or intentionally omitted.",
+                                "required": [
+                                    "location_type"
+                                ],
+                                "properties": {
+                                    "location_type": {
+                                        "const": "other"
+                                    },
+                                    "additional_details": {
+                                        "type": "object",
+                                        "description": "Additional location metadata (key-value pairs, all values must be strings).",
+                                        "additionalProperties": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        ]
+                    },
                     "source_data": {
                         "description": "Source of dataset for this evaluation: URL, HuggingFace dataset, or private/custom dataset.",
                         "oneOf": [
                             {
-                                "$ref": "#/$defs/source_data_url"
+                                "type": "object",
+                                "description": "URL source for the evaluation data",
+                                "required": [
+                                    "dataset_name",
+                                    "source_type",
+                                    "url"
+                                ],
+                                "properties": {
+                                    "dataset_name": {
+                                        "type": "string",
+                                        "description": "Name of the source dataset"
+                                    },
+                                    "source_type": {
+                                        "const": "url"
+                                    },
+                                    "url": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "minItems": 1,
+                                        "description": "URL(s) for the source of the evaluation data"
+                                    },
+                                    "additional_details": {
+                                        "type": "object",
+                                        "description": "Additional parameters (key-value pairs, all values must be strings)",
+                                        "additionalProperties": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
                             },
                             {
-                                "$ref": "#/$defs/source_data_hf"
+                                "type": "object",
+                                "description": "Details about HuggingFace dataset used for evaluation",
+                                "required": [
+                                    "dataset_name",
+                                    "source_type"
+                                ],
+                                "properties": {
+                                    "dataset_name": {
+                                        "type": "string",
+                                        "description": "Name of the source dataset"
+                                    },
+                                    "source_type": {
+                                        "const": "hf_dataset"
+                                    },
+                                    "hf_repo": {
+                                        "type": "string",
+                                        "description": "HuggingFace repository identifier"
+                                    },
+                                    "hf_split": {
+                                        "type": "string",
+                                        "description": "One of train, val or test."
+                                    },
+                                    "samples_number": {
+                                        "type": "integer",
+                                        "description": "Number of samples in the dataset"
+                                    },
+                                    "sample_ids": {
+                                        "type": "array",
+                                        "description": "Array of sample ids used for evaluation",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "additional_details": {
+                                        "type": "object",
+                                        "description": "Additional parameters (key-value pairs, all values must be strings)",
+                                        "additionalProperties": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
                             },
                             {
-                                "$ref": "#/$defs/source_data_private"
+                                "type": "object",
+                                "description": "Generic source data when neither URL array nor HuggingFace dataset applies",
+                                "required": [
+                                    "dataset_name",
+                                    "source_type"
+                                ],
+                                "properties": {
+                                    "dataset_name": {
+                                        "type": "string",
+                                        "description": "Name of the source dataset"
+                                    },
+                                    "source_type": {
+                                        "const": "other"
+                                    },
+                                    "additional_details": {
+                                        "type": "object",
+                                        "description": "Additional parameters (key-value pairs, all values must be strings)",
+                                        "additionalProperties": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
                             }
                         ]
                     },
-                    "evaluation_timestamp": {
+                    "evaluation_results_timestamp": {
                         "type": "string",
                         "description": "Timestamp for when the evaluations were run"
                     },
@@ -234,49 +461,6 @@
                                 ],
                                 "description": "Maximum possible score for a continuous metric. Use the string \"Infinity\" when unbounded above. Absence/null means not provided."
                             },
-                            "llm_scoring": {
-                                "type": "object",
-                                "description": "Configuration when LLM is used as scorer/judge",
-                                "required": [
-                                    "judges",
-                                    "input_prompt"
-                                ],
-                                "properties": {
-                                    "judges": {
-                                        "type": "array",
-                                        "description": "LLM judge(s) - single item for judge, multiple for jury",
-                                        "items": {
-                                            "$ref": "#/$defs/judge_config"
-                                        },
-                                        "minItems": 1
-                                    },
-                                    "input_prompt": {
-                                        "type": "string",
-                                        "description": "Prompt template used for judging"
-                                    },
-                                    "aggregation_method": {
-                                        "type": "string",
-                                        "enum": [
-                                            "majority_vote",
-                                            "average",
-                                            "weighted_average",
-                                            "median"
-                                        ],
-                                        "description": "How to aggregate scores when multiple judges"
-                                    },
-                                    "expert_baseline": {
-                                        "type": "number",
-                                        "description": "Expert/human baseline score for comparison"
-                                    },
-                                    "additional_details": {
-                                        "type": "object",
-                                        "description": "Additional parameters (key-value pairs, all values must be strings)",
-                                        "additionalProperties": {
-                                            "type": "string"
-                                        }
-                                    }
-                                }
-                            },
                             "additional_details": {
                                 "type": "object",
                                 "description": "Additional parameters (key-value pairs, all values must be strings)",
@@ -330,13 +514,6 @@
                             "score": {
                                 "type": "number",
                                 "description": "The score for the evaluation"
-                            },
-                            "details": {
-                                "type": "object",
-                                "description": "Additional parameters (key-value pairs, all values must be strings)",
-                                "additionalProperties": {
-                                    "type": "string"
-                                }
                             },
                             "uncertainty": {
                                 "type": "object",
@@ -400,6 +577,13 @@
                                         "description": "Number of bootstrap resamples used, if bootstrap method was applied"
                                     }
                                 }
+                            },
+                            "additional_details": {
+                                "type": "object",
+                                "description": "Additional parameters (key-value pairs, all values must be strings)",
+                                "additionalProperties": {
+                                    "type": "string"
+                                }
                             }
                         }
                     },
@@ -439,82 +623,18 @@
                                         "type": "string",
                                         "description": "Input prompt template for task (should contain agentic info if needed)."
                                     },
-                                    "agentic_eval_config": {
-                                        "type": "object",
-                                        "description": "General configuration for agentic evaluations.",
-                                        "properties": {
-                                            "available_tools": {
-                                                "type": "array",
-                                                "description": "List of all available tools with their configurations",
-                                                "items": {
-                                                    "type": "object",
-                                                    "properties": {
-                                                        "name": {
-                                                            "type": "string",
-                                                            "description": "e.g. bash, calculator, ..."
-                                                        },
-                                                        "description": {
-                                                            "type": "string"
-                                                        },
-                                                        "parameters": {
-                                                            "type": "object",
-                                                            "description": "Additional parameters (key-value pairs, all values must be strings)",
-                                                            "additionalProperties": {
-                                                                "type": "string"
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            },
-                                            "additional_details": {
-                                                "type": "object",
-                                                "description": "Additional parameters (key-value pairs, all values must be strings)",
-                                                "additionalProperties": {
-                                                    "type": "string"
-                                                }
-                                            }
-                                        }
+                                    "reasoning_effort": {
+                                        "type": "string",
+                                        "description": "Reasoning effort requested for the evaluation."
                                     },
-                                    "eval_plan": {
-                                        "type": "object",
-                                        "description": "Plan (solvers) used in evaluation. Solvers are crucial parts of Inspect evaluations which can serve a wide variety of purposes like providing system prompts, prompt engineering, model generation or multi-turn dialog.",
-                                        "properties": {
-                                            "name": {
-                                                "type": "string"
-                                            },
-                                            "steps": {
-                                                "type": "array",
-                                                "description": "Array of evaluation plan steps (each step is a JSON-serialized string)",
-                                                "items": {
-                                                    "type": "string"
-                                                }
-                                            },
-                                            "config": {
-                                                "type": "object",
-                                                "description": "Additional parameters (key-value pairs, all values must be strings)",
-                                                "additionalProperties": {
-                                                    "type": "string"
-                                                }
-                                            }
-                                        }
+                                    "verbosity": {
+                                        "type": "string",
+                                        "description": "Verbosity level requested for the model output."
                                     },
-                                    "eval_limits": {
-                                        "type": "object",
-                                        "description": "Listed evaluation limits like time limit, message limit, token limit.",
-                                        "properties": {
-                                            "time_limit": {
-                                                "type": "integer",
-                                                "description": "Time limit for evaluation."
-                                            },
-                                            "message_limit": {
-                                                "type": "integer",
-                                                "description": "Message limit for evaluation."
-                                            },
-                                            "token_limit": {
-                                                "type": "integer",
-                                                "description": "Token limit for evaluation."
-                                            }
-                                        }
+                                    "max_reasoning_tokens": {
+                                        "type": "integer",
+                                        "minimum": 1,
+                                        "description": "Maximum number of reasoning tokens the model may generate"
                                     },
                                     "sandbox": {
                                         "type": "object",
@@ -588,202 +708,6 @@
                 "total_rows": {
                     "type": "integer",
                     "description": "Total number of rows in the detailed evaluation results file"
-                },
-                "additional_details": {
-                    "type": "object",
-                    "description": "Additional parameters (key-value pairs, all values must be strings)",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                }
-            }
-        }
-    },
-    "$defs": {
-        "judge_config": {
-            "type": "object",
-            "description": "Configuration for a single LLM judge/juror",
-            "required": [
-                "model_info"
-            ],
-            "properties": {
-                "model_info": {
-                    "$ref": "#/$defs/model_info"
-                },
-                "temperature": {
-                    "type": "number"
-                },
-                "weight": {
-                    "type": "number",
-                    "description": "Weight of this judge's score in aggregation (used in jury)"
-                },
-                "additional_details": {
-                    "type": "object",
-                    "description": "Additional parameters (key-value pairs, all values must be strings)",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "model_info": {
-            "type": "object",
-            "description": "Complete model specification including basic information, technical configuration and inference settings",
-            "required": [
-                "name",
-                "id",
-                "additional_details"
-            ],
-            "properties": {
-                "name": {
-                    "type": "string",
-                    "description": "Model name provided by evaluation source"
-                },
-                "id": {
-                    "type": "string",
-                    "description": "Model name in HuggingFace format (e.g. meta-llama/Llama-3.1-8B-Instruct for models available on HuggingFace or openai/azure/gpt-4o-mini-2024-07-18 for closed API models)"
-                },
-                "developer": {
-                    "type": "string",
-                    "description": "Name of organization that provides the model (e.g. 'OpenAI'), as the source states it. The datastore directory is taken from id's prefix, not from this field, so the two may legitimately differ (id 'Qwen/Qwen3-32B', developer 'alibaba'); this field is read for the path only when id is flat."
-                },
-                "inference_platform": {
-                    "type": "string",
-                    "description": "Name of inference platform which provides an access to models by API to run the evaluations or provides models weights to run them locally (e.g. HuggingFace, Bedrock, Together AI)"
-                },
-                "inference_engine": {
-                    "type": "object",
-                    "description": "Name of inference engine which provides an access to optimized models to use them for local evaluations (e.g. vLLM, Ollama).",
-                    "properties": {
-                        "name": {
-                            "type": "string",
-                            "description": "Name of the inference engine"
-                        },
-                        "version": {
-                            "type": "string",
-                            "description": "Version of the inference engine"
-                        }
-                    }
-                },
-                "additional_details": {
-                    "type": "object",
-                    "description": "Additional parameters (key-value pairs, all values must be strings)",
-                    "required": [
-                        "deployment_type",
-                        "model_availability"
-                    ],
-                    "properties": {
-                        "deployment_type": {
-                            "enum": [
-                                "self_deployed",
-                                "externally_managed",
-                                "unknown"
-                            ]
-                        },
-                        "model_availability": {
-                            "enum": [
-                                "open_weights",
-                                "closed_weights",
-                                "unknown"
-                            ]
-                        }
-                    },
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "source_data_url": {
-            "type": "object",
-            "description": "URL source for the evaluation data",
-            "required": [
-                "dataset_name",
-                "source_type",
-                "url"
-            ],
-            "properties": {
-                "dataset_name": {
-                    "type": "string",
-                    "description": "Name of the source dataset"
-                },
-                "source_type": {
-                    "const": "url"
-                },
-                "url": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    },
-                    "minItems": 1,
-                    "description": "URL(s) for the source of the evaluation data"
-                },
-                "additional_details": {
-                    "type": "object",
-                    "description": "Additional parameters (key-value pairs, all values must be strings)",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "source_data_hf": {
-            "type": "object",
-            "description": "Details about HuggingFace dataset used for evaluation",
-            "required": [
-                "dataset_name",
-                "source_type"
-            ],
-            "properties": {
-                "dataset_name": {
-                    "type": "string",
-                    "description": "Name of the source dataset"
-                },
-                "source_type": {
-                    "const": "hf_dataset"
-                },
-                "hf_repo": {
-                    "type": "string",
-                    "description": "HuggingFace repository identifier"
-                },
-                "hf_split": {
-                    "type": "string",
-                    "description": "One of train, val or test."
-                },
-                "samples_number": {
-                    "type": "integer",
-                    "description": "Number of samples in the dataset"
-                },
-                "sample_ids": {
-                    "type": "array",
-                    "description": "Array of sample ids used for evaluation",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "additional_details": {
-                    "type": "object",
-                    "description": "Additional parameters (key-value pairs, all values must be strings)",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "source_data_private": {
-            "type": "object",
-            "description": "Generic source data when neither URL array nor HuggingFace dataset applies",
-            "required": [
-                "dataset_name",
-                "source_type"
-            ],
-            "properties": {
-                "dataset_name": {
-                    "type": "string",
-                    "description": "Name of the source dataset"
-                },
-                "source_type": {
-                    "const": "other"
                 },
                 "additional_details": {
                     "type": "object",

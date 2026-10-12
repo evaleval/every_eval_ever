@@ -111,12 +111,7 @@ PATCHES = [
 
     @model_validator(mode="after")
     def validate_score_type_requirements(self):
-        if self.score_type == ScoreType.levels:
-            if self.level_names is None:
-                raise ValueError("score_type 'levels' requires level_names")
-            if self.has_unknown_level is None:
-                raise ValueError("score_type 'levels' requires has_unknown_level")
-        elif self.score_type == ScoreType.continuous:
+        if self.score_type == ScoreType.continuous:
             if self.min_score is None:
                 raise ValueError("score_type 'continuous' requires min_score")
             if self.max_score is None:
