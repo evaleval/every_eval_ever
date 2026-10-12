@@ -94,21 +94,18 @@ def compute_metric_bounds(rows: list[dict]) -> dict[str, dict[str, float]]:
         and _is_float(row["cost_per_100_calls_usd"])
     ]
 
+    # An Elo rating, a leaderboard rank and a dollar cost have no ceiling. The
+    # observed extremes are properties of today's roster, so declaring them
+    # gives the same metric a different scale whenever the roster changes.
     bounds = {
-        "elo": {
-            "min_score": min(rating_values),
-            "max_score": max(rating_values),
-        },
-        "rank": {
-            "min_score": 1.0,
-            "max_score": max(rank_values),
-        },
+        "elo": {"min_score": 0.0, "max_score": float("inf")},
+        "rank": {"min_score": 1.0, "max_score": float("inf")},
     }
 
     if cost_values:
         bounds["cost_per_100_calls_usd"] = {
             "min_score": 0.0,
-            "max_score": max(cost_values),
+            "max_score": float("inf"),
         }
 
     return bounds

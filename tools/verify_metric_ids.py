@@ -16,6 +16,7 @@ of the test suite: it needs a checkout of a different repository.
 from __future__ import annotations
 
 import argparse
+import math
 import re
 import sys
 from pathlib import Path
@@ -84,6 +85,69 @@ def registry_index(seed_path: Path) -> dict[str, set[str]]:
     return index
 
 
+def registry_bounds(seed_path: Path) -> dict[str, tuple[float | None, float | None]]:
+    """Each canonical id's declared bounds, or ``None`` where it declares none.
+
+    An entry with no ``max_score`` asserts nothing about scale, which is the
+    correct state for a metric whose range depends on the implementation that
+    computed it. 117 of the registry's entries are in that state.
+    """
+    import yaml
+
+    loaded = yaml.safe_load(seed_path.read_text(encoding='utf-8'))
+    entries = (
+        loaded['metrics']
+        if isinstance(loaded, dict) and 'metrics' in loaded
+        else loaded
+    )
+    bounds: dict[str, tuple[float | None, float | None]] = {}
+    for entry in entries:
+        bounds[entry['id']] = (
+            entry.get('min_score'),
+            entry.get('max_score'),
+        )
+    return bounds
+
+
+def bounds_conflicts(seed_path: Path) -> list[str]:
+    """Names whose declared scale contradicts the entry they are published under.
+
+    ``fields.md`` takes the bounds from the resolved registry entry when the
+    metric resolves. A record that cites a canonical id while declaring a
+    different range tells a consumer two things at once, and the consumer that
+    normalizes from the entry gets the wrong number.
+    """
+    entry_bounds = registry_bounds(seed_path)
+    #: Every table a converter declares a scale in, so the check covers all
+    #: three rather than only the harness that happened to surface it.
+    declared_bounds: dict[str, tuple] = {}
+    for table in (
+        SHARED_METRIC_BOUNDS,
+        HELM_METRIC_BOUNDS,
+        LM_EVAL_METRIC_BOUNDS,
+    ):
+        declared_bounds.update(table)
+    found: list[str] = []
+    for name, declared in sorted(declared_bounds.items()):
+        canonical = CANONICAL_METRIC_IDS.get(name)
+        if canonical is None:
+            continue
+        entry = entry_bounds.get(canonical)
+        if entry is None:
+            continue
+        for position, index in (('min', 0), ('max', 1)):
+            ours, theirs = declared[index], entry[index]
+            if theirs is None or ours is None:
+                continue
+            if math.isinf(float(ours)) or float(ours) == float(theirs):
+                continue
+            found.append(
+                f'{name} -> {canonical}: declares {position}_score '
+                f'{ours}, entry says {theirs}'
+            )
+    return found
+
+
 def harness_report(harnesses_path: Path) -> str:
     """Which converters' namespaces the registry knows as harnesses.
 
@@ -131,6 +195,7 @@ def main(argv: list[str] | None = None) -> int:
     stale: list[str] = []
     ambiguous: list[str] = []
     newly_resolvable: list[str] = []
+    conflicting = bounds_conflicts(args.seed)
 
     for name in sorted(known_names):
         hits = index.get(normalize(name), set())
@@ -168,6 +233,7 @@ def main(argv: list[str] | None = None) -> int:
         ('MAPPED ID NO LONGER IN THE REGISTRY', stale),
         ('NOW RESOLVABLE, STILL NAMESPACED', newly_resolvable),
         ('AMBIGUOUS IN THE REGISTRY', ambiguous),
+        ('DECLARED SCALE CONTRADICTS THE ENTRY', conflicting),
     ):
         print(f'\n{label}: {len(rows)}')
         for row in rows:
@@ -187,7 +253,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f'  {name}')
     print(f'\nHARNESS SLUGS: {harness_report(harnesses)}')
 
-    return 1 if stale or newly_resolvable or ambiguous else 0
+    return (
+        1
+        if stale or newly_resolvable or ambiguous or conflicting
+        else 0
+    )
 
 
 if __name__ == '__main__':

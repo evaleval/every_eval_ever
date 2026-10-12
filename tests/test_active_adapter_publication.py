@@ -32,14 +32,11 @@ def test_bfcl_keeps_valid_rows_when_another_row_is_malformed(
         }
     )
     for spec in bfcl.METRIC_SPECS:
-        if spec.use_observed_max:
+        if spec.unbounded_above:
             valid[spec.column] = '1'
     invalid = valid | {'Overall Acc': 'nan'}
 
-    bounds = bfcl.compute_observed_max_scores([valid, invalid])
-    result = bfcl.convert_rows(
-        [valid, invalid], tmp_path / 'data', bounds, '123'
-    )
+    result = bfcl.convert_rows([valid, invalid], tmp_path / 'data', '123')
 
     assert len(result.records) == 1
     assert len(result.failures) == 1

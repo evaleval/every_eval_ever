@@ -135,10 +135,20 @@ LM_EVAL_HARNESS_ID = 'lm-evaluation-harness'
 # and `ter` are sacrebleu's, which report 0-100 rather than the 0-1 of nltk's
 # sentence_bleu; `ter` has no ceiling, since a hypothesis can need more edits
 # than the reference has tokens.
+#: Metrics the harness reports as a percentage of a quantity whose canonical
+#: registry entry is a proportion. BLEU is a brevity penalty times a geometric
+#: mean of clipped precisions, so the quantity is on `[0, 1]` and sacrebleu's
+#: x100 is a rendering of it. `chrf` and `ter` are percentages too, but neither
+#: resolves to a registry entry, so they stay namespaced on the scale the harness
+#: used and need no conversion.
+CANONICAL_RESCALE: dict[str, float] = {'bleu': 0.01}
+
 LM_EVAL_METRIC_BOUNDS = {
     'mc1': (0.0, 1.0),
     'mc2': (0.0, 1.0),
-    'bleu': (0.0, 100.0),
+    # Declared on the canonical proportion scale, which the adapter converts
+    # the harness's percentage onto. See CANONICAL_RESCALE.
+    'bleu': (0.0, 1.0),
     'chrf': (0.0, 100.0),
     'rouge1': (0.0, 1.0),
     'rouge2': (0.0, 1.0),
