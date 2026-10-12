@@ -6,6 +6,7 @@ pytest.importorskip(
 )
 
 import contextlib
+import json
 import logging
 import tempfile
 from pathlib import Path
@@ -29,6 +30,7 @@ from every_eval_ever.eval_types import (
     SourceDataUrl,
     SourceMetadata,
 )
+from tests.converter_cases import CASES
 
 TEST_UUID = '123e4567-e89b-42d3-a456-426614174000'
 OTHER_TEST_UUID = '123e4567-e89b-42d3-a456-426614174001'
@@ -472,6 +474,280 @@ def test_humaneval_eval():
     assert converted_eval.detailed_evaluation_results is not None
 
 
+CYSE2_LOG = 'tests/data/inspect/data_cyse2_vuln_exploit_challenges.json'
+GAIA_LOG = 'tests/data/inspect/2026-02-07T11-26-57+00-00_gaia_4V8zHbbRKpU5Yv2BMoBcjE.json'
+_METADATA_ARGS = {
+    'source_organization_name': 'TestOrg',
+    'evaluator_relationship': EvaluatorRelationship.first_party,
+}
+
+
+def _load_rewritten_eval(tmp_path, fixture, rewrite):
+    """Convert a copy of an Inspect fixture with `rewrite` applied to its JSON."""
+    log = json.loads(Path(fixture).read_text(encoding='utf-8'))
+    rewrite(log)
+    path = tmp_path / Path(fixture).name
+    path.write_text(json.dumps(log), encoding='utf-8')
+    return _load_eval(InspectAIAdapter(), path, _METADATA_ARGS)
+
+
+def test_generation_args_come_from_the_plan_config():
+    """Inspect runs every call under the model config merged with the plan config.
+
+    This log's model config is empty and its task sets temperature and max_tokens,
+    which only the plan config carries.
+    """
+    case = next(case for case in CASES if case.source == 'inspect')
+    converted_eval = _load_eval(
+        InspectAIAdapter(), case.log_path, _METADATA_ARGS
+    )
+
+    for result in converted_eval.evaluation_results:
+        generation_config = result.generation_config
+        args = generation_config.generation_args
+        assert args.temperature == 0.75
+        assert args.max_tokens == 2048
+        assert args.top_p is None
+        assert args.reasoning is None
+        details = generation_config.additional_details
+        assert details['generation_args_source'] == 'plan_config'
+        assert details['terminal_solver'] == 'generate'
+        assert details['temperature'] == '0.75'
+        assert details['max_tokens'] == '2048'
+
+
+def test_max_tokens_is_the_plan_configs_per_call_cap():
+    converted_eval = _load_eval(
+        InspectAIAdapter(),
+        'tests/data/inspect/data_with_llm_scoring.json',
+        _METADATA_ARGS,
+    )
+
+    result = converted_eval.evaluation_results[0]
+    args = result.generation_config.generation_args
+    assert args.max_tokens == 128000
+    assert args.temperature is None
+
+
+def test_generation_args_from_the_model_config_alone_say_so(tmp_path):
+    def rewrite(log):
+        log['eval']['model_generate_config'] = {'temperature': 0.3}
+        log['plan']['config'] = {}
+
+    converted_eval = _load_rewritten_eval(tmp_path, CYSE2_LOG, rewrite)
+
+    generation_config = converted_eval.evaluation_results[0].generation_config
+    assert generation_config.generation_args.temperature == 0.3
+    assert generation_config.generation_args.max_tokens is None
+    assert (
+        generation_config.additional_details['generation_args_source']
+        == 'model_config'
+    )
+
+
+@pytest.mark.parametrize(
+    ('step', 'temperature', 'max_tokens', 'overridden'),
+    [
+        (
+            {'solver': 'generate', 'params': {'temperature': 0.1}},
+            None,
+            2048,
+            'temperature',
+        ),
+        (
+            {
+                'solver': 'generate',
+                'params': {'kwargs': {'max_completion_tokens': 16}},
+            },
+            0.75,
+            None,
+            'max_tokens',
+        ),
+        (
+            {
+                'solver': 'my_agent',
+                'params': {},
+                'params_passed': {'config': {'max_output_tokens': 16}},
+            },
+            0.75,
+            None,
+            'max_tokens',
+        ),
+        (
+            {'solver': 'my_agent', 'params': {'model': 'openai/gpt-4o'}},
+            None,
+            None,
+            'max_tokens,temperature,top_k,top_p',
+        ),
+        (
+            {'solver': 'my_agent', 'params': {'model': None}},
+            0.75,
+            2048,
+            None,
+        ),
+    ],
+    ids=[
+        'step-temperature',
+        'nested-max-tokens',
+        'passed-only',
+        'model',
+        'model-default-none',
+    ],
+)
+def test_a_step_that_sets_its_own_generation_args_leaves_them_unstated(
+    tmp_path, step, temperature, max_tokens, overridden
+):
+    """A solver passing its own value overrides the plan config for its calls."""
+
+    def rewrite(log):
+        log['plan']['steps'] = [step]
+
+    converted_eval = _load_rewritten_eval(tmp_path, CYSE2_LOG, rewrite)
+
+    generation_config = converted_eval.evaluation_results[0].generation_config
+    details = generation_config.additional_details
+    assert generation_config.generation_args.temperature == temperature
+    assert generation_config.generation_args.max_tokens == max_tokens
+    assert details.get('temperature') == (
+        None if temperature is None else '0.75'
+    )
+    assert details.get('max_tokens') == (None if max_tokens is None else '2048')
+    assert details.get('overridden_by_step') == overridden
+    assert details['terminal_solver'] == step['solver']
+    if temperature is None and max_tokens is None:
+        assert 'generation_args_source' not in details
+
+
+def test_generation_args_from_both_configs_are_mixed(tmp_path):
+    def rewrite(log):
+        log['eval']['model_generate_config'] = {'top_p': 0.9}
+
+    converted_eval = _load_rewritten_eval(tmp_path, CYSE2_LOG, rewrite)
+
+    generation_config = converted_eval.evaluation_results[0].generation_config
+    assert generation_config.generation_args.top_p == 0.9
+    assert generation_config.generation_args.temperature == 0.75
+    assert (
+        generation_config.additional_details['generation_args_source']
+        == 'mixed'
+    )
+
+
+def test_a_tool_argument_named_like_a_generation_arg_does_not_override(
+    tmp_path,
+):
+    tool = {
+        'type': 'tool',
+        'name': 'sampler',
+        'params': {'temperature': 0.1, 'max_tokens': 16},
+    }
+
+    def rewrite(log):
+        log['plan']['steps'] = [
+            {
+                'solver': 'use_tools',
+                'params': {'tools': [[tool]], 'append': True},
+                'params_passed': {'tools': [[tool]]},
+            },
+            {'solver': 'generate', 'params': {}},
+        ]
+
+    converted_eval = _load_rewritten_eval(tmp_path, CYSE2_LOG, rewrite)
+
+    generation_config = converted_eval.evaluation_results[0].generation_config
+    assert generation_config.generation_args.temperature == 0.75
+    assert generation_config.generation_args.max_tokens == 2048
+
+
+@pytest.mark.parametrize(
+    ('reasoning_effort', 'reasoning'),
+    [('high', True), ('none', False)],
+)
+def test_reasoning_is_what_the_log_states(
+    tmp_path, reasoning_effort, reasoning
+):
+    def rewrite(log):
+        log['plan']['config']['reasoning_effort'] = reasoning_effort
+
+    converted_eval = _load_rewritten_eval(tmp_path, CYSE2_LOG, rewrite)
+
+    result = converted_eval.evaluation_results[0]
+    args = result.generation_config.generation_args
+    assert args.reasoning is reasoning
+
+
+def test_gaia_states_its_split_and_how_many_samples_it_scored():
+    converted_eval = _load_eval(InspectAIAdapter(), GAIA_LOG, _METADATA_ARGS)
+
+    result = converted_eval.evaluation_results[0]
+    args = result.generation_config.generation_args
+    assert args.temperature == 0.5
+    assert args.reasoning is None
+    assert result.generation_config.additional_details['temperature'] == '0.5'
+    assert (
+        result.generation_config.additional_details['terminal_solver']
+        == 'basic_agent_loop'
+    )
+
+    details = result.source_data.additional_details
+    assert details['samples_number'] == '2'
+    assert details['dataset_size'] == '165'
+    assert details['split'] == 'val'
+
+
+@pytest.mark.parametrize(
+    ('split', 'hf_split'),
+    [('test', 'test'), ('validation', 'val'), ('dev', None)],
+)
+def test_hf_split_is_taken_only_from_a_schema_split(tmp_path, split, hf_split):
+    def rewrite(log):
+        log['eval']['task_args'] = {'split': split}
+
+    converted_eval = _load_rewritten_eval(
+        tmp_path, 'tests/data/inspect/data_arc_qwen.json', rewrite
+    )
+
+    source_data = converted_eval.evaluation_results[0].source_data
+    assert source_data.hf_split == hf_split
+    assert source_data.samples_number == 3
+    assert source_data.additional_details['dataset_size'] == '2376'
+
+
+def test_a_complete_run_states_no_separate_dataset_size():
+    converted_eval = _load_eval(
+        InspectAIAdapter(),
+        'tests/data/inspect/data_with_llm_scoring.json',
+        _METADATA_ARGS,
+    )
+
+    source_data = converted_eval.evaluation_results[0].source_data
+    assert source_data.samples_number == 1000
+    assert source_data.hf_split is None
+    assert 'dataset_size' not in source_data.additional_details
+
+
+def test_library_version_is_inspect_ai_and_other_packages_are_details():
+    converted_eval = _load_eval(InspectAIAdapter(), GAIA_LOG, _METADATA_ARGS)
+
+    assert converted_eval.eval_library.name == 'inspect_ai'
+    assert converted_eval.eval_library.version == '0.3.171'
+    assert converted_eval.eval_library.additional_details == {
+        'inspect_evals': '0.3.106'
+    }
+
+
+def test_library_version_without_inspect_ai_package_is_unknown(tmp_path):
+    def rewrite(log):
+        log['eval']['packages'] = {'inspect_evals': '0.3.106'}
+
+    converted_eval = _load_rewritten_eval(tmp_path, CYSE2_LOG, rewrite)
+
+    assert converted_eval.eval_library.version == 'unknown'
+    assert converted_eval.eval_library.additional_details == {
+        'inspect_evals': '0.3.106'
+    }
+
+
 def test_extract_evaluation_results_one_scorer_with_two_metrics():
     adapter = InspectAIAdapter()
     source_data = SourceDataHf(
@@ -802,7 +1078,10 @@ def test_supplemental_eval_details_fill_only_top_level_fields():
     assert result.source_data.additional_details['subset'] == '{"name": "full"}'
 
     assert result.generation_config is not None
-    assert result.generation_config.additional_details == {'runner': 'inspect'}
+    assert result.generation_config.additional_details == {
+        'runner': 'inspect',
+        'terminal_solver': 'multiple_choice',
+    }
     assert result.generation_config.generation_args is not None
     assert (
         result.generation_config.generation_args.agentic_eval_config is not None

@@ -9,6 +9,13 @@ Data source:
   id -> display name). ``datasets.json`` names the ARC-AGI-1/2/3 splits.
 - The older ``/media/data/leaderboard/evaluations.json`` endpoint is gone
   (404 as of 2026-08-12); this adapter fetches the current files.
+- Published run logs for the two public sets: the Hugging Face datasets
+  ``arcprize/arc_agi_v1_public_eval`` and ``arcprize/arc_agi_v2_public_eval``,
+  read at pinned commits (see ``run_logs.py``). A ``v1_Public_Eval`` or
+  ``v2_Public_Eval`` score whose chosen row's ``modelId`` names a run
+  directory that passes every gate gets the logged output cap, a uniform
+  logged temperature and the scored task count; a directory that fails a gate
+  is recorded as ``request_args_unavailable``.
 
 Each evaluation row has shape:
     {
@@ -30,7 +37,8 @@ Usage:
     uv run python -m every_eval_ever.adapters.arc_agi.adapter \\
         --output-dir data/arc-agi
     uv run python -m every_eval_ever.adapters.arc_agi.adapter \\
-        --input-json /tmp/arc_agi_payload.json --output-dir /tmp/arc-smoke
+        --input-json /tmp/arc_agi_payload.json --output-dir /tmp/arc-smoke \\
+        --arc-runs-dir /tmp/arc_public_eval
 """
 
 from __future__ import annotations
@@ -39,16 +47,28 @@ import argparse
 import json
 import math
 import re
+import sys
+import tempfile
 import time
-from collections import defaultdict
+from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
+from every_eval_ever.adapters.arc_agi.run_logs import (
+    RUN_DATASETS,
+    RunLogs,
+    RunLogsUnavailable,
+    fetch_run_logs,
+    loads_stated,
+    local_run_logs,
+)
 from every_eval_ever.eval_types import (
     EvalLibrary,
     EvaluationLog,
     EvaluationResult,
     EvaluatorRelationship,
+    GenerationArgs,
+    GenerationConfig,
     MetricConfig,
     ModelInfo,
     ScoreDetails,
@@ -66,7 +86,7 @@ from every_eval_ever.helpers import (
     save_evaluation_logs,
     save_failure_report,
 )
-from every_eval_ever.helpers.fetch import fetch_json
+from every_eval_ever.helpers.fetch import fetch_text
 
 SOURCE_NAME = 'ARC Prize leaderboard'
 SOURCE_ORGANIZATION = 'ARC Prize Foundation'
@@ -136,6 +156,28 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        '--arc-runs-dir',
+        type=Path,
+        help=(
+            'Read the published run logs from this directory, holding v1/ '
+            'and v2/ checkouts of the ARC public-eval datasets, instead of '
+            'cloning them.'
+        ),
+    )
+    parser.add_argument(
+        '--arc-history-dir',
+        type=Path,
+        help=(
+            'With --arc-runs-dir whose v1/ and v2/ are not git checkouts: '
+            'a directory of v1/ and v2/ clones supplying their commit history.'
+        ),
+    )
+    parser.add_argument(
+        '--no-run-logs',
+        action='store_true',
+        help='Skip the run-log join; score results carry no request args.',
+    )
+    parser.add_argument(
         '--failure-report',
         type=Path,
         help=(
@@ -146,18 +188,34 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def fetch_payload(base_url: str) -> dict[str, Any]:
+PAYLOAD_FILES = ('evaluations', 'models', 'providers', 'datasets')
+
+
+def fetch_payload_texts(base_url: str) -> dict[str, str]:
+    """Fetch the leaderboard's JSON files as their raw text."""
     base = base_url.rstrip('/')
-    return {
-        'evaluations': fetch_json(f'{base}/evaluations.json'),
-        'models': fetch_json(f'{base}/models.json'),
-        'providers': fetch_json(f'{base}/providers.json'),
-        'datasets': fetch_json(f'{base}/datasets.json'),
-    }
+    return {name: fetch_text(f'{base}/{name}.json') for name in PAYLOAD_FILES}
+
+
+def parse_payload_texts(texts: dict[str, str]) -> dict[str, Any]:
+    """Parse the fetched files, keeping each float's written precision."""
+    return {name: loads_stated(text) for name, text in texts.items()}
+
+
+def combined_payload_text(
+    texts: dict[str, str], base_url: str, fetched_at: str
+) -> str:
+    """Return the --save-raw-json file: the fetched files embedded verbatim."""
+    parts = [
+        f'  {json.dumps("source_base_url")}: {json.dumps(base_url)}',
+        f'  {json.dumps("fetched_at")}: {json.dumps(fetched_at)}',
+        *(f'  {json.dumps(name)}: {texts[name].strip()}' for name in texts),
+    ]
+    return '{\n' + ',\n'.join(parts) + '\n}\n'
 
 
 def load_payload_file(path: Path) -> dict[str, Any]:
-    payload = json.loads(path.read_text(encoding='utf-8'))
+    payload = loads_stated(path.read_text(encoding='utf-8'))
     if not isinstance(payload, dict) or 'evaluations' not in payload:
         raise ValueError(
             f'{path}: expected a combined payload with an "evaluations" key '
@@ -292,11 +350,52 @@ def _cost_result(
     )
 
 
+def run_log_fields(
+    run_logs: RunLogs | None,
+    dataset_id: str,
+    row: dict,
+    retrieved: float,
+) -> tuple[GenerationConfig | None, dict[str, str]]:
+    """Return the score result's generation config and extra source details.
+
+    Both are empty when the set publishes no logs or no run directory is
+    named after the row's ``modelId``.
+    """
+    if run_logs is None:
+        return None, {}
+    outcome = run_logs.join(dataset_id, row, retrieved)
+    if outcome is None:
+        return None, {}
+    if outcome.run is None:
+        return (
+            GenerationConfig(
+                additional_details={
+                    'request_args_unavailable': str(outcome.rejection),
+                    'request_log': outcome.request_log,
+                }
+            ),
+            {},
+        )
+    run = outcome.run
+    details = {'cap_key': run.cap_key, 'request_log': outcome.request_log}
+    return (
+        GenerationConfig(
+            generation_args=GenerationArgs(
+                max_tokens=run.cap_value, temperature=run.temperature
+            ),
+            additional_details=details,
+        ),
+        {'scored_tasks': str(run.task_count)},
+    )
+
+
 def make_results(
     rows_for_canonical: list[dict],
     developer_name: str,
     metric_bounds: dict[str, dict[str, float]],
     dataset_names: dict[str, str],
+    run_logs: RunLogs | None = None,
+    retrieved: float = math.inf,
 ) -> list[EvaluationResult]:
     results = []
     by_dataset = defaultdict(list)
@@ -309,12 +408,17 @@ def make_results(
             {r['modelId'] for r in by_dataset[dataset_id]}
         )
         dataset_display_name = dataset_names.get(dataset_id)
+        generation_config, run_source_details = run_log_fields(
+            run_logs, dataset_id, row, retrieved
+        )
+        score_source_data = make_source_data(dataset_id, dataset_display_name)
+        score_source_data.additional_details.update(run_source_details)
 
         results.append(
             EvaluationResult(
                 evaluation_result_id=f'{dataset_id}::score',
                 evaluation_name=dataset_id,
-                source_data=make_source_data(dataset_id, dataset_display_name),
+                source_data=score_source_data,
                 metric_config=MetricConfig(
                     metric_id='score',
                     metric_name='ARC score',
@@ -337,6 +441,7 @@ def make_results(
                         ),
                     },
                 ),
+                generation_config=generation_config,
             )
         )
 
@@ -377,6 +482,7 @@ def make_log(
     model_entry: dict | None,
     provider_entry: dict | None,
     dataset_names: dict[str, str],
+    run_logs: RunLogs | None = None,
 ) -> EvaluationLog:
     primary_raw_model_id = choose_primary_raw_model_id(
         rows_for_canonical, developer_name
@@ -437,7 +543,12 @@ def make_log(
             additional_details=model_details,
         ),
         evaluation_results=make_results(
-            rows_for_canonical, developer_name, metric_bounds, dataset_names
+            rows_for_canonical,
+            developer_name,
+            metric_bounds,
+            dataset_names,
+            run_logs,
+            float(retrieved_timestamp),
         ),
     )
 
@@ -451,6 +562,7 @@ def _valid_number(value: Any) -> bool:
 def convert_logs(
     payload: dict[str, Any],
     retrieved_timestamp: str | None = None,
+    run_logs: RunLogs | None = None,
 ) -> SourceConversionResult[tuple[EvaluationLog, str, str]]:
     timestamp = retrieved_timestamp or str(time.time())
     models = {m['id']: m for m in payload.get('models') or []}
@@ -578,6 +690,7 @@ def convert_logs(
             model_entry,
             provider_entry,
             dataset_names,
+            run_logs,
         )
         bundles.append((log, developer_name, model_name))
 
@@ -605,36 +718,165 @@ def export(
     )
 
 
+def public_model_ids(payload: dict[str, Any]) -> dict[str, set[str]]:
+    """Return the displayed rows' ``modelId``s per set that publishes run logs."""
+    model_ids: dict[str, set[str]] = defaultdict(set)
+    for row in payload.get('evaluations') or []:
+        if (
+            isinstance(row, dict)
+            and row.get('display') is True
+            and row.get('datasetId') in RUN_DATASETS
+            and isinstance(row.get('modelId'), str)
+        ):
+            model_ids[row['datasetId']].add(row['modelId'])
+    return dict(model_ids)
+
+
+#: Gates whose failure means the logs and the leaderboard disagree, as
+#: opposed to logs that were never published complete.
+REGRESSION_GATES = frozenset(
+    {
+        'score_mismatch',
+        'cost_mismatch',
+        'task_score_mismatch',
+        'task_attempts_mismatch',
+        'task_set_mismatch',
+        'run_score_mismatch',
+        'cap_conflict',
+        'cap_key_mixed',
+        'pair_index_mismatch',
+        'task_id_mismatch',
+        'test_id_mismatch',
+        'run_rewritten',
+    }
+)
+
+
+def _rejection_entry(outcome: Any) -> dict[str, Any]:
+    return {
+        'model_id': outcome.model_id,
+        'dataset_id': outcome.dataset_id,
+        'directory': outcome.model_id,
+        'gate': outcome.rejection,
+        'detail': outcome.detail,
+    }
+
+
+def run_log_report(run_logs: RunLogs) -> dict[str, Any]:
+    """Return the run-level join report: sources, gate counts, rows.
+
+    ``gate_counts`` counts every joined score row by outcome (``filled`` or
+    the gate that rejected it) plus ``no_run_directory`` for rows whose
+    ``modelId`` names no directory. Rejections are split into
+    ``regressions`` (:data:`REGRESSION_GATES`) and ``unavailable``.
+    """
+    counts = Counter(
+        'filled' if outcome.run is not None else str(outcome.rejection)
+        for outcome in run_logs.outcomes
+    )
+    if run_logs.unjoined:
+        counts['no_run_directory'] = len(run_logs.unjoined)
+    ordered = sorted(
+        run_logs.outcomes, key=lambda o: (o.dataset_id, o.model_id)
+    )
+    return {
+        'sources': {
+            dataset_id: {
+                'dataset': source.dataset.repo_id,
+                'revision': source.revision,
+            }
+            for dataset_id, source in sorted(run_logs.sources.items())
+        },
+        'gate_counts': dict(sorted(counts.items())),
+        'regressions': [
+            _rejection_entry(o)
+            for o in ordered
+            if o.run is None and o.rejection in REGRESSION_GATES
+        ],
+        'unavailable': [
+            _rejection_entry(o)
+            for o in ordered
+            if o.run is None and o.rejection not in REGRESSION_GATES
+        ],
+        'filled': [
+            {
+                'model_id': o.model_id,
+                'dataset_id': o.dataset_id,
+                'directory': o.model_id,
+                'cap_key': o.run.cap_key,
+                'max_tokens': o.run.cap_value,
+                'temperature': o.run.temperature,
+                'scored_tasks': o.run.task_count,
+            }
+            for o in ordered
+            if o.run is not None
+        ],
+    }
+
+
+def summarize_joins(run_logs: RunLogs) -> str:
+    """Return a one-line count of run-log joins by outcome."""
+    counts = Counter(
+        'filled' if outcome.run is not None else str(outcome.rejection)
+        for outcome in run_logs.outcomes
+    )
+    parts = ', '.join(f'{key} {counts[key]}' for key in sorted(counts))
+    return f'ARC run-log joins: {len(run_logs.outcomes)} ({parts or "none"})'
+
+
 def run(args: argparse.Namespace) -> int:
     if args.input_json is not None:
         payload = load_payload_file(args.input_json)
     else:
-        payload = fetch_payload(args.base_url)
+        texts = fetch_payload_texts(args.base_url)
+        payload = parse_payload_texts(texts)
         if args.save_raw_json is not None:
             args.save_raw_json.parent.mkdir(parents=True, exist_ok=True)
             args.save_raw_json.write_text(
-                json.dumps(
-                    {
-                        'source_base_url': args.base_url,
-                        'fetched_at': str(time.time()),
-                        **payload,
-                    },
-                    indent=2,
-                    allow_nan=False,
-                ),
+                combined_payload_text(texts, args.base_url, str(time.time())),
                 encoding='utf-8',
             )
 
-    result = convert_logs(payload)
+    with tempfile.TemporaryDirectory(prefix='arc-run-logs-') as work_dir:
+        if args.no_run_logs:
+            run_logs = None
+        elif args.arc_runs_dir is not None:
+            try:
+                run_logs = local_run_logs(
+                    args.arc_runs_dir, args.arc_history_dir
+                )
+            except RunLogsUnavailable as exc:
+                raise SystemExit(f'ARC run logs: {exc}') from exc
+        else:
+            run_logs = fetch_run_logs(
+                public_model_ids(payload), Path(work_dir)
+            )
+        result = convert_logs(payload, run_logs=run_logs)
     paths = export(result.records, args.output_dir)
     for path in paths:
         print(path)
-    if result.failures:
+    if run_logs is not None:
+        print(summarize_joins(run_logs))
+        for entry in run_log_report(run_logs)['regressions']:
+            print(
+                'ARC run-log regression: '
+                f'{entry["model_id"]} {entry["dataset_id"]} {entry["gate"]}',
+                file=sys.stderr,
+            )
+    if result.failures or run_logs is not None:
         report_path = save_failure_report(
             result,
             args.failure_report or default_failure_report_path(args.output_dir),
         )
-        print(f'Failure report: {report_path}')
+        if run_logs is not None:
+            report = json.loads(report_path.read_text(encoding='utf-8'))
+            report['run_log_evidence'] = run_log_report(run_logs)
+            report_path.write_text(
+                json.dumps(report, indent=2, ensure_ascii=False, allow_nan=False)
+                + '\n',
+                encoding='utf-8',
+            )
+        print(f'Adapter report: {report_path}')
         result.raise_if_incomplete()
     return len(paths)
 
