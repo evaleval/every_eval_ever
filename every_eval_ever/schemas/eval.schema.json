@@ -126,6 +126,10 @@
                         "type": "string",
                         "description": "Stable identifier for this metric result inside an evaluation run. Recommended deterministic join key for instance-level records."
                     },
+                    "evaluation_name": {
+                        "type": "string",
+                        "description": "Name of the evaluation"
+                    },
                     "evaluation_run_location": {
                         "description": "Location of the evaluation run or its artifacts.",
                         "oneOf": [
@@ -154,7 +158,7 @@
                             }
                         ]
                     },
-                    "evaluation_result_timestamp": {
+                    "evaluation_results_timestamp": {
                         "type": "string",
                         "description": "Timestamp for when the evaluations were run"
                     },
@@ -206,8 +210,27 @@
                                 "description": "Type of score",
                                 "enum": [
                                     "binary",
-                                    "continuous"
+                                    "continuous",
+                                    "levels"
                                 ]
+                            },
+                            "level_names": {
+                                "type": "array",
+                                "description": "Names of the score levels",
+                                "items": {
+                                    "type": "string"
+                                }
+                            },
+                            "level_metadata": {
+                                "type": "array",
+                                "description": "Additional Description for each Score Level",
+                                "items": {
+                                    "type": "string"
+                                }
+                            },
+                            "has_unknown_level": {
+                                "type": "boolean",
+                                "description": "Indicates whether there is an Unknown Level - if True, then a score of -1 will be treated as Unknown"
                             },
                             "min_score": {
                                 "oneOf": [
@@ -225,7 +248,66 @@
                                 ],
                                 "description": "Maximum possible score for a continuous metric. Use the string \"Infinity\" when unbounded above. Absence/null means not provided."
                             },
+                            "llm_scoring": {
+                                "type": "object",
+                                "description": "Configuration when LLM is used as scorer/judge",
+                                "required": [
+                                    "judges",
+                                    "input_prompt"
+                                ],
+                                "properties": {
+                                    "input_prompt": {
+                                        "type": "string",
+                                        "description": "Prompt template used for judging"
+                                    },
+                                    "aggregation_method": {
+                                        "type": "string",
+                                        "enum": [
+                                            "majority_vote",
+                                            "average",
+                                            "weighted_average",
+                                            "median"
+                                        ],
+                                        "description": "How to aggregate scores when multiple judges"
+                                    },
+                                    "expert_baseline": {
+                                        "type": "number",
+                                        "description": "Expert/human baseline score for comparison"
+                                    },
+                                    "additional_details": {
+                                        "type": "object",
+                                        "description": "Additional parameters (key-value pairs, all values must be strings)",
+                                        "additionalProperties": {
+                                            "type": "string"
+                                        }
+                                    }
+                            },
+                            "additional_details": {
+                                "type": "object",
+                                "description": "Additional parameters (key-value pairs, all values must be strings)",
+                                "additionalProperties": {
+                                    "type": "string"
+                                }
+                            }
+                        },
                         "if": {
+                            "required": [
+                                "score_type"
+                            ],
+                            "properties": {
+                                "score_type": {
+                                    "const": "levels"
+                                }
+                            }
+                        },
+                        "then": {
+                            "required": [
+                                "level_names",
+                                "has_unknown_level"
+                            ]
+                        },
+                        "else": {
+                            "if": {
                                 "required": [
                                     "score_type"
                                 ],
@@ -302,6 +384,18 @@
                                             "lower",
                                             "upper"
                                         ]
+                                    },
+                                    "standard_deviation": {
+                                        "type": "number",
+                                        "description": "Standard deviation of the per-sample scores"
+                                    },
+                                    "num_samples": {
+                                        "type": "integer",
+                                        "description": "Number of samples used to compute the uncertainty estimates"
+                                    },
+                                    "num_bootstrap_samples": {
+                                        "type": "integer",
+                                        "description": "Number of bootstrap resamples used, if bootstrap method was applied"
                                     }
                                 }
                             },
@@ -316,7 +410,6 @@
                     },
                     "generation_config": {
                         "type": "object",
-                        "description": "Configuration used to generate the model outputs for this evaluation result.",
                         "properties": {
                             "generation_args": {
                                 "type": "object",
@@ -339,6 +432,18 @@
                                         "minimum": 1,
                                         "description": "Maximum number of tokens to generate"
                                     },
+                                    "execution_command": {
+                                        "type": "string",
+                                        "description": "Command used to run the model to generate results"
+                                    },
+                                    "reasoning": {
+                                        "type": "boolean",
+                                        "description": "Whether reasoning orchain-of-thought was used to generate results"
+                                    },
+                                    "prompt_template": {
+                                        "type": "string",
+                                        "description": "Input prompt template for task (should contain agentic info if needed)."
+                                    },
                                     "reasoning_effort": {
                                         "type": "string",
                                         "description": "Reasoning effort requested for the evaluation."
@@ -347,17 +452,9 @@
                                         "type": "string",
                                         "description": "Verbosity level requested for the model output."
                                     },
-                                    "reasoning": {
-                                        "type": "boolean",
-                                        "description": "Whether reasoning orchain-of-thought was used to generate results"
-                                    },
                                     "max_reasoning_tokens":{
                                         "type": ["null", "number"],
                                         "description": ""
-                                    },
-                                    "prompt_template": {
-                                        "type": "string",
-                                        "description": "Input prompt template for task (should contain agentic info if needed)."
                                     },
                                     "sandbox": {
                                         "type": "object",
@@ -365,8 +462,21 @@
                                             "type": {
                                                 "type": "string",
                                                 "description": "Type of sandbox e.g. docker"
+                                            },
+                                            "config": {
+                                                "type": "string",
+                                                "description": "Config file name/path e.g. compose.yaml. TODO or full config? Not sure based on the Inspect docs"
                                             }
                                         }
+                                    },
+                                    "max_attempts": {
+                                        "type": "integer",
+                                        "description": "Maximum number of submission attempts.",
+                                        "default": null
+                                    },
+                                    "incorrect_attempt_feedback": {
+                                        "type": "string",
+                                        "description": "Feedback from the model after incorrect attempt."
                                     }
                                 },
                                 "additionalProperties": false
