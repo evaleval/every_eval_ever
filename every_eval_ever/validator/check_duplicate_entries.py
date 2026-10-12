@@ -2,24 +2,33 @@ import argparse
 import hashlib
 import json
 import os
+from pathlib import Path
 from typing import Any, Dict, List
+
+from every_eval_ever import io as eee_io
 
 IGNORE_KEYS = {'retrieved_timestamp', 'evaluation_id'}
 
 
 def expand_paths(paths: List[str]) -> List[str]:
-    """Expand folders to file paths."""
-    file_paths: List[str] = []
-    for path in paths:
-        if os.path.isfile(path) and path.endswith('.json'):
-            file_paths.append(path)
-        elif os.path.isdir(path):
-            for root, _, file_names in os.walk(path):
-                for file_name in file_names:
-                    if file_name.endswith('.json'):
-                        file_paths.append(os.path.join(root, file_name))
+    """Expand aggregate result files and reject unsupported explicit files."""
+    file_paths: list[str] = []
+    for value in paths:
+        path = Path(value)
+        if path.is_file():
+            if eee_io.is_eee_result(path) != 'aggregate':
+                raise ValueError(
+                    f'expected an aggregate EEE result file, got {path}'
+                )
+            file_paths.append(str(path))
+        elif path.is_dir():
+            file_paths.extend(
+                str(found)
+                for found in eee_io.iter_eee_results([path])
+                if eee_io.is_eee_result(found) == 'aggregate'
+            )
         else:
-            raise Exception(f'Could not find file or directory at path: {path}')
+            raise ValueError(f'Could not find file or directory at path: {value}')
     return file_paths
 
 
@@ -66,39 +75,76 @@ def normalized_hash(payload: Dict[str, Any]) -> str:
     return hashlib.sha256(encoded.encode('utf-8')).hexdigest()
 
 
+def _report_read_error(file_path: str, exc: Exception) -> None:
+    message = f'{type(exc).__name__}: {exc}'
+    annotation = {'title': type(exc).__name__}
+    if isinstance(exc, json.JSONDecodeError):
+        annotation.update(line=exc.lineno, col=exc.colno)
+    annotate_error(file_path, message, **annotation)
+    print(file_path)
+    print('  ' + message)
+    print()
+
+
 def main(argv: List[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog='check_duplicate_entries',
         description='Detects duplicate evaluation entries ignoring scrape timestamp fields.',
     )
     parser.add_argument(
-        'paths', nargs='+', type=str, help='File or folder paths to JSON data'
+        'paths',
+        nargs='+',
+        type=str,
+        help='Aggregate EEE result files or directories to scan',
     )
     args = parser.parse_args(argv)
 
-    file_paths = expand_paths(args.paths)
+    try:
+        file_paths = expand_paths(args.paths)
+    except ValueError as exc:
+        parser.error(str(exc))
+    if not file_paths:
+        parser.error('no aggregate EEE result files were found')
+
     print()
-    print(f'Checking {len(file_paths)} JSON files for duplicates...')
+    print(f'Checking {len(file_paths)} aggregate result files for duplicates...')
     print()
+
+    had_error = False
+    duplicate_variants = eee_io.find_duplicate_variants(file_paths)
+    for _, _, _, variants in duplicate_variants:
+        had_error = True
+        message = (
+            'Multiple physical variants exist for one logical EEE result: '
+            + ', '.join(str(path) for path in variants)
+        )
+        for path in variants:
+            annotate_error(str(path), message, title='DuplicateVariant')
+        print(message)
+        print()
 
     groups: Dict[str, List[Dict[str, Any]]] = {}
     for file_path in file_paths:
         try:
-            with open(file_path, 'r') as f:
-                payload = json.load(f)
-        except json.JSONDecodeError as e:
-            message = f'JSONDecodeError: {str(e)}'
-            annotate_error(
+            payload = json.loads(eee_io.read_eee_text(file_path))
+        except (
+            eee_io.CodecUnavailableError,
+            eee_io.CompressedReadError,
+            OSError,
+            UnicodeError,
+            json.JSONDecodeError,
+        ) as exc:
+            had_error = True
+            _report_read_error(file_path, exc)
+            continue
+
+        if not isinstance(payload, dict):
+            had_error = True
+            _report_read_error(
                 file_path,
-                message,
-                title='JSONDecodeError',
-                col=e.colno,
-                line=e.lineno,
+                ValueError('aggregate result must contain a JSON object'),
             )
-            print(f'{file_path}')
-            print('  ' + message)
-            print()
-            raise
+            continue
 
         entry_hash = normalized_hash(payload)
         groups.setdefault(entry_hash, []).append(
@@ -113,14 +159,14 @@ def main(argv: List[str] | None = None) -> int:
         entries for entries in groups.values() if len(entries) > 1
     ]
     if not duplicate_groups:
-        print('No duplicates found.')
-        print()
-        return 0
+        if not had_error:
+            print('No duplicates found.')
+            print()
+        return 1 if had_error else 0
 
     ignore_label = ', '.join(f'`{key}`' for key in sorted(IGNORE_KEYS))
     print(f'Found duplicate entries (ignoring keys: {ignore_label}).')
     print()
-
     for index, entries in enumerate(duplicate_groups, start=1):
         print(f'Duplicate group {index} ({len(entries)} files):')
         for entry in entries:
@@ -135,7 +181,6 @@ def main(argv: List[str] | None = None) -> int:
                 title='DuplicateEntry',
             )
         print()
-
     return 1
 
 

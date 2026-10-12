@@ -12,6 +12,7 @@ from typing import Any, Literal
 
 from pydantic import ValidationError
 
+from every_eval_ever import io as eee_io
 from every_eval_ever.eval_types import EvaluationLog
 from every_eval_ever.helpers.io import datastore_path_components
 from every_eval_ever.instance_level_types import InstanceLevelEvaluationLog
@@ -220,13 +221,15 @@ def check_path_structure(repo_path: str) -> list[str]:
             ]
 
     filename = parts[4]
+    logical_filename = eee_io.strip_compression_suffix(filename).name
     if not (
-        _AGGREGATE_FILE_RE.fullmatch(filename)
-        or _INSTANCE_FILE_RE.fullmatch(filename)
+        _AGGREGATE_FILE_RE.fullmatch(logical_filename)
+        or _INSTANCE_FILE_RE.fullmatch(logical_filename)
     ):
         return [
             f"Filename '{filename}' does not match '{{UUID4}}.json' or "
-            f"'{{UUID4}}_samples.jsonl' in '{repo_path}'"
+            f"'{{UUID4}}_samples.jsonl', optionally followed by a supported "
+            f"compression suffix, in '{repo_path}'"
         ]
 
     return []
@@ -235,7 +238,7 @@ def check_path_structure(repo_path: str) -> list[str]:
 def resolve_companion_repo_path(
     repo_path: str, aggregate_data: dict[str, Any]
 ) -> str | None:
-    """Return the one companion path allowed for an aggregate."""
+    """Return the declared physical companion path for an aggregate."""
     detail = aggregate_data.get('detailed_evaluation_results')
     if detail is None:
         return None
@@ -248,28 +251,33 @@ def resolve_companion_repo_path(
             'detailed_evaluation_results.file_path: missing or blank companion path'
         )
 
-    aggregate_path = PurePosixPath(repo_path)
+    aggregate_path = PurePosixPath(
+        eee_io.strip_compression_suffix_text(repo_path)
+    )
     expected_path = (
         aggregate_path.parent / f'{aggregate_path.stem}_samples.jsonl'
     ).as_posix()
     normalized_reference = reference.strip()
-    if normalized_reference != expected_path:
+    logical_reference = eee_io.strip_compression_suffix_text(
+        normalized_reference
+    )
+    if logical_reference != expected_path:
         raise ValueError(
             'detailed_evaluation_results.file_path: expected exactly '
-            f'{expected_path!r} so the aggregate and samples share one UUID '
-            f'and folder, got {reference!r}'
+            f'{expected_path!r} plus at most one supported compression suffix '
+            'so the aggregate and samples share one UUID and folder, got '
+            f'{reference!r}'
         )
 
-    return expected_path
+    return normalized_reference
 
 
 def _aggregate_repo_path_for_samples(repo_path: str) -> str | None:
-    sample_path = PurePosixPath(repo_path)
+    logical_path = eee_io.strip_compression_suffix_text(repo_path)
     suffix = '_samples.jsonl'
-    if not sample_path.name.endswith(suffix):
+    if not logical_path.endswith(suffix):
         return None
-    aggregate_name = f'{sample_path.name[: -len(suffix)]}.json'
-    return (sample_path.parent / aggregate_name).as_posix()
+    return f'{logical_path[: -len(suffix)]}.json'
 
 
 def _summary_identifier(value: Any) -> str:
@@ -356,16 +364,21 @@ def check_companion_exists(
     read_repo_file: Callable[[str], str] | None = None,
 ) -> list[str]:
     """Enforce an aggregate's forward and reverse samples relationship."""
+    aggregate_path = PurePosixPath(
+        eee_io.strip_compression_suffix_text(repo_path)
+    )
     expected_path = (
-        PurePosixPath(repo_path).parent
-        / f'{PurePosixPath(repo_path).stem}_samples.jsonl'
+        aggregate_path.parent / f'{aggregate_path.stem}_samples.jsonl'
     ).as_posix()
+    physical_variants = eee_io.present_repo_variants(
+        expected_path, available_files
+    )
     detail = aggregate_data.get('detailed_evaluation_results')
     if detail is None:
-        if expected_path in available_files:
+        if physical_variants:
             return [
                 'detailed_evaluation_results is required because sibling '
-                f'samples file {expected_path!r} exists'
+                f'samples file {physical_variants[0]!r} exists'
             ]
         return []
 
@@ -401,7 +414,6 @@ def check_companion_exists(
             'not be checked because no repository file reader was provided'
         )
         return errors
-
     try:
         samples = _summarize_jsonl_text(read_repo_file(resolved_text))
     except (OSError, ValueError) as exc:
@@ -421,11 +433,23 @@ def check_instance_companion(
     read_repo_file: Callable[[str], str] | None = None,
 ) -> list[str]:
     """Require a samples file's aggregate to exist and point back to it."""
-    aggregate_path = _aggregate_repo_path_for_samples(repo_path)
-    if aggregate_path is None:
+    aggregate_logical_path = _aggregate_repo_path_for_samples(repo_path)
+    if aggregate_logical_path is None:
         return []
-    if aggregate_path not in available_files:
-        return [f'samples file requires sibling aggregate {aggregate_path!r}']
+    aggregate_variants = eee_io.present_repo_variants(
+        aggregate_logical_path, available_files
+    )
+    if not aggregate_variants:
+        return [
+            f'samples file requires sibling aggregate '
+            f'{aggregate_logical_path!r}'
+        ]
+    if len(aggregate_variants) > 1:
+        return [
+            'samples file has multiple physical variants of sibling aggregate: '
+            + ', '.join(repr(path) for path in aggregate_variants)
+        ]
+    aggregate_path = aggregate_variants[0]
     if read_repo_file is None:
         return [
             f'sibling aggregate {aggregate_path!r} could not be checked '
@@ -638,7 +662,6 @@ def check_model_identity_path(
             'data/<collection>/<developer>/<model>/, so a reader who has the '
             'model and not the path cannot find this record'
         ]
-
     if (developer, model) == (expected_developer, expected_model):
         return []
     return [
@@ -667,7 +690,6 @@ def check_model_deployment(data: dict[str, Any]) -> list[str]:
         details = model_info.get('additional_details')
         if not isinstance(details, dict):
             details = {}
-
         deployment_type = details.get('deployment_type')
         if deployment_type is None:
             warnings.append(
@@ -838,6 +860,42 @@ def run_registered_checks(
     return report
 
 
+def _append_file_read_error(
+    report: ValidationReport, exc: Exception
+) -> None:
+    if isinstance(exc, eee_io.CodecUnavailableError):
+        error_type = 'codec_unavailable'
+    elif isinstance(exc, eee_io.CompressedReadError):
+        error_type = 'compressed_read_error'
+    else:
+        error_type = 'io_error'
+    report.valid = False
+    report.errors.append(
+        {'loc': '(file)', 'msg': str(exc), 'type': error_type}
+    )
+
+
+def _append_duplicate_variant_error(
+    report: ValidationReport,
+    repo_path: str,
+    available_files: Container[str],
+) -> None:
+    variants = eee_io.present_repo_variants(repo_path, available_files)
+    if len(variants) <= 1:
+        return
+    report.valid = False
+    report.errors.append(
+        {
+            'loc': '(file)',
+            'msg': (
+                'multiple physical variants exist for one logical EEE result: '
+                + ', '.join(variants)
+            ),
+            'type': 'duplicate_variant',
+        }
+    )
+
+
 def validate_aggregate(
     file_path: Path,
     *,
@@ -851,12 +909,14 @@ def validate_aggregate(
         file_path=file_path, valid=True, file_type='aggregate'
     )
     try:
-        raw = file_path.read_text(encoding='utf-8')
-    except OSError as exc:
-        report.valid = False
-        report.errors.append(
-            {'loc': '(file)', 'msg': str(exc), 'type': 'io_error'}
-        )
+        raw = eee_io.read_eee_text(file_path)
+    except (
+        eee_io.CodecUnavailableError,
+        eee_io.CompressedReadError,
+        OSError,
+        UnicodeError,
+    ) as exc:
+        _append_file_read_error(report, exc)
         return report
 
     try:
@@ -893,6 +953,7 @@ def validate_aggregate(
             return report
         if available_files is None:
             available_files = frozenset({repo_path})
+        _append_duplicate_variant_error(report, repo_path, available_files)
         context = ValidationContext(
             repo_path=repo_path,
             available_files=available_files,
@@ -961,20 +1022,14 @@ def validate_instance_file(
     report = ValidationReport(
         file_path=file_path, valid=True, file_type='instance'
     )
-    try:
-        handle = file_path.open(encoding='utf-8')
-    except OSError as exc:
-        report.valid = False
-        report.errors.append(
-            {'loc': '(file)', 'msg': str(exc), 'type': 'io_error'}
-        )
-        return report
 
     evaluation_ids: set[str] = set()
     model_ids: set[str] = set()
     content_valid = True
-    with handle:
-        for line_num, line in enumerate(handle, start=1):
+    try:
+        for line_num, line in enumerate(
+            eee_io.iter_eee_text_lines(file_path), start=1
+        ):
             stripped = line.strip()
             if not stripped:
                 continue
@@ -1017,6 +1072,14 @@ def validate_instance_file(
                     }
                 )
                 break
+    except (
+        eee_io.CodecUnavailableError,
+        eee_io.CompressedReadError,
+        OSError,
+        UnicodeError,
+    ) as exc:
+        content_valid = False
+        _append_file_read_error(report, exc)
 
     summary = InstanceFileSummary(
         line_count=report.line_count,
@@ -1038,6 +1101,7 @@ def validate_instance_file(
             return report
         if available_files is None:
             available_files = frozenset({repo_path})
+        _append_duplicate_variant_error(report, repo_path, available_files)
         context = ValidationContext(
             repo_path=repo_path,
             available_files=available_files,
@@ -1073,8 +1137,9 @@ def validate_file(
     read_repo_file: Callable[[str], str] | None = None,
     run_semantic_checks: bool = False,
 ) -> ValidationReport:
-    """Dispatch validation by extension."""
-    if file_path.suffix == '.json':
+    """Dispatch validation by logical EEE result type."""
+    kind = eee_io.is_eee_result(file_path)
+    if kind == 'aggregate':
         return validate_aggregate(
             file_path,
             repo_path=repo_path,
@@ -1082,7 +1147,7 @@ def validate_file(
             read_repo_file=read_repo_file,
             run_semantic_checks=run_semantic_checks,
         )
-    if file_path.suffix == '.jsonl':
+    if kind == 'samples':
         return validate_instance_file(
             file_path,
             max_errors=max_errors,
@@ -1095,12 +1160,18 @@ def validate_file(
     report = ValidationReport(
         file_path=file_path, valid=False, file_type='unsupported'
     )
+    suffixes = ', '.join(
+        eee_io.compression_suffix(codec)
+        for codec in eee_io.COMPRESSION_CHOICES
+        if codec != 'none'
+    )
     report.errors.append(
         {
             'loc': '(file)',
             'msg': (
-                f"Unsupported file extension '{file_path.suffix}'. "
-                'Expected .json or .jsonl'
+                f"Unsupported file extension for '{file_path.name}'. "
+                'Expected .json or .jsonl, optionally followed by '
+                f'{suffixes}'
             ),
             'type': 'unsupported_extension',
         }

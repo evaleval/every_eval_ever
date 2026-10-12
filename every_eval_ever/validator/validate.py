@@ -12,6 +12,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 
+from every_eval_ever import io as eee_io
 from every_eval_ever.validator.validation_core import (
     DEFAULT_MAX_ERRORS,
     ValidationReport,
@@ -71,7 +72,7 @@ class _LocalRepositoryFiles:
         path = Path(repo_path)
         if path.is_absolute():
             raise OSError(f'expected a repository-relative path: {repo_path}')
-        return (self.root / path).read_text(encoding='utf-8')
+        return eee_io.read_eee_text(self.root / path)
 
 
 def _local_path_context(path: Path) -> tuple[str, _LocalRepositoryFiles]:
@@ -156,19 +157,19 @@ def render_report_rich(report: ValidationReport, console: Console) -> None:
         else:
             label = Text(' PASS ', style='bold white on green')
             border_style = 'green'
-        kind = (
-            'Aggregate (EvaluationLog)'
-            if report.file_type == 'aggregate'
-            else f'Instance (InstanceLevelEvaluationLog, {report.line_count} lines)'
-        )
     else:
         label = Text(' FAIL ', style='bold white on red')
         border_style = 'red'
+
+    if report.file_type == 'aggregate':
+        kind = 'Aggregate (EvaluationLog)'
+    elif report.file_type == 'instance':
         kind = (
-            'Aggregate (EvaluationLog)'
-            if report.file_type == 'aggregate'
-            else f'Instance (InstanceLevelEvaluationLog, {report.line_count} lines)'
+            'Instance '
+            f'(InstanceLevelEvaluationLog, {report.line_count} lines)'
         )
+    else:
+        kind = report.file_type or 'Unsupported'
 
     lines = [Text.assemble(label, '  ', (kind, 'dim'))]
     if report.errors or report.warnings:
