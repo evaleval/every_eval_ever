@@ -77,6 +77,7 @@ re-hosting bytes that are already durably stored.
 | `vals_ai` | Vals.ai benchmark leaderboards | Scrapes Vals.ai benchmark pages and converts their embedded leaderboard results into `data/vals-ai/`. |
 | `bfcl` | BFCL leaderboard CSV | Converts BFCL leaderboard data with per-metric evaluation names and bounded continuous scores. |
 | `sciarena` | SciArena leaderboard API | Converts SciArena leaderboard results. |
+| `stablelm_evals` | lm-eval harness outputs in `Stability-AI/StableLM` | A **wrapper**, not a converter: pins the source commit, repairs the model identity `pretrained=` leaves org-less, and hands the files to the in-tree `lm_eval` converter with one collection pinned. 29 open-weights models x 11 benchmarks into `data/stablelm-evals/`, including SciQ and LAMBADA-OpenAI. Copy it to ingest another public repository of harness JSON. See [`stablelm_evals/README.md`](stablelm_evals/README.md). |
 | `global_mmlu_lite` | Kaggle API | Fetches Global MMLU Lite leaderboard results from Kaggle. |
 | `hfopenllm_v2` | HuggingFace Spaces API | Fetches the Open LLM Leaderboard v2 (4576+ models). The leaderboard is no longer maintained upstream, so this converts a frozen archive and is not scheduled. |
 | `helm` | HELM leaderboard | Converts HELM leaderboard data. Supports `--leaderboard_name` for Capabilities/Lite/Classic/Instruct/MMLU. |
