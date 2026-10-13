@@ -225,6 +225,7 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         collections=(
             'aixamine_adversarial_robustness',
             'aixamine_code_security',
+            'aixamine_cybersecurity_knowledge',
             'aixamine_fairness_bias',
             'aixamine_hallucination',
             'aixamine_jailbreak',
