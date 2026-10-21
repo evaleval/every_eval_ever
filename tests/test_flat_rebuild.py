@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import json
+import shutil
+import subprocess
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path, PurePosixPath
+from types import SimpleNamespace
 from typing import Any
 from uuid import uuid4
 
@@ -14,7 +17,7 @@ from huggingface_hub import CommitOperationAdd, CommitOperationDelete
 from huggingface_hub.errors import EntryNotFoundError
 
 from every_eval_ever.cron import flat_rebuild as fr
-from every_eval_ever.cron import store
+from every_eval_ever.cron import flat_snapshot, store
 
 NOW = datetime(2026, 9, 6, 12, 0, 0, tzinfo=UTC)
 OLD = NOW - timedelta(days=100)
@@ -96,6 +99,54 @@ class FakeApi:
                 self.files[operation.path_in_repo] = bytes(data)
             elif isinstance(operation, CommitOperationDelete):
                 self.files.pop(operation.path_in_repo, None)
+
+
+class FakeFlatSnapshotReader:
+    """Explicit offline substitute for the published aggregate transport."""
+
+    def __init__(self, api, repo_id):
+        self.files = dict(api.files)
+        self.revision = 'a' * 40
+        self.pack_count = 0
+        self.lfs_download_count = 0
+        self.lfs_download_paths = []
+        self.reads = []
+        self.closed = False
+
+    def __enter__(self):
+        self.pack_count += 1
+        return self
+
+    def __exit__(self, *exc):
+        self.closed = True
+
+    def read(self, path):
+        assert path == fr.RETIRED_LIST_PATH or (
+            path.startswith('flat/objects/') and path.endswith('.json')
+        )
+        self.reads.append(path)
+        if path not in self.files:
+            raise fr.FlatSnapshotError(f'Missing published object: {path}')
+        return self.files[path]
+
+    def read_many(self, paths):
+        return {path: self.read(path) for path in paths}
+
+    def exists(self, path):
+        return path in self.files
+
+
+@pytest.fixture(autouse=True)
+def bulk_readers(monkeypatch):
+    readers = []
+
+    def create(api, repo_id):
+        reader = FakeFlatSnapshotReader(api, repo_id)
+        readers.append(reader)
+        return reader
+
+    monkeypatch.setattr(fr, 'FlatSnapshotReader', create)
+    return readers
 
 
 def committed_paths(api: FakeApi) -> set[str]:
@@ -1615,22 +1666,41 @@ def test_unreadable_result_identity_cannot_establish_coverage(results) -> None:
 def test_count_only_index_rows_are_backfilled_before_supersession() -> None:
     old = capture('a', '100').to_dict()
     del old['result_identities']
-    row = fr.Row.from_dict(old)
+    data = captured_record('a', 'hle/m/100', '100')
+    row = replace(
+        fr.Row.from_dict(old),
+        sha256=fr.sha256_bytes(data),
+        size_bytes=len(data),
+    )
     assert not row.ids_recorded
     calls = []
 
     def fetch(paths):
         calls.extend(paths)
-        return {row.object_path: captured_record('a', 'hle/m/100', '100')}
+        return {row.object_path: data}
 
     result = fr.apply_supersession([row, capture('b', '200')])
     assert result.pending_collections == ('hle',)
     assert all(row.superseded_by is None for row in result.rows)
-    filled, count, pending = fr.backfill_ids([row], fetch, limit=1)
+    filled, count, pending = fr.backfill_ids([row], fetch)
     assert calls == [row.object_path]
     assert (count, pending) == (1, 0)
     assert filled[0].ids_recorded
     assert filled[0].result_identities is not None
+
+
+def test_identity_backfill_rejects_published_object_drift():
+    data = captured_record('a', 'hle/m/100', '100')
+    row = replace(
+        capture('a', '100'),
+        ids_recorded=False,
+        sha256=fr.sha256_bytes(data),
+        size_bytes=len(data),
+    )
+    changed = data.replace(b'100', b'200')
+    assert len(data) == len(changed)
+    with pytest.raises(fr.FlatRebuildError, match='published bytes differ'):
+        fr.backfill_ids([row], lambda paths: {row.object_path: changed})
 
 
 def test_retired_fuller_row_does_not_block_series() -> None:
@@ -1907,60 +1977,177 @@ def seed_legacy_snapshot(files: dict[str, bytes], uuids) -> None:
     seed_pointer(files, manifest)
 
 
-def test_orchestrate_backfills_ids_in_bounded_passes(tmp_path: Path) -> None:
+def test_orchestrate_backfills_all_ids(tmp_path: Path, bulk_readers) -> None:
     files: dict[str, bytes] = {}
     uuids = seed_captures(files, 'hle', ['100', '200', '300'])
     seed_legacy_snapshot(files, uuids)
     api = FakeApi(files, tmp_path)
 
-    report = fr.orchestrate(api, 'org/ds', now=NOW, backfill_limit=2)
-    assert (report.ids_backfilled, report.ids_pending) == (2, 1)
-    assert report.pending_collections == ('hle',)
-    assert report.superseded_captures == 0
-    report = fr.orchestrate(api, 'org/ds', now=NOW, backfill_limit=2)
-    assert (report.ids_backfilled, report.ids_pending) == (1, 0)
+    report = fr.orchestrate(api, 'org/ds', now=NOW)
+    assert (report.ids_backfilled, report.ids_pending) == (3, 0)
+    assert report.pending_collections == ()
     assert report.superseded_captures == 2
+    assert len(bulk_readers) == 1
+    assert bulk_readers[0].closed
+    assert report.bulk_pack_count == 1
     index = published_rows(api, f'{fr.INDEXES_PREFIX}/hle.jsonl')
     assert {row['superseded_by'] for row in index.values()} == {
         uuids[2],
         None,
     }
-    report = fr.orchestrate(api, 'org/ds', now=NOW, backfill_limit=2)
+    report = fr.orchestrate(api, 'org/ds', now=NOW)
     assert report.noop
     assert report.ids_backfilled == 0
+    assert len(bulk_readers) == 1
+    assert report.bulk_pack_count == 0
 
 
-def test_bootstrap_ids_reads_one_bulk_download(tmp_path: Path) -> None:
+def test_bootstrap_ids_is_compatibility_alias(
+    tmp_path: Path, bulk_readers
+) -> None:
     files: dict[str, bytes] = {}
     uuids = seed_captures(files, 'hle', ['100', '200'])
     seed_legacy_snapshot(files, uuids)
-    api = FakeApi(files, tmp_path)
-    calls: list[dict[str, Any]] = []
-
-    def snapshot_download(**kwargs: Any) -> str:
-        calls.append(kwargs)
-        root = Path(kwargs['local_dir'])
-        for path, data in api.files.items():
-            if path.startswith('flat/objects/') and path.endswith('.json'):
-                (root / path).parent.mkdir(parents=True, exist_ok=True)
-                (root / path).write_bytes(data)
-        return str(root)
-
-    api.snapshot_download = snapshot_download
-    fetched: list[str] = []
-    original = api.hf_hub_download
-
-    def tracking(repo_id: str, repo_type: str, filename: str) -> str:
-        fetched.append(filename)
-        return original(repo_id, repo_type, filename)
-
-    api.hf_hub_download = tracking
-    report = fr.orchestrate(
-        api, 'org/ds', now=NOW, bootstrap_ids=True, backfill_limit=0
+    normal = FakeApi(files, tmp_path / 'normal')
+    alias = FakeApi(files, tmp_path / 'alias')
+    normal_report = fr.orchestrate(normal, 'org/ds', now=NOW)
+    alias_report = fr.orchestrate(alias, 'org/ds', now=NOW, bootstrap_ids=True)
+    assert normal.files == alias.files
+    assert replace(normal_report, duration_seconds=0) == replace(
+        alias_report, duration_seconds=0
     )
-    assert len(calls) == 1
-    assert calls[0]['allow_patterns'] == ['flat/objects/**/*.json']
-    assert calls[0]['repo_type'] == 'dataset'
-    assert not any(path.startswith('flat/objects/') for path in fetched)
-    assert (report.ids_backfilled, report.ids_pending) == (2, 0)
-    assert report.superseded_captures == 1
+    assert len(bulk_readers) == 2
+    assert all(
+        reader.closed and reader.pack_count == 1 for reader in bulk_readers
+    )
+
+
+def test_bulk_reader_closes_and_translates_errors(
+    tmp_path, monkeypatch, bulk_readers
+):
+    files = {}
+    uuids = seed_captures(files, 'hle', ['100'])
+    seed_legacy_snapshot(files, uuids)
+
+    def unreadable(self, paths):
+        raise fr.FlatSnapshotError('Cannot read pinned object')
+
+    monkeypatch.setattr(FakeFlatSnapshotReader, 'read_many', unreadable)
+    with pytest.raises(fr.FlatRebuildError, match='Cannot read pinned object'):
+        fr.orchestrate(FakeApi(files, tmp_path), 'org/ds', now=NOW)
+    assert len(bulk_readers) == 1
+    assert bulk_readers[0].closed
+
+
+def test_all_id_backfill_and_semantic_comparison_share_real_git_pack(
+    tmp_path, monkeypatch
+):
+    if shutil.which('git') is None:
+        pytest.skip('Git is required for the local bulk-reader fixture')
+    count = fr.BACKFILL_CHUNK + 1
+    files = {}
+    uuids = seed_captures(files, 'hle', [str(i) for i in range(count)])
+    seed_legacy_snapshot(files, uuids)
+    touched = fr.object_path_for(uuids[0], suffix='.json')
+    unused = 'flat/objects/unused/unused.json'
+    sample = 'flat/objects/unused/sample.jsonl'
+    files[unused] = b'{"unused": true}'
+    files[sample] = b'{"sample": true}\n'
+    files[fr.RETIRED_LIST_PATH] = b''
+    changed = f'data/hle/dev/model/{uuids[0]}.json'
+    files[changed] = json.dumps(json.loads(files[changed]), indent=2).encode()
+
+    def pointer(payload):
+        return (
+            'version https://git-lfs.github.com/spec/v1\n'
+            f'oid sha256:{fr.sha256_bytes(payload)}\n'
+            f'size {len(payload)}\n'
+        ).encode()
+
+    work = tmp_path / 'source repository'
+    work.mkdir()
+
+    def git(*args, cwd=work):
+        return subprocess.run(
+            ['git', *args], cwd=cwd, capture_output=True, text=True, check=True
+        ).stdout.strip()
+
+    git('init', '--initial-branch=fixture')
+    git('config', 'user.name', 'Fixture')
+    git('config', 'user.email', 'fixture@example.invalid')
+    for path, payload in files.items():
+        target = work / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(
+            pointer(payload) if path in (touched, unused, sample) else payload
+        )
+    git('add', '.')
+    git('commit', '-m', 'Published aggregate fixture')
+    pinned = git('rev-parse', 'HEAD')
+    remote = tmp_path / 'remote repository.git'
+    git('clone', '--bare', str(work), str(remote))
+
+    class PinnedApi(FakeApi):
+        def __init__(self, root):
+            super().__init__(files, root)
+            self.info_calls = 0
+            self.pinned_downloads = []
+
+        def repo_info(self, *, repo_id, repo_type):
+            assert (repo_id, repo_type) == ('org/ds', 'dataset')
+            self.info_calls += 1
+            return SimpleNamespace(sha=pinned)
+
+        def hf_hub_download(self, repo_id, repo_type, filename, revision=None):
+            if filename.startswith('flat/objects/'):
+                assert filename == touched
+                assert revision == pinned
+                self.pinned_downloads.append((filename, revision))
+            else:
+                assert filename != fr.RETIRED_LIST_PATH
+            return super().hf_hub_download(repo_id, repo_type, filename)
+
+    readers = []
+
+    class ObservedReader(flat_snapshot.FlatSnapshotReader):
+        def __enter__(self):
+            super().__enter__()
+            self.checkout_path = self._directory
+            assert not (self.checkout_path / sample).exists()
+            return self
+
+    def create_reader(api, repo_id):
+        reader = ObservedReader(api, repo_id, remote_url=remote.as_uri())
+        readers.append(reader)
+        return reader
+
+    monkeypatch.setattr(fr, 'FlatSnapshotReader', create_reader)
+    normal = PinnedApi(tmp_path / 'normal')
+    alias = PinnedApi(tmp_path / 'alias')
+    reports = [
+        fr.orchestrate(normal, 'org/ds', now=NOW),
+        fr.orchestrate(alias, 'org/ds', now=NOW, bootstrap_ids=True),
+    ]
+    assert normal.files == alias.files
+    for api, report in zip((normal, alias), reports, strict=True):
+        assert report.ids_backfilled == count
+        assert report.ids_pending == 0
+        assert report.superseded_captures == count - 1
+        assert report.bulk_revision == pinned
+        assert report.bulk_pack_count == 1
+        assert report.bulk_lfs_download_count == 1
+        assert report.bulk_lfs_download_paths == (touched,)
+        assert api.info_calls == 1
+        assert api.pinned_downloads == [(touched, pinned)]
+        assert any(pinned in line for line in fr.summary_lines(report))
+        assert any(touched in line for line in fr.summary_lines(report))
+    assert len(readers) == 2
+    assert all(not reader.checkout_path.exists() for reader in readers)
+
+    # The unchanged manifest still reads the reserialized data's old object.
+    noop = fr.orchestrate(normal, 'org/ds', now=NOW)
+    assert noop.noop
+    assert noop.ids_backfilled == 0
+    assert noop.bulk_pack_count == 1
+    assert len(readers) == 3
+    assert not readers[-1].checkout_path.exists()

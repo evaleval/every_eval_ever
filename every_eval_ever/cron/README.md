@@ -469,11 +469,17 @@ manifest core hash through the entries hash, so a supersession change
 publishes a new snapshot while an unchanged rebuild stays a no-op.
 
 Rows from snapshots older than either record ids or `result_identities`
-serialize without identity fields until filled. The first fill is a manual run with
-`--bootstrap-ids`: one bulk download of the aggregate objects
-(`flat/objects/**/*.json`, size depends on the datastore) into a temporary directory, read
-locally. Afterwards `--backfill-limit` (default 500, `0` disables) fetches
-any stragglers one by one per run.
+serialize without identity fields until filled. Every run fills all missing
+identity fields. One shallow Git fetch reads the published aggregate objects at
+a single resolved datastore commit; semantic comparisons reuse that checkout.
+Git is required. LFS smudging is disabled, and only LFS-backed aggregate objects
+actually needed by the run are downloaded individually at that same commit and
+verified against their pointer hashes. Sample sidecars are never read for
+identity backfill. The summary reports the pin, Git pack count, and required LFS
+payload paths. Temporary checkouts are removed even if the rebuild fails.
+`--bootstrap-ids` remains a compatibility alias for the normal behavior;
+`--backfill-limit` has been removed. Existing daily diff, deep verification,
+retention, and recovery reads keep their existing fetch paths.
 
 ### Reviewer comments and changes
 

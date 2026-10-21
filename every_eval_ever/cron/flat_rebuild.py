@@ -1,4 +1,4 @@
-"""Rebuild the datastore's flat view against the Hub, without a clone.
+"""Rebuild the datastore's flat view using the Hub and pinned bulk reads.
 
 ``tools/build_flat_datastore.py`` in the EEE_datastore repository defines the
 flat layout and rebuilds it from a local checkout. That checkout no longer
@@ -41,11 +41,11 @@ import json
 import os
 import re
 import sys
-import tempfile
 import time
 import warnings
 from collections import Counter, defaultdict
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import ExitStack
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -63,6 +63,10 @@ from huggingface_hub.errors import EntryNotFoundError
 # Imported as a module, not by name: the retry helpers are replaced in tests
 # and the commit path has to see the replacement.
 from every_eval_ever.cron import store
+from every_eval_ever.cron.flat_snapshot import (
+    FlatSnapshotError,
+    FlatSnapshotReader,
+)
 from every_eval_ever.cron.submit import (
     DEFAULT_BATCH_SIZE,
     DEFAULT_DATASTORE_REPO,
@@ -86,11 +90,7 @@ DEFAULT_KEEP_NEWEST = 2
 #: decide between trim and pin; unscanned ones are conservatively kept.
 DEFAULT_SCAN_BUDGET = 20
 DOWNLOAD_WORKERS = 8
-#: Inherited rows whose ids are fetched one by one per run by default; a
-#: first fill uses ``--bootstrap-ids`` instead.
-DEFAULT_BACKFILL_LIMIT = 500
 BACKFILL_CHUNK = 500
-OBJECT_PATTERNS = ('flat/objects/**/*.json',)
 SUPERSEDED_REASONS = frozenset({'newer_capture', 'retired'})
 _NUMERIC = re.compile(r'\d+(?:\.\d+)?')
 #: Excluded paths a maintainer has acknowledged; see ``exit_code_for``.
@@ -356,6 +356,10 @@ class RebuildReport:
     verified_reserialized: int = 0
     ids_backfilled: int = 0
     ids_pending: int = 0
+    bulk_revision: str | None = None
+    bulk_pack_count: int = 0
+    bulk_lfs_download_count: int = 0
+    bulk_lfs_download_paths: tuple[str, ...] = ()
     superseded_captures: int = 0
     superseded_retired: int = 0
     ambiguous_series: tuple[str, ...] = ()
@@ -1086,52 +1090,34 @@ def backfill_ids(
     rows: Sequence[Row],
     fetch: Callable[[Sequence[str]], dict[str, bytes]],
     *,
-    limit: int | None,
     chunk: int = BACKFILL_CHUNK,
 ) -> tuple[list[Row], int, int]:
     """Fill record ids of inherited rows from their published objects.
 
-    At most ``limit`` rows (``None``: all), in ``legacy_path`` order, are
-    fetched, ``chunk`` objects at a time. Returns ``(rows, filled,
-    pending)``.
+    All missing rows are read in ``legacy_path`` order, ``chunk`` objects at
+    a time. Returns ``(rows, filled, pending)``.
     """
     missing = sorted(
         (row for row in rows if not row.ids_recorded),
         key=lambda row: row.legacy_path,
     )
-    todo = missing if limit is None else missing[: max(limit, 0)]
     filled: dict[str, Row] = {}
-    for start in range(0, len(todo), chunk):
-        batch = todo[start : start + chunk]
+    for start in range(0, len(missing), chunk):
+        batch = missing[start : start + chunk]
         contents = fetch([row.object_path for row in batch])
         for row in batch:
-            filled[row.object_uuid] = record_ids(
-                contents[row.object_path]
-            ).apply(row)
+            data = contents[row.object_path]
+            if len(data) != row.size_bytes or sha256_bytes(data) != row.sha256:
+                raise FlatRebuildError(
+                    f'{row.object_path}: published bytes differ from the '
+                    'inherited snapshot; identity backfill cannot proceed'
+                )
+            filled[row.object_uuid] = record_ids(data).apply(row)
     return (
         [filled.get(row.object_uuid, row) for row in rows],
         len(filled),
         len(missing) - len(filled),
     )
-
-
-def local_object_reader(
-    root: Path,
-) -> Callable[[Sequence[str]], dict[str, bytes]]:
-    """Read published objects from a local ``snapshot_download`` tree."""
-
-    def fetch(paths: Sequence[str]) -> dict[str, bytes]:
-        contents: dict[str, bytes] = {}
-        for path in paths:
-            local = root / path
-            if not local.is_file():
-                raise FlatRebuildError(
-                    f'{path}: missing from the bulk object download'
-                )
-            contents[path] = local.read_bytes()
-        return contents
-
-    return fetch
 
 
 def parse_retired(data: bytes) -> list[RetiredEntry]:
@@ -1674,11 +1660,64 @@ def orchestrate(
     allow_bootstrap: bool = False,
     dry_run: bool = False,
     verify: bool = False,
-    backfill_limit: int = DEFAULT_BACKFILL_LIMIT,
     bootstrap_ids: bool = False,
     now: datetime | None = None,
 ) -> RebuildReport:
     """Plan and, unless dry, publish one flat rebuild. Returns the report."""
+    bulk: FlatSnapshotReader | None = None
+    try:
+        with ExitStack() as stack:
+
+            def read_objects(paths: Sequence[str]) -> dict[str, bytes]:
+                nonlocal bulk
+                if bulk is None:
+                    bulk = stack.enter_context(FlatSnapshotReader(api, repo_id))
+                return bulk.read_many(paths)
+
+            def read_retired() -> bytes:
+                if bulk is not None:
+                    return bulk.read(RETIRED_LIST_PATH)
+                return download_bytes(api, repo_id, [RETIRED_LIST_PATH])[
+                    RETIRED_LIST_PATH
+                ]
+
+            report = _orchestrate(
+                api,
+                repo_id,
+                read_objects=read_objects,
+                read_retired=read_retired,
+                retain_days=retain_days,
+                keep_newest=keep_newest,
+                scan_budget=scan_budget,
+                allow_bootstrap=allow_bootstrap,
+                dry_run=dry_run,
+                verify=verify,
+                now=now,
+            )
+            if bulk is not None:
+                report.bulk_revision = bulk.revision
+                report.bulk_pack_count = bulk.pack_count
+                report.bulk_lfs_download_count = bulk.lfs_download_count
+                report.bulk_lfs_download_paths = tuple(bulk.lfs_download_paths)
+            return report
+    except FlatSnapshotError as exc:
+        raise FlatRebuildError(str(exc)) from exc
+
+
+def _orchestrate(
+    api: HfApi,
+    repo_id: str,
+    *,
+    read_objects: Callable[[Sequence[str]], dict[str, bytes]],
+    read_retired: Callable[[], bytes],
+    retain_days: int,
+    keep_newest: int,
+    scan_budget: int,
+    allow_bootstrap: bool,
+    dry_run: bool,
+    verify: bool,
+    now: datetime | None,
+) -> RebuildReport:
     if not repo_id.strip():
         raise FlatRebuildError('repo_id must not be empty')
     started = time.monotonic()
@@ -1729,23 +1768,9 @@ def orchestrate(
     inherited = [
         row for row in old_rows if row.object_uuid not in removed_uuids
     ]
-    if bootstrap_ids and any(not row.ids_recorded for row in inherited):
-        with tempfile.TemporaryDirectory() as bulk:
-            api.snapshot_download(
-                repo_id=repo_id,
-                repo_type='dataset',
-                allow_patterns=list(OBJECT_PATTERNS),
-                local_dir=bulk,
-            )
-            kept, report.ids_backfilled, report.ids_pending = backfill_ids(
-                inherited, local_object_reader(Path(bulk)), limit=None
-            )
-    else:
-        kept, report.ids_backfilled, report.ids_pending = backfill_ids(
-            inherited,
-            lambda paths: download_bytes(api, repo_id, paths),
-            limit=backfill_limit,
-        )
+    kept, report.ids_backfilled, report.ids_pending = backfill_ids(
+        inherited, read_objects
+    )
     backfilled = {row.object_uuid: row for row in kept}
     build_input = [backfilled.get(row.object_uuid, row) for row in old_rows]
     object_cache: dict[str, bytes] = {}
@@ -1755,7 +1780,12 @@ def orchestrate(
         if object_path not in listing:
             return None
         if object_path not in object_cache:
-            object_cache.update(download_bytes(api, repo_id, [object_path]))
+            if object_path.startswith('flat/objects/') and object_path.endswith(
+                '.json'
+            ):
+                object_cache.update(read_objects([object_path]))
+            else:
+                object_cache.update(download_bytes(api, repo_id, [object_path]))
         return object_cache[object_path]
 
     build = build_rows(build_input, diff, contents, existing_object, listing)
@@ -1768,9 +1798,7 @@ def orchestrate(
     report.excluded_paths = build.excluded_paths
     retired: list[RetiredEntry] = []
     if RETIRED_LIST_PATH in listing:
-        retired = parse_retired(
-            download_bytes(api, repo_id, [RETIRED_LIST_PATH])[RETIRED_LIST_PATH]
-        )
+        retired = parse_retired(read_retired())
     supersession = apply_supersession(build.rows, retired)
     rows = supersession.rows
     report.ambiguous_series = supersession.ambiguous_series
@@ -1991,6 +2019,12 @@ def summary_lines(
             f'- evaluation_id backfill: {report.ids_backfilled} filled, '
             f'{report.ids_pending} pending'
         )
+    if report.bulk_revision is not None:
+        lines.append(
+            f'- published aggregate snapshot: `{report.bulk_revision}`; '
+            f'{report.bulk_pack_count} Git pack transfer(s), '
+            f'{report.bulk_lfs_download_count} required LFS payload(s)'
+        )
     if report.pending_collections:
         lines.append(
             f'- automatic supersession skipped in '
@@ -2056,6 +2090,7 @@ def summary_lines(
         )
     for label, paths in (
         ('Excluded records', report.conflicts),
+        ('Required LFS payloads', report.bulk_lfs_download_paths),
         ('Stale acknowledgements', stale),
         ('Ambiguous series', report.ambiguous_series),
         ('Regressed series', report.regressed_series),
@@ -2134,22 +2169,11 @@ def main(argv: list[str] | None = None) -> int:
         ),
     )
     parser.add_argument(
-        '--backfill-limit',
-        type=int,
-        default=DEFAULT_BACKFILL_LIMIT,
-        help=(
-            'Max inherited rows per run whose ids are fetched one by one '
-            'from their published object (default: %(default)s; 0 '
-            'disables).'
-        ),
-    )
-    parser.add_argument(
         '--bootstrap-ids',
         action='store_true',
         help=(
-            'Fill the ids of every inherited row from one bulk download of '
-            'the aggregate objects (about 1.4 GB) instead of per-file '
-            'fetches.'
+            'Compatibility alias: every run fills all missing inherited '
+            'ids from a pinned bulk read of published aggregate objects.'
         ),
     )
     parser.add_argument(
@@ -2174,7 +2198,6 @@ def main(argv: list[str] | None = None) -> int:
             allow_bootstrap=args.allow_bootstrap,
             dry_run=args.dry_run,
             verify=args.verify,
-            backfill_limit=args.backfill_limit,
             bootstrap_ids=args.bootstrap_ids,
         )
     except FlatRebuildError as exc:
