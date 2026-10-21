@@ -705,6 +705,15 @@ def test_failed_loader_is_reported_without_using_partial_graph_data(monkeypatch)
     assert 'table unavailable' in payload['source_failures'][0]['reason']
 
 
+def test_loader_payload_without_table_fields_is_not_an_empty_benchmark():
+    with pytest.raises(ValueError, match='lacks metadata/tasks'):
+        adapter.normalize_benchmark_page(
+            '<html></html>',
+            'https://example.test/benchmarks/example',
+            benchmark_view={'error': 'unavailable'},
+        )
+
+
 def test_reasoning_is_typed_only_from_a_real_bool():
     def reasoning_of(row: dict):
         config = adapter.make_generation_config(row)

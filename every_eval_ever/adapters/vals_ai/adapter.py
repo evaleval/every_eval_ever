@@ -388,6 +388,8 @@ def normalize_benchmark_page(
         else extract_benchmark_view(page_html)
     )
     view = view.get('default') or view
+    if not isinstance(view, dict) or not {'metadata', 'tasks'}.issubset(view):
+        raise ValueError('BenchmarkView payload lacks metadata/tasks')
     metadata = view.get('metadata') or {}
     tasks = view.get('tasks') or {}
     if not isinstance(metadata, dict) or not isinstance(tasks, dict):
