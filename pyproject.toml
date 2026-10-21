@@ -73,6 +73,11 @@ every_eval_ever = [
     "converters/**/*.json",
 ]
 [dependency-groups]
+cron = [
+    "datasets>=3.6.0",
+    "pgdumplib>=4.0.0",
+    "pyarrow>=14.0",
+]
 dev = [
     "datamodel-code-generator>=0.43.1",
     "pytest>=9.0.2",
