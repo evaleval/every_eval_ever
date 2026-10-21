@@ -12,6 +12,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
 from urllib.error import URLError
+from urllib.parse import urljoin
 from urllib.request import Request, urlopen
 
 from every_eval_ever.eval_types import (
@@ -114,6 +115,11 @@ _MED_SENTENCE = (
     'tokens.'
 )
 _MMMU_SENTENCE = 'All models were ran with a temperature of 0.'
+_MMMU_CAP_SENTENCE = (
+    'We established a consistent baseline by using a default configuration '
+    'of 8192 maximum output tokens for all models to ensure that outputs '
+    'were not truncated.'
+)
 
 PAGE_STATEMENTS: dict[str, tuple[PageStatement, ...]] = {
     'sage': (
@@ -128,7 +134,10 @@ PAGE_STATEMENTS: dict[str, tuple[PageStatement, ...]] = {
         PageStatement('temperature', 1.0, _MED_SENTENCE),
         PageStatement('max_tokens', 30000, _MED_SENTENCE),
     ),
-    'mmmu': (PageStatement('temperature', 0.0, _MMMU_SENTENCE),),
+    'mmmu': (
+        PageStatement('temperature', 0.0, _MMMU_SENTENCE),
+        PageStatement('max_tokens', 8192, _MMMU_CAP_SENTENCE),
+    ),
 }
 PAGE_METADATA_DETAILS = {
     'version': 'benchmark_version',
@@ -356,8 +365,29 @@ def parse_astro_props(raw_props: str) -> dict[str, Any]:
         return json.loads(unescape(raw_props))
 
 
-def normalize_benchmark_page(page_html: str, source_url: str) -> dict[str, Any]:
-    view = extract_benchmark_view(page_html)
+def extract_benchmark_view_url(page_html: str, source_url: str) -> str | None:
+    """Return the full table payload URL named by the benchmark loader."""
+    parser = AstroIslandParser()
+    parser.feed(page_html)
+    for raw_props in parser.props:
+        props = decode_astro_value(parse_astro_props(raw_props))
+        if isinstance(url := props.get('benchmarkViewUrl'), str):
+            return urljoin(source_url, url)
+    return None
+
+
+def normalize_benchmark_page(
+    page_html: str,
+    source_url: str,
+    *,
+    benchmark_view: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    view = (
+        benchmark_view
+        if benchmark_view is not None
+        else extract_benchmark_view(page_html)
+    )
+    view = view.get('default') or view
     metadata = view.get('metadata') or {}
     tasks = view.get('tasks') or {}
     if not isinstance(metadata, dict) or not isinstance(tasks, dict):
@@ -391,7 +421,14 @@ def extract_collection(
         source_url = f'{base_url.rstrip("/")}/benchmarks/{slug}'
         try:
             page_html = fetch_text(source_url)
-            benchmarks.append(normalize_benchmark_page(page_html, source_url))
+            view_url = extract_benchmark_view_url(page_html, source_url)
+            # Graph props are projections and may omit settings and subtasks.
+            view = json.loads(fetch_text(view_url)) if view_url else None
+            benchmarks.append(
+                normalize_benchmark_page(
+                    page_html, source_url, benchmark_view=view
+                )
+            )
         except Exception as exc:
             source_failures.append(
                 SourceRecordFailure(
