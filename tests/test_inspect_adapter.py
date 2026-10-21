@@ -788,7 +788,8 @@ def test_extract_evaluation_results_one_scorer_with_two_metrics():
     assert result_ids_by_scorer == {'choice': ['choice:accuracy', 'choice:f1']}
 
 
-def test_each_scorer_counts_the_samples_it_could_score():
+@pytest.mark.parametrize('private', [False, True])
+def test_each_scorer_counts_the_samples_it_could_score(private):
     """Inspect computes a scorer's metrics over the samples that scorer scored, and
     says how many those were; the run-wide count includes the ones it skipped."""
     adapter = InspectAIAdapter()
@@ -801,12 +802,21 @@ def test_each_scorer_counts_the_samples_it_could_score():
         _make_scorer('lenient', {'accuracy': _make_metric('accuracy', 0.9)}),
     ]
 
+    source = (
+        SourceDataPrivate(
+            dataset_name='synthetic_ds',
+            source_type='other',
+            additional_details={'samples_number': '10'},
+        )
+        if private
+        else SourceDataHf(
+            dataset_name='synthetic_ds', source_type='hf_dataset', samples_number=10
+        )
+    )
     results, _ = adapter._extract_evaluation_results(
         evaluation_task_name='synthetic/task',
         scores=scores,
-        source_data=SourceDataHf(
-            dataset_name='synthetic_ds', source_type='hf_dataset'
-        ),
+        source_data=source,
         generation_config=GenerationConfig(),
         num_samples=10,
         timestamp='1234567890',
@@ -819,6 +829,35 @@ def test_each_scorer_counts_the_samples_it_could_score():
     assert by_id['strict:accuracy'].num_samples == 7
     # No count of its own, so the run's stands in.
     assert by_id['lenient:accuracy'].num_samples == 10
+    counts = [
+        int(result.source_data.additional_details['samples_number'])
+        if private
+        else result.source_data.samples_number
+        for result in results
+    ]
+    assert counts == [7, 10]
+    assert (
+        int(source.additional_details['samples_number'])
+        if private
+        else source.samples_number
+    ) == 10
+
+
+def test_unverified_scaffold_cannot_supply_plan_generation_defaults(tmp_path):
+    def rewrite(log):
+        log['eval']['packages']['private_scaffold'] = '1.2.3'
+        log['eval']['model_generate_config'] = {'top_p': 0.9}
+
+    converted = _load_rewritten_eval(tmp_path, CYSE2_LOG, rewrite)
+    config = converted.evaluation_results[0].generation_config
+    assert config.generation_args.temperature is None
+    assert config.generation_args.max_tokens is None
+    assert config.generation_args.top_p == 0.9
+    assert config.generation_args.eval_plan.config['max_tokens'] == '2048'
+    assert config.additional_details['generation_args_source'] == 'model_config'
+    assert config.additional_details['plan_config_unverified_packages'] == (
+        'private_scaffold'
+    )
 
 
 def test_standard_error_says_how_inspect_computed_it():
