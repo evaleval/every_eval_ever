@@ -449,9 +449,15 @@ recomputed on every run from two rules, in this order:
   newest by `retrieved_timestamp` (then UUID) is current; the others get
   `superseded_by` = its UUID and reason `newer_capture`. Retiring the
   newest capture therefore makes the previous one current again. A series
-  whose newest row has fewer `evaluation_results` than an older one
-  (`result_count`, also stored on the row) is left unmarked and listed as
-  regressed, for a maintainer to settle with a retire entry. A series
+  whose newest row drops any older result identity is left unmarked and
+  listed as regressed, for a maintainer to settle with a retire entry.
+  `result_identities` stores a sorted multiset of SHA-256 hashes of result
+  metadata: all result fields except `score_details`, `evaluation_timestamp`
+  and the run-local `evaluation_result_id`. Thus benchmark names, metrics,
+  dataset/split, generation settings and duplicate multiplicity must all be
+  covered. A metadata correction may require reviewed retirement; changed
+  scores alone do not. Unreadable identities also leave the series unmarked.
+  `result_count` remains diagnostic and never establishes coverage. A series
   where two rows share a `cron_run_date` is ambiguous and left unmarked, and
   a collection whose rows still have ids pending is skipped; both are
   listed in the summary. Hand-submitted and converted records are only ever
@@ -462,10 +468,10 @@ Consumers keep rows where `superseded_by` is null. Nothing is deleted:
 manifest core hash through the entries hash, so a supersession change
 publishes a new snapshot while an unchanged rebuild stays a no-op.
 
-Rows from snapshots older than these fields serialize without
-`evaluation_id` until filled. The first fill is a manual run with
+Rows from snapshots older than either record ids or `result_identities`
+serialize without identity fields until filled. The first fill is a manual run with
 `--bootstrap-ids`: one bulk download of the aggregate objects
-(`flat/objects/**/*.json`, about 1.4 GB) into a temporary directory, read
+(`flat/objects/**/*.json`, size depends on the datastore) into a temporary directory, read
 locally. Afterwards `--backfill-limit` (default 500, `0` disables) fetches
 any stragglers one by one per run.
 

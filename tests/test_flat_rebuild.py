@@ -1213,7 +1213,9 @@ def test_moved_companion_conflict_excludes_samples_path():
             path: record_bytes(row.object_uuid, 'gsm8k'),
             sample_path: b'{"x":2000}\n',
         },
-        lambda object_path: published if object_path == row.instance_level_path else None,
+        lambda object_path: (
+            published if object_path == row.instance_level_path else None
+        ),
     )
     assert not result.errors
     assert len(result.conflicts) == 1
@@ -1357,11 +1359,17 @@ def captured_row(
     adapter: str | None = 'hle',
     run_date: str | None = None,
     result_count: int = 1,
+    result_identities: tuple[str, ...] | None = None,
 ) -> fr.Row:
     return replace(
         make_row(uuid, benchmark),
         evaluation_id=evaluation_id,
         result_count=result_count,
+        result_identities=(
+            result_identities
+            if result_identities is not None
+            else tuple(f'result-{i}' for i in range(result_count))
+        ),
         retrieved_timestamp=retrieved,
         cron_adapter=adapter,
         cron_run_date=(run_date or f'day-{retrieved}') if adapter else None,
@@ -1398,7 +1406,18 @@ def test_timestamp_tie_breaks_on_uuid() -> None:
 
 def test_record_ids_reads_cron_provenance_only_for_cron_records() -> None:
     ids = fr.record_ids(captured_record('a', 'hle/m/1', '1', run_date='d'))
-    assert ids == fr.RecordIds('hle/m/1', '1', 'hle', 'd', 1)
+    assert ids == fr.RecordIds(
+        'hle/m/1',
+        '1',
+        'hle',
+        'd',
+        1,
+        fr.result_identities(
+            json.loads(captured_record('a', 'hle/m/1', '1'))[
+                'evaluation_results'
+            ]
+        ),
+    )
     manual = json.loads(captured_record('a', 'hle/m/1', '1'))
     manual['source_metadata']['additional_details']['type_of_addition'] = (
         'manual'
@@ -1477,7 +1496,7 @@ def test_newest_with_fewer_results_leaves_series_unmarked() -> None:
     )
     assert all(row.superseded_by is None for row in result.rows)
     assert result.regressed_series == (
-        'hle/hle/hle/m: newest c has 2 result(s), a has 5',
+        'hle/hle/hle/m: newest c drops result identities from a (3), b (1)',
     )
     report = fr.RebuildReport(
         repo_id='org/ds', regressed_series=result.regressed_series
@@ -1496,6 +1515,122 @@ def test_newest_with_equal_or_more_results_supersedes(newest_count) -> None:
     )
     assert by_uuid(result.rows)['a'].superseded_by == 'b'
     assert result.regressed_series == ()
+
+
+@pytest.mark.parametrize(
+    'newer', [('bench-a', 'bench-c'), ('bench-a', 'bench-c', 'bench-d')]
+)
+def test_equal_or_larger_capture_cannot_drop_result_identity(newer) -> None:
+    result = fr.apply_supersession(
+        [
+            capture('a', '100', result_identities=('bench-a', 'bench-b')),
+            capture('b', '200', result_identities=newer),
+        ]
+    )
+    assert all(row.superseded_by is None for row in result.rows)
+    assert len(result.regressed_series) == 1
+
+
+def test_duplicate_result_multiplicity_is_preserved() -> None:
+    result = fr.apply_supersession(
+        [
+            capture('a', '100', result_identities=('x', 'x')),
+            capture('b', '200', result_identities=('x', 'y', 'z')),
+        ]
+    )
+    assert all(row.superseded_by is None for row in result.rows)
+    assert len(result.regressed_series) == 1
+
+
+def test_result_identity_order_and_score_changes_do_not_block_supersession() -> (
+    None
+):
+    old = json.loads(captured_record('a', 'hle/m/100', '100'))
+    old['evaluation_results'].append(
+        {
+            'evaluation_name': 'other',
+            'metric_config': {'metric_id': 'accuracy'},
+            'score_details': {'score': 0.5},
+        }
+    )
+    new = json.loads(captured_record('b', 'hle/m/200', '200'))
+    new['evaluation_results'] = list(reversed(old['evaluation_results']))
+    for result in new['evaluation_results']:
+        result['score_details'] = {
+            'score': 0.7,
+            'uncertainty': {'num_samples': 20},
+        }
+        result['evaluation_result_id'] = 'new-capture-result'
+        result['evaluation_timestamp'] = '200'
+    rows = supersede(
+        [
+            fr.record_ids(json.dumps(old).encode()).apply(make_row('a', 'hle')),
+            fr.record_ids(json.dumps(new).encode()).apply(make_row('b', 'hle')),
+        ]
+    )
+    assert rows['a'].superseded_by == 'b'
+
+
+@pytest.mark.parametrize(
+    'field,value',
+    [
+        ('evaluation_name', 'new-benchmark-version'),
+        ('metric_config', {'metric_id': 'f1'}),
+        (
+            'source_data',
+            {'source_type': 'hf', 'dataset_name': 'bench', 'split': 'test'},
+        ),
+        ('generation_config', {'temperature': 0.5}),
+    ],
+)
+def test_result_identity_distinguishes_published_metadata(field, value) -> None:
+    old = json.loads(captured_record('a', 'hle/m/100', '100'))
+    new = json.loads(captured_record('b', 'hle/m/200', '200'))
+    new['evaluation_results'][0][field] = value
+    result = fr.apply_supersession(
+        [
+            fr.record_ids(json.dumps(old).encode()).apply(make_row('a', 'hle')),
+            fr.record_ids(json.dumps(new).encode()).apply(make_row('b', 'hle')),
+        ]
+    )
+    assert all(row.superseded_by is None for row in result.rows)
+    assert len(result.regressed_series) == 1
+
+
+@pytest.mark.parametrize('results', [None, {}, [None], [{}]])
+def test_unreadable_result_identity_cannot_establish_coverage(results) -> None:
+    assert fr.result_identities(results) is None
+    result = fr.apply_supersession(
+        [
+            capture('a', '100'),
+            replace(capture('b', '200'), result_identities=None),
+        ]
+    )
+    assert all(row.superseded_by is None for row in result.rows)
+    assert result.regressed_series == (
+        'hle/hle/hle/m: unreadable result identities',
+    )
+
+
+def test_count_only_index_rows_are_backfilled_before_supersession() -> None:
+    old = capture('a', '100').to_dict()
+    del old['result_identities']
+    row = fr.Row.from_dict(old)
+    assert not row.ids_recorded
+    calls = []
+
+    def fetch(paths):
+        calls.extend(paths)
+        return {row.object_path: captured_record('a', 'hle/m/100', '100')}
+
+    result = fr.apply_supersession([row, capture('b', '200')])
+    assert result.pending_collections == ('hle',)
+    assert all(row.superseded_by is None for row in result.rows)
+    filled, count, pending = fr.backfill_ids([row], fetch, limit=1)
+    assert calls == [row.object_path]
+    assert (count, pending) == (1, 0)
+    assert filled[0].ids_recorded
+    assert filled[0].result_identities is not None
 
 
 def test_retired_fuller_row_does_not_block_series() -> None:
@@ -1647,6 +1782,7 @@ def test_row_ids_round_trip_and_legacy_rows_are_unrecorded() -> None:
         'cron_adapter',
         'cron_run_date',
         'result_count',
+        'result_identities',
     ):
         del legacy[key]
     restored = fr.Row.from_dict(legacy)
@@ -1757,6 +1893,7 @@ def seed_legacy_snapshot(files: dict[str, bytes], uuids) -> None:
             'cron_adapter',
             'cron_run_date',
             'result_count',
+            'result_identities',
             'superseded_by',
             'superseded_reason',
         ):

@@ -44,7 +44,7 @@ import sys
 import tempfile
 import time
 import warnings
-from collections import defaultdict
+from collections import Counter, defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
@@ -126,6 +126,8 @@ class Row:
     cron_run_date: str | None = None
     #: ``len(evaluation_results)``; None when the record has no such list.
     result_count: int | None = None
+    #: Sorted metadata hashes, preserving duplicate result identities.
+    result_identities: tuple[str, ...] | None = None
     #: False for an inherited row written before the record ids were
     #: indexed; such a row serializes without them until backfilled.
     ids_recorded: bool = True
@@ -182,6 +184,11 @@ class Row:
             row['cron_adapter'] = self.cron_adapter
             row['cron_run_date'] = self.cron_run_date
             row['result_count'] = self.result_count
+            row['result_identities'] = (
+                list(self.result_identities)
+                if self.result_identities is not None
+                else None
+            )
         row['superseded_by'] = self.superseded_by
         row['superseded_reason'] = self.superseded_reason
         return row
@@ -205,7 +212,14 @@ class Row:
             cron_adapter=row.get('cron_adapter'),
             cron_run_date=row.get('cron_run_date'),
             result_count=row.get('result_count'),
-            ids_recorded='evaluation_id' in row,
+            result_identities=(
+                tuple(row['result_identities'])
+                if row.get('result_identities') is not None
+                else None
+            ),
+            ids_recorded=(
+                'evaluation_id' in row and 'result_identities' in row
+            ),
             superseded_by=row.get('superseded_by'),
             superseded_reason=row.get('superseded_reason'),
         )
@@ -220,6 +234,8 @@ class RecordIds:
     cron_adapter: str | None = None
     cron_run_date: str | None = None
     result_count: int | None = None
+    #: Sorted metadata hashes, preserving duplicate result identities.
+    result_identities: tuple[str, ...] | None = None
 
     def apply(self, row: 'Row') -> 'Row':
         return replace(
@@ -229,6 +245,7 @@ class RecordIds:
             cron_adapter=self.cron_adapter,
             cron_run_date=self.cron_run_date,
             result_count=self.result_count,
+            result_identities=self.result_identities,
             ids_recorded=True,
         )
 
@@ -240,8 +257,8 @@ class Supersession:
     rows: tuple['Row', ...]
     #: Series keys left unmarked because two captures share a run date.
     ambiguous_series: tuple[str, ...] = ()
-    #: Series left unmarked because the newest capture has fewer results
-    #: than an older one.
+    #: Series left unmarked because the newest capture does not cover
+    #: every older result identity, or identities cannot be read.
     regressed_series: tuple[str, ...] = ()
     #: Collections skipped by the automatic rule while ids are pending.
     pending_collections: tuple[str, ...] = ()
@@ -1008,6 +1025,34 @@ def schema_version_of(data: bytes, path: str, errors: list[str]) -> str | None:
     return version
 
 
+def result_identities(results: Any) -> tuple[str, ...] | None:
+    """Hash result metadata, excluding scores and capture-local identifiers.
+
+    Duplicate multiplicity is preserved; result order is ignored. Malformed
+    result lists have no usable identity coverage.
+    """
+    if not isinstance(results, list):
+        return None
+    identities = []
+    for result in results:
+        if not isinstance(result, dict) or not isinstance(
+            result.get('evaluation_name'), str
+        ):
+            return None
+        metadata = {
+            key: value
+            for key, value in result.items()
+            if key
+            not in {
+                'score_details',
+                'evaluation_timestamp',
+                'evaluation_result_id',
+            }
+        }
+        identities.append(sha256_bytes(stable_json_bytes(metadata)))
+    return tuple(sorted(identities))
+
+
 def record_ids(data: bytes) -> RecordIds:
     """Read the fields a row copies from its record; absent ones are None."""
     try:
@@ -1033,6 +1078,7 @@ def record_ids(data: bytes) -> RecordIds:
         cron_adapter=text(details, 'cron_adapter') if cron else None,
         cron_run_date=text(details, 'cron_run_date') if cron else None,
         result_count=len(results) if isinstance(results, list) else None,
+        result_identities=result_identities(results),
     )
 
 
@@ -1177,9 +1223,10 @@ def apply_supersession(
     ``retrieved_timestamp``, then uuid) is current and every other one
     points at it with reason ``newer_capture``. A series in which two rows
     share a ``cron_run_date`` is ambiguous and left unmarked, as is one
-    whose newest capture has fewer results than an older one (reported as
-    regressed for a human to settle with a retire entry). A collection with
-    rows whose ids are still pending is skipped.
+    whose newest capture does not contain every older result identity,
+    including duplicate multiplicity (reported as regressed for a human to
+    settle with a retire entry). Unreadable identities also prevent automatic
+    supersession. A collection with rows whose ids are still pending is skipped.
     """
     current = {
         row.object_uuid: replace(
@@ -1224,12 +1271,25 @@ def apply_supersession(
             key=lambda row: (_number(row.retrieved_timestamp), row.object_uuid),
         )
         older = [row for row in members if row is not newest]
-        fuller = max(older, key=lambda row: (row.result_count, row.object_uuid))
-        if fuller.result_count > newest.result_count:
+        if any(row.result_identities is None for row in members):
+            regressed.append(f'{"/".join(key)}: unreadable result identities')
+            continue
+        newest_identities = Counter(newest.result_identities)
+        missing = [
+            (
+                row.object_uuid,
+                Counter(row.result_identities) - newest_identities,
+            )
+            for row in older
+        ]
+        lost = [
+            (uuid, sum(counts.values())) for uuid, counts in missing if counts
+        ]
+        if lost:
             regressed.append(
-                f'{"/".join(key)}: newest {newest.object_uuid} has '
-                f'{newest.result_count} result(s), {fuller.object_uuid} has '
-                f'{fuller.result_count}'
+                f'{"/".join(key)}: newest {newest.object_uuid} drops result '
+                'identities from '
+                + ', '.join(f'{uuid} ({count})' for uuid, count in sorted(lost))
             )
             continue
         for row in older:
