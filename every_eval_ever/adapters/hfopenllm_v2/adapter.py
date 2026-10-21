@@ -10,6 +10,9 @@ Data sources, both pinned Hugging Face datasets:
 ``--source-api`` reads the table from the leaderboard Space API instead, which
 is unpinned and no longer served.
 
+The default results fetch requires Git and transfers the pinned revision in one
+shallow fetch. Only result JSON files are checked out, into a temporary directory.
+
 Usage:
     uv run python -m every_eval_ever.adapters.hfopenllm_v2.adapter
     uv run python -m every_eval_ever.adapters.hfopenllm_v2.adapter \
@@ -20,9 +23,13 @@ Usage:
 
 import argparse
 import json
+import os
 import re
+import subprocess
+import tempfile
 import time
 from collections import Counter
+from contextlib import nullcontext
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -71,6 +78,7 @@ from every_eval_ever.helpers import (
 # Source URL
 SOURCE_URL = 'https://open-llm-leaderboard-open-llm-leaderboard.hf.space/api/leaderboard/formatted'
 OUTPUT_DIR = 'data/hfopenllm_v2'
+RESULTS_URL = f'https://huggingface.co/datasets/{RESULTS_REPO}'
 
 # Evaluation name mapping from API keys to display names
 EVALUATION_MAPPING = {
@@ -517,9 +525,10 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
         type=Path,
         default=None,
         help=(
-            f'Local Hub snapshot of {RESULTS_REPO} (a directory named after '
-            f'its commit sha, which must be {RESULTS_REVISION}). Default: '
-            'download its results_*.json files once from the Hub.'
+            f'Local Git checkout or Hub snapshot of {RESULTS_REPO}, at '
+            f'{RESULTS_REVISION}. Git checkouts use HEAD; Hub snapshots use '
+            'the commit sha in the directory name. Default: one shallow '
+            'Git fetch into a temporary directory.'
         ),
     )
     parser.add_argument(
@@ -593,13 +602,22 @@ def results_dir_revision(
 ) -> tuple[str, bool]:
     """The commit a local results snapshot is at, and whether it is unpinned.
 
-    The commit is the directory's own name, as in the Hub cache layout
-    ``snapshots/<sha>``. A directory at another commit, or without one, is
-    an error unless ``allow_unpinned``; it is then reported as that sha, or
-    ``'local'``.
+    Git checkouts use their actual HEAD. For existing Hub snapshots the commit
+    is the directory's own name, as in ``snapshots/<sha>``. Other revisions
+    require ``allow_unpinned`` and are reported without claiming the pin.
     """
+    root = Path(results_dir).resolve()
+    if (root / '.git').exists():
+        revision = _git('rev-parse', 'HEAD^{commit}', cwd=root)
+        if revision != RESULTS_REVISION and not allow_unpinned:
+            raise ValueError(
+                f'--results-dir is at {revision}, but this adapter is pinned '
+                f'to {RESULTS_REPO}@{RESULTS_REVISION}. Pass a checkout at '
+                'that revision, or --allow-unpinned-results-dir.'
+            )
+        return revision, revision != RESULTS_REVISION
     return _snapshot_revision(
-        Path(results_dir).resolve(),
+        root,
         option='--results-dir',
         repo=RESULTS_REPO,
         pinned=RESULTS_REVISION,
@@ -626,18 +644,58 @@ def contents_parquet_revision(
     )
 
 
-def download_results() -> Path:
-    """Fetch the pinned results snapshot's dumps in one Hub download."""
-    from huggingface_hub import snapshot_download
-
-    return Path(
-        snapshot_download(
-            repo_id=RESULTS_REPO,
-            repo_type='dataset',
-            revision=RESULTS_REVISION,
-            allow_patterns=RESULTS_PATTERN,
+def _git(*args: str, cwd: Path | None = None) -> str:
+    try:
+        result = subprocess.run(
+            ['git', *args],
+            cwd=cwd,
+            env={
+                **os.environ,
+                'GIT_LFS_SKIP_SMUDGE': '1',
+                'GIT_TERMINAL_PROMPT': '0',
+            },
+            check=True,
+            capture_output=True,
+            text=True,
         )
+    except FileNotFoundError as exc:
+        raise RuntimeError(
+            'Git is required to fetch HF leaderboard results'
+        ) from exc
+    except subprocess.CalledProcessError as exc:
+        raise RuntimeError(
+            f'git {args[0]} failed: {exc.stderr.strip()}'
+        ) from exc
+    return result.stdout.strip()
+
+
+def download_results(destination: str | Path) -> Path:
+    """Fetch the pinned Git revision once into an empty, caller-owned directory."""
+    root = Path(destination).resolve()
+    if root.exists() and any(root.iterdir()):
+        raise ValueError(f'Results destination must be empty: {root}')
+    root.mkdir(parents=True, exist_ok=True)
+    _git('init', cwd=root)
+    _git('fetch', '--depth', '1', RESULTS_URL, RESULTS_REVISION, cwd=root)
+    fetched = _git('rev-parse', 'FETCH_HEAD^{commit}', cwd=root)
+    if fetched != RESULTS_REVISION:
+        raise RuntimeError(
+            f'Fetched results commit {fetched}, expected {RESULTS_REVISION}'
+        )
+    _git('sparse-checkout', 'set', '--no-cone', RESULTS_PATTERN, cwd=root)
+    _git('checkout', '--detach', RESULTS_REVISION, cwd=root)
+    checked_out = _git('rev-parse', 'HEAD^{commit}', cwd=root)
+    if checked_out != RESULTS_REVISION:
+        raise RuntimeError(
+            f'Checked out results commit {checked_out}, expected {RESULTS_REVISION}'
+        )
+    raw_capture.record_git_checkout(
+        RESULTS_URL,
+        root,
+        ref=RESULTS_REVISION,
+        label='Open LLM Leaderboard v2 harness result dumps',
     )
+    return root
 
 
 def main(argv: List[str] | None = None) -> int:
@@ -677,14 +735,29 @@ def main(argv: List[str] | None = None) -> int:
             'unpinned': contents_unpinned,
         }
 
-    raw_capture.record_hf_dataset(
-        RESULTS_REPO,
-        revision=revision,
-        label='Open LLM Leaderboard v2 harness result dumps',
+    if args.results_dir is not None:
+        if (args.results_dir / '.git').exists():
+            raw_capture.record_git_checkout(
+                RESULTS_URL,
+                args.results_dir,
+                ref=revision,
+                label='Open LLM Leaderboard v2 harness result dumps',
+            )
+        else:
+            raw_capture.record_hf_dataset(
+                RESULTS_REPO,
+                revision=revision,
+                label='Open LLM Leaderboard v2 harness result dumps',
+            )
+    workspace = (
+        nullcontext(args.results_dir)
+        if args.results_dir is not None
+        else tempfile.TemporaryDirectory(prefix='eee-hfopenllm-v2-')
     )
-    results_dir = args.results_dir or download_results()
-    print(f'Indexing harness dumps in {results_dir} ({revision})...')
-    dump_index = build_dump_index(results_dir)
+    with workspace as root:
+        results_dir = args.results_dir or download_results(root)
+        print(f'Indexing harness dumps in {results_dir} ({revision})...')
+        dump_index = build_dump_index(results_dir)
     dump_index.revision, dump_index.unpinned = revision, unpinned
     print(
         f'Read {dump_index.files_read} dumps for {len(dump_index.entries)} '
