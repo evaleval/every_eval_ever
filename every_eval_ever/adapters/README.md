@@ -97,6 +97,7 @@ re-hosting bytes that are already durably stored.
 | `vectara_hallucination_leaderboard` | HuggingFace (`vectara/results`) | Converts the Vectara Hallucination Leaderboard result files, pinned to a source commit, into `data/vectara-hallucination-leaderboard/`. Emits 4 aggregate metrics plus per-category and per-text-complexity breakdowns (40 scores per model). |
 | `benchpress` | HuggingFace (`microsoft/benchpress-score-matrix`) | Converts the BenchPress score matrix into `data/benchpress/`. An aggregator: every cell keeps its own citation, and logs split by `evaluator_relationship`. See [`benchpress/README.md`](benchpress/README.md). |
 | `bountybench` | BountyBench run logs (local JSON tree) | Converts BountyBench cybersecurity agent logs into `data/bountybench/`. Emits one aggregate per (model, workflow, configuration) plus a per-bounty `*_samples.jsonl` sidecar with the full agent transcript. |
+| `typed_decisions` | Local run rows + predictions JSONL (typed-decisions) | Converts one typed-decisions run (two local JSONL files) into `data/typed-decisions/`: one aggregate accuracy over all typed decisions (choice/noul/score) plus a per-decision `*_samples.jsonl` sidecar. Local inputs only — not scheduled. |
 | `paperswithcode` | Papers with Code PostgreSQL dumps | Converts PwC leaderboard entries into `data/paperswithcode/`. Metric bounds and direction are resolved against a vendored eval-card-registry snapshot; unknown metrics fail the run rather than getting invented bounds. Needs the `paperswithcode` extra. |
 | `wild` | HuggingFace (`kensho/WILD-raw`) | Converts the WILD-raw item-level eval responses (65 models × 27 benchmarks, run with Inspect AI) into `data/wild/`: aggregate accuracy per model×benchmark and per subtask, with optional per-item `_samples.jsonl` sidecars (`--include-instances`). See [`wild/README.md`](wild/README.md). |
 
@@ -469,3 +470,42 @@ denominator. `--allow-partial` converts the remainder, writes
 `adapter_reports/bountybench_failures.json`, and exits non-zero. Logs that
 failed at startup ran no iteration and are recorded as exclusions, which are
 visible in the same report but do not fail the run.
+
+### Typed Decisions
+
+typed-decisions evaluates one case per request: the model receives one piece
+of unstructured state and answers five typed questions about it — `choice`,
+`noul`, and `score` — each answer a probability distribution rather than a
+single label. Neither input is published with the benchmark, so the adapter is
+not scheduled and both files are passed explicitly:
+
+```bash
+uv run python -m every_eval_ever.adapters.typed_decisions.adapter \
+  --rows exp/typed_decisions_test.jsonl \
+  --preds runs/ft_n13_r4_en400_preds.preds.jsonl \
+  --variant en \
+  --output-dir /tmp/eee-typed-decisions/data/typed-decisions \
+  --include-instances
+```
+
+**One aggregate per (model, variant).** `--variant` (`en`/`zh`) names the
+evaluation (`typed-decisions-en` / `typed-decisions-zh`): the same checkpoint
+can be run against the English test split and against the machine-translated
+release set, and those are separate evaluations of the same model.
+`evaluation_id` is `<evaluation name>/<model id>/<evaluation timestamp>`; the
+evaluation timestamp defaults to the `--preds` file's modification time and
+can be pinned with `--evaluation-timestamp`.
+
+**Scoring follows the benchmark's official scorer exactly.** `choice`
+compares label strings; `noul` turns the predicted `noul` probability into a
+boolean at the 0.5 threshold (inclusive); `score` takes the argmax of the
+level probabilities and only falls back to the rounded continuous score when
+every level probability is zero. A decision that cannot be scored is a
+failure, and the run refuses to publish anything rather than report an
+accuracy over a silently reduced denominator.
+
+**Instances.** With `--include-instances` each decision becomes one
+`*_samples.jsonl` row keyed `<case id>::<question id>`; `sample_hash` covers
+the canonical `{"raw", "reference"}` payload. Per-decision probabilities stay
+in `output.raw` as JSON, so nothing is lost to the flattened
+`answer_attribution`.

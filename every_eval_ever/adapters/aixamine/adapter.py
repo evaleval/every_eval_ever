@@ -156,6 +156,10 @@ def build_service_logs(report, model, catalog, retrieved_ts):
     name = _dated_name(model)
     developer = _resolve_developer(model)
     model_id = _model_id(name, model)
+    if "/" in model_id:
+        path_developer, model_leaf = model_id.split("/", 1)
+    else:
+        path_developer, model_leaf = developer, model_id
     mi = ModelInfo(name=name, id=model_id, developer=developer,
                    additional_details=_model_details(model.get("accessType")))
 
@@ -218,7 +222,7 @@ def build_service_logs(report, model, catalog, retrieved_ts):
             model_info=mi,
             evaluation_results=results,
         )
-        logs.append((collection, developer, name, log))
+        logs.append((collection, path_developer, model_leaf, log))
     return logs
 
 
