@@ -17,7 +17,7 @@ from typing import Any
 
 RESULTS_REPO = 'open-llm-leaderboard/results'
 RESULTS_REVISION = 'aa81ecc38fdc5708254b833923368970efdf5ef5'
-RESULTS_PATTERN = '*/results_*.json'
+RESULTS_PATTERN = '*/**/results_*.json'
 
 DTYPE_PRECISION = {
     'torch.bfloat16': 'bfloat16',
@@ -292,7 +292,13 @@ def build_dump_index(results_dir: str | Path) -> DumpIndex:
         index.files_read += 1
         rel = path.relative_to(root).as_posix()
         try:
-            dump = json.loads(path.read_text(encoding='utf-8'))
+            content = path.read_text(encoding='utf-8')
+            if content.startswith('version https://git-lfs.github.com/spec/v1'):
+                raise RuntimeError(
+                    f'Result dump {rel} is a Git LFS pointer, not JSON. '
+                    'Bulk results fetching requires Git-tracked JSON blobs.'
+                )
+            dump = json.loads(content)
         except ValueError as exc:
             index.rejected.append(
                 {'path': rel, 'reason': 'unreadable', 'detail': str(exc)}

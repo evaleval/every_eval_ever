@@ -12,6 +12,7 @@ from every_eval_ever.adapters.hfopenllm_v2.adapter import (
     contents_parquet_revision,
     convert_model,
     convert_models,
+    download_results,
     process_models,
     results_dir_revision,
 )
@@ -476,6 +477,257 @@ def test_unpinned_results_dir_is_recorded_and_reported(monkeypatch, tmp_path):
         'local',
         True,
     )
+
+
+@pytest.fixture
+def results_git_remote(tmp_path, monkeypatch, request):
+    if shutil.which('git') is None:
+        pytest.skip('Git is required for the local bulk-fetch fixture')
+
+    def git(*args, cwd=None):
+        return subprocess.run(
+            ['git', *args], cwd=cwd, capture_output=True, text=True, check=True
+        ).stdout.strip()
+
+    work = tmp_path / 'source repository'
+    work.mkdir()
+    git('init', '--initial-branch=fixture', cwd=work)
+    git('config', 'user.name', 'Fixture', cwd=work)
+    git('config', 'user.email', 'fixture@example.invalid', cwd=work)
+    (work / 'README.md').write_text('First commit, without result dumps.\n')
+    git('add', '.', cwd=work)
+    git('commit', '-m', 'Initial fixture', cwd=work)
+
+    cached = tmp_path / 'cached snapshot'
+    shutil.copytree(RESULTS, cached)
+    spaced = cached / 'extra organization' / 'model with spaces'
+    spaced.mkdir(parents=True)
+    shutil.copy(
+        next((RESULTS / DBRX).glob('results_*.json')),
+        spaced / 'results_extra.json',
+    )
+    for relative in (
+        'single/results_shallow.json',
+        'one/two/three/results_deep.json',
+    ):
+        target = cached / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(spaced / 'results_extra.json', target)
+    if getattr(request, 'param', None) == 'lfs_pointer':
+        (spaced / 'results_future.json').write_text(
+            'version https://git-lfs.github.com/spec/v1\n'
+            f'oid sha256:{"a" * 64}\n'
+            'size 1234\n'
+        )
+    shutil.copytree(cached, work, dirs_exist_ok=True)
+    shutil.copy(spaced / 'results_extra.json', work / 'results_root.json')
+    git('add', '.', cwd=work)
+    git('commit', '-m', 'Pinned fixture results', cwd=work)
+    pinned = git('rev-parse', 'HEAD', cwd=work)
+
+    dump = next((work / DBRX).glob('results_*.json'))
+    dump.unlink()
+    (work / 'README.md').write_text('Later commit, with a result removed.\n')
+    git('add', '.', cwd=work)
+    git('commit', '-m', 'Later fixture', cwd=work)
+    latest = git('rev-parse', 'HEAD', cwd=work)
+    remote = tmp_path / 'remote with spaces.git'
+    git('clone', '--bare', str(work), str(remote))
+
+    monkeypatch.setattr(adapter, 'RESULTS_URL', remote.as_uri())
+    monkeypatch.setattr(adapter, 'RESULTS_REVISION', pinned)
+    return cached, pinned, latest
+
+
+def test_results_bulk_fetch_matches_cached_index_and_conversion(
+    results_git_remote, tmp_path, monkeypatch
+):
+    cached, pinned, latest = results_git_remote
+    commands = []
+    actual_run = subprocess.run
+
+    def record_command(args, **kwargs):
+        commands.append(args)
+        return actual_run(args, **kwargs)
+
+    monkeypatch.setattr(adapter.subprocess, 'run', record_command)
+    monkeypatch.setattr(
+        adapter.raw_capture,
+        'record_hf_dataset',
+        lambda *args, **kwargs: pytest.fail('unexpected per-file Hub path'),
+    )
+    captured = []
+    monkeypatch.setattr(
+        adapter.raw_capture,
+        'record_git_checkout',
+        lambda url, checkout, **kwargs: captured.append(
+            (url, checkout, kwargs['ref'])
+        ),
+    )
+
+    root = download_results(tmp_path / 'download with spaces')
+
+    assert results_dir_revision(root) == (pinned, False)
+    assert pinned != latest
+    assert (root / '.git' / 'shallow').read_text().splitlines() == [pinned]
+    assert not (root / 'README.md').exists()
+    assert not (root / 'results_root.json').exists()
+    assert not list((root / '.git' / 'objects' / 'pack').glob('*.promisor'))
+    fetches = [command for command in commands if command[1] == 'fetch']
+    assert fetches == [
+        ['git', 'fetch', '--depth', '1', adapter.RESULTS_URL, pinned]
+    ]
+    assert all(
+        '--filter' not in argument
+        for command in commands
+        for argument in command
+    )
+    assert captured == [(adapter.RESULTS_URL, root, pinned)]
+    assert build_dump_index(root) == build_dump_index(cached)
+    rows = [_row(COGITO, 'bfloat16'), _row(DBRX, 'float16')]
+    assert _convert(rows, root) == _convert(rows, cached)
+    for expected in cached.rglob('results_*.json'):
+        assert (
+            root / expected.relative_to(cached)
+        ).read_bytes() == expected.read_bytes()
+
+
+@pytest.mark.parametrize('results_git_remote', ['lfs_pointer'], indirect=True)
+def test_results_lfs_pointer_fails_loudly_after_bulk_fetch(
+    results_git_remote, tmp_path, monkeypatch
+):
+    cached, _, _ = results_git_remote
+    root = download_results(tmp_path / 'results')
+    monkeypatch.setattr(
+        adapter.subprocess,
+        'run',
+        lambda *args, **kwargs: pytest.fail('unexpected extra Git transfer'),
+    )
+    for results_dir in (cached, root):
+        with pytest.raises(
+            RuntimeError, match='results_future.json is a Git LFS pointer'
+        ):
+            build_dump_index(results_dir)
+
+
+def test_results_git_checkout_does_not_trust_directory_name(
+    results_git_remote, tmp_path, monkeypatch
+):
+    _, pinned, latest = results_git_remote
+    root = download_results(tmp_path / latest)
+    assert results_dir_revision(root) == (pinned, False)
+
+    monkeypatch.setattr(adapter, 'RESULTS_REVISION', latest)
+    with pytest.raises(ValueError, match=pinned):
+        results_dir_revision(root)
+    assert results_dir_revision(root, allow_unpinned=True) == (pinned, True)
+
+
+def test_results_fetch_requires_git(tmp_path, monkeypatch):
+    def missing_git(*args, **kwargs):
+        raise FileNotFoundError('git')
+
+    monkeypatch.setattr(adapter.subprocess, 'run', missing_git)
+    with pytest.raises(RuntimeError, match='Git is required'):
+        download_results(tmp_path / 'results')
+
+
+def test_results_fetch_does_not_modify_nonempty_destination(tmp_path):
+    existing = tmp_path / 'keep.txt'
+    existing.write_text('caller data')
+    with pytest.raises(ValueError, match='must be empty'):
+        download_results(tmp_path)
+    assert existing.read_text() == 'caller data'
+    assert not (tmp_path / '.git').exists()
+
+
+def test_results_fetch_capture_records_verified_checkout(
+    results_git_remote, tmp_path, monkeypatch
+):
+    _, pinned, _ = results_git_remote
+    sink = adapter.raw_capture.RawSink(tmp_path / 'capture')
+    monkeypatch.setattr(adapter.raw_capture, 'active_sink', lambda: sink)
+    monkeypatch.setattr(
+        adapter.raw_capture,
+        'record_hf_dataset',
+        lambda *args, **kwargs: pytest.fail('unexpected Hub lookup'),
+    )
+
+    download_results(tmp_path / 'results')
+
+    (entry,) = sink.entries()
+    assert entry['kind'] == 'pointer'
+    assert entry['pointer_kind'] == 'git'
+    assert entry['reference'] == adapter.RESULTS_URL
+    assert entry['revision'] == pinned
+    assert not sink.degraded
+
+
+@pytest.mark.parametrize('wrong_step', ['fetch', 'checkout'])
+def test_results_fetch_rejects_wrong_commit(
+    results_git_remote, tmp_path, monkeypatch, wrong_step
+):
+    _, _, latest = results_git_remote
+    actual_git = adapter._git
+
+    def wrong_revision(*args, **kwargs):
+        result = actual_git(*args, **kwargs)
+        target = (
+            'FETCH_HEAD^{commit}' if wrong_step == 'fetch' else 'HEAD^{commit}'
+        )
+        return latest if args == ('rev-parse', target) else result
+
+    monkeypatch.setattr(adapter, '_git', wrong_revision)
+    with pytest.raises(RuntimeError, match=f'commit {latest}, expected'):
+        download_results(tmp_path / 'results')
+
+
+def test_results_fetch_failure_has_no_hub_fallback(tmp_path, monkeypatch):
+    commands = []
+
+    def failed_fetch(args, **kwargs):
+        commands.append(args)
+        if args[1] == 'fetch':
+            raise subprocess.CalledProcessError(
+                128, args, stderr='Pinned commit is unavailable'
+            )
+        return subprocess.CompletedProcess(args, 0, stdout='')
+
+    monkeypatch.setattr(adapter.subprocess, 'run', failed_fetch)
+    with pytest.raises(RuntimeError, match='Pinned commit is unavailable'):
+        download_results(tmp_path / 'results')
+    assert [command[1] for command in commands] == ['init', 'fetch']
+
+
+@pytest.mark.parametrize('fail_indexing', [False, True])
+def test_main_cleans_temporary_results_checkout(
+    results_git_remote, tmp_path, monkeypatch, fail_indexing
+):
+    workspaces = []
+    actual_download = download_results
+    actual_index = build_dump_index
+
+    def downloaded(destination):
+        workspaces.append(Path(destination))
+        return actual_download(destination)
+
+    def index_results(root):
+        if fail_indexing:
+            raise ValueError('Cannot index results')
+        return actual_index(root)
+
+    monkeypatch.setattr(adapter, 'download_results', downloaded)
+    monkeypatch.setattr(adapter, 'build_dump_index', index_results)
+    monkeypatch.setattr(adapter, 'fetch_json', lambda url: [])
+    monkeypatch.setattr(adapter, 'process_models', lambda *args: 0)
+    argv = ['--source-api', '--output-dir', str(tmp_path / 'outputs')]
+    if fail_indexing:
+        with pytest.raises(ValueError, match='Cannot index results'):
+            adapter.main(argv)
+    else:
+        assert adapter.main(argv) == 0
+    assert len(workspaces) == 1
+    assert not workspaces[0].exists()
 
 
 def test_stated_model_details_are_kept_with_the_library_version():
