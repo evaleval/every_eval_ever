@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gzip
 import json
 from pathlib import Path
 
@@ -608,7 +609,7 @@ def test_statement_slug_replayed_without_methodology_fails_the_run():
         convert_pages(benchmark)
 
 
-def test_mmmu_methodology_fills_temperature_but_not_caps():
+def test_mmmu_methodology_fills_missing_temperature_and_cap():
     benchmark = page_benchmark('mmmu_page.html', 'mmmu')
     text = benchmark['methodology_text']
     assert 'All models were ran with a temperature of 0.' in text
@@ -628,8 +629,80 @@ def test_mmmu_methodology_fills_temperature_but_not_caps():
 
     o1 = logs['openai/o1-2024-12-17'].evaluation_results[0]
     assert o1.generation_config.generation_args.temperature == 0.0
-    assert o1.generation_config.generation_args.max_tokens is None
-    assert 'max_tokens_source' not in o1.generation_config.additional_details
+    assert o1.generation_config.generation_args.max_tokens == 8192
+    assert (
+        o1.generation_config.additional_details['max_tokens_source']
+        == 'page_methodology'
+    )
+
+
+@pytest.mark.parametrize('slug', sorted(adapter.PAGE_STATEMENTS))
+def test_page_statements_are_present_in_saved_source_pages(slug):
+    page_html = gzip.decompress(
+        (DATA_DIR / 'saved_pages' / f'{slug}.html.gz').read_bytes()
+    ).decode('utf-8')
+    text = adapter.extract_methodology_text(page_html)
+    assert text is not None
+    for statement in adapter.PAGE_STATEMENTS[slug]:
+        assert statement.sentence in text
+
+
+def test_mmmu_missing_cap_sentence_fails_even_with_temperature_statement():
+    benchmark = page_benchmark('mmmu_page.html', 'mmmu')
+    benchmark['methodology_text'] = 'All models were ran with a temperature of 0.'
+    with pytest.raises(adapter.ValsMethodologyStatementMissing, match='8192'):
+        convert_pages(benchmark)
+
+
+def test_loader_fetches_full_rows_instead_of_graph_projections(monkeypatch):
+    page_html = '''
+    <astro-island component-url="/_astro/ScatterGraph.fixture.js"
+      props='{"benchmarkView":[0,{"metadata":[0,{"slug":[0,"example"]}],
+      "tasks":[0,{"overall":[0,{"model":[0,{"accuracy":[0,50]}]}]}]}]}'>
+    </astro-island>
+    <astro-island component-url="/_astro/BenchmarkViewLoader.fixture.js"
+      props='{"benchmarkViewUrl":[0,"/_astro/full-table.json"]}'>
+    </astro-island>
+    '''
+    view = {
+        'metadata': {'slug': 'example'},
+        'tasks': {
+            'overall': {'model': {'accuracy': 50, 'temperature': 0.7}},
+            'subtask': {'model': {'accuracy': 60, 'temperature': 0.7}},
+        },
+    }
+    responses = {
+        'https://example.test/benchmarks': '<a href="/benchmarks/example">x</a>',
+        'https://example.test/benchmarks/example': page_html,
+        'https://example.test/_astro/full-table.json': json.dumps(view),
+    }
+    calls = []
+
+    def fetch(url):
+        calls.append(url)
+        return responses[url]
+
+    monkeypatch.setattr(adapter, 'fetch_text', fetch)
+    payload = adapter.extract_collection(base_url='https://example.test')
+    assert not payload['source_failures']
+    assert payload['benchmarks'][0]['tasks'] == view['tasks']
+    assert calls == list(responses)
+
+
+def test_failed_loader_is_reported_without_using_partial_graph_data(monkeypatch):
+    def fetch(url):
+        if url.endswith('/benchmarks'):
+            return '<a href="/benchmarks/example">x</a>'
+        if url.endswith('/example'):
+            return '''<astro-island component-url="BenchmarkViewLoader.js"
+              props='{"benchmarkViewUrl":[0,"/table.json"]}'></astro-island>'''
+        raise RuntimeError('table unavailable')
+
+    monkeypatch.setattr(adapter, 'fetch_text', fetch)
+    payload = adapter.extract_collection(base_url='https://example.test')
+    assert payload['benchmarks'] == []
+    assert len(payload['source_failures']) == 1
+    assert 'table unavailable' in payload['source_failures'][0]['reason']
 
 
 def test_reasoning_is_typed_only_from_a_real_bool():

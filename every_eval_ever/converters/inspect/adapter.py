@@ -187,7 +187,11 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         stddev_value: float | None,
         num_samples: int | None,
     ) -> Uncertainty | None:
-        if stderr_value is None and stddev_value is None and not num_samples:
+        if (
+            stderr_value is None
+            and stddev_value is None
+            and num_samples is None
+        ):
             return None
         return Uncertainty(
             # A standard error of exactly 0.0 is what a task every sample
@@ -318,9 +322,21 @@ class InspectAIAdapter(BaseEvaluationAdapter):
             # score, and states how many those were. The run-wide count includes
             # the samples this scorer returned no value for, and is what a log
             # from before Inspect reported this per scorer leaves us with.
-            scored_samples = (
-                getattr(scorer, 'scored_samples', None) or num_samples
-            )
+            scored_samples = getattr(scorer, 'scored_samples', None)
+            if scored_samples is None:
+                scored_samples = num_samples
+            scorer_source_data = source_data.model_copy(deep=True)
+            if isinstance(scorer_source_data, SourceDataHf):
+                scorer_source_data.samples_number = scored_samples
+            elif scored_samples is not None:
+                scorer_source_data.additional_details = {
+                    **(scorer_source_data.additional_details or {}),
+                    'samples_number': str(scored_samples),
+                }
+            if (scorer_source_data.additional_details or {}).get(
+                'dataset_size'
+            ) == str(scored_samples):
+                scorer_source_data.additional_details.pop('dataset_size')
 
             # Inspect reports dispersion as a metric of the scorer, and the
             # schema carries it on the score it describes rather than beside it.
@@ -346,7 +362,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
                     scorer_name=scorer_name,
                     metric_info=metric_info,
                     llm_grader=llm_grader,
-                    source_data=source_data,
+                    source_data=scorer_source_data,
                     evaluation_timestamp=timestamp,
                     generation_config=generation_config,
                     stderr_value=None if describes_itself else stderr_value,
@@ -401,7 +417,7 @@ class InspectAIAdapter(BaseEvaluationAdapter):
         )
         dataset_size = (
             str(dataset.samples)
-            if dataset.samples is not None and dataset.samples != samples_number
+            if dataset.samples is not None
             else None
         )
         split = (task_args or {}).get('split')
@@ -557,12 +573,24 @@ class InspectAIAdapter(BaseEvaluationAdapter):
     def _extract_generation_config(
         self, spec: EvalSpec, inspect_plan: InspectEvalPlan
     ) -> GenerationConfig:
-        eval_config = spec.model_generate_config.merge(inspect_plan.config)
+        unverified_packages = sorted(
+            set(spec.packages) - {'inspect_ai', 'inspect_evals'}
+        )
+        # Other scaffolds can override the plan's settings inside their calls.
+        eval_config = (
+            spec.model_generate_config
+            if unverified_packages
+            else spec.model_generate_config.merge(inspect_plan.config)
+        )
         eval_generation_config = {
             gen_config: json.dumps(value)
             for gen_config, value in vars(eval_config).items()
             if value is not None
         }
+        if unverified_packages:
+            eval_generation_config['plan_config_unverified_packages'] = ','.join(
+                unverified_packages
+            )
         eval_sandbox = spec.task_args.get('sandbox', None)
         if eval_sandbox and not isinstance(eval_sandbox, list):
             eval_sandbox = [eval_sandbox]
@@ -618,7 +646,8 @@ class InspectAIAdapter(BaseEvaluationAdapter):
             )
         if filled:
             from_plan = {
-                getattr(inspect_plan.config, field) is not None
+                not unverified_packages
+                and getattr(inspect_plan.config, field) is not None
                 for field in filled
             }
             eval_generation_config['generation_args_source'] = (

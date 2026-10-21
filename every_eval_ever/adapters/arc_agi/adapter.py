@@ -76,6 +76,7 @@ from every_eval_ever.eval_types import (
     SourceDataUrl,
     SourceMetadata,
     SourceType,
+    Uncertainty,
 )
 from every_eval_ever.helpers import (
     SCHEMA_VERSION,
@@ -431,6 +432,11 @@ def make_results(
                 ),
                 score_details=ScoreDetails(
                     score=float(row['score']),
+                    uncertainty=Uncertainty(
+                        num_samples=int(run_source_details['scored_tasks'])
+                    )
+                    if 'scored_tasks' in run_source_details
+                    else None,
                     details={
                         **stringify_details(
                             row, exclude_keys={'score', 'modelId'}
