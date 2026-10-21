@@ -228,6 +228,10 @@ def test_generative_groups_get_decoding_and_multiple_choice_do_not():
 def test_dataset_split_and_counts_come_from_the_dumps():
     (log,) = _convert([_row(COGITO, 'bfloat16')])
     results = _results(log)
+    for result in results.values():
+        assert result.score_details.uncertainty.num_samples == (
+            result.source_data.samples_number
+        )
 
     ifeval = results['IFEval'].source_data
     assert ifeval.hf_repo == 'google/IFEval'

@@ -52,6 +52,7 @@ from every_eval_ever.eval_types import (
     ScoreDetails,
     ScoreType,
     SourceDataHf,
+    Uncertainty,
 )
 from every_eval_ever.helpers import (
     SCHEMA_VERSION,
@@ -267,6 +268,9 @@ def convert_model(
                     ),
                     score_details=ScoreDetails(
                         score=round(float(eval_data['value']), 4),
+                        uncertainty=Uncertainty(num_samples=group.samples_number)
+                        if group is not None and group.samples_number is not None
+                        else None,
                     ),
                     generation_config=_generation_config(group),
                 )

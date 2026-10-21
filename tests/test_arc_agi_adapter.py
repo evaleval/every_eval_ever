@@ -396,6 +396,7 @@ def test_accepted_run_fills_the_score_result(runs_dir):
         'request_log': f'{V2.repo_id}@{V2.revision}/{RUN_ID}',
     }
     assert score.source_data.additional_details['scored_tasks'] == '3'
+    assert score.score_details.uncertainty.num_samples == 3
     assert [(o.dataset_id, o.rejection) for o in logs.outcomes] == [
         ('v2_Public_Eval', None)
     ]
@@ -413,6 +414,7 @@ def test_cost_result_and_other_sets_are_untouched(runs_dir):
         result = result_by_id(log, result_id)
         assert result.generation_config is None, result_id
         assert 'scored_tasks' not in result.source_data.additional_details
+        assert result.score_details.uncertainty is None
 
 
 def test_v2_run_never_fills_v1_even_when_v1_has_no_directory(runs_dir):
