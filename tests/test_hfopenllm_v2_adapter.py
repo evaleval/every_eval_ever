@@ -89,3 +89,29 @@ def test_process_models_writes_valid_output_and_external_failure_report(
     assert report['converted_records'] == 1
     assert len(report['failed_records']) == 1
     assert not report_path.is_relative_to(output_dir)
+
+
+def test_a_row_predating_namespacing_is_addressed_at_its_namespace():
+    """The archive's two bare `gpt2` rows are the namespaced repo's weights."""
+    row = {
+        'model': {
+            'name': 'gpt2',
+            'sha': '607a30d783dfa663caf39e06633721c8d4cfcd7e',
+            'precision': 'bfloat16',
+            'type': 'pretrained',
+            'average_score': 6.39,
+        },
+        'evaluations': {
+            'ifeval': {'name': 'IFEval', 'value': 0.19, 'normalized_score': 19.3},
+        },
+        'metadata': {},
+        'features': {},
+    }
+
+    result = convert_models([row])
+
+    assert not result.failures
+    assert len(result.records) == 1
+    record = result.records[0]
+    assert (record.developer, record.model_name) == ('openai-community', 'gpt2')
+    assert record.eval_log.model_info.id == 'openai-community/gpt2'
