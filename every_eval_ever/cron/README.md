@@ -428,6 +428,59 @@ Unreadable retention entries are kept with a warning naming the snapshot
 and failure; unscanned snapshots are listed in the summary. Unchanged
 same-size source files still use the agreed size-based change detection.
 
+### Supersession
+
+Every row carries `evaluation_id`, `retrieved_timestamp`, `cron_adapter`
+and `cron_run_date` (read from the record; the cron fields only when its
+`type_of_addition` is `cron`) and `superseded_by` / `superseded_reason`,
+recomputed on every run from two rules, in this order:
+
+- **Retired.** `flat/retired.jsonl` in the datastore, maintained by pull
+  request, lists `{"object_uuid", "reason", "replaced_by"?}` per line:
+  `superseded_by` = `replaced_by`, or `"retired"` without one, and reason
+  `retired`. A malformed line, a duplicate UUID or a self-replacement fails
+  the run; an entry whose UUID is not in the index is skipped and listed as
+  stale in the summary, and one whose `replaced_by` is not in the index is
+  applied and listed as dangling.
+- **Newer capture.** Only cron-ingested rows join a series, keyed by
+  collection, `cron_adapter` and `evaluation_id` minus its trailing
+  segment, and only when that segment is an epoch number equal to
+  `retrieved_timestamp`. Among the series' rows that are not retired, the
+  newest by `retrieved_timestamp` (then UUID) is current; the others get
+  `superseded_by` = its UUID and reason `newer_capture`. Retiring the
+  newest capture therefore makes the previous one current again. A series
+  whose newest row drops any older result identity is left unmarked and
+  listed as regressed, for a maintainer to settle with a retire entry.
+  `result_identities` stores a sorted multiset of SHA-256 hashes of result
+  metadata: all result fields except `score_details`, `evaluation_timestamp`
+  and the run-local `evaluation_result_id`. Thus benchmark names, metrics,
+  dataset/split, generation settings and duplicate multiplicity must all be
+  covered. A metadata correction may require reviewed retirement; changed
+  scores alone do not. Unreadable identities also leave the series unmarked.
+  `result_count` remains diagnostic and never establishes coverage. A series
+  where two rows share a `cron_run_date` is ambiguous and left unmarked, and
+  a collection whose rows still have ids pending is skipped; both are
+  listed in the summary. Hand-submitted and converted records are only ever
+  superseded by the retire list.
+
+Consumers keep rows where `superseded_by` is null. Nothing is deleted:
+`data/` and `flat/objects/` are untouched, and the fields enter the
+manifest core hash through the entries hash, so a supersession change
+publishes a new snapshot while an unchanged rebuild stays a no-op.
+
+Rows from snapshots older than either record ids or `result_identities`
+serialize without identity fields until filled. Every run fills all missing
+identity fields. One shallow Git fetch reads the published aggregate objects at
+a single resolved datastore commit; semantic comparisons reuse that checkout.
+Git is required. LFS smudging is disabled, and only LFS-backed aggregate objects
+actually needed by the run are downloaded individually at that same commit and
+verified against their pointer hashes. Sample sidecars are never read for
+identity backfill. The summary reports the pin, Git pack count, and required LFS
+payload paths. Temporary checkouts are removed even if the rebuild fails.
+`--bootstrap-ids` remains a compatibility alias for the normal behavior;
+`--backfill-limit` has been removed. Existing daily diff, deep verification,
+retention, and recovery reads keep their existing fetch paths.
+
 ### Reviewer comments and changes
 
 The review found that companion reattachment could overwrite historical

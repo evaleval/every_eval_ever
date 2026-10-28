@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html><body>
+<astro-island uid="fixture" component-url="/_astro/BenchmarkView.fixture.js" component-export="default" props="{&quot;benchmarkView&quot;:[0,{&quot;default&quot;:[0,{&quot;metadata&quot;:[0,{&quot;benchmark&quot;:[0,&quot;Web Search Index&quot;],&quot;slug&quot;:[0,&quot;web_search_backends&quot;],&quot;description&quot;:[0,&quot;Comparing native provider search against independent web-search tools on legal-r&quot;],&quot;benchmark_id&quot;:[0,&quot;web_search_backends&quot;],&quot;family&quot;:[0,&quot;web_search&quot;],&quot;version&quot;:[0,&quot;1&quot;],&quot;updated&quot;:[0,&quot;2026-07-16&quot;],&quot;dataset_type&quot;:[0,&quot;private&quot;],&quot;industry&quot;:[0,&quot;index&quot;],&quot;tasks&quot;:[0,{&quot;overall&quot;:[0,&quot;Overall&quot;]}],&quot;models&quot;:[1,[[0,&quot;anthropic/claude-fable-5&quot;],[0,&quot;anthropic/claude-fable-5-exa&quot;]]],&quot;showBadge&quot;:[0,false],&quot;visible&quot;:[0,true],&quot;use_cost_per_test&quot;:[0,true],&quot;cost_label&quot;:[0,&quot;Cost/Task&quot;],&quot;harness_label&quot;:[0,&quot;Search Tool&quot;],&quot;runner&quot;:[0,&quot;external&quot;],&quot;mode&quot;:[0,&quot;agentic&quot;],&quot;archived&quot;:[0,false],&quot;partner&quot;:[0,false],&quot;total_models&quot;:[0,8]}],&quot;tasks&quot;:[0,{&quot;overall&quot;:[0,{&quot;anthropic/claude-fable-5&quot;:[0,{&quot;accuracy&quot;:[0,46.93805588941155],&quot;latency&quot;:[0,742.4488012222541],&quot;stderr&quot;:[0,2.099818988794454],&quot;cost_per_test&quot;:[0,4.034764324405616],&quot;temperature&quot;:[0,1],&quot;top_p&quot;:[0,null],&quot;max_output_tokens&quot;:[0,128000],&quot;reasoning&quot;:[0,null],&quot;reasoning_effort&quot;:[0,null],&quot;verbosity&quot;:[0,null],&quot;compute_effort&quot;:[0,&quot;max&quot;],&quot;provider&quot;:[0,&quot;Anthropic&quot;],&quot;harness&quot;:[0,&quot;Native&quot;]}],&quot;anthropic/claude-fable-5-exa&quot;:[0,{&quot;accuracy&quot;:[0,48.454],&quot;latency&quot;:[0,351.537],&quot;stderr&quot;:[0,2.031857832132947],&quot;cost_per_test&quot;:[0,3.481848],&quot;temperature&quot;:[0,1],&quot;top_p&quot;:[0,null],&quot;max_output_tokens&quot;:[0,128000],&quot;reasoning&quot;:[0,null],&quot;reasoning_effort&quot;:[0,null],&quot;verbosity&quot;:[0,null],&quot;compute_effort&quot;:[0,&quot;max&quot;],&quot;provider&quot;:[0,&quot;Anthropic&quot;],&quot;harness&quot;:[0,&quot;Exa&quot;]}]}]}]}]}]}"></astro-island>
+<article class="benchmark-details prose-vals flex w-full max-w-full flex-col gap-4">
+<h2 id="key-takeaways">Key Takeaways</h2>
+<p>Trimmed fixture.</p>
+<h2 id="methodology">Methodology</h2>
+<p>Agents run on the same harness across both domains, with the web-search tool (native/Exa) as the variable under test. Two things distinguish these runs from the original FAB v2 and Legal Research Benchmark evaluations: the tool is swapped (native vs. Exa), and the domain-specific search tools those benchmarks provide (SEC EDGAR for finance, CourtListener for legal, and the like) are removed, leaving the web-search tool as the agent’s only means of gathering external information. Runs are orchestrated through <a href="https://github.com/vals-ai/Valkyrie">Valkyrie</a> with model calls routed through <a href="https://github.com/vals-ai/model-library">model-library</a>.</p>
+<h3 id="grading">Grading</h3>
+<ul>
+<li><strong>Legal Research</strong>: each task in the <a href="/benchmarks/legal_research">Legal Research Benchmark</a> carries a rubric of required elements written by legal experts; rubrics range from 1 to 22 items per task (mean 9.47). All-pass is our primary metric: a task counts as correct only if every rubric item is satisfied. Grading is performed by a single LLM judge (GPT-5.4).</li>
+<li><strong>Finance Analysis</strong>: tasks use <a href="/benchmarks/fabv2">FAB v2</a>’s dealbreaker-gated Partial Credit as the primary metric, category-balanced across the dataset’s nine question categories. A subset of checks in each question is flagged as dealbreakers—load-bearing facts or numbers required for a satisfactory answer—and failing any dealbreaker means the response scores 0% for that question regardless of everything else. All-pass (100% only if every check passes) is reported as a secondary metric. Grading uses the same three-judge jury as FAB v2: GPT-5.4, Gemini-3.1-Pro, and Claude Sonnet 4.6.</li>
+</ul>
+<p>For the full rubrics, jury setup, and scoring rules behind any specific grading decision, refer to the original <a href="/benchmarks/fabv2">FAB v2</a> and <a href="/benchmarks/legal_research">Legal Research Benchmark</a> methodologies.</p>
+<h3 id="dataset">Dataset</h3>
+<ul>
+<li><strong>Legal</strong>: 208 expert-authored legal research tasks, each tagged by the reasoning skill it tests (a task can test more than one): Statutory Interpretation, Application of Precedent to a Fact Pattern, Doctrinal Test Identification, Regulatory Framework Interpretation, Interaction of Multiple Legal Regimes, Cross-Jurisdiction Comparison, Timeline/Doctrinal Evolution, Validity of Precedent, Resolving Conflicting Precedent, and Consensus vs. Disagreement Across Courts.</li>
+<li><strong>Finance</strong>: 450 finance-analyst questions across nine categories, scored with FAB v2’s category-balanced methodology and reflecting real equity-research workflows: General Qualitative Analysis, General Quantitative Analysis, Market Analysis, Comparables, Precedents, Adjustments, Earnings Analysis, Disclosure Analysis, and Financial Modeling.</li>
+</ul>
+<h3 id="statistical-analysis">Statistical Analysis</h3>
+<p>To establish whether the two search tools differ statistically, we fit a mixed-effects model per domain, with search tool as a fixed effect (native as the reference level) and a random intercept per task absorbing task-level difficulty: a logistic model for legal’s All-pass metric (<code>all_pass ~ search_tool + (1 | task_id)</code>) and a linear model for finance’s primary metric (<code>score ~ search_tool + (1 | task_id)</code>). Each model pools the per-task, per-model observations underlying the Results charts above. The domain-level significance cited in the Key Takeaways comes from these models.</p>
+<p>The fixed effect of search tool (Exa relative to native) in each model:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Domain</th><th>Outcome (model)</th><th>Exa effect</th><th>Std. error</th><th>Statistic</th><th><em>p</em></th></tr></thead><tbody><tr><td>Finance</td><td>Weighted score, 0-100 (linear)</td><td>+6.51 points</td><td>0.98</td><td><em>t</em> = 6.62</td><td>&lt; 0.001</td></tr><tr><td>Legal</td><td>All-pass, 0/1 (logistic)</td><td>−0.02 log-odds</td><td>0.13</td><td><em>z</em> = −0.17</td><td>0.86</td></tr></tbody></table> <h2 id="results">Results</h2>
+<p>Not methodology.</p>
+</article>
+</body></html>

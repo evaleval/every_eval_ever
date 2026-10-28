@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+import shutil
+import subprocess
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path, PurePosixPath
+from types import SimpleNamespace
 from typing import Any
 from uuid import uuid4
 
@@ -14,7 +17,7 @@ from huggingface_hub import CommitOperationAdd, CommitOperationDelete
 from huggingface_hub.errors import EntryNotFoundError
 
 from every_eval_ever.cron import flat_rebuild as fr
-from every_eval_ever.cron import store
+from every_eval_ever.cron import flat_snapshot, store
 
 NOW = datetime(2026, 9, 6, 12, 0, 0, tzinfo=UTC)
 OLD = NOW - timedelta(days=100)
@@ -96,6 +99,54 @@ class FakeApi:
                 self.files[operation.path_in_repo] = bytes(data)
             elif isinstance(operation, CommitOperationDelete):
                 self.files.pop(operation.path_in_repo, None)
+
+
+class FakeFlatSnapshotReader:
+    """Explicit offline substitute for the published aggregate transport."""
+
+    def __init__(self, api, repo_id):
+        self.files = dict(api.files)
+        self.revision = 'a' * 40
+        self.pack_count = 0
+        self.lfs_download_count = 0
+        self.lfs_download_paths = []
+        self.reads = []
+        self.closed = False
+
+    def __enter__(self):
+        self.pack_count += 1
+        return self
+
+    def __exit__(self, *exc):
+        self.closed = True
+
+    def read(self, path):
+        assert path == fr.RETIRED_LIST_PATH or (
+            path.startswith('flat/objects/') and path.endswith('.json')
+        )
+        self.reads.append(path)
+        if path not in self.files:
+            raise fr.FlatSnapshotError(f'Missing published object: {path}')
+        return self.files[path]
+
+    def read_many(self, paths):
+        return {path: self.read(path) for path in paths}
+
+    def exists(self, path):
+        return path in self.files
+
+
+@pytest.fixture(autouse=True)
+def bulk_readers(monkeypatch):
+    readers = []
+
+    def create(api, repo_id):
+        reader = FakeFlatSnapshotReader(api, repo_id)
+        readers.append(reader)
+        return reader
+
+    monkeypatch.setattr(fr, 'FlatSnapshotReader', create)
+    return readers
 
 
 def committed_paths(api: FakeApi) -> set[str]:
@@ -1213,7 +1264,9 @@ def test_moved_companion_conflict_excludes_samples_path():
             path: record_bytes(row.object_uuid, 'gsm8k'),
             sample_path: b'{"x":2000}\n',
         },
-        lambda object_path: published if object_path == row.instance_level_path else None,
+        lambda object_path: (
+            published if object_path == row.instance_level_path else None
+        ),
     )
     assert not result.errors
     assert len(result.conflicts) == 1
@@ -1318,3 +1371,783 @@ def test_verify_bootstrap_allows_planned_new_objects(tmp_path):
     assert not report.conflicts
     assert report.verified_files == 0
     assert row.object_path in api.files
+
+
+# -- supersession ------------------------------------------------------------
+
+
+def captured_record(
+    uuid: str,
+    evaluation_id: str | None,
+    retrieved: str | None,
+    *,
+    adapter: str | None = 'hle',
+    run_date: str | None = None,
+) -> bytes:
+    payload = json.loads(record_bytes(uuid, 'x'))
+    payload.pop('evaluation_id')
+    if evaluation_id is not None:
+        payload['evaluation_id'] = evaluation_id
+    if retrieved is not None:
+        payload['retrieved_timestamp'] = retrieved
+    if adapter is not None:
+        payload['source_metadata'] = {
+            'additional_details': {
+                'type_of_addition': 'cron',
+                'cron_adapter': adapter,
+                'cron_run_date': run_date or f'day-{retrieved}',
+            }
+        }
+    return json.dumps(payload).encode()
+
+
+def captured_row(
+    uuid: str,
+    benchmark: str,
+    evaluation_id: str | None,
+    retrieved: str | None = None,
+    *,
+    adapter: str | None = 'hle',
+    run_date: str | None = None,
+    result_count: int = 1,
+    result_identities: tuple[str, ...] | None = None,
+) -> fr.Row:
+    return replace(
+        make_row(uuid, benchmark),
+        evaluation_id=evaluation_id,
+        result_count=result_count,
+        result_identities=(
+            result_identities
+            if result_identities is not None
+            else tuple(f'result-{i}' for i in range(result_count))
+        ),
+        retrieved_timestamp=retrieved,
+        cron_adapter=adapter,
+        cron_run_date=(run_date or f'day-{retrieved}') if adapter else None,
+    )
+
+
+def capture(uuid: str, stamp: str, **kwargs: Any) -> fr.Row:
+    return captured_row(uuid, 'hle', f'hle/m/{stamp}', stamp, **kwargs)
+
+
+def supersede(rows, retired=()) -> dict[str, fr.Row]:
+    return by_uuid(fr.apply_supersession(rows, retired).rows)
+
+
+def by_uuid(rows) -> dict[str, fr.Row]:
+    return {row.object_uuid: row for row in rows}
+
+
+def test_older_capture_is_superseded_by_newest() -> None:
+    rows = supersede([capture('a', '100.5'), capture('b', '200')])
+    assert rows['a'].superseded_by == 'b'
+    assert rows['a'].superseded_reason == 'newer_capture'
+    assert rows['b'].superseded_by is None
+    assert rows['b'].to_dict()['superseded_by'] is None
+
+
+def test_timestamp_tie_breaks_on_uuid() -> None:
+    rows = supersede(
+        [capture('c', '500'), capture('a', '500.0', run_date='d2')]
+    )
+    assert rows['c'].superseded_by is None
+    assert rows['a'].superseded_by == 'c'
+
+
+def test_record_ids_reads_cron_provenance_only_for_cron_records() -> None:
+    ids = fr.record_ids(captured_record('a', 'hle/m/1', '1', run_date='d'))
+    assert ids == fr.RecordIds(
+        'hle/m/1',
+        '1',
+        'hle',
+        'd',
+        1,
+        fr.result_identities(
+            json.loads(captured_record('a', 'hle/m/1', '1'))[
+                'evaluation_results'
+            ]
+        ),
+    )
+    manual = json.loads(captured_record('a', 'hle/m/1', '1'))
+    manual['source_metadata']['additional_details']['type_of_addition'] = (
+        'manual'
+    )
+    ids = fr.record_ids(json.dumps(manual).encode())
+    assert (ids.cron_adapter, ids.cron_run_date) == (None, None)
+
+
+def test_rows_without_cron_provenance_are_never_grouped() -> None:
+    rows = fr.apply_supersession(
+        [capture('a', '100', adapter=None), capture('b', '200', adapter=None)]
+    ).rows
+    assert all(row.superseded_by is None for row in rows)
+
+
+def test_series_are_keyed_by_adapter() -> None:
+    rows = fr.apply_supersession(
+        [capture('a', '100'), capture('b', '200', adapter='other')]
+    ).rows
+    assert all(row.superseded_by is None for row in rows)
+
+
+def test_tail_must_equal_retrieved_timestamp() -> None:
+    rows = fr.apply_supersession(
+        [
+            captured_row('a', 'hle', 'hle/m/100', '150'),
+            captured_row('b', 'hle', 'hle/m/200', '200'),
+        ]
+    ).rows
+    assert all(row.superseded_by is None for row in rows)
+
+
+@pytest.mark.parametrize(
+    'evaluation_id', ['hle/m/run-a', 'hle/m/1e9', '12345', None]
+)
+def test_ids_without_timestamp_segment_form_no_series(evaluation_id) -> None:
+    tail = (evaluation_id or '').rpartition('/')[2] or None
+    rows = fr.apply_supersession(
+        [
+            captured_row('a', 'hle', evaluation_id, tail, run_date='d1'),
+            captured_row('b', 'hle', evaluation_id, tail, run_date='d2'),
+        ]
+    ).rows
+    assert all(row.superseded_by is None for row in rows)
+
+
+def test_series_do_not_cross_collections() -> None:
+    rows = fr.apply_supersession(
+        [
+            captured_row('a', 'hle', 'shared/m/100', '100'),
+            captured_row('b', 'mmlu_pro', 'shared/m/200', '200'),
+        ]
+    ).rows
+    assert all(row.superseded_by is None for row in rows)
+
+
+def test_same_run_date_makes_series_ambiguous() -> None:
+    result = fr.apply_supersession(
+        [
+            capture('a', '100', run_date='2026-08-13'),
+            capture('b', '200', run_date='2026-08-13'),
+            capture('c', '300', run_date='2026-08-14'),
+        ]
+    )
+    assert all(row.superseded_by is None for row in result.rows)
+    assert result.ambiguous_series == ('hle/hle/hle/m',)
+
+
+def test_newest_with_fewer_results_leaves_series_unmarked() -> None:
+    result = fr.apply_supersession(
+        [
+            capture('a', '100', result_count=5),
+            capture('b', '200', result_count=3),
+            capture('c', '300', result_count=2),
+        ]
+    )
+    assert all(row.superseded_by is None for row in result.rows)
+    assert result.regressed_series == (
+        'hle/hle/hle/m: newest c drops result identities from a (3), b (1)',
+    )
+    report = fr.RebuildReport(
+        repo_id='org/ds', regressed_series=result.regressed_series
+    )
+    lines = fr.summary_lines(report)
+    assert any('regressed series: 1' in line for line in lines)
+
+
+@pytest.mark.parametrize('newest_count', [3, 4])
+def test_newest_with_equal_or_more_results_supersedes(newest_count) -> None:
+    result = fr.apply_supersession(
+        [
+            capture('a', '100', result_count=3),
+            capture('b', '200', result_count=newest_count),
+        ]
+    )
+    assert by_uuid(result.rows)['a'].superseded_by == 'b'
+    assert result.regressed_series == ()
+
+
+@pytest.mark.parametrize(
+    'newer', [('bench-a', 'bench-c'), ('bench-a', 'bench-c', 'bench-d')]
+)
+def test_equal_or_larger_capture_cannot_drop_result_identity(newer) -> None:
+    result = fr.apply_supersession(
+        [
+            capture('a', '100', result_identities=('bench-a', 'bench-b')),
+            capture('b', '200', result_identities=newer),
+        ]
+    )
+    assert all(row.superseded_by is None for row in result.rows)
+    assert len(result.regressed_series) == 1
+
+
+def test_duplicate_result_multiplicity_is_preserved() -> None:
+    result = fr.apply_supersession(
+        [
+            capture('a', '100', result_identities=('x', 'x')),
+            capture('b', '200', result_identities=('x', 'y', 'z')),
+        ]
+    )
+    assert all(row.superseded_by is None for row in result.rows)
+    assert len(result.regressed_series) == 1
+
+
+def test_result_identity_order_and_score_changes_do_not_block_supersession() -> (
+    None
+):
+    old = json.loads(captured_record('a', 'hle/m/100', '100'))
+    old['evaluation_results'].append(
+        {
+            'evaluation_name': 'other',
+            'metric_config': {'metric_id': 'accuracy'},
+            'score_details': {'score': 0.5},
+        }
+    )
+    new = json.loads(captured_record('b', 'hle/m/200', '200'))
+    new['evaluation_results'] = list(reversed(old['evaluation_results']))
+    for result in new['evaluation_results']:
+        result['score_details'] = {
+            'score': 0.7,
+            'uncertainty': {'num_samples': 20},
+        }
+        result['evaluation_result_id'] = 'new-capture-result'
+        result['evaluation_timestamp'] = '200'
+    rows = supersede(
+        [
+            fr.record_ids(json.dumps(old).encode()).apply(make_row('a', 'hle')),
+            fr.record_ids(json.dumps(new).encode()).apply(make_row('b', 'hle')),
+        ]
+    )
+    assert rows['a'].superseded_by == 'b'
+
+
+@pytest.mark.parametrize(
+    'field,value',
+    [
+        ('evaluation_name', 'new-benchmark-version'),
+        ('metric_config', {'metric_id': 'f1'}),
+        (
+            'source_data',
+            {'source_type': 'hf', 'dataset_name': 'bench', 'split': 'test'},
+        ),
+        ('generation_config', {'temperature': 0.5}),
+    ],
+)
+def test_result_identity_distinguishes_published_metadata(field, value) -> None:
+    old = json.loads(captured_record('a', 'hle/m/100', '100'))
+    new = json.loads(captured_record('b', 'hle/m/200', '200'))
+    new['evaluation_results'][0][field] = value
+    result = fr.apply_supersession(
+        [
+            fr.record_ids(json.dumps(old).encode()).apply(make_row('a', 'hle')),
+            fr.record_ids(json.dumps(new).encode()).apply(make_row('b', 'hle')),
+        ]
+    )
+    assert all(row.superseded_by is None for row in result.rows)
+    assert len(result.regressed_series) == 1
+
+
+@pytest.mark.parametrize('results', [None, {}, [None], [{}]])
+def test_unreadable_result_identity_cannot_establish_coverage(results) -> None:
+    assert fr.result_identities(results) is None
+    result = fr.apply_supersession(
+        [
+            capture('a', '100'),
+            replace(capture('b', '200'), result_identities=None),
+        ]
+    )
+    assert all(row.superseded_by is None for row in result.rows)
+    assert result.regressed_series == (
+        'hle/hle/hle/m: unreadable result identities',
+    )
+
+
+def test_count_only_index_rows_are_backfilled_before_supersession() -> None:
+    old = capture('a', '100').to_dict()
+    del old['result_identities']
+    data = captured_record('a', 'hle/m/100', '100')
+    row = replace(
+        fr.Row.from_dict(old),
+        sha256=fr.sha256_bytes(data),
+        size_bytes=len(data),
+    )
+    assert not row.ids_recorded
+    calls = []
+
+    def fetch(paths):
+        calls.extend(paths)
+        return {row.object_path: data}
+
+    result = fr.apply_supersession([row, capture('b', '200')])
+    assert result.pending_collections == ('hle',)
+    assert all(row.superseded_by is None for row in result.rows)
+    filled, count, pending = fr.backfill_ids([row], fetch)
+    assert calls == [row.object_path]
+    assert (count, pending) == (1, 0)
+    assert filled[0].ids_recorded
+    assert filled[0].result_identities is not None
+
+
+def test_identity_backfill_rejects_published_object_drift():
+    data = captured_record('a', 'hle/m/100', '100')
+    row = replace(
+        capture('a', '100'),
+        ids_recorded=False,
+        sha256=fr.sha256_bytes(data),
+        size_bytes=len(data),
+    )
+    changed = data.replace(b'100', b'200')
+    assert len(data) == len(changed)
+    with pytest.raises(fr.FlatRebuildError, match='published bytes differ'):
+        fr.backfill_ids([row], lambda paths: {row.object_path: changed})
+
+
+def test_retired_fuller_row_does_not_block_series() -> None:
+    rows = supersede(
+        [
+            capture('a', '100', result_count=9),
+            capture('b', '200', result_count=2),
+            capture('c', '300', result_count=2),
+        ],
+        [fr.RetiredEntry('a', 'extra rows were wrong')],
+    )
+    assert rows['b'].superseded_by == 'c'
+
+
+def test_collection_with_pending_ids_is_skipped() -> None:
+    pending = replace(make_row('p', 'hle'), ids_recorded=False)
+    result = fr.apply_supersession(
+        [
+            capture('a', '100'),
+            capture('b', '200'),
+            pending,
+            captured_row('c', 'gsm8k', 'gsm8k/m/1', '1'),
+            captured_row('d', 'gsm8k', 'gsm8k/m/2', '2'),
+        ]
+    )
+    rows = by_uuid(result.rows)
+    assert rows['a'].superseded_by is None
+    assert rows['c'].superseded_by == 'd'
+    assert result.pending_collections == ('hle',)
+
+
+def test_retire_list_marks_rows_with_or_without_replacement() -> None:
+    rows = supersede(
+        [
+            captured_row('c', 'hle', 'hle/other/1', '1'),
+            capture('b', '200'),
+            captured_row('d', 'hle', None, adapter=None),
+        ],
+        [
+            fr.RetiredEntry('b', 'wrong temperature', replaced_by='c'),
+            fr.RetiredEntry('d', 'pre-cron, no successor'),
+        ],
+    )
+    assert (rows['b'].superseded_by, rows['b'].superseded_reason) == (
+        'c',
+        'retired',
+    )
+    assert (rows['d'].superseded_by, rows['d'].superseded_reason) == (
+        'retired',
+        'retired',
+    )
+    assert rows['c'].superseded_by is None
+
+
+def test_retiring_newest_capture_restores_previous() -> None:
+    rows = supersede(
+        [capture('a', '100'), capture('b', '200'), capture('c', '50')],
+        [fr.RetiredEntry('b', 'wrong temperature')],
+    )
+    assert rows['a'].superseded_by is None
+    assert rows['b'].superseded_reason == 'retired'
+    assert rows['c'].superseded_by == 'a'
+
+
+def test_retiring_older_capture_leaves_newest_current() -> None:
+    rows = supersede(
+        [capture('a', '100'), capture('b', '200')],
+        [fr.RetiredEntry('a', 'bad capture', replaced_by='b')],
+    )
+    assert rows['b'].superseded_by is None
+    assert (rows['a'].superseded_by, rows['a'].superseded_reason) == (
+        'b',
+        'retired',
+    )
+
+
+def test_fully_retired_series_has_no_current_row() -> None:
+    rows = fr.apply_supersession(
+        [capture('a', '100'), capture('b', '200')],
+        [fr.RetiredEntry('a', 'x'), fr.RetiredEntry('b', 'y')],
+    ).rows
+    assert all(row.superseded_reason == 'retired' for row in rows)
+
+
+def test_stale_retire_entry_is_reported_and_skipped() -> None:
+    result = fr.apply_supersession(
+        [capture('a', '100')],
+        [
+            fr.RetiredEntry('zzz', 'gone'),
+            fr.RetiredEntry('a', 'successor left', replaced_by='yyy'),
+        ],
+    )
+    assert result.stale_retired == ('zzz',)
+    assert result.rows[0].superseded_by == 'yyy'
+    assert result.dangling_replaced_by == ('a -> yyy',)
+
+
+def test_dangling_replaced_by_is_listed_in_summary() -> None:
+    report = fr.RebuildReport(
+        repo_id='org/ds', dangling_replaced_by=('a -> yyy',)
+    )
+    lines = fr.summary_lines(report)
+    assert any('dangling replaced_by: 1' in line for line in lines)
+    assert '- `a -> yyy`' in lines
+
+
+def test_supersession_is_recomputed_not_inherited() -> None:
+    stale = replace(
+        captured_row('a', 'hle', None),
+        superseded_by='retired',
+        superseded_reason='retired',
+    )
+    assert fr.apply_supersession([stale]).rows[0].superseded_by is None
+
+
+def test_unknown_superseded_reason_is_a_rebuild_error() -> None:
+    row = capture('a', '1').to_dict()
+    row.update(superseded_by='b', superseded_reason='bogus')
+    with pytest.raises(fr.FlatRebuildError, match='bogus'):
+        fr.Row.from_dict(row)
+
+
+@pytest.mark.parametrize(
+    'text',
+    [
+        b'not json\n',
+        b'{"reason": "no uuid"}\n',
+        b'{"object_uuid": "a"}\n',
+        b'{"object_uuid": "a", "reason": "x", "replaced_by": "a"}\n',
+        b'{"object_uuid": "a", "reason": "x"}\n{"object_uuid": "a", "reason": "y"}\n',
+    ],
+)
+def test_malformed_retire_list_errors(text) -> None:
+    with pytest.raises(fr.FlatRebuildError, match='malformed'):
+        fr.parse_retired(text)
+
+
+def test_row_ids_round_trip_and_legacy_rows_are_unrecorded() -> None:
+    row = replace(
+        capture('a', '1'),
+        superseded_by='b',
+        superseded_reason='newer_capture',
+    )
+    assert fr.Row.from_dict(row.to_dict()) == row
+    legacy = row.to_dict()
+    for key in (
+        'evaluation_id',
+        'retrieved_timestamp',
+        'cron_adapter',
+        'cron_run_date',
+        'result_count',
+        'result_identities',
+    ):
+        del legacy[key]
+    restored = fr.Row.from_dict(legacy)
+    assert not restored.ids_recorded
+    assert 'evaluation_id' not in restored.to_dict()
+
+
+def seed_captures(files: dict[str, bytes], benchmark: str, stamps) -> list:
+    uuids = []
+    for stamp in stamps:
+        uuid = str(uuid4())
+        files[f'data/{benchmark}/dev/model/{uuid}.json'] = captured_record(
+            uuid, f'{benchmark}/dev/model/{stamp}', stamp
+        )
+        uuids.append(uuid)
+    return uuids
+
+
+def published_rows(api: FakeApi, path: str) -> dict[str, dict[str, Any]]:
+    return {
+        row['object_uuid']: row
+        for row in map(json.loads, api.files[path].decode().splitlines())
+    }
+
+
+def test_orchestrate_marks_supersession_and_stays_idempotent(
+    tmp_path: Path,
+) -> None:
+    files: dict[str, bytes] = {}
+    old, new = seed_captures(files, 'hle', ['100', '200'])
+    api = FakeApi(files, tmp_path)
+    fr.orchestrate(api, 'org/ds', allow_bootstrap=True, now=NOW)
+    index = published_rows(api, f'{fr.INDEXES_PREFIX}/hle.jsonl')
+    assert index[old]['superseded_by'] == new
+    assert index[old]['evaluation_id'] == 'hle/dev/model/100'
+    assert index[old]['cron_adapter'] == 'hle'
+    assert index[old]['result_count'] == 1
+    assert index[new]['superseded_by'] is None
+    latest = json.loads(api.files[fr.LATEST_MANIFEST_PATH])
+    assert published_rows(api, latest['entries_path']) == index
+
+    commits = len(api.commits)
+    report = fr.orchestrate(api, 'org/ds', now=NOW)
+    assert report.noop
+    assert report.superseded_captures == 1
+    assert len(api.commits) == commits
+
+
+def test_orchestrate_applies_retire_list_and_republishes(
+    tmp_path: Path,
+) -> None:
+    files: dict[str, bytes] = {}
+    (only,) = seed_captures(files, 'hle', ['100'])
+    api = FakeApi(files, tmp_path)
+    fr.orchestrate(api, 'org/ds', allow_bootstrap=True, now=NOW)
+    core_before = json.loads(api.files[fr.LATEST_MANIFEST_PATH])[
+        'manifest_core_sha256'
+    ]
+
+    api.files[fr.RETIRED_LIST_PATH] = (
+        json.dumps({'object_uuid': only, 'reason': 'wrong prompt label'}) + '\n'
+    ).encode()
+    report = fr.orchestrate(api, 'org/ds', now=NOW)
+    assert not report.noop
+    assert report.superseded_retired == 1
+    latest = json.loads(api.files[fr.LATEST_MANIFEST_PATH])
+    assert latest['manifest_core_sha256'] != core_before
+    row = published_rows(api, f'{fr.INDEXES_PREFIX}/hle.jsonl')[only]
+    assert (row['superseded_by'], row['superseded_reason']) == (
+        'retired',
+        'retired',
+    )
+    assert f'data/hle/dev/model/{only}.json' in api.files
+    assert fr.orchestrate(api, 'org/ds', now=NOW).noop
+
+
+def test_orchestrate_reports_stale_retire_entry(tmp_path: Path) -> None:
+    files: dict[str, bytes] = {}
+    seed_captures(files, 'hle', ['100'])
+    api = FakeApi(files, tmp_path)
+    fr.orchestrate(api, 'org/ds', allow_bootstrap=True, now=NOW)
+    api.files[fr.RETIRED_LIST_PATH] = (
+        b'{"object_uuid": "0000", "reason": "typo"}\n'
+    )
+    report = fr.orchestrate(api, 'org/ds', now=NOW)
+    assert report.noop
+    assert report.stale_retired == ('0000',)
+    assert any(
+        'stale retire entries: 1' in line for line in fr.summary_lines(report)
+    )
+
+
+def seed_legacy_snapshot(files: dict[str, bytes], uuids) -> None:
+    """Publish rows for ``uuids`` in the shape written before ids existed."""
+    legacy_rows = []
+    for uuid in uuids:
+        data = files[f'data/hle/dev/model/{uuid}.json']
+        row = replace(
+            make_row(uuid, 'hle'),
+            sha256=fr.sha256_bytes(data),
+            size_bytes=len(data),
+        )
+        files[row.object_path] = data
+        legacy = row.to_dict()
+        for key in (
+            'evaluation_id',
+            'retrieved_timestamp',
+            'cron_adapter',
+            'cron_run_date',
+            'result_count',
+            'result_identities',
+            'superseded_by',
+            'superseded_reason',
+        ):
+            legacy.pop(key, None)
+        legacy_rows.append(legacy)
+    manifest = fr.manifest_for(
+        [fr.Row.from_dict(row) for row in legacy_rows],
+        created_at=RECENT.isoformat(),
+    )
+    files[manifest['entries_path']] = fr.jsonl_text(legacy_rows).encode()
+    seed_pointer(files, manifest)
+
+
+def test_orchestrate_backfills_all_ids(tmp_path: Path, bulk_readers) -> None:
+    files: dict[str, bytes] = {}
+    uuids = seed_captures(files, 'hle', ['100', '200', '300'])
+    seed_legacy_snapshot(files, uuids)
+    api = FakeApi(files, tmp_path)
+
+    report = fr.orchestrate(api, 'org/ds', now=NOW)
+    assert (report.ids_backfilled, report.ids_pending) == (3, 0)
+    assert report.pending_collections == ()
+    assert report.superseded_captures == 2
+    assert len(bulk_readers) == 1
+    assert bulk_readers[0].closed
+    assert report.bulk_pack_count == 1
+    index = published_rows(api, f'{fr.INDEXES_PREFIX}/hle.jsonl')
+    assert {row['superseded_by'] for row in index.values()} == {
+        uuids[2],
+        None,
+    }
+    report = fr.orchestrate(api, 'org/ds', now=NOW)
+    assert report.noop
+    assert report.ids_backfilled == 0
+    assert len(bulk_readers) == 1
+    assert report.bulk_pack_count == 0
+
+
+def test_bootstrap_ids_is_compatibility_alias(
+    tmp_path: Path, bulk_readers
+) -> None:
+    files: dict[str, bytes] = {}
+    uuids = seed_captures(files, 'hle', ['100', '200'])
+    seed_legacy_snapshot(files, uuids)
+    normal = FakeApi(files, tmp_path / 'normal')
+    alias = FakeApi(files, tmp_path / 'alias')
+    normal_report = fr.orchestrate(normal, 'org/ds', now=NOW)
+    alias_report = fr.orchestrate(alias, 'org/ds', now=NOW, bootstrap_ids=True)
+    assert normal.files == alias.files
+    assert replace(normal_report, duration_seconds=0) == replace(
+        alias_report, duration_seconds=0
+    )
+    assert len(bulk_readers) == 2
+    assert all(
+        reader.closed and reader.pack_count == 1 for reader in bulk_readers
+    )
+
+
+def test_bulk_reader_closes_and_translates_errors(
+    tmp_path, monkeypatch, bulk_readers
+):
+    files = {}
+    uuids = seed_captures(files, 'hle', ['100'])
+    seed_legacy_snapshot(files, uuids)
+
+    def unreadable(self, paths):
+        raise fr.FlatSnapshotError('Cannot read pinned object')
+
+    monkeypatch.setattr(FakeFlatSnapshotReader, 'read_many', unreadable)
+    with pytest.raises(fr.FlatRebuildError, match='Cannot read pinned object'):
+        fr.orchestrate(FakeApi(files, tmp_path), 'org/ds', now=NOW)
+    assert len(bulk_readers) == 1
+    assert bulk_readers[0].closed
+
+
+def test_all_id_backfill_and_semantic_comparison_share_real_git_pack(
+    tmp_path, monkeypatch
+):
+    if shutil.which('git') is None:
+        pytest.skip('Git is required for the local bulk-reader fixture')
+    count = fr.BACKFILL_CHUNK + 1
+    files = {}
+    uuids = seed_captures(files, 'hle', [str(i) for i in range(count)])
+    seed_legacy_snapshot(files, uuids)
+    touched = fr.object_path_for(uuids[0], suffix='.json')
+    unused = 'flat/objects/unused/unused.json'
+    sample = 'flat/objects/unused/sample.jsonl'
+    files[unused] = b'{"unused": true}'
+    files[sample] = b'{"sample": true}\n'
+    files[fr.RETIRED_LIST_PATH] = b''
+    changed = f'data/hle/dev/model/{uuids[0]}.json'
+    files[changed] = json.dumps(json.loads(files[changed]), indent=2).encode()
+
+    def pointer(payload):
+        return (
+            'version https://git-lfs.github.com/spec/v1\n'
+            f'oid sha256:{fr.sha256_bytes(payload)}\n'
+            f'size {len(payload)}\n'
+        ).encode()
+
+    work = tmp_path / 'source repository'
+    work.mkdir()
+
+    def git(*args, cwd=work):
+        return subprocess.run(
+            ['git', *args], cwd=cwd, capture_output=True, text=True, check=True
+        ).stdout.strip()
+
+    git('init', '--initial-branch=fixture')
+    git('config', 'user.name', 'Fixture')
+    git('config', 'user.email', 'fixture@example.invalid')
+    for path, payload in files.items():
+        target = work / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(
+            pointer(payload) if path in (touched, unused, sample) else payload
+        )
+    git('add', '.')
+    git('commit', '-m', 'Published aggregate fixture')
+    pinned = git('rev-parse', 'HEAD')
+    remote = tmp_path / 'remote repository.git'
+    git('clone', '--bare', str(work), str(remote))
+
+    class PinnedApi(FakeApi):
+        def __init__(self, root):
+            super().__init__(files, root)
+            self.info_calls = 0
+            self.pinned_downloads = []
+
+        def repo_info(self, *, repo_id, repo_type):
+            assert (repo_id, repo_type) == ('org/ds', 'dataset')
+            self.info_calls += 1
+            return SimpleNamespace(sha=pinned)
+
+        def hf_hub_download(self, repo_id, repo_type, filename, revision=None):
+            if filename.startswith('flat/objects/'):
+                assert filename == touched
+                assert revision == pinned
+                self.pinned_downloads.append((filename, revision))
+            else:
+                assert filename != fr.RETIRED_LIST_PATH
+            return super().hf_hub_download(repo_id, repo_type, filename)
+
+    readers = []
+
+    class ObservedReader(flat_snapshot.FlatSnapshotReader):
+        def __enter__(self):
+            super().__enter__()
+            self.checkout_path = self._directory
+            assert not (self.checkout_path / sample).exists()
+            return self
+
+    def create_reader(api, repo_id):
+        reader = ObservedReader(api, repo_id, remote_url=remote.as_uri())
+        readers.append(reader)
+        return reader
+
+    monkeypatch.setattr(fr, 'FlatSnapshotReader', create_reader)
+    normal = PinnedApi(tmp_path / 'normal')
+    alias = PinnedApi(tmp_path / 'alias')
+    reports = [
+        fr.orchestrate(normal, 'org/ds', now=NOW),
+        fr.orchestrate(alias, 'org/ds', now=NOW, bootstrap_ids=True),
+    ]
+    assert normal.files == alias.files
+    for api, report in zip((normal, alias), reports, strict=True):
+        assert report.ids_backfilled == count
+        assert report.ids_pending == 0
+        assert report.superseded_captures == count - 1
+        assert report.bulk_revision == pinned
+        assert report.bulk_pack_count == 1
+        assert report.bulk_lfs_download_count == 1
+        assert report.bulk_lfs_download_paths == (touched,)
+        assert api.info_calls == 1
+        assert api.pinned_downloads == [(touched, pinned)]
+        assert any(pinned in line for line in fr.summary_lines(report))
+        assert any(touched in line for line in fr.summary_lines(report))
+    assert len(readers) == 2
+    assert all(not reader.checkout_path.exists() for reader in readers)
+
+    # The unchanged manifest still reads the reserialized data's old object.
+    noop = fr.orchestrate(normal, 'org/ds', now=NOW)
+    assert noop.noop
+    assert noop.ids_backfilled == 0
+    assert noop.bulk_pack_count == 1
+    assert len(readers) == 3
+    assert not readers[-1].checkout_path.exists()
