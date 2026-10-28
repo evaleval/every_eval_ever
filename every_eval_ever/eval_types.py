@@ -364,7 +364,8 @@ class SourceDataHf(BaseModel):
     )
     hf_split: str | None = Field(None, description='One of train, val or test.')
     samples_number: int | None = Field(
-        None, description='Number of samples in the dataset'
+        None,
+        description='Number of items the reported score covers (the evaluated subset when it differs from the dataset size)',
     )
     sample_ids: list[str] | None = Field(
         None, description='Array of sample ids used for evaluation'
