@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
+from every_eval_ever import io as eee_io
 from every_eval_ever.eval_types import EvaluationLog
 from every_eval_ever.helpers.io import (
     _create_parent_directories,
@@ -66,12 +67,23 @@ def _reject_base_below_data(base_dir: Path, output_dir: Path) -> None:
         )
 
 
+def _reject_existing_variant(path: Path) -> None:
+    variants = eee_io.existing_local_variants(path)
+    if variants:
+        rendered = ', '.join(str(variant) for variant in variants)
+        raise FileExistsError(
+            'refusing to create another physical variant of one logical '
+            f'EEE result: {rendered}'
+        )
+
+
 def _prepare_sample_artifact(
     log: EvaluationLog,
     file_uuid: str,
     output_dir: Path,
     staged_output_dir: Path | None,
     collection_override: str | None,
+    compression: eee_io.Compression,
 ) -> _PreparedArtifact | None:
     detailed = log.detailed_evaluation_results
     if detailed is None:
@@ -102,7 +114,7 @@ def _prepare_sample_artifact(
     if detailed.file_path != expected_repo_path:
         raise ValueError(
             'detailed_evaluation_results.file_path must match the aggregate '
-            'repository path and UUID: expected '
+            'repository path and UUID before publication: expected '
             f'{expected_repo_path!r}, got {detailed.file_path!r}'
         )
     source_path = (
@@ -113,8 +125,8 @@ def _prepare_sample_artifact(
             f'converter sample artifact was not staged at {source_path}'
         )
 
-    content = source_path.read_bytes()
-    lines = content.splitlines()
+    uncompressed_content = source_path.read_bytes()
+    lines = uncompressed_content.splitlines()
     if len(lines) != detailed.total_rows:
         raise ValueError(
             f'staged sample row count is {len(lines)}, expected '
@@ -144,15 +156,28 @@ def _prepare_sample_artifact(
         raise ValueError(
             f'unsupported detailed-results hash algorithm: {algorithm!r}'
         )
-    checksum = hashlib.sha256(content).hexdigest()
-    if checksum != detailed.checksum:
+    staged_checksum = hashlib.sha256(uncompressed_content).hexdigest()
+    if staged_checksum != detailed.checksum:
         raise ValueError(
             'staged sample checksum does not match '
             'detailed_evaluation_results.checksum'
         )
 
+    content = eee_io.compress_bytes(uncompressed_content, compression)
+    physical_name = eee_io.add_compression_suffix(
+        Path(expected_name), compression
+    ).name
+    physical_repo_path = datastore_repo_file_path(
+        collection_override or source_data.dataset_name,
+        log.model_info.id,
+        log.model_info.developer,
+        physical_name,
+    )
+    detailed.file_path = physical_repo_path
+    detailed.checksum = hashlib.sha256(content).hexdigest()
+
     return _PreparedArtifact(
-        path=output_dir / expected_name,
+        path=output_dir / physical_name,
         content=content,
     )
 
@@ -164,6 +189,8 @@ def publish_evaluation_logs(
     *,
     staged_output_dir: str | Path | None = None,
     collection_override: str | None = None,
+    aggregate_compression: eee_io.Compression = eee_io.COMPRESSION_NONE,
+    samples_compression: eee_io.Compression = eee_io.COMPRESSION_NONE,
 ) -> list[Path]:
     """Validate and atomically publish a converter batch.
 
@@ -178,10 +205,19 @@ def publish_evaluation_logs(
     ``EvaluationLogOutput.base_dir`` and ``default_failure_report_path`` take
     the opposite convention, ``data/<collection>``.
 
+    Converter adapters always stage ordinary UTF-8 JSON/JSONL. Compression is
+    a publication concern: this function optionally compresses the final bytes,
+    updates the aggregate's companion path/checksum to describe those bytes,
+    then preflights and writes the whole batch atomically.
+
     Raises:
         ValueError: If *base_output_dir* is a child of a ``data`` directory,
             which would publish one level too deep whatever it is named.
     """
+    aggregate_compression = eee_io.normalize_compression(
+        aggregate_compression
+    )
+    samples_compression = eee_io.normalize_compression(samples_compression)
 
     logs = list(logs)
     file_uuids = [require_uuid4(value) for value in file_uuids]
@@ -196,7 +232,7 @@ def publish_evaluation_logs(
     )
     prepared: list[_PreparedArtifact] = []
     aggregate_paths: list[Path] = []
-    planned_paths: set[Path] = set()
+    planned_keys: set[eee_io.ResultKey] = set()
     route_owners: dict[Path, tuple[str, str]] = {}
 
     for raw_log, file_uuid in zip(logs, file_uuids):
@@ -216,33 +252,47 @@ def publish_evaluation_logs(
                 f'{route_owner!r}'
             )
         route_owners[output_dir] = route_owner
-        aggregate_path = output_dir / f'{file_uuid}.json'
+
         sample = _prepare_sample_artifact(
             log,
             file_uuid,
             output_dir,
             staged_root,
             collection_override,
+            samples_compression,
         )
+        aggregate_base = output_dir / f'{file_uuid}.json'
+        aggregate_path = eee_io.add_compression_suffix(
+            aggregate_base, aggregate_compression
+        )
+        aggregate_bytes = (
+            json.dumps(
+                log.model_dump(mode='json', exclude_none=True),
+                indent=2,
+                ensure_ascii=False,
+                allow_nan=False,
+            )
+            + '\n'
+        ).encode('utf-8')
         aggregate = _PreparedArtifact(
             path=aggregate_path,
-            content=(
-                json.dumps(
-                    log.model_dump(mode='json', exclude_none=True),
-                    indent=2,
-                    ensure_ascii=False,
-                    allow_nan=False,
-                )
-                + '\n'
-            ).encode('utf-8'),
+            content=eee_io.compress_bytes(
+                aggregate_bytes, aggregate_compression
+            ),
         )
+
         artifacts = [aggregate] if sample is None else [sample, aggregate]
         for artifact in artifacts:
-            if artifact.path in planned_paths or artifact.path.exists():
+            key = eee_io.logical_result_key(artifact.path)
+            if key is None:
+                raise AssertionError(f'not an EEE result path: {artifact.path}')
+            if key in planned_keys:
                 raise FileExistsError(
-                    f'refusing to overwrite output file {artifact.path}'
+                    'batch would create multiple physical variants of one '
+                    f'logical EEE result: {artifact.path}'
                 )
-            planned_paths.add(artifact.path)
+            _reject_existing_variant(artifact.path)
+            planned_keys.add(key)
             prepared.append(artifact)
         aggregate_paths.append(aggregate_path)
 

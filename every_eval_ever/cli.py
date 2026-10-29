@@ -10,6 +10,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from every_eval_ever import io as eee_io
 from every_eval_ever.converters.common.publication import (
     publish_evaluation_logs,
 )
@@ -20,6 +21,40 @@ from every_eval_ever.helpers.io import (
     default_failure_report_path,
     save_failure_report,
 )
+
+
+def _resolved_compression(
+    args: argparse.Namespace, kind: eee_io.ResultKind
+) -> eee_io.Compression:
+    """Resolve one output kind, including hand-built legacy Namespaces."""
+    if kind == 'aggregate':
+        override = getattr(args, 'compress_aggregate', None)
+    elif kind == 'samples':
+        override = getattr(args, 'compress_samples', None)
+    else:
+        raise ValueError(f'unsupported result kind: {kind!r}')
+
+    compression = (
+        override
+        if override is not None
+        else getattr(args, 'compress', eee_io.COMPRESSION_NONE)
+    )
+    return eee_io.normalize_compression(compression)
+
+
+def _publication_compression_kwargs(
+    args: argparse.Namespace,
+) -> dict[str, eee_io.Compression]:
+    """Return only non-default publisher compression overrides."""
+    kwargs: dict[str, eee_io.Compression] = {}
+    aggregate = _resolved_compression(args, 'aggregate')
+    samples = _resolved_compression(args, 'samples')
+    if aggregate != eee_io.COMPRESSION_NONE:
+        kwargs['aggregate_compression'] = aggregate
+    if samples != eee_io.COMPRESSION_NONE:
+        kwargs['samples_compression'] = samples
+    return kwargs
+
 
 EVALUATOR_RELATIONSHIP_CHOICES = [
     'first_party',
@@ -196,6 +231,7 @@ def _cmd_convert_lm_eval(args: argparse.Namespace) -> int:
                 output_dir,
                 publish_uuids,
                 staged_output_dir=staging_dir,
+                **_publication_compression_kwargs(args),
             )
             if publish_logs
             else []
@@ -283,6 +319,7 @@ def _cmd_convert_inspect(args: argparse.Namespace) -> int:
                 args.output_dir,
                 eval_uuids,
                 staged_output_dir=staging_dir,
+                **_publication_compression_kwargs(args),
             )
             if logs
             else []
@@ -356,6 +393,7 @@ def _cmd_convert_helm(args: argparse.Namespace) -> int:
                 args.output_dir,
                 eval_uuids,
                 staged_output_dir=staging_dir,
+                **_publication_compression_kwargs(args),
             )
             if logs
             else []
@@ -500,7 +538,12 @@ def _cmd_convert_alpaca_eval(args: argparse.Namespace) -> int:
             json.dump(adapter.snapshot.to_payload(), handle, indent=2)
         print(f'Upstream snapshot: {raw_path}')
 
-    paths = publish_evaluation_logs(logs_to_publish, output_dir, eval_uuids)
+    paths = publish_evaluation_logs(
+        logs_to_publish,
+        output_dir,
+        eval_uuids,
+        **_publication_compression_kwargs(args),
+    )
     for path in paths:
         print(f'  {path}')
     for version, conversion_result in conversion_results:
@@ -522,14 +565,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog='every_eval_ever',
         description=(
-            'CLI for validating and converting evaluation results into the '
-            'Every Eval Ever schema.'
+            'CLI for validating, converting, and transcoding evaluation '
+            'results in the Every Eval Ever schema.'
         ),
         epilog=(
             'Examples:\n'
             '  every_eval_ever convert lm_eval --log_path results.json --output_dir data\n'
             '  every_eval_ever convert inspect --log_path inspect_log.json --output_dir data\n'
-            '  every_eval_ever convert helm --log_path helm_run_dir --output_dir data'
+            '  every_eval_ever convert helm --log_path helm_run_dir --output_dir data\n'
+            '  every_eval_ever transcode data --to zst'
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -576,6 +620,35 @@ def build_parser() -> argparse.ArgumentParser:
         'paths',
         nargs='+',
         help='One or more JSON files or directories containing JSON files.',
+    )
+
+    transcode_parser = subparsers.add_parser(
+        'transcode',
+        help='Change the physical compression of existing EEE results',
+        description=(
+            'Transcode existing aggregate/sample result pairs while preserving '
+            'their logical contents and repository relationships.'
+        ),
+    )
+    transcode_parser.add_argument(
+        'paths',
+        nargs='+',
+        help=(
+            'Aggregate/sample files, directories, or glob patterns. Sample '
+            'paths are resolved back to their aggregate record.'
+        ),
+    )
+    transcode_parser.add_argument(
+        '--to',
+        dest='transcode_compression',
+        choices=eee_io.COMPRESSION_CHOICES,
+        required=True,
+        help='Target physical compression. Use none to decompress.',
+    )
+    transcode_parser.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='Validate and show planned replacements without modifying files.',
     )
 
     convert_parser = subparsers.add_parser(
@@ -641,6 +714,29 @@ def build_parser() -> argparse.ArgumentParser:
             '--eval-library-version',
             default='unknown',
             help='Evaluation library version recorded in eval_library.version.',
+        )
+        source_parser.add_argument(
+            '--compress',
+            choices=eee_io.COMPRESSION_CHOICES,
+            default=eee_io.COMPRESSION_NONE,
+            help=(
+                'Compression for aggregate and sample output unless a '
+                'per-kind override is supplied (default: none).'
+            ),
+        )
+        source_parser.add_argument(
+            '--compress-aggregate',
+            '--compress_aggregate',
+            choices=eee_io.COMPRESSION_CHOICES,
+            default=None,
+            help='Override --compress for aggregate JSON output.',
+        )
+        source_parser.add_argument(
+            '--compress-samples',
+            '--compress_samples',
+            choices=eee_io.COMPRESSION_CHOICES,
+            default=None,
+            help='Override --compress for instance-level JSONL output.',
         )
 
         if source == 'alpaca_eval':
@@ -769,6 +865,40 @@ def main(argv: list[str] | None = None) -> int:
         )
 
         return check_duplicates_main(args.paths)
+
+    if args.command == 'transcode':
+        from every_eval_ever.transcode import TranscodeError, transcode_paths
+
+        try:
+            results = transcode_paths(
+                args.paths,
+                args.transcode_compression,
+                dry_run=args.dry_run,
+            )
+        except (TranscodeError, eee_io.CodecUnavailableError) as exc:
+            print(f'transcode: {exc}', file=sys.stderr)
+            return 1
+
+        action = 'Would transcode' if args.dry_run else 'Transcoded'
+        changed = sum(result.changed for result in results)
+        print(
+            f'{action} {changed} of {len(results)} logical result(s) '
+            f'to {args.transcode_compression}.'
+        )
+        for result in results:
+            if not result.changed:
+                print(f'  unchanged: {result.aggregate_path}')
+                continue
+            print(
+                f'  {result.source_aggregate_path} -> '
+                f'{result.aggregate_path}'
+            )
+            if result.source_samples_path is not None:
+                print(
+                    f'  {result.source_samples_path} -> '
+                    f'{result.samples_path}'
+                )
+        return 0
 
     if args.command == 'convert':
         if args.source == 'lm_eval':

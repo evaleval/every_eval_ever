@@ -42,11 +42,18 @@ helm = [
 ]
 paperswithcode = ["pgdumplib>=4.0.0"]
 wild = ["pyarrow>=14.0"]  # every_eval_ever/adapters/wild reads WILD-raw parquet via pyarrow
+# Python 3.14 ships compression.zstd. Older supported Pythons use the official
+# backport of that API so this feature does not conflict with HELM's legacy
+# python-zstandard==0.18.x dependency.
+zst = ["backports.zstd>=1.0; python_version < '3.14'"]
+lz4 = ["lz4>=4.4"]
 all = [
     "every-eval-ever[inspect]",
     "every-eval-ever[helm]",
     "every-eval-ever[paperswithcode]",
     "every-eval-ever[wild]",
+    "every-eval-ever[zst]",
+    "every-eval-ever[lz4]",
 ]
 
 [project.scripts]
