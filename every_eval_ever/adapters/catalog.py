@@ -280,6 +280,22 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         ),
     ),
     AdapterSpec(
+        key='frontier_cs2',
+        module='every_eval_ever.adapters.frontier_cs2.adapter',
+        collections=('frontier-cs-2',),
+        output_scope='collection',
+        cadence='weekly',
+        weekday=0,
+        timeout_minutes=30,
+        skip_if_unchanged=True,
+        captures_raw=True,
+        notes=(
+            'Fetches formal run results and trace manifest from '
+            'FrontierCS2/FrontierCS-2-runs on Hugging Face. Converts 48 tasks '
+            'across 19 models into per-model evaluation logs.'
+        ),
+    ),
+    AdapterSpec(
         key='global_mmlu_lite',
         module='every_eval_ever.adapters.global_mmlu_lite.adapter',
         collections=('global-mmlu-lite',),
