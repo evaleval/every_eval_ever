@@ -1,6 +1,6 @@
 import hashlib
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +12,11 @@ _UUID_FILE_RE = re.compile(
 
 def convert_timestamp_to_unix_format(timestamp: str) -> str:
     dt = datetime.fromisoformat(timestamp)
+    if dt.tzinfo is None:
+        # A stamp without an offset has no timezone of its own, and reading it as
+        # the converting machine's local time made the same log produce different
+        # instants on different machines. Timestamps in the datastore are UTC.
+        dt = dt.replace(tzinfo=timezone.utc)
     return str(dt.timestamp())
 
 
