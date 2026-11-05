@@ -476,9 +476,17 @@ def cmd_run(args: argparse.Namespace) -> int:
     if not dry_run:
         from huggingface_hub import HfApi
 
+        submit.check_production_guard(
+            args.datastore_repo, allow_production=args.allow_production
+        )
+
         api = HfApi()
         raw_store = store.RawStore(api, repo_id=args.raw_repo)
-        submitter = submit.DatastoreSubmitter(api, repo_id=args.datastore_repo)
+        submitter = submit.DatastoreSubmitter(
+            api,
+            repo_id=args.datastore_repo,
+            allow_production=args.allow_production,
+        )
         # Everything answerable without running the adapter is answered here.
         # All of it is caught later anyway, at the publish step, but by then
         # the adapter has scraped a leaderboard for forty-five minutes for
@@ -770,6 +778,14 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             'Convert and publish everything, ignoring both the freshness '
             'skip and the de-duplication ledger.'
+        ),
+    )
+    run_parser.add_argument(
+        '--allow-production',
+        action='store_true',
+        default=False,
+        help=(
+            'Authorize direct commits to the production datastore even when running outside GitHub Actions.'
         ),
     )
     run_parser.add_argument(
