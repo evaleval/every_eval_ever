@@ -374,6 +374,22 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         ),
     ),
     AdapterSpec(
+        key='measurement_db',
+        module='every_eval_ever.adapters.measurement_db.adapter',
+        collections=('measurement-db',),
+        cadence='weekly',
+        weekday=3,
+        timeout_minutes=45,
+        required_env=('HF_TOKEN',),
+        with_packages=('pyarrow',),
+        notes=(
+            'Reads aims-foundations/measurement-db benchmark parquet tables '
+            '(gated HF dataset requiring HF_TOKEN), pinned to the resolved '
+            'commit and characterization.yaml table hashes; skips overlapping '
+            'and withheld benchmarks by default.'
+        ),
+    ),
+    AdapterSpec(
         key='mmlu_pro',
         module='every_eval_ever.adapters.mmlu_pro.adapter',
         collections=('mmlu-pro',),
