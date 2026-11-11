@@ -100,6 +100,7 @@ re-hosting bytes that are already durably stored.
 | `typed_decisions` | Local run rows + predictions JSONL (typed-decisions) | Converts one typed-decisions run (two local JSONL files) into `data/typed-decisions/`: one aggregate accuracy over all typed decisions (choice/noul/score) plus a per-decision `*_samples.jsonl` sidecar. Local inputs only — not scheduled. |
 | `paperswithcode` | Papers with Code PostgreSQL dumps | Converts PwC leaderboard entries into `data/paperswithcode/`. Metric bounds and direction are resolved against a vendored eval-card-registry snapshot; unknown metrics fail the run rather than getting invented bounds. Needs the `paperswithcode` extra. |
 | `wild` | HuggingFace (`kensho/WILD-raw`) | Converts the WILD-raw item-level eval responses (65 models × 27 benchmarks, run with Inspect AI) into `data/wild/`: aggregate accuracy per model×benchmark and per subtask, with optional per-item `_samples.jsonl` sidecars (`--include-instances`). See [`wild/README.md`](wild/README.md). |
+| `measurement_db` | HuggingFace (`aims-foundations/measurement-db`) | Converts the AI Measurement Data Bank item-level evaluation tables (6 Parquet tables per benchmark) into `data/measurement-db/`: one aggregate record per `(benchmark, subject)` plus per-condition breakdowns, with optional per-item `_samples.jsonl` sidecars (`--include-instances`). See [`measurement_db/README.md`](measurement_db/README.md). |
 
 ### Papers with Code DrugBank
 
