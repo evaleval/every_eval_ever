@@ -12,6 +12,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
 from urllib.error import URLError
+from urllib.parse import urljoin
 from urllib.request import Request, urlopen
 
 from every_eval_ever.eval_types import (
@@ -37,6 +38,7 @@ from every_eval_ever.helpers import (
     SCHEMA_VERSION,
     EvaluationLogOutput,
     SourceConversionResult,
+    SourceRecordExclusion,
     SourceRecordFailure,
     default_failure_report_path,
     get_developer,
@@ -55,12 +57,21 @@ OUTPUT_DIR = 'data/vals-ai'
 USER_AGENT = 'every-eval-ever vals-ai adapter'
 ASTRO_UNDEFINED = object()
 NAMESPACE_DEVELOPER_ALIASES = {
+    'deepseek-ai': 'deepseek',
     'grok': 'xai',
     'kimi': 'moonshotai',
     'meta-llama': 'meta',
     'qwen': 'alibaba',
     'togethercomputer': 'together',
 }
+ROUTE_PREFIXES = frozenset(
+    {'baseten', 'bedrock', 'fireworks', 'openrouter', 'together', 'vertex'}
+)
+#: Custom non-leaderboard pages linked under ``/benchmarks/`` that carry
+#: bespoke visualizations rather than model BenchmarkView scores.
+NON_LEADERBOARD_BENCHMARK_SLUGS = frozenset(
+    {'cyber_offense', 'mental-health', 'rsi_index'}
+)
 
 
 @dataclass(frozen=True)
@@ -105,10 +116,14 @@ class ValsModelIdentity:
     route: str | None = None
 
 
+class NoBenchmarkViewError(ValueError):
+    """Raised when a ``/benchmarks/<slug>`` page is not a BenchmarkView page."""
+
+
 class AstroIslandParser(HTMLParser):
     def __init__(self) -> None:
         super().__init__(convert_charrefs=False)
-        self.props: list[str] = []
+        self.islands: list[tuple[str, str]] = []
 
     def handle_starttag(
         self, tag: str, attrs: list[tuple[str, str | None]]
@@ -118,12 +133,10 @@ class AstroIslandParser(HTMLParser):
 
         attr_map = {name: value for name, value in attrs}
         component_url = attr_map.get('component-url') or ''
-        if 'BenchmarkView' not in component_url:
-            return
-
+        component_name = component_url.split('?', 1)[0].rsplit('/', 1)[-1]
         props = attr_map.get('props')
         if props:
-            self.props.append(props)
+            self.islands.append((component_name, props))
 
 
 def fetch_text(url: str) -> str:
@@ -176,25 +189,61 @@ def decode_astro_value(value: Any) -> Any:
     return value
 
 
-def extract_benchmark_view(page_html: str) -> dict[str, Any]:
+def extract_benchmark_view(
+    page_html: str,
+    source_url: str = BENCHMARKS_URL,
+) -> dict[str, Any]:
     parser = AstroIslandParser()
     parser.feed(page_html)
 
-    for raw_props in parser.props:
-        props = parse_astro_props(raw_props)
+    saw_benchmark_component = False
+    for component_name, raw_props in parser.islands:
+        is_bench_island = component_name.startswith(
+            ('BenchmarkView.', 'BenchmarkViewLoader.')
+        )
+        if is_bench_island:
+            saw_benchmark_component = True
+        try:
+            props = parse_astro_props(raw_props)
+        except (TypeError, ValueError):
+            if is_bench_island:
+                raise
+            continue
+        if not isinstance(props, dict) or (
+            'benchmarkView' not in props and 'benchmarkViewUrl' not in props
+        ):
+            continue
+        saw_benchmark_component = True
         decoded = decode_astro_value(props)
         benchmark_view = decoded.get('benchmarkView')
-        if not isinstance(benchmark_view, dict):
-            continue
+        if isinstance(benchmark_view, dict):
+            candidate = benchmark_view.get('default') or benchmark_view
+            if isinstance(candidate, dict) and {
+                'metadata',
+                'tasks',
+            }.issubset(candidate):
+                return candidate
 
-        candidate = benchmark_view.get('default') or benchmark_view
-        if isinstance(candidate, dict) and {
-            'metadata',
-            'tasks',
-        }.issubset(candidate):
-            return candidate
+        benchmark_view_url = decoded.get('benchmarkViewUrl')
+        if isinstance(benchmark_view_url, str) and benchmark_view_url.strip():
+            resolved_url = urljoin(source_url, benchmark_view_url.strip())
+            payload = json.loads(fetch_text(resolved_url))
+            candidate = (
+                payload.get('default') or payload
+                if isinstance(payload, dict)
+                else None
+            )
+            if isinstance(candidate, dict) and {
+                'metadata',
+                'tasks',
+            }.issubset(candidate):
+                return candidate
 
-    raise ValueError('Could not find BenchmarkView data in Vals.ai page')
+    if saw_benchmark_component:
+        raise ValueError('Could not find BenchmarkView data in Vals.ai page')
+    raise NoBenchmarkViewError(
+        'Page contains no BenchmarkView leaderboard island'
+    )
 
 
 def parse_astro_props(raw_props: str) -> dict[str, Any]:
@@ -205,7 +254,7 @@ def parse_astro_props(raw_props: str) -> dict[str, Any]:
 
 
 def normalize_benchmark_page(page_html: str, source_url: str) -> dict[str, Any]:
-    view = extract_benchmark_view(page_html)
+    view = extract_benchmark_view(page_html, source_url=source_url)
     metadata = view.get('metadata') or {}
     tasks = view.get('tasks') or {}
     if not isinstance(metadata, dict) or not isinstance(tasks, dict):
@@ -231,11 +280,41 @@ def extract_collection(
     slugs = benchmark_slugs or extract_benchmark_slugs(index_html)
     benchmarks = []
     source_failures: list[SourceRecordFailure] = []
+    source_exclusions: list[SourceRecordExclusion] = []
     for slug in slugs:
         source_url = f'{base_url.rstrip("/")}/benchmarks/{slug}'
         try:
             page_html = fetch_text(source_url)
             benchmarks.append(normalize_benchmark_page(page_html, source_url))
+        except NoBenchmarkViewError as exc:
+            if slug in NON_LEADERBOARD_BENCHMARK_SLUGS:
+                source_exclusions.append(
+                    SourceRecordExclusion(
+                        source_ref=source_url,
+                        reason=(
+                            f'Vals.ai page {slug!r} is a custom non-leaderboard '
+                            f'page ({exc})'
+                        ),
+                        source_record={
+                            'benchmark_slug': slug,
+                            'source_url': source_url,
+                        },
+                    )
+                )
+            else:
+                source_failures.append(
+                    SourceRecordFailure(
+                        source_ref=source_url,
+                        reason=(
+                            f'Vals.ai benchmark page {slug!r} is missing '
+                            f'BenchmarkView data: {exc}'
+                        ),
+                        source_record={
+                            'benchmark_slug': slug,
+                            'source_url': source_url,
+                        },
+                    )
+                )
         except Exception as exc:
             source_failures.append(
                 SourceRecordFailure(
@@ -251,13 +330,18 @@ def extract_collection(
                 )
             )
 
-    return {
+    result: dict[str, Any] = {
         'source_url': f'{base_url.rstrip("/")}/benchmarks',
         'benchmarks': benchmarks,
         'source_failures': [
             failure.model_dump() for failure in source_failures
         ],
     }
+    if source_exclusions:
+        result['source_exclusions'] = [
+            exclusion.model_dump() for exclusion in source_exclusions
+        ]
+    return result
 
 
 def iter_vals_metrics(payload: dict[str, Any]) -> list[ValsMetric]:
@@ -405,9 +489,60 @@ def build_index(
     return dict(result.records)
 
 
+def _build_casing_map(
+    metrics: list[ValsMetric],
+) -> dict[tuple[str, str], tuple[str, str]]:
+    """Map ``(developer.lower(), model_name.lower())`` to one deterministic spelling."""
+    variants: dict[tuple[str, str], set[tuple[str, str]]] = {}
+    for metric in metrics:
+        provider = _optional_str(metric.metrics.get('provider'))
+        try:
+            identity = resolve_model_identity(metric.model_id, provider)
+        except (TypeError, ValueError):
+            continue
+        key = (identity.developer.lower(), identity.model_name.lower())
+        variants.setdefault(key, set()).add(
+            (identity.developer, identity.model_name)
+        )
+    return {
+        key: min(
+            spellings,
+            key=lambda pair: (pair[1] != pair[1].lower(), pair),
+        )
+        for key, spellings in variants.items()
+        if len(spellings) > 1
+    }
+
+
+def _apply_casing(
+    identity: ValsModelIdentity,
+    case_map: dict[tuple[str, str], tuple[str, str]] | None,
+) -> ValsModelIdentity:
+    if not case_map:
+        return identity
+    target = case_map.get(
+        (identity.developer.lower(), identity.model_name.lower())
+    )
+    if target is None or target == (identity.developer, identity.model_name):
+        return identity
+    canon_dev, canon_model = target
+    return ValsModelIdentity(
+        raw_id=identity.raw_id,
+        developer=canon_dev,
+        model_name=canon_model,
+        model_id=get_model_id(canon_model, canon_dev),
+        inference_platform=identity.inference_platform,
+        inference_engine=identity.inference_engine,
+        route=identity.route,
+    )
+
+
 def _group_metrics(
     metrics: list[ValsMetric],
+    case_map: dict[tuple[str, str], tuple[str, str]] | None = None,
 ) -> SourceConversionResult[tuple[tuple[str, str], list[ValsMetric]]]:
+    if case_map is None:
+        case_map = _build_casing_map(metrics)
     raw_groups: dict[tuple[str, str], list[ValsMetric]] = {}
     for metric in metrics:
         raw_groups.setdefault(
@@ -421,7 +556,9 @@ def _group_metrics(
     for (benchmark_slug, raw_id), rows in sorted(raw_groups.items()):
         provider = _optional_str(rows[0].metrics.get('provider'))
         try:
-            identity = resolve_model_identity(raw_id, provider)
+            identity = _apply_casing(
+                resolve_model_identity(raw_id, provider), case_map
+            )
         except (TypeError, ValueError) as exc:
             failures.append(
                 SourceRecordFailure(
@@ -502,10 +639,13 @@ def _make_bundle(
     rows: list[ValsMetric],
     score_scale: ScoreScale,
     retrieved_timestamp: str,
+    case_map: dict[tuple[str, str], tuple[str, str]] | None = None,
 ) -> EvaluationBundle:
     first = rows[0]
     provider = _optional_str(first.metrics.get('provider'))
-    identity = resolve_model_identity(vals_model_id, provider)
+    identity = _apply_casing(
+        resolve_model_identity(vals_model_id, provider), case_map
+    )
     results = [
         make_result(row, score_scale=score_scale)
         for row in sorted(rows, key=lambda row: row.task_key)
@@ -514,8 +654,8 @@ def _make_bundle(
     log = EvaluationLog(
         schema_version=SCHEMA_VERSION,
         evaluation_id=(
-            f'vals-ai/{benchmark_slug}/'
-            f'{sanitize_filename(vals_model_id)}/{retrieved_timestamp}'
+            f'vals-ai/{benchmark_slug}/{sanitize_filename(vals_model_id)}/'
+            f'{retrieved_timestamp}'
         ),
         retrieved_timestamp=retrieved_timestamp,
         source_metadata=SourceMetadata(
@@ -528,7 +668,6 @@ def _make_bundle(
                 {
                     'benchmark_slug': benchmark_slug,
                     'benchmark_name': first.benchmark_name,
-                    'benchmark_updated': first.benchmark_updated,
                     'dataset_type': first.dataset_type,
                     'industry': first.industry,
                     'leaderboard_page_url': first.source_url,
@@ -580,11 +719,21 @@ def convert_logs(
         for failure in payload.get('source_failures', [])
         if isinstance(failure, dict)
     ]
+    source_exclusions = [
+        SourceRecordExclusion(
+            source_ref=str(exclusion.get('source_ref') or 'unknown source'),
+            reason=str(exclusion.get('reason') or 'unknown exclusion'),
+            source_record=exclusion.get('source_record'),
+        )
+        for exclusion in payload.get('source_exclusions', [])
+        if isinstance(exclusion, dict)
+    ]
     metric_result = iter_vals_metrics_result(payload)
     if (
         not metric_result.records
         and not metric_result.failures
         and not source_failures
+        and not source_exclusions
     ):
         raise ValueError(
             'Vals.ai payload did not contain any scored model rows'
@@ -595,13 +744,15 @@ def convert_logs(
             metric_result.records
         ).items()
     }
-    group_result = _group_metrics(metric_result.records)
+    case_map = _build_casing_map(metric_result.records)
+    group_result = _group_metrics(metric_result.records, case_map=case_map)
     bundles = []
     failures = [
         *source_failures,
         *metric_result.failures,
         *group_result.failures,
     ]
+    exclusions = [*source_exclusions, *metric_result.exclusions]
 
     for (benchmark_slug, vals_model_id), rows in group_result.records:
         try:
@@ -612,6 +763,7 @@ def convert_logs(
                     rows,
                     score_scales[benchmark_slug],
                     timestamp,
+                    case_map=case_map,
                 )
             )
         except (TypeError, ValueError) as exc:
@@ -623,7 +775,7 @@ def convert_logs(
                 )
             )
 
-    if not bundles and not failures:
+    if not bundles and not failures and not exclusions:
         failures.append(
             SourceRecordFailure(
                 source_ref='Vals.ai payload',
@@ -632,9 +784,14 @@ def convert_logs(
         )
     return SourceConversionResult(
         source_name='Vals.ai',
-        total_records=metric_result.total_records + len(source_failures),
+        total_records=(
+            metric_result.total_records
+            + len(source_failures)
+            + len(source_exclusions)
+        ),
         records=bundles,
         failures=failures,
+        exclusions=exclusions,
     )
 
 
@@ -662,7 +819,6 @@ def make_result(
         {
             'benchmark_slug': row.benchmark_slug,
             'benchmark_name': row.benchmark_name,
-            'benchmark_updated': row.benchmark_updated,
             'task_key': row.task_key,
             'task_name': row.task_name,
             'dataset_type': row.dataset_type,
@@ -854,9 +1010,12 @@ def resolve_model_identity(
         model_name = parts[4]
         inference_engine = 'NIM'
         route = '/'.join(parts[:3])
-    elif len(parts) == 3 and _slug(parts[0]) == 'together':
+    elif len(parts) == 3 and _slug(parts[0]) in ROUTE_PREFIXES:
+        route_slug = _slug(parts[0])
         developer = _canonical_developer(parts[1])
-        model_name = parts[2]
+        model_name = (
+            parts[2] if route_slug == 'together' else parts[2].lower()
+        )
         route = parts[0]
     elif len(parts) == 2:
         developer = _canonical_developer(parts[0])
@@ -1005,8 +1164,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def main() -> None:
-    args = parse_args()
+def main(argv: list[str] | None = None) -> None:
+    args = parse_args(argv)
     payload = extract_collection(
         input_json=args.input_json,
         benchmark_slugs=args.benchmarks,

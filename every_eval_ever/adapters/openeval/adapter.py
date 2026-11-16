@@ -201,6 +201,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action='store_true',
         help='Also write instance-level *_samples.jsonl files.',
     )
+    parser.add_argument(
+        '--emit-source-version',
+        action='store_true',
+        help=f'Print the upstream {HF_REPO_ID} commit SHA and exit.',
+    )
     return parser.parse_args(argv)
 
 
@@ -340,21 +345,40 @@ def fetch_payload(
 
     api = HfApi()
     info = api.dataset_info(HF_REPO_ID, revision=revision)
+    resolved_sha = getattr(info, 'sha', None)
+    resolved_revision = resolved_sha or revision
     # Parquet shards are already durably addressable at this commit, so
     # record the reference instead of re-hosting hundreds of megabytes.
     raw_capture.record_pointer(
         kind='hf_dataset',
         reference=HF_REPO_ID,
-        revision=getattr(info, 'sha', None) or revision,
+        revision=resolved_sha,
         url=HF_DATASET_URL,
+        revision_required=True,
     )
     files = api.list_repo_files(
-        HF_REPO_ID, repo_type='dataset', revision=revision
+        HF_REPO_ID, repo_type='dataset', revision=resolved_revision
     )
-    bench_files = [path for path in files if path.startswith('bench/')]
-    item_files = sorted(path for path in files if path.startswith('item/'))
+    bench_files = sorted(
+        path
+        for path in files
+        if path.startswith('bench/') and path.endswith('.parquet')
+    )
+    if not bench_files:
+        bench_files = sorted(
+            path
+            for path in files
+            if path.startswith('_all_benchmarks/') and path.endswith('.parquet')
+        )
+    item_files = sorted(
+        path
+        for path in files
+        if path.startswith('item/') and path.endswith('.parquet')
+    )
     response_files = sorted(
-        path for path in files if path.startswith('response/')
+        path
+        for path in files
+        if path.startswith('response/') and path.endswith('.parquet')
     )
     total_response_shards = len(response_files)
     if max_response_shards is not None:
@@ -371,7 +395,7 @@ def fetch_payload(
             HF_REPO_ID,
             path,
             repo_type='dataset',
-            revision=revision,
+            revision=resolved_revision,
         )
         for path in bench_files
     ]
@@ -380,7 +404,7 @@ def fetch_payload(
             HF_REPO_ID,
             path,
             repo_type='dataset',
-            revision=revision,
+            revision=resolved_revision,
         )
         for path in response_files
     ]
@@ -391,7 +415,7 @@ def fetch_payload(
                 HF_REPO_ID,
                 path,
                 repo_type='dataset',
-                revision=revision,
+                revision=resolved_revision,
             )
             for path in item_files
         ]
@@ -1197,6 +1221,15 @@ def source_metadata(
             and downloaded_shards < total_shards
         )
     )
+    partial_details = (
+        {
+            'hf_commit': payload_metadata.get('hf_commit'),
+            'downloaded_response_shards': downloaded_shards,
+            'total_response_shards': total_shards,
+        }
+        if partial_export
+        else {}
+    )
     return SourceMetadata(
         source_name=SOURCE_NAME,
         source_type='evaluation_run',
@@ -1209,13 +1242,7 @@ def source_metadata(
                 'hf_dataset_url': HF_DATASET_URL,
                 'github_url': GITHUB_URL,
                 'hf_revision': revision,
-                'hf_commit': payload_metadata.get('hf_commit'),
-                'downloaded_response_shards': payload_metadata.get(
-                    'downloaded_response_shards'
-                ),
-                'total_response_shards': payload_metadata.get(
-                    'total_response_shards'
-                ),
+                **partial_details,
                 'max_response_shards': payload_metadata.get(
                     'max_response_shards'
                 ),
@@ -1256,7 +1283,7 @@ def _make_log_bundle(
     sanitized_model_id = model_info.id.replace('/', '_')
     log = EvaluationLog(
         schema_version=SCHEMA_VERSION,
-        evaluation_id=(f'openeval/{sanitized_model_id}/{gen_key}/{timestamp}'),
+        evaluation_id=f'openeval/{sanitized_model_id}/{gen_key}',
         retrieved_timestamp=timestamp,
         source_metadata=metadata,
         eval_library=EvalLibrary(name='OpenEval', version='unknown'),
@@ -1473,6 +1500,17 @@ def export_logs(bundles: list[LogBundle], output_dir: Path) -> list[Path]:
 
 
 def run(args: argparse.Namespace) -> int:
+    if getattr(args, 'emit_source_version', False):
+        if args.input_json is not None:
+            raise SystemExit(1)
+        from huggingface_hub import HfApi
+
+        sha = HfApi().dataset_info(HF_REPO_ID, revision=args.revision).sha
+        if not sha:
+            raise SystemExit(1)
+        print(sha)
+        return 0
+
     if args.input_json is not None:
         payload = load_payload(args.input_json)
     else:
@@ -1506,5 +1544,7 @@ def run(args: argparse.Namespace) -> int:
 
 
 if __name__ == '__main__':
-    written = run(parse_args())
-    print(f'Wrote {written} OpenEval model log(s).')
+    _args = parse_args()
+    written = run(_args)
+    if not _args.emit_source_version:
+        print(f'Wrote {written} OpenEval model log(s).')

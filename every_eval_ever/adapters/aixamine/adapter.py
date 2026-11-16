@@ -1,7 +1,7 @@
 """aiXamine adapter — converts aiXamine public-API evaluation reports into EEE.
 
 aiXamine (https://aixamine.qcri.org) is a safety, security and privacy-focused LLM trust-evaluation
-platform. It groups 46 static + 5 dynamic tests into 9 services. This adapter
+platform. It groups 46 static + 5 dynamic tests into 10 services. This adapter
 reads the aiXamine PUBLIC API and emits one aggregate EEE
 log per (model, service):
 

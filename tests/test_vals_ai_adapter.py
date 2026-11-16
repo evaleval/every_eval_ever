@@ -484,3 +484,123 @@ def test_export_paths_validate(tmp_path: Path):
         assert path.parent.parent.parent == output_dir
         report = validate_file(path)
         assert report.valid, report.errors
+
+
+def test_astro_benchmark_view_url_fetches_external_json_and_excludes_custom_pages(
+    monkeypatch,
+):
+    import json
+
+    view_props = (
+        '{&quot;benchmarkViewUrl&quot;:[0,&quot;/_astro/benchmark_view_aime.hash.json&quot;]}'
+    )
+    aime_html = (
+        '<astro-island component-url="/_astro/BenchmarkView.abc.js?dpl=dpl_1" '
+        f'props="{view_props}"></astro-island>'
+    )
+    rsi_html = (
+        '<astro-island component-url="/_astro/RsiBenchmarkView.xyz.js" '
+        'props="{&quot;section&quot;:[0,&quot;overview&quot;]}"></astro-island>'
+    )
+    view_json = json.dumps(
+        {
+            'metadata': {'benchmark': 'AIME', 'slug': 'aime'},
+            'tasks': {'overall': {'openai/gpt-5': {'accuracy': 95.0}}},
+        }
+    )
+
+    def fake_fetch(url: str) -> str:
+        if url == 'https://example.test/benchmarks':
+            return (
+                '<a href="/benchmarks/aime">AIME</a>'
+                '<a href="/benchmarks/rsi_index">RSI</a>'
+                '<a href="/benchmarks/broken_leaderboard">Broken</a>'
+            )
+        if url == 'https://example.test/benchmarks/aime':
+            return aime_html
+        if url == 'https://example.test/_astro/benchmark_view_aime.hash.json':
+            return view_json
+        if url in (
+            'https://example.test/benchmarks/rsi_index',
+            'https://example.test/benchmarks/broken_leaderboard',
+        ):
+            return rsi_html
+        raise AssertionError(f'unexpected url: {url}')
+
+    monkeypatch.setattr(adapter, 'fetch_text', fake_fetch)
+
+    payload = adapter.extract_collection(base_url='https://example.test')
+    result = adapter.convert_logs(payload, retrieved_timestamp='1234567890.0')
+
+    assert len(result.records) == 1
+    assert len(result.exclusions) == 1
+    assert result.exclusions[0].source_ref == (
+        'https://example.test/benchmarks/rsi_index'
+    )
+    assert len(result.failures) == 1
+    assert result.failures[0].source_ref == (
+        'https://example.test/benchmarks/broken_leaderboard'
+    )
+
+
+def test_vals_ai_routes_and_case_spelling_unification():
+    payload = {
+        'source_url': 'https://www.vals.ai/benchmarks',
+        'benchmarks': [
+            {
+                'source_url': 'https://www.vals.ai/benchmarks/b1',
+                'metadata': {'benchmark': 'B1', 'slug': 'b1'},
+                'tasks': {
+                    'overall': {
+                        'baseten/deepseek-ai/DeepSeek-V4': {
+                            'accuracy': 80.0,
+                            'provider': 'Baseten',
+                        },
+                        'kimi/kimi-k3': {'accuracy': 85.0},
+                    }
+                },
+            },
+            {
+                'source_url': 'https://www.vals.ai/benchmarks/b2',
+                'metadata': {'benchmark': 'B2', 'slug': 'b2'},
+                'tasks': {
+                    'overall': {
+                        'kimi/Kimi-K3': {'accuracy': 87.0},
+                    }
+                },
+            },
+        ],
+    }
+    bundles = adapter.make_logs(payload, retrieved_timestamp='1.0')
+    deepseek = [b for b in bundles if b.developer == 'deepseek']
+    assert len(deepseek) == 1
+    assert (
+        deepseek[0].log.model_info.additional_details['vals_route'] == 'baseten'
+    )
+
+    kimi = [b for b in bundles if b.developer == 'moonshotai']
+    assert len(kimi) == 2
+    assert {
+        (b.developer, b.model_name, b.log.model_info.name, b.log.model_info.id)
+        for b in kimi
+    } == {('moonshotai', 'kimi-k3', 'kimi-k3', 'moonshotai/kimi-k3')}
+
+    # Same-benchmark case collision is still rejected as a failure.
+    colliding = {
+        'source_url': 'https://www.vals.ai/benchmarks',
+        'benchmarks': [
+            {
+                'source_url': 'https://www.vals.ai/benchmarks/b1',
+                'metadata': {'benchmark': 'B1', 'slug': 'b1'},
+                'tasks': {
+                    'overall': {
+                        'kimi/kimi-k3': {'accuracy': 85.0},
+                        'kimi/Kimi-K3': {'accuracy': 87.0},
+                    }
+                },
+            }
+        ],
+    }
+    collision_result = adapter.convert_logs(colliding, retrieved_timestamp='1.0')
+    assert len(collision_result.failures) == 1
+    assert 'collide after canonicalization' in collision_result.failures[0].reason

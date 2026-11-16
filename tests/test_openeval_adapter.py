@@ -597,3 +597,75 @@ def test_export_rollback_does_not_delete_competing_file(
     )
     assert not first_path.exists()
     assert competing_path.read_text(encoding='utf-8') == 'competing process'
+
+
+def test_full_export_omits_volatile_commit_and_shard_counts():
+    payload = sample_payload() | {
+        'source_metadata': {
+            'hf_commit': 'abc123',
+            'downloaded_response_shards': 13,
+            'total_response_shards': 13,
+        }
+    }
+    bundles = adapter.make_logs(payload, retrieved_timestamp='1234567890.0')
+    details = bundles[0].log.source_metadata.additional_details
+    assert details['partial_export'] == 'false'
+    assert 'hf_commit' not in details
+    assert 'downloaded_response_shards' not in details
+    assert 'total_response_shards' not in details
+    assert '1234567890.0' not in bundles[0].log.evaluation_id
+
+
+def test_fetch_payload_accepts_all_benchmarks_directory(monkeypatch, tmp_path):
+    duckdb = pytest.importorskip('duckdb')
+
+    bench_parquet = tmp_path / 'bench.parquet'
+    resp_parquet = tmp_path / 'resp.parquet'
+    con = duckdb.connect()
+    con.execute(
+        f"COPY (SELECT 'ifeval' AS benchmark_name, '1.0' AS benchmark_version) "
+        f"TO '{bench_parquet}' (FORMAT PARQUET)"
+    )
+    con.execute(
+        f"COPY (SELECT 'ifeval_2026_0_gpt-4o_0' AS response_id, "
+        f"{{'name': 'gpt-4o'}} AS model, "
+        f"{{'metric': [{{'name': 'accuracy'}}], 'value': [0.9]}} AS scores, "
+        f"'{{}}' AS generation_params) TO '{resp_parquet}' (FORMAT PARQUET)"
+    )
+
+    class FakeApi:
+        def dataset_info(self, repo_id, revision=None):
+            return type('Info', (), {'sha': 'a' * 40})()
+
+        def list_repo_files(self, repo_id, repo_type=None, revision=None):
+            return [
+                '_all_benchmarks/train-00000-of-00001.parquet',
+                'response/train-00000-of-00001.parquet',
+            ]
+
+    def fake_download(repo_id, path, **kwargs):
+        return str(
+            bench_parquet
+            if path.startswith('_all_benchmarks/')
+            else resp_parquet
+        )
+
+    monkeypatch.setattr('huggingface_hub.HfApi', FakeApi)
+    monkeypatch.setattr('huggingface_hub.hf_hub_download', fake_download)
+
+    fetched = adapter.fetch_payload()
+    assert fetched['bench'][0]['benchmark_name'] == 'ifeval'
+    assert len(list(fetched['response'])) == 1
+
+
+def test_openeval_emit_source_version(monkeypatch, capsys):
+    sha = 'd' * 40
+
+    class FakeApi:
+        def dataset_info(self, repo_id, revision=None):
+            assert repo_id == adapter.HF_REPO_ID
+            return type('Info', (), {'sha': sha})()
+
+    monkeypatch.setattr('huggingface_hub.HfApi', FakeApi)
+    assert adapter.run(adapter.parse_args(['--emit-source-version'])) == 0
+    assert capsys.readouterr().out.strip() == sha
