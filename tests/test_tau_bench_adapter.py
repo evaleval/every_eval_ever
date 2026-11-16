@@ -555,3 +555,49 @@ def test_a_failing_record_leaves_no_partial_publication(tmp_path):
         adapter.export_logs(bundles, output_dir)
 
     assert not output_dir.exists()
+
+
+def test_pin_base_url_falls_back_to_git_ls_remote_on_403(monkeypatch):
+    import requests
+
+    sha = 'c' * 40
+
+    def rate_limited_fetch(url, *args, **kwargs):
+        resp = requests.Response()
+        resp.status_code = 403
+        http_err = requests.HTTPError('403 Forbidden', response=resp)
+        raise FetchError('GitHub rate limit') from http_err
+
+    monkeypatch.setattr(adapter, 'fetch_json', rate_limited_fetch)
+    monkeypatch.setattr(
+        adapter, '_git_ls_remote_commit', lambda owner, repo, ref: sha
+    )
+
+    pinned_url, resolved = adapter.pin_base_url(adapter.RAW_SUBMISSIONS_BASE_URL)
+    assert resolved == sha
+    assert sha in pinned_url
+
+
+def test_git_ls_remote_prefers_peeled_tag_and_emit_source_version(
+    monkeypatch, capsys
+):
+    tag_obj = '1' * 40
+    peeled_commit = '2' * 40
+
+    def fake_run(cmd, **kwargs):
+        out = f'{tag_obj}\trefs/tags/v1.0\n{peeled_commit}\trefs/tags/v1.0^{{}}\n'
+        return type('Proc', (), {'returncode': 0, 'stdout': out})()
+
+    monkeypatch.setattr(adapter.subprocess, 'run', fake_run)
+    assert (
+        adapter._git_ls_remote_commit('sierra-research', 'tau2-bench', 'v1.0')
+        == peeled_commit
+    )
+
+    monkeypatch.setattr(
+        adapter,
+        '_probe_submissions_commit',
+        lambda owner, repo, ref, path: peeled_commit,
+    )
+    assert adapter.run(adapter.parse_args(['--emit-source-version'])) == 0
+    assert capsys.readouterr().out.strip() == peeled_commit

@@ -27,7 +27,9 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
+import subprocess
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -53,6 +55,7 @@ from every_eval_ever.eval_types import (
 from every_eval_ever.helpers import (
     SCHEMA_VERSION,
     EvaluationLogOutput,
+    FetchError,
     SourceConversionResult,
     SourceRecordExclusion,
     SourceRecordFailure,
@@ -315,6 +318,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             '--output-dir when any submission fails.'
         ),
     )
+    parser.add_argument(
+        '--emit-source-version',
+        action='store_true',
+        help='Print the upstream tau2-bench commit SHA and exit.',
+    )
     return parser.parse_args(argv)
 
 
@@ -326,6 +334,36 @@ def _canonical_sha256(payload: Any) -> str:
     return hashlib.sha256(serialized.encode('utf-8')).hexdigest()
 
 
+def _git_ls_remote_commit(owner: str, repo: str, ref: str) -> str | None:
+    """Resolve ``owner/repo@ref`` to a commit SHA via ``git ls-remote``."""
+    env = dict(os.environ)
+    env['GIT_TERMINAL_PROMPT'] = '0'
+    query_refs = (
+        ['HEAD']
+        if ref == 'HEAD'
+        else [f'refs/heads/{ref}', f'refs/tags/{ref}^{{}}', f'refs/tags/{ref}']
+    )
+    completed = subprocess.run(
+        ['git', 'ls-remote', f'https://github.com/{owner}/{repo}.git', *query_refs],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    if completed.returncode != 0:
+        return None
+    found: dict[str, str] = {}
+    for line in completed.stdout.splitlines():
+        parts = line.split()
+        if len(parts) >= 2 and _COMMIT_SHA_RE.match(parts[0]):
+            found[parts[1]] = parts[0]
+    for target in query_refs:
+        if target in found:
+            return found[target]
+    return None
+
+
 def pin_base_url(base_url: str) -> tuple[str, str | None]:
     """Resolve a raw-GitHub base URL's ref to the commit it points at now.
 
@@ -335,9 +373,9 @@ def pin_base_url(base_url: str) -> tuple[str, str | None]:
     fetched, makes every URL in the run immutable and gives the batch one
     commit to record.
 
-    Returns the URL unchanged with ``None`` when the ref is already a commit
-    sha, or when the URL is not a raw-GitHub one; the caller is then relying on
-    ``content_sha256`` alone.
+    Returns ``(base_url, ref)`` when ``ref`` is already a commit sha, or
+    ``(base_url, None)`` when ``base_url`` is not a raw-GitHub URL; the caller
+    is then relying on ``content_sha256`` alone.
     """
     match = _RAW_GITHUB_RE.match(base_url)
     if match is None:
@@ -345,8 +383,20 @@ def pin_base_url(base_url: str) -> tuple[str, str | None]:
     owner, repo, ref, path = match.group('owner', 'repo', 'ref', 'path')
     if _COMMIT_SHA_RE.match(ref):
         return base_url, ref
-    commit = fetch_json(f'https://api.github.com/repos/{owner}/{repo}/commits/{ref}')
-    sha = (commit or {}).get('sha') if isinstance(commit, dict) else None
+    sha: str | None = None
+    try:
+        commit = fetch_json(
+            f'https://api.github.com/repos/{owner}/{repo}/commits/{ref}'
+        )
+        sha = (commit or {}).get('sha') if isinstance(commit, dict) else None
+    except FetchError as exc:
+        status = getattr(
+            getattr(exc.__cause__, 'response', None), 'status_code', None
+        )
+        if status in (403, 429):
+            sha = _git_ls_remote_commit(owner, repo, ref)
+        if sha is None:
+            raise
     if not isinstance(sha, str) or not _COMMIT_SHA_RE.match(sha):
         raise ValueError(
             f'Could not resolve {owner}/{repo}@{ref} to a commit; the '
@@ -551,8 +601,8 @@ def make_log(
     log = EvaluationLog(
         schema_version=SCHEMA_VERSION,
         evaluation_id=(
-            f'tau-bench/{sanitized_model_id}/'
-            f'{record.submission_id}/{retrieved_timestamp}'
+            f'tau-bench/{sanitized_model_id}/{record.submission_id}/'
+            f'{retrieved_timestamp}'
         ),
         evaluation_timestamp=evaluation_timestamp,
         retrieved_timestamp=retrieved_timestamp,
@@ -933,7 +983,6 @@ def make_model_details(
             'submission_date': submission.get('submission_date'),
             'submission_type': submission.get('submission_type'),
             'modality': submission.get('modality') or 'text',
-            'is_new': submission.get('is_new'),
             'trajectories_available': submission.get('trajectories_available'),
             'reasoning_effort': submission.get('reasoning_effort'),
             'model_release_date': model_release.get('release_date'),
@@ -1121,7 +1170,49 @@ def _detail_value(value: Any) -> str:
     return str(value)
 
 
+def _probe_submissions_commit(
+    owner: str, repo: str, ref: str, path: str
+) -> str | None:
+    """Return the latest commit touching ``path`` on ``ref``, without raw capture."""
+    if _COMMIT_SHA_RE.match(ref):
+        return ref
+    from urllib.error import HTTPError, URLError
+    from urllib.parse import urlencode
+    from urllib.request import Request, urlopen
+
+    query = urlencode({'path': path, 'sha': ref, 'per_page': 1})
+    url = f'https://api.github.com/repos/{owner}/{repo}/commits?{query}'
+    req = Request(url, headers={'Accept': 'application/vnd.github+json'})
+    try:
+        with urlopen(req, timeout=30) as resp:  # noqa: S310
+            commits = json.loads(resp.read().decode('utf-8'))
+        if isinstance(commits, list) and commits:
+            sha = commits[0].get('sha') if isinstance(commits[0], dict) else None
+            if isinstance(sha, str) and _COMMIT_SHA_RE.match(sha):
+                return sha
+    except HTTPError as exc:
+        if exc.code in (403, 429):
+            return _git_ls_remote_commit(owner, repo, ref)
+        return None
+    except (URLError, TimeoutError, ValueError):
+        return None
+    return None
+
+
 def run(args: argparse.Namespace) -> int:
+    if getattr(args, 'emit_source_version', False):
+        if args.input_dir is not None:
+            raise SystemExit(1)
+        match = _RAW_GITHUB_RE.match(args.base_url.rstrip('/'))
+        if match is None:
+            raise SystemExit(1)
+        owner, repo, ref, path = match.group('owner', 'repo', 'ref', 'path')
+        sha = _probe_submissions_commit(owner, repo, ref, path)
+        if not sha:
+            raise SystemExit(1)
+        print(sha)
+        return 0
+
     records = load_submissions(
         input_dir=args.input_dir,
         base_url=args.base_url,
@@ -1145,5 +1236,7 @@ def run(args: argparse.Namespace) -> int:
 
 
 if __name__ == '__main__':
-    written = run(parse_args())
-    print(f'Wrote {written} tau-bench submission log(s).')
+    _args = parse_args()
+    written = run(_args)
+    if not _args.emit_source_version:
+        print(f'Wrote {written} tau-bench submission log(s).')
