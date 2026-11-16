@@ -1318,3 +1318,197 @@ def test_verify_bootstrap_allows_planned_new_objects(tmp_path):
     assert not report.conflicts
     assert report.verified_files == 0
     assert row.object_path in api.files
+
+
+def test_verify_uses_lfs_sha256_and_catches_snapshot_hash_mismatch(
+    tmp_path: Path,
+) -> None:
+    sample = b'{"x":1}\n'
+    row = fr._row_with_samples(make_row(str(uuid4()), 'gsm8k'), sample)
+    data = record_bytes(row.object_uuid, 'gsm8k')
+    sample_path = fr.samples_path_for(row.legacy_path)
+    files = {
+        row.legacy_path: data,
+        row.object_path: data,
+        sample_path: sample,
+        row.instance_level_path: sample,
+    }
+    api = FakeApi(files, tmp_path)
+    downloaded: list[str] = []
+    orig = api.hf_hub_download
+
+    def track_download(**kwargs: Any) -> str:
+        downloaded.append(kwargs['filename'])
+        return orig(**kwargs)
+
+    api.hf_hub_download = track_download  # type: ignore[method-assign]
+    checked, reserialized, drift = fr.verify_rows(
+        api,
+        'org/ds',
+        [row],
+        {p: len(v) for p, v in files.items()},
+        lfs_sha256={
+            sample_path: row.instance_sha,
+            row.instance_level_path: row.instance_sha,
+        },
+    )
+    assert (checked, reserialized, drift) == (2, 0, [])
+    assert downloaded == [row.legacy_path, row.object_path]
+
+    # Drift on flat/objects/ alone (while data/ still matches row.sha256)
+    # must also be caught.
+    dest_corrupted = {
+        row.legacy_path: data,
+        row.object_path: b'{"corrupted":true}',
+        sample_path: sample,
+        row.instance_level_path: sample,
+    }
+    api_dest = FakeApi(dest_corrupted, tmp_path / 'dest_mut')
+    _, _, drift_dest = fr.verify_rows(
+        api_dest,
+        'org/ds',
+        [row],
+        {p: len(v) for p, v in dest_corrupted.items()},
+        lfs_sha256={
+            sample_path: row.instance_sha,
+            row.instance_level_path: row.instance_sha,
+        },
+    )
+    assert len(drift_dest) == 1
+    assert row.object_path in drift_dest[0]
+
+    # Even when source and destination hold identical bytes, mismatching
+    # row.sha256 is still flagged as drift.
+    parsed = json.loads(data)
+    parsed['evaluation_results'][0]['score_details']['score'] = 2
+    mutated = json.dumps(parsed).encode()
+    assert len(mutated) == row.size_bytes
+    both_mutated = {
+        row.legacy_path: mutated,
+        row.object_path: mutated,
+        sample_path: sample,
+        row.instance_level_path: sample,
+    }
+    api2 = FakeApi(both_mutated, tmp_path / 'mut')
+    checked2, reserialized2, drift2 = fr.verify_rows(
+        api2,
+        'org/ds',
+        [row],
+        {p: len(v) for p, v in both_mutated.items()},
+        lfs_sha256={
+            sample_path: row.instance_sha,
+            row.instance_level_path: row.instance_sha,
+        },
+    )
+    assert (checked2, reserialized2) == (2, 0)
+    assert len(drift2) == 1
+    assert row.object_path in drift2[0]
+
+
+def test_download_with_retry_backs_off_on_429_and_not_404_with_429_uuid(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    waited: list[int] = []
+    monkeypatch.setattr(store, 'wait_before_retry', waited.append)
+    api = FakeApi({'a.json': b'{}'}, tmp_path)
+    orig = api.hf_hub_download
+    calls = 0
+
+    def flaky(**kwargs: Any) -> str:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise RuntimeError('429 Too Many Requests')
+        return orig(**kwargs)
+
+    api.hf_hub_download = flaky  # type: ignore[method-assign]
+    local = fr._download_with_retry(api, 'org/ds', 'a.json')
+    assert Path(local).read_bytes() == b'{}'
+    assert calls == 2
+    assert waited == [1]
+
+    # A 404 or UUID containing "429" must never retry.
+    waited.clear()
+    resp = type('Resp', (), {'status_code': 404, 'headers': {}})()
+    err = EntryNotFoundError(
+        '404 Client Error (Request ID: Root=1-4290abcd) for '
+        'data/gsm8k/dev/model/e70acf51-0429-4c20-b7cc-51704d114d70.json',
+        resp,
+    )
+    assert not fr._is_retryable_download_error(err)
+    assert not fr._is_retryable_download_error(
+        EntryNotFoundError('data/gsm8k/dev/model/e70acf51-429-4c20-b7cc-51704d114d70.json')
+    )
+    assert not fr._is_retryable_download_error(
+        RuntimeError('failed reading data/math_500/dev/model/file.json')
+    )
+
+    # Real hf_hub_download wraps /resolve/ HEAD 429/503 errors inside
+    # LocalEntryNotFoundError(...) from HfHubHTTPError — must unwrap, honor
+    # RateLimit headers, and never misreport read_snapshot as missing.
+    from huggingface_hub.errors import HfHubHTTPError, LocalEntryNotFoundError
+
+    resp_429 = type(
+        'Resp429',
+        (),
+        {
+            'status_code': 429,
+            'headers': {'RateLimit': '"resolvers";r=0;t=42'},
+            'request': None,
+        },
+    )()
+    cause_429 = HfHubHTTPError('429 Too Many Requests', response=resp_429)
+    try:
+        raise LocalEntryNotFoundError(
+            'An error happened while trying to locate the file on the Hub'
+        ) from cause_429
+    except LocalEntryNotFoundError as wrapped_429:
+        captured = wrapped_429
+        assert fr._is_retryable_download_error(captured)
+        assert fr._header_retry_delay(captured) == 42.0
+
+        def always_wrapped(**kwargs: Any) -> str:
+            raise captured
+
+        api.hf_hub_download = always_wrapped  # type: ignore[method-assign]
+        monkeypatch.setattr(fr.time, 'sleep', lambda _s: None)
+        with pytest.raises(LocalEntryNotFoundError):
+            fr.read_snapshot(api, 'org/ds')
+
+
+def test_git_blob_sha256s_hashes_json_and_lfs_pointer(tmp_path: Path) -> None:
+    import subprocess
+
+    origin = tmp_path / 'origin'
+    origin.mkdir()
+    json_bytes = b'{"score": 0.95}\n'
+    lfs_sha = 'ab' * 32
+    lfs_pointer = (
+        f'version https://git-lfs.github.com/spec/v1\n'
+        f'oid sha256:{lfs_sha}\n'
+        f'size 1024\n'
+    ).encode('ascii')
+
+    (origin / 'data').mkdir()
+    (origin / 'data' / 'rec.json').write_bytes(json_bytes)
+    (origin / 'data' / 'rec_samples.jsonl').write_bytes(lfs_pointer)
+    (origin / 'data' / 'other.json').write_bytes(b'{}')
+
+    for cmd in (
+        ['git', 'init', '-b', 'main'],
+        ['git', 'config', 'user.email', 'test@example.org'],
+        ['git', 'config', 'user.name', 'Test'],
+        ['git', 'add', '.'],
+        ['git', 'commit', '-m', 'seed'],
+    ):
+        subprocess.run(cmd, cwd=origin, check=True, capture_output=True)
+
+    digests = fr._git_blob_sha256s(
+        'org/ds',
+        {'data/rec.json', 'data/rec_samples.jsonl'},
+        repo_url=origin.as_uri(),
+    )
+    assert digests == {
+        'data/rec.json': fr.sha256_bytes(json_bytes),
+        'data/rec_samples.jsonl': lfs_sha,
+    }

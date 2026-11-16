@@ -1,9 +1,11 @@
-"""Rebuild the datastore's flat view against the Hub, without a clone.
+"""Rebuild the datastore's flat view against the Hub, without a full checkout.
 
 ``tools/build_flat_datastore.py`` in the EEE_datastore repository defines the
-flat layout and rebuilds it from a local checkout. That checkout no longer
-fits a GitHub Actions runner — ``data/`` alone is ~15 GB — so this module
-writes the same flat layout against the Hub API instead:
+flat layout and rebuilds it from a local checkout. A working-tree checkout no
+longer fits a GitHub Actions runner — LFS-backed ``data/`` is ~15 GB — so
+normal rebuilds operate against the Hub API instead (``--verify`` additionally
+streams one temporary LFS-skipped ``--bare --depth 1`` packfile to batch-hash
+inherited JSON blobs):
 
 1. read the current snapshot: ``flat/latest_manifest.json`` and the
    ``entries.jsonl`` it points at;
@@ -37,7 +39,11 @@ import argparse
 import hashlib
 import json
 import os
+import random
+import re
+import subprocess
 import sys
+import tempfile
 import time
 import warnings
 from collections import defaultdict
@@ -46,14 +52,16 @@ from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path, PurePosixPath
 from typing import Any, Callable, Sequence
+from urllib.parse import urlsplit
 from uuid import UUID
 
 from huggingface_hub import (
     CommitOperationAdd,
     CommitOperationDelete,
     HfApi,
+    get_token,
 )
-from huggingface_hub.errors import EntryNotFoundError
+from huggingface_hub.errors import EntryNotFoundError, LocalEntryNotFoundError
 
 # Imported as a module, not by name: the retry helpers are replaced in tests
 # and the commit path has to see the replacement.
@@ -318,16 +326,129 @@ def manifest_for(rows: Sequence[Row], *, created_at: str) -> dict[str, Any]:
 # -- reading remote state --------------------------------------------------
 
 
-def list_repo_sizes(api: HfApi, repo_id: str) -> dict[str, int]:
-    """Map every file path in the repository to its size in bytes."""
+def list_repo_tree_metadata(
+    api: HfApi, repo_id: str
+) -> tuple[dict[str, int], dict[str, str]]:
+    """Return ``(sizes, lfs_sha256)`` across all files in ``repo_id``."""
     sizes: dict[str, int] = {}
+    lfs_sha256: dict[str, str] = {}
     for item in api.list_repo_tree(
         repo_id=repo_id, repo_type='dataset', recursive=True
     ):
         size = getattr(item, 'size', None)
         if size is not None:
             sizes[item.path] = size
-    return sizes
+        lfs = getattr(item, 'lfs', None)
+        if lfs is not None:
+            sha = (
+                lfs.get('sha256')
+                if isinstance(lfs, dict)
+                else getattr(lfs, 'sha256', None)
+            )
+            if isinstance(sha, str) and len(sha) == 64:
+                lfs_sha256[item.path] = sha
+    return sizes, lfs_sha256
+
+
+_HTTP_STATUS_TEXT_RE = re.compile(
+    r'\bhttp\s+(?:status\s+)?(429|500|502|503|504)\b', re.I
+)
+_RATELIMIT_RESET_RE = re.compile(r'(?:^|[;,\s])t=(\d+(?:\.\d+)?)')
+_TRANSPORT_ERR_TAGS = (
+    'Timeout',
+    'ConnectError',
+    'ConnectionError',
+    'RemoteProtocolError',
+    'ProtocolError',
+    'ChunkedEncodingError',
+)
+DOWNLOAD_ATTEMPTS = 11
+
+
+def _unwrap_download_error(exc: Exception) -> Exception:
+    """Unwrap ``LocalEntryNotFoundError`` when ``hf_hub_download`` chained a Hub error."""
+    if isinstance(exc, LocalEntryNotFoundError) and isinstance(
+        exc.__cause__, Exception
+    ):
+        return exc.__cause__
+    return exc
+
+
+def _is_retryable_download_error(exc: Exception) -> bool:
+    target = _unwrap_download_error(exc)
+    if (
+        isinstance(target, EntryNotFoundError)
+        or 'EntryNotFound' in type(target).__name__
+        or 'OfflineMode' in type(target).__name__
+    ):
+        return False
+    status = getattr(getattr(target, 'response', None), 'status_code', None)
+    if status is not None:
+        return status in (429, 500, 502, 503, 504)
+    if isinstance(target, (TimeoutError, ConnectionError)):
+        return True
+    if any(tag in type(target).__name__ for tag in _TRANSPORT_ERR_TAGS):
+        return True
+    text = str(target)
+    return (
+        'too many requests' in text.lower()
+        or _HTTP_STATUS_TEXT_RE.search(text) is not None
+    )
+
+
+def _header_retry_delay(exc: Exception) -> float | None:
+    target = _unwrap_download_error(exc)
+    headers = (
+        getattr(getattr(target, 'response', None), 'headers', None)
+        or getattr(getattr(exc, 'response', None), 'headers', None)
+        or {}
+    )
+    retry_after = headers.get('Retry-After') or headers.get('retry-after')
+    if retry_after is not None:
+        try:
+            return min(max(float(retry_after), 0.0), 310.0)
+        except (TypeError, ValueError):
+            pass
+    ratelimit = headers.get('RateLimit') or headers.get('ratelimit')
+    if isinstance(ratelimit, str):
+        match = _RATELIMIT_RESET_RE.search(ratelimit)
+        if match:
+            try:
+                return min(max(float(match.group(1)), 0.0), 310.0)
+            except ValueError:
+                pass
+    return None
+
+
+def _wait_before_download_retry(attempt: int, exc: Exception) -> None:
+    header_delay = _header_retry_delay(exc)
+    if header_delay is not None and header_delay > 0:
+        time.sleep(header_delay + random.uniform(0.0, 2.0))
+        return
+    # Attempts 1..4 use store.wait_before_retry (~7.5-15s); attempts 5..10
+    # sleep 55-75s each (>=330s cumulative) with jitter across worker threads
+    # so fallback retries outlast Hugging Face's 5-minute resolver window.
+    if attempt <= 4:
+        store.wait_before_retry(attempt)
+    else:
+        time.sleep(random.uniform(55.0, 75.0))
+
+
+def _download_with_retry(api: HfApi, repo_id: str, filename: str) -> str:
+    for attempt in range(1, DOWNLOAD_ATTEMPTS + 1):
+        try:
+            return api.hf_hub_download(
+                repo_id=repo_id, repo_type='dataset', filename=filename
+            )
+        except Exception as exc:  # noqa: BLE001
+            if (
+                attempt < DOWNLOAD_ATTEMPTS
+                and _is_retryable_download_error(exc)
+            ):
+                _wait_before_download_retry(attempt, exc)
+                continue
+            raise
+    raise AssertionError('unreachable')
 
 
 def read_snapshot(
@@ -335,15 +456,13 @@ def read_snapshot(
 ) -> tuple[dict[str, Any], list[Row]] | None:
     """Return the current snapshot manifest and its rows, or ``None``."""
     try:
-        latest_local = api.hf_hub_download(
-            repo_id=repo_id, repo_type='dataset', filename=LATEST_MANIFEST_PATH
-        )
-    except EntryNotFoundError:
+        latest_local = _download_with_retry(api, repo_id, LATEST_MANIFEST_PATH)
+    except EntryNotFoundError as exc:
+        if isinstance(exc, LocalEntryNotFoundError) and exc.__cause__ is not None:
+            raise
         return None
     manifest = json.loads(Path(latest_local).read_text(encoding='utf-8'))
-    entries_local = api.hf_hub_download(
-        repo_id=repo_id, repo_type='dataset', filename=manifest['entries_path']
-    )
+    entries_local = _download_with_retry(api, repo_id, manifest['entries_path'])
     rows = [
         Row.from_dict(json.loads(line))
         for line in Path(entries_local).read_text(encoding='utf-8').splitlines()
@@ -358,9 +477,7 @@ def download_bytes(
     """Download paths in parallel; a missing file aborts the run."""
 
     def one(path: str) -> tuple[str, bytes]:
-        local = api.hf_hub_download(
-            repo_id=repo_id, repo_type='dataset', filename=path
-        )
+        local = _download_with_retry(api, repo_id, path)
         return path, Path(local).read_bytes()
 
     if not paths:
@@ -472,6 +589,125 @@ def semantically_equal(a: bytes, b: bytes, *, jsonl: bool = False) -> bool:
         return False
 
 
+_LFS_OID_RE = re.compile(rb'^oid sha256:([0-9a-f]{64})$', re.M)
+_GIT_BULK_VERIFY_THRESHOLD = 64
+
+
+def _git_blob_sha256s(
+    repo_id: str,
+    target_paths: set[str],
+    *,
+    token: str | None = None,
+    endpoint: str | None = None,
+    repo_url: str | None = None,
+) -> dict[str, str]:
+    """Compute SHA-256 digests for ``target_paths`` from one shallow bare packfile."""
+    if not target_paths:
+        return {}
+    base = (endpoint or 'https://huggingface.co').rstrip('/')
+    url = repo_url or f'{base}/datasets/{repo_id}'
+    env = dict(os.environ, GIT_LFS_SKIP_SMUDGE='1', GIT_TERMINAL_PROMPT='0')
+    parsed = urlsplit(url)
+    if token and parsed.scheme in ('http', 'https') and parsed.netloc:
+        origin = f'{parsed.scheme}://{parsed.netloc}'
+        count = int(env.get('GIT_CONFIG_COUNT') or '0')
+        env['GIT_CONFIG_COUNT'] = str(count + 1)
+        env[f'GIT_CONFIG_KEY_{count}'] = f'http.{origin}/.extraHeader'
+        env[f'GIT_CONFIG_VALUE_{count}'] = f'Authorization: Bearer {token}'
+    with tempfile.TemporaryDirectory(prefix='eee-flat-verify-') as tmp:
+        completed = subprocess.run(
+            ['git', 'clone', '--bare', '--depth', '1', '--', url, tmp],
+            env=env,
+            capture_output=True,
+            timeout=600,
+            check=False,
+        )
+        if completed.returncode != 0:
+            stderr = completed.stderr.decode('utf-8', errors='replace').strip()
+            warnings.warn(
+                f'Bulk git packfile clone for {repo_id} exited '
+                f'{completed.returncode} ({stderr[:200]}); falling back to '
+                'per-file Hub verification',
+                stacklevel=2,
+            )
+            return {}
+        tree = subprocess.run(
+            ['git', '--git-dir', tmp, 'ls-tree', '-r', '-z', 'HEAD'],
+            env=env,
+            capture_output=True,
+            timeout=120,
+            check=False,
+        )
+        if tree.returncode != 0:
+            warnings.warn(
+                f'git ls-tree for {repo_id} exited {tree.returncode}; '
+                'falling back to per-file Hub verification',
+                stacklevel=2,
+            )
+            return {}
+
+        oid_to_paths: dict[bytes, list[str]] = defaultdict(list)
+        for entry in tree.stdout.split(b'\0'):
+            if not entry or b'\t' not in entry:
+                continue
+            meta, raw_path = entry.split(b'\t', 1)
+            path = raw_path.decode('utf-8', errors='replace')
+            if path not in target_paths:
+                continue
+            parts = meta.split()
+            if len(parts) >= 3 and parts[1] == b'blob':
+                oid_to_paths[parts[2]].append(path)
+        if not oid_to_paths:
+            return {}
+
+        result: dict[str, str] = {}
+        proc = subprocess.Popen(
+            ['git', '--git-dir', tmp, 'cat-file', '--batch'],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            env=env,
+        )
+        assert proc.stdin is not None and proc.stdout is not None
+        rc = -1
+        try:
+            for oid, paths in oid_to_paths.items():
+                proc.stdin.write(oid + b'\n')
+                proc.stdin.flush()
+                header = proc.stdout.readline()
+                if not header:
+                    break
+                hparts = header.strip().split()
+                if len(hparts) < 3:
+                    continue
+                expected_len = int(hparts[2])
+                blob = proc.stdout.read(expected_len)
+                if len(blob) != expected_len:
+                    break
+                proc.stdout.read(1)
+                if hparts[1] != b'blob':
+                    continue
+                if blob.startswith(b'version https://git-lfs.github.com/spec/v1'):
+                    match = _LFS_OID_RE.search(blob)
+                    if match:
+                        sha = match.group(1).decode('ascii')
+                        for path in paths:
+                            result[path] = sha
+                        continue
+                sha = hashlib.sha256(blob).hexdigest()
+                for path in paths:
+                    result[path] = sha
+        finally:
+            proc.stdin.close()
+            proc.stdout.close()
+            try:
+                rc = proc.wait(timeout=30)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait()
+        return result if rc == 0 else {}
+
+
 def verify_rows(
     api: HfApi,
     repo_id: str,
@@ -480,13 +716,14 @@ def verify_rows(
     *,
     workers: int = DOWNLOAD_WORKERS,
     pending_objects: frozenset[str] = frozenset(),
+    lfs_sha256: dict[str, str] | None = None,
 ) -> tuple[int, int, list[str]]:
     """Check inherited aggregates and companions against their snapshot hashes.
 
     Only explicitly planned new objects are skipped. Missing inherited files
-    are drift. Reserialization is accepted only against intact published
-    objects, using ordered, type-preserving JSONL comparison for companions.
-    Returns ``(checked, reserialized, drift)``; source hashing streams bytes.
+    are drift. LFS SHA-256 metadata and a shallow LFS-skipped bare packfile
+    verify matching snapshot hashes in bulk; mismatched or unindexed files are
+    downloaded and compared semantically against intact published objects.
     """
     targets: list[tuple[str, str, str, bool]] = []
     for row in rows:
@@ -506,28 +743,78 @@ def verify_rows(
             )
     targets = [target for target in targets if target[1] not in pending_objects]
     drift: list[str] = []
+    known_shas: dict[str, str] = dict(lfs_sha256 or {})
+    unhashed_paths = {
+        path
+        for source, destination, _, _ in targets
+        if source in listing and destination in listing
+        for path in (source, destination)
+        if path not in known_shas
+    }
+    if (
+        isinstance(api, HfApi)
+        and len(unhashed_paths) >= _GIT_BULK_VERIFY_THRESHOLD
+    ):
+        api_token = getattr(api, 'token', None)
+        if api_token is False:
+            token = None
+        elif isinstance(api_token, str):
+            token = api_token
+        else:
+            token = (
+                os.environ.get('HF_TOKEN')
+                or os.environ.get('HUGGING_FACE_HUB_TOKEN')
+                or get_token()
+            )
+        try:
+            known_shas.update(
+                _git_blob_sha256s(
+                    repo_id,
+                    unhashed_paths,
+                    token=token,
+                    endpoint=getattr(api, 'endpoint', None),
+                )
+            )
+        except Exception as exc:  # noqa: BLE001 - fall back to per-file download
+            warnings.warn(
+                f'Bulk git verification failed for {repo_id} ({exc}); '
+                'falling back to per-file Hub verification',
+                stacklevel=2,
+            )
 
     def check(target: tuple[str, str, str, bool]) -> tuple[str, str | None]:
         source, destination, expected_sha, jsonl = target
         for path in (source, destination):
             if path not in listing:
                 return 'drift', f'{path}: inherited file is missing'
-        local = api.hf_hub_download(
-            repo_id=repo_id, repo_type='dataset', filename=source
-        )
+        dest_known = known_shas.get(destination)
+        if dest_known is not None and dest_known != expected_sha:
+            return (
+                'drift',
+                f'{destination}: published object no longer matches its snapshot sha256',
+            )
+        if known_shas.get(source) == expected_sha:
+            if dest_known == expected_sha:
+                return 'clean', None
+            object_local = _download_with_retry(api, repo_id, destination)
+            if sha256_bytes(Path(object_local).read_bytes()) != expected_sha:
+                return (
+                    'drift',
+                    f'{destination}: published object no longer matches its snapshot sha256',
+                )
+            return 'clean', None
+        local = _download_with_retry(api, repo_id, source)
         with Path(local).open('rb') as handle:
             actual_sha = hashlib.file_digest(handle, 'sha256').hexdigest()
-        if actual_sha == expected_sha:
-            return 'clean', None
-        object_local = api.hf_hub_download(
-            repo_id=repo_id, repo_type='dataset', filename=destination
-        )
+        object_local = _download_with_retry(api, repo_id, destination)
         object_bytes = Path(object_local).read_bytes()
         if sha256_bytes(object_bytes) != expected_sha:
             return (
                 'drift',
                 f'{destination}: published object no longer matches its snapshot sha256',
             )
+        if actual_sha == expected_sha:
+            return 'clean', None
         if semantically_equal(
             object_bytes, Path(local).read_bytes(), jsonl=jsonl
         ):
@@ -1077,10 +1364,8 @@ class FlatPublisher:
                 if isinstance(operation, CommitOperationAdd):
                     if operation.path_in_repo not in files:
                         return False
-                    local = self.api.hf_hub_download(
-                        repo_id=self.repo_id,
-                        repo_type='dataset',
-                        filename=operation.path_in_repo,
+                    local = _download_with_retry(
+                        self.api, self.repo_id, operation.path_in_repo
                     )
                     with operation.as_file() as expected:
                         expected_sha = hashlib.file_digest(
@@ -1275,7 +1560,7 @@ def orchestrate(
     manifest, old_rows = snapshot or ({}, [])
     report.old_records = len(old_rows)
 
-    listing = list_repo_sizes(api, repo_id)
+    listing, lfs_sha256 = list_repo_tree_metadata(api, repo_id)
     report.data_files = sum(
         1
         for path in listing
@@ -1324,7 +1609,12 @@ def orchestrate(
             ]
         )
         checked, reserialized, drift = verify_rows(
-            api, repo_id, rows, listing, pending_objects=pending_objects
+            api,
+            repo_id,
+            rows,
+            listing,
+            pending_objects=pending_objects,
+            lfs_sha256=lfs_sha256,
         )
         report.verified_files = checked
         report.verified_reserialized = reserialized
@@ -1381,11 +1671,7 @@ def orchestrate(
     )
 
     def uuids_of(info: ManifestInfo) -> set[str]:
-        local = api.hf_hub_download(
-            repo_id=repo_id,
-            repo_type='dataset',
-            filename=info.entries_path,
-        )
+        local = _download_with_retry(api, repo_id, info.entries_path)
         references: set[str] = set()
         for line in Path(local).read_text(encoding='utf-8').splitlines():
             if not line.strip():
