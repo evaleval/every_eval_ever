@@ -519,6 +519,50 @@ def test_directory_mode_reports_bad_files(tmp_path):
         result.raise_if_incomplete()
 
 
+def test_directory_mode_finds_rolling_snapshot(tmp_path):
+    snapshot_dir = tmp_path / '.deepeval'
+    snapshot_dir.mkdir()
+    (snapshot_dir / '.latest_run_full.json').write_text(
+        RUN_FILE.read_text(encoding='utf-8'), encoding='utf-8'
+    )
+    result = DeepEvalAdapter().transform_from_directory_result(
+        tmp_path, _make_metadata_args()
+    )
+    assert len(result.records) == 1
+    assert result.failures == []
+    # The snapshot's name carries no run time: the record keys on its stem.
+    assert result.records[0].evaluation_id.endswith('/.latest_run_full')
+
+
+def test_converter_module_entrypoint_converts(tmp_path):
+    """The per-converter __main__ runs the same conversion as the CLI."""
+    import subprocess
+    import sys
+
+    repo_root = Path(__file__).resolve().parents[1]
+    output_dir = tmp_path / 'data'
+    completed = subprocess.run(
+        [
+            sys.executable,
+            '-m',
+            'every_eval_ever.converters.deepeval',
+            '--log_path',
+            str(RUN_FILE),
+            '--model_id',
+            MODEL_ID,
+            '--output_dir',
+            str(output_dir),
+        ],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert completed.returncode == 0, completed.stderr
+    assert len(list(output_dir.rglob('*.json'))) == 1
+    assert len(list(output_dir.rglob('*.jsonl'))) == 1
+
+
 def test_cli_directory_mode_publishes_good_and_reports_bad(tmp_path):
     """End-to-end through the real CLI: staging, sidecar, publication.
 
