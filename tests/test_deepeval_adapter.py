@@ -406,6 +406,30 @@ def test_errored_case_metric_produces_no_row(tmp_path):
     assert [row.evaluation_result_id for row in rows] == ['exact_match']
 
 
+def test_null_order_falls_back_to_case_index():
+    payload = _run_payload()
+    payload['testCases'][0]['order'] = None
+    second = dict(payload['testCases'][0])
+    second['name'] = 'case_b'
+    second['order'] = None
+    payload['testCases'].append(second)
+    rows = DeepEvalInstanceLevelAdapter().transform_samples(
+        payload, 'eval-id', MODEL_ID, 'test_synthetic'
+    )
+    # No 'None' sample ids, and the two cases stay distinguishable.
+    assert [row.sample_id for row in rows] == ['0', '1']
+
+
+def test_non_dict_entries_are_skipped():
+    payload = _run_payload()
+    payload['testCases'][0]['metricsData'].append('not-a-metric')
+    payload['testCases'].append('not-a-case')
+    rows = DeepEvalInstanceLevelAdapter().transform_samples(
+        payload, 'eval-id', MODEL_ID, 'test_synthetic'
+    )
+    assert [row.evaluation_result_id for row in rows] == ['exact_match']
+
+
 def test_case_token_counts_and_latency_reach_rows():
     payload = _run_payload()
     case = payload['testCases'][0]

@@ -47,6 +47,8 @@ class DeepEvalInstanceLevelAdapter:
         """Transform one test run's testCases into instance-level logs."""
         rows: list[InstanceLevelEvaluationLog] = []
         for index, case in enumerate(raw_data.get('testCases') or []):
+            if not isinstance(case, dict):
+                continue
             rows.extend(
                 self._transform_case(
                     case, index, evaluation_id, model_id, evaluation_name
@@ -148,6 +150,8 @@ class DeepEvalInstanceLevelAdapter:
 
         rows = []
         for metric_data in case.get('metricsData') or []:
+            if not isinstance(metric_data, dict):
+                continue
             score = metric_data.get('score')
             if not isinstance(score, (int, float)) or isinstance(score, bool):
                 # Errored metrics and classifier entries carry no score;
@@ -184,7 +188,11 @@ class DeepEvalInstanceLevelAdapter:
                     model_id=model_id,
                     evaluation_name=evaluation_name,
                     evaluation_result_id=evaluation_result_id(display_name),
-                    sample_id=str(case.get('order', index)),
+                    sample_id=str(
+                        case['order']
+                        if isinstance(case.get('order'), int)
+                        else index
+                    ),
                     sample_hash=sample_hash,
                     interaction_type=InteractionType.single_turn,
                     input=Input(raw=input_text, reference=reference),
