@@ -1,7 +1,7 @@
 """Shared helpers for the DeepEval converter."""
 
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 
 _RUN_FILE_PATTERN = re.compile(r'test_run_(\d{8})_(\d{6})')
 
@@ -28,7 +28,10 @@ def parse_run_timestamp(file_name: str) -> int | None:
     """Epoch seconds from a DeepEval export file name, when it carries one.
 
     DeepEval names results-folder exports test_run_<YYYYMMDD>_<HHMMSS>.json
-    after the run's local time. The rolling snapshot
+    after the run's local time, and the file records no timezone. The
+    name's time is therefore read as UTC: the epoch is nominal, but the
+    same export keys identically on any machine, which is what makes
+    re-conversion idempotent in a shared datastore. The rolling snapshot
     (.deepeval/.latest_run_full.json) carries no timestamp and returns
     None.
     """
@@ -38,7 +41,7 @@ def parse_run_timestamp(file_name: str) -> int | None:
     try:
         moment = datetime.strptime(
             f'{match.group(1)}_{match.group(2)}', '%Y%m%d_%H%M%S'
-        )
+        ).replace(tzinfo=timezone.utc)
     except ValueError:
         return None
     return int(moment.timestamp())

@@ -41,9 +41,12 @@ from .utils import evaluation_result_id, metric_key, parse_run_timestamp
 DEEPEVAL_HARNESS_ID = 'deepeval'
 
 # Bounds are asserted only where DeepEval's own implementation fixes the
-# scale: each metric below returns a 0/1 verdict or a ratio in [0, 1].
-# Every other metric keeps unknown bounds (counted in source_metadata)
-# rather than inheriting a range it may not have.
+# scale: each metric below deterministically returns a 0/1 verdict or a
+# ratio in [0, 1], verified in DeepEval's source. Judge metrics are left
+# out deliberately -- their scores are parsed from a model's output, and
+# no range was verified for them here. Anything unlisted keeps unknown
+# bounds (counted in source_metadata) rather than inheriting a range it
+# may not have.
 DEEPEVAL_METRIC_BOUNDS: dict[str, tuple[float, float]] = {
     'exact_match': (0.0, 1.0),
     'pattern_match': (0.0, 1.0),

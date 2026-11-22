@@ -10,7 +10,7 @@ format, used to reach branches a single real export does not contain
 """
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -59,9 +59,12 @@ def test_metric_key_normalizes_display_names():
 
 
 def test_parse_run_timestamp():
-    # The file name carries the run's local time; the epoch follows the
-    # converting machine's timezone, as it does in the converter.
-    expected = int(datetime(2026, 11, 22, 0, 11, 37).timestamp())
+    # The file name carries the run's local time with no timezone; the
+    # converter reads it as UTC so the same export keys identically on
+    # any machine.
+    expected = int(
+        datetime(2026, 11, 22, 0, 11, 37, tzinfo=timezone.utc).timestamp()
+    )
     assert parse_run_timestamp('test_run_20261122_001137.json') == expected
     assert parse_run_timestamp('.latest_run_full.json') is None
     assert parse_run_timestamp('test_run_20261340_001137.json') is None
@@ -72,10 +75,12 @@ def test_parse_run_timestamp():
 
 def test_fixture_maps_run_level_fields():
     _, log = _convert_fixture()
-    # The export's file name carries the run time (2026-11-22 00:11:37
-    # local); the record keys on it, in the converting machine's
-    # timezone, rather than on the conversion time.
-    run_key = str(int(datetime(2026, 11, 22, 0, 11, 37).timestamp()))
+    # The export's file name carries the run time (2026-11-22 00:11:37,
+    # read as UTC); the record keys on it rather than on the conversion
+    # time, so the same export converts to the same record anywhere.
+    run_key = str(
+        int(datetime(2026, 11, 22, 0, 11, 37, tzinfo=timezone.utc).timestamp())
+    )
     assert log.evaluation_id == (
         f'test_support_agent_eval/{MODEL_ID}/{run_key}'
     )
@@ -432,3 +437,44 @@ def test_directory_mode_reports_bad_files(tmp_path):
     assert 'test_run_20260101_000000.json' in result.failures[0].source_ref
     with pytest.raises(SourceRecordsError):
         result.raise_if_incomplete()
+
+
+def test_cli_directory_mode_publishes_good_and_reports_bad(tmp_path):
+    """End-to-end through the real CLI: staging, sidecar, publication.
+
+    The valid export is published; the invalid one produces a failure
+    report outside the data tree and a non-zero (raising) exit -- the
+    partial conversion is never silent.
+    """
+    from every_eval_ever import cli
+
+    source_dir = tmp_path / 'exports'
+    source_dir.mkdir()
+    (source_dir / 'test_run_20261122_001137.json').write_text(
+        RUN_FILE.read_text(encoding='utf-8'), encoding='utf-8'
+    )
+    (source_dir / 'test_run_20260101_000000.json').write_text(
+        '{"not": "a test run"}', encoding='utf-8'
+    )
+    output_dir = tmp_path / 'data'
+
+    with pytest.raises(SourceRecordsError):
+        cli.main(
+            [
+                'convert',
+                'deepeval',
+                '--log_path',
+                str(source_dir),
+                '--output_dir',
+                str(output_dir),
+                '--model_id',
+                MODEL_ID,
+            ]
+        )
+
+    published = sorted(output_dir.rglob('*.json'))
+    sidecars = sorted(output_dir.rglob('*.jsonl'))
+    assert len(published) == 1
+    assert len(sidecars) == 1
+    reports = list((tmp_path / 'adapter_reports').glob('*deepeval_inputs*'))
+    assert len(reports) == 1
