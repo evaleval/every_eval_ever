@@ -229,6 +229,22 @@ def _convert_payload(payload, tmp_path, name='test_run_20260101_120000.json'):
     return adapter, adapter.transform_from_file(path, _make_metadata_args())[0]
 
 
+def test_model_name_defaults_to_id_and_can_be_overridden(tmp_path):
+    _, log = _convert_payload(_run_payload(), tmp_path)
+    assert log.model_info.name == MODEL_ID
+    assert log.model_info.id == MODEL_ID
+
+    path = tmp_path / 'test_run_20260102_120000.json'
+    path.write_text(json.dumps(_run_payload()), encoding='utf-8')
+    adapter = DeepEvalAdapter()
+    log = adapter.transform_from_file(
+        path, _make_metadata_args(model_name='Support Agent 7B (display)')
+    )[0]
+    assert log.model_info.name == 'Support Agent 7B (display)'
+    assert log.model_info.id == MODEL_ID
+    assert log.model_info.developer == 'example'
+
+
 def test_dataset_alias_wins_over_test_file_stem(tmp_path):
     payload = _run_payload(
         datasetAlias='support-dataset',
