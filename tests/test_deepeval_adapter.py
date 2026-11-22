@@ -91,8 +91,12 @@ def test_fixture_maps_run_level_fields():
     assert log.eval_library.name == 'deepeval'
     assert log.source_metadata.source_name == 'deepeval'
     # Every fixture metric has known bounds, so no unknown-bounds count
-    # is reported (the key is present only when the count is positive).
-    assert log.source_metadata.additional_details is None
+    # is reported (the key is present only when the count is positive);
+    # the run's own case-level outcome counts are carried.
+    assert log.source_metadata.additional_details == {
+        'deepeval_test_passed': '3',
+        'deepeval_test_failed': '3',
+    }
 
 
 def test_fixture_maps_one_result_per_metric():
@@ -275,7 +279,9 @@ def test_errored_metric_is_counted_not_published(tmp_path):
     _, log = _convert_payload(payload, tmp_path)
     assert len(log.evaluation_results) == 1
     assert log.source_metadata.additional_details == {
-        'metrics_without_scores': '1'
+        'metrics_without_scores': '1',
+        'deepeval_test_passed': '1',
+        'deepeval_test_failed': '0',
     }
 
 
@@ -327,7 +333,9 @@ def test_unknown_metric_keeps_unknown_bounds(tmp_path):
     assert uncertainty.standard_deviation == 0.0
     assert uncertainty.standard_error is None
     assert log.source_metadata.additional_details == {
-        'metrics_with_unknown_bounds': '1'
+        'metrics_with_unknown_bounds': '1',
+        'deepeval_test_passed': '1',
+        'deepeval_test_failed': '0',
     }
 
 
@@ -380,7 +388,9 @@ def test_conversational_cases_are_counted_not_expanded(tmp_path):
     ]
     adapter, log = _convert_payload(payload, tmp_path)
     assert log.source_metadata.additional_details == {
-        'conversational_test_cases': '1'
+        'conversational_test_cases': '1',
+        'deepeval_test_passed': '1',
+        'deepeval_test_failed': '0',
     }
     raw = adapter.raw_by_evaluation_id[log.evaluation_id]
     rows = DeepEvalInstanceLevelAdapter().transform_samples(

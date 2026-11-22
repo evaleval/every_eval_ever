@@ -224,6 +224,17 @@ class DeepEvalAdapter(BaseEvaluationAdapter):
             )
         if without_scores:
             additional_details['metrics_without_scores'] = str(without_scores)
+        # The run's own case-level outcome counts are evaluation
+        # outcomes, not operational metadata; carry them rather than
+        # dropping them silently.
+        if raw_data.get('testPassed') is not None:
+            additional_details['deepeval_test_passed'] = str(
+                raw_data['testPassed']
+            )
+        if raw_data.get('testFailed') is not None:
+            additional_details['deepeval_test_failed'] = str(
+                raw_data['testFailed']
+            )
         if conversational:
             additional_details['conversational_test_cases'] = str(
                 len(conversational)
