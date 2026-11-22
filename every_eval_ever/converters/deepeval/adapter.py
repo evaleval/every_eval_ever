@@ -36,7 +36,12 @@ from every_eval_ever.helpers.io import (
     SourceRecordFailure,
 )
 
-from .utils import evaluation_result_id, metric_key, parse_run_timestamp
+from .utils import (
+    evaluation_result_id,
+    is_number,
+    metric_key,
+    parse_run_timestamp,
+)
 
 DEEPEVAL_HARNESS_ID = 'deepeval'
 
@@ -313,8 +318,7 @@ class DeepEvalAdapter(BaseEvaluationAdapter):
             scores = [
                 float(score)
                 for score in entry.get('scores') or []
-                if isinstance(score, (int, float))
-                and not isinstance(score, bool)
+                if is_number(score)
             ]
             if not display_name or not scores:
                 # A metric whose every case errored has no score to
@@ -369,7 +373,7 @@ class DeepEvalAdapter(BaseEvaluationAdapter):
         thresholds = {
             float(md['threshold'])
             for md in metric_data
-            if isinstance(md.get('threshold'), (int, float))
+            if is_number(md.get('threshold'))
         }
         fields['additional_details'] = additional_details or None
         if len(thresholds) == 1:

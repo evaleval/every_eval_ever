@@ -45,3 +45,13 @@ def parse_run_timestamp(file_name: str) -> int | None:
     except ValueError:
         return None
     return int(moment.timestamp())
+
+
+def is_int(value: object) -> bool:
+    """True for genuine ints; JSON booleans are not counts or indices."""
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def is_number(value: object) -> bool:
+    """True for genuine ints/floats; JSON booleans are not scores."""
+    return isinstance(value, (int, float)) and not isinstance(value, bool)

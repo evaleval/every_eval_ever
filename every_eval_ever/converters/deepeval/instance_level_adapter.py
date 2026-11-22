@@ -24,7 +24,7 @@ from every_eval_ever.instance_level_types import (
     TokenUsage,
 )
 
-from .utils import evaluation_result_id
+from .utils import evaluation_result_id, is_int, is_number
 
 
 class DeepEvalInstanceLevelAdapter:
@@ -153,7 +153,7 @@ class DeepEvalInstanceLevelAdapter:
             if not isinstance(metric_data, dict):
                 continue
             score = metric_data.get('score')
-            if not isinstance(score, (int, float)) or isinstance(score, bool):
+            if not is_number(score):
                 # Errored metrics and classifier entries carry no score;
                 # the aggregate counts the run's errors separately.
                 continue
@@ -162,7 +162,7 @@ class DeepEvalInstanceLevelAdapter:
             success = metric_data.get('success')
             if isinstance(success, bool):
                 is_correct = success
-            elif isinstance(threshold, (int, float)):
+            elif is_number(threshold):
                 is_correct = float(score) >= float(threshold)
             else:
                 is_correct = float(score) == 1.0
@@ -170,7 +170,7 @@ class DeepEvalInstanceLevelAdapter:
             metadata: dict[str, str] = {'metric': display_name}
             if case.get('name'):
                 metadata['test_case_name'] = str(case['name'])
-            if isinstance(threshold, (int, float)):
+            if is_number(threshold):
                 metadata['threshold'] = str(threshold)
             if metric_data.get('reason'):
                 metadata['reason'] = str(metric_data['reason'])
@@ -189,9 +189,7 @@ class DeepEvalInstanceLevelAdapter:
                     evaluation_name=evaluation_name,
                     evaluation_result_id=evaluation_result_id(display_name),
                     sample_id=str(
-                        case['order']
-                        if isinstance(case.get('order'), int)
-                        else index
+                        case['order'] if is_int(case.get('order')) else index
                     ),
                     sample_hash=sample_hash,
                     interaction_type=InteractionType.single_turn,
@@ -233,12 +231,10 @@ class DeepEvalInstanceLevelAdapter:
         """
         input_tokens = case.get('inputTokenCount')
         output_tokens = case.get('outputTokenCount')
-        if not isinstance(input_tokens, int) and not isinstance(
-            output_tokens, int
-        ):
+        if not is_int(input_tokens) and not is_int(output_tokens):
             return None
-        input_value = input_tokens if isinstance(input_tokens, int) else 0
-        output_value = output_tokens if isinstance(output_tokens, int) else 0
+        input_value = input_tokens if is_int(input_tokens) else 0
+        output_value = output_tokens if is_int(output_tokens) else 0
         return TokenUsage(
             input_tokens=input_value,
             output_tokens=output_value,
@@ -248,6 +244,6 @@ class DeepEvalInstanceLevelAdapter:
     @staticmethod
     def _performance(case: dict[str, Any]) -> Optional[Performance]:
         completion_time = case.get('completionTime')
-        if not isinstance(completion_time, (int, float)):
+        if not is_number(completion_time):
             return None
         return Performance(latency_ms=float(completion_time) * 1000.0)

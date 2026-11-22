@@ -430,6 +430,24 @@ def test_non_dict_entries_are_skipped():
     assert [row.evaluation_result_id for row in rows] == ['exact_match']
 
 
+def test_boolean_values_are_not_numbers():
+    """JSON booleans must not pass as ints/floats (bool subclasses int)."""
+    payload = _run_payload()
+    case = payload['testCases'][0]
+    case['order'] = False
+    case['inputTokenCount'] = True
+    case['outputTokenCount'] = True
+    case['completionTime'] = True
+    case['metricsData'][0]['threshold'] = True
+    rows = DeepEvalInstanceLevelAdapter().transform_samples(
+        payload, 'eval-id', MODEL_ID, 'test_synthetic'
+    )
+    assert rows[0].sample_id == '0'  # index fallback, not 'False'
+    assert rows[0].token_usage is None
+    assert rows[0].performance is None
+    assert 'threshold' not in rows[0].metadata
+
+
 def test_case_token_counts_and_latency_reach_rows():
     payload = _run_payload()
     case = payload['testCases'][0]

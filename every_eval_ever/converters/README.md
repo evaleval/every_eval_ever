@@ -6,7 +6,7 @@ A collection of scripts to convert evaluation logs from local evaluation framewo
 Install dependencies for the converter(s) you need:
 
 ```bash
-uv sync                   # core dependencies only (includes lm-eval and deepeval)
+uv sync                   # core dependencies only (includes the lm-eval and deepeval converters)
 uv sync --extra inspect   # + Inspect AI
 uv sync --extra helm      # + HELM
 uv sync --extra all       # + all
