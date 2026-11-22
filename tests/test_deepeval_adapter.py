@@ -339,6 +339,34 @@ def test_unknown_metric_keeps_unknown_bounds(tmp_path):
     }
 
 
+def test_multiple_judge_models_are_listed(tmp_path):
+    payload = _run_payload()
+    payload['testCases'][0]['metricsData'][0]['evaluationModel'] = 'gpt-4o'
+    second = dict(payload['testCases'][0])
+    second['name'] = 'case_b'
+    second['order'] = 1
+    second['metricsData'] = [
+        {
+            'name': 'Exact Match',
+            'threshold': 0.5,
+            'success': True,
+            'score': 1.0,
+            'evaluationModel': 'claude-3-5-sonnet',
+        }
+    ]
+    payload['testCases'].append(second)
+    payload['metricsScores'][0]['scores'] = [1.0, 1.0]
+    payload['metricsScores'][0]['passes'] = 2
+    _, log = _convert_payload(payload, tmp_path)
+    details = log.evaluation_results[0].metric_config.additional_details
+    # No single judge to name: the distinct judges are listed instead.
+    assert 'evaluation_model' not in details
+    assert json.loads(details['evaluation_models']) == [
+        'claude-3-5-sonnet',
+        'gpt-4o',
+    ]
+
+
 def test_mixed_thresholds_are_not_summarized(tmp_path):
     payload = _run_payload()
     payload['testCases'].append(
