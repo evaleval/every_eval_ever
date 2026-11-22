@@ -215,6 +215,75 @@ def _cmd_convert_lm_eval(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_convert_deepeval(args: argparse.Namespace) -> int:
+    from every_eval_ever.converters.deepeval.adapter import DeepEvalAdapter
+    from every_eval_ever.converters.deepeval.instance_level_adapter import (
+        DeepEvalInstanceLevelAdapter,
+    )
+
+    adapter = DeepEvalAdapter()
+    metadata = _common_metadata(args)
+    metadata['model_id'] = args.model_id
+    if args.model_name:
+        metadata['model_name'] = args.model_name
+
+    log_path = Path(args.log_path)
+    input_result: SourceConversionResult[Any] | None = None
+    if log_path.is_file():
+        logs = adapter.transform_from_file(log_path, metadata)
+    elif log_path.is_dir():
+        input_result = adapter.transform_from_directory_result(
+            log_path, metadata
+        )
+        logs = input_result.records
+    else:
+        raise FileNotFoundError(f'Path is not a file or directory: {log_path}')
+
+    if not logs and input_result is None:
+        raise ValueError(
+            f'DeepEval conversion produced no logs from {log_path}'
+        )
+
+    output_dir = Path(args.output_dir)
+    eval_uuids = [str(uuid.uuid4()) for _ in logs]
+    with tempfile.TemporaryDirectory(prefix='eee-deepeval-') as staging:
+        staging_dir = Path(staging)
+        for log, eval_uuid in zip(logs, eval_uuids, strict=True):
+            raw_data = adapter.raw_by_evaluation_id.get(log.evaluation_id)
+            if raw_data is None:
+                continue
+            detailed = DeepEvalInstanceLevelAdapter().transform_and_save(
+                raw_data=raw_data,
+                evaluation_id=log.evaluation_id,
+                model_id=log.model_info.id,
+                evaluation_name=log.evaluation_results[0].evaluation_name,
+                output_dir=str(_output_dir_for_log(staging_dir, log)),
+                file_uuid=eval_uuid,
+                collection=log.evaluation_results[0].source_data.dataset_name,
+                developer=log.model_info.developer,
+            )
+            if detailed is not None:
+                log.detailed_evaluation_results = detailed
+        paths = (
+            publish_evaluation_logs(
+                logs,
+                output_dir,
+                eval_uuids,
+                staged_output_dir=staging_dir,
+            )
+            if logs
+            else []
+        )
+    for path in paths:
+        print(path)
+
+    _save_partial_conversion_report(input_result, output_dir, 'deepeval_inputs')
+    if input_result is not None:
+        input_result.raise_if_incomplete()
+    print(f'Converted {len(paths)} evaluation log(s).')
+    return 0
+
+
 def _cmd_convert_inspect(args: argparse.Namespace) -> int:
     from every_eval_ever.converters.inspect.adapter import (
         InspectAIAdapter,
@@ -392,7 +461,9 @@ def _cmd_convert_alpaca_eval(args: argparse.Namespace) -> int:
     if args.input_json:
         with open(args.input_json, encoding='utf-8') as handle:
             snapshot = UpstreamSnapshot.from_payload(json.load(handle))
-        print(f'Replaying upstream snapshot {args.input_json} (ref {snapshot.ref})')
+        print(
+            f'Replaying upstream snapshot {args.input_json} (ref {snapshot.ref})'
+        )
     registry = Registry(
         enabled=not args.no_registry_resolve, live=args.registry_live
     )
@@ -410,8 +481,12 @@ def _cmd_convert_alpaca_eval(args: argparse.Namespace) -> int:
         # directory accumulates earlier runs' output and a reader cannot tell
         # which files this run produced. One directory per run instead of
         # deleting: a smoke run is worth looking at.
-        output_dir = Path(tempfile.mkdtemp(prefix='alpaca-eval-smoke-')) / 'data'
-        print(f'No --output_dir given; writing throwaway output to {output_dir}')
+        output_dir = (
+            Path(tempfile.mkdtemp(prefix='alpaca-eval-smoke-')) / 'data'
+        )
+        print(
+            f'No --output_dir given; writing throwaway output to {output_dir}'
+        )
     else:
         output_dir = Path(args.output_dir)
 
@@ -587,7 +662,7 @@ def build_parser() -> argparse.ArgumentParser:
         dest='source', required=True
     )
 
-    for source in ['lm_eval', 'inspect', 'helm', 'alpaca_eval']:
+    for source in ['lm_eval', 'inspect', 'helm', 'alpaca_eval', 'deepeval']:
         source_parser = convert_subparsers.add_parser(
             source,
             help=f'Convert {source} logs',
@@ -733,6 +808,22 @@ def build_parser() -> argparse.ArgumentParser:
                 default=None,
                 help='Inference engine version to record in model_info.inference_engine.version.',
             )
+        if source == 'deepeval':
+            source_parser.add_argument(
+                '--model_id',
+                '--model-id',
+                required=True,
+                help='HF-format id of the model under test '
+                '(e.g. meta-llama/Llama-3.1-8B). DeepEval logs do not '
+                'record it, so it must be provided manually.',
+            )
+            source_parser.add_argument(
+                '--model_name',
+                '--model-name',
+                default=None,
+                help='Display name of the model under test. '
+                'Defaults to --model_id.',
+            )
         if source == 'inspect':
             source_parser.add_argument(
                 '--supplemental_eval_details_path',
@@ -779,6 +870,8 @@ def main(argv: list[str] | None = None) -> int:
             return _cmd_convert_helm(args)
         if args.source == 'alpaca_eval':
             return _cmd_convert_alpaca_eval(args)
+        if args.source == 'deepeval':
+            return _cmd_convert_deepeval(args)
 
     parser.print_help()
     return 1
