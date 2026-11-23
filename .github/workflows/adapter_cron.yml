@@ -135,6 +135,8 @@ jobs:
           ARTIFICIAL_ANALYSIS_API_KEY: ${{ secrets.ARTIFICIAL_ANALYSIS_API_KEY }}
           LLM_STATS_API_KEY: ${{ secrets.LLM_STATS_API_KEY }}
           MERCOR_EVAL_API_EVALEVAL_KEY: ${{ secrets.MERCOR_EVAL_API_EVALEVAL_KEY }}
+          # Read access to the private huggingface/paperswithcode-backups bucket.
+          PAPERSWITHCODE_HF_TOKEN: ${{ secrets.PVToken }}
           # Empty when unset, which the CLI treats as "use the default".
           EEE_DATASTORE_REPO_ID: ${{ vars.EEE_DATASTORE_REPO_ID }}
           EEE_RAW_REPO_ID: ${{ vars.EEE_RAW_REPO_ID }}
