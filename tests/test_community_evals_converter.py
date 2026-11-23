@@ -643,6 +643,8 @@ def test_build_index_manifest_downloads_online_record_and_links_source(
     assert manifest['entries'][0]['yaml_entry']['source']['url'].startswith(
         'https://huggingface.co/datasets/evaleval/EEE_datastore/blob/abc123/flat/objects/'
     )
+    assert manifest['entries'][0]['yaml_entry']['source']['name'] == 'EvalEval'
+    assert manifest['entries'][0]['yaml_entry']['source']['org'] == 'evaleval'
 
 
 def test_build_index_manifest_accepts_index_directory(tmp_path: Path) -> None:
