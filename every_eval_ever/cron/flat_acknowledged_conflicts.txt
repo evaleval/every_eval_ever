@@ -1,0 +1,16 @@
+# Flat-rebuild conflicts a maintainer has acknowledged.
+#
+# One excluded data/ path per line. A listed path is still excluded from the
+# flat view and still enumerated in the run summary, but it no longer makes
+# the run exit 2. Remove a line once upstream re-emits the record under a
+# fresh UUID; the run summary lists entries that no longer conflict.
+#
+# livebench 0.3.0 re-emission: 195 records reused the UUIDs of objects that
+# flat/ had already published with different content. 190 were re-issued
+# under fresh UUIDs or removed (EEE_datastore#224); these 5, filed under
+# developer `unknown`, still carry the reused UUIDs.
+data/livebench/unknown/Starling-LM-7B-beta/3762ac5b-2117-4d64-a4ed-d0b7c836cfee.json
+data/livebench/unknown/Starling-LM-7B-beta/78642ea5-938b-470b-aaab-6769e04eab11.json
+data/livebench/unknown/sky-t1-32b-preview/665e6474-4129-4ba9-aa44-071aa3b1e83c.json
+data/livebench/unknown/vicuna-7b-v1.5-16k/ff477cb2-b620-483c-a4f2-271b68919f89.json
+data/livebench/unknown/wbot-4_347b_no_s/40f791ec-5891-44ca-8e3c-97a1b3ef2f21.json

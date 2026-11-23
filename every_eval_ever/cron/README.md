@@ -383,8 +383,12 @@ Three policies are built in, all decided in the 2026-09 design round:
   UUID with different content (a schema migration that reused UUIDs — 195
   of them rode in with `livebench`'s 0.3.0 re-emission) cannot enter the
   flat view without breaking object immutability. It is excluded, the
-  published object stays, the run exits 2 with every conflict enumerated,
-  and it stays red until upstream re-emits with fresh UUIDs. A pure
+  published object stays, and the run exits 2 with every conflict
+  enumerated. Once a maintainer has seen a conflict, adding its path to
+  `cron/flat_acknowledged_conflicts.txt` keeps it excluded and listed but
+  stops it failing the run, so a later, new conflict still turns the job
+  red. Remove the line once upstream re-emits with fresh UUIDs; the summary
+  lists acknowledgements that no longer conflict. A pure
   re-serialization of the same evaluation (byte-different, semantically
   identical) is not a conflict: the row is re-pointed and the published
   bytes stay.
@@ -398,8 +402,7 @@ inherited-file check. The
 workflow runs it in a weekly Sunday sweep; expect it to be slow.
 
 Exit codes follow the house convention: 0 clean or no-op, 1 error, 2
-completed with excluded conflicts (the job stays red until they are
-resolved). Records are not validated here: the ingestion cron validated
+completed with excluded conflicts that are not all acknowledged. Records are not validated here: the ingestion cron validated
 each one before committing it. A run whose rebuilt manifest core hash
 matches the published one and that has no missing index, retire, or
 retention work commits nothing. Conflicts still produce exit code 2 on a

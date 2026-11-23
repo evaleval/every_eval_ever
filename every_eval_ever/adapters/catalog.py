@@ -364,6 +364,16 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         ),
     ),
     AdapterSpec(
+        key='livebench',
+        module='every_eval_ever.adapters.livebench.adapter',
+        collections=('livebench',),
+        notes=(
+            'Every release the livebench.ai release picker lists, from the '
+            'site repository; rows whose model has no modelLinks.js entry '
+            'name no organization and land in the failure report.'
+        ),
+    ),
+    AdapterSpec(
         key='mmlu_pro',
         module='every_eval_ever.adapters.mmlu_pro.adapter',
         collections=('mmlu-pro',),
@@ -407,9 +417,12 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         weekday=6,
         timeout_minutes=45,
         with_packages=('pgdumplib',),
+        # The bucket is private; the runner strips HF_TOKEN from adapters.
+        required_env=('PAPERSWITHCODE_HF_TOKEN',),
         notes=(
             'Converts the whole Papers with Code postgres dump from the '
-            'huggingface/paperswithcode-backups bucket, which needs '
+            'private huggingface/paperswithcode-backups bucket, read with '
+            'PAPERSWITHCODE_HF_TOKEN, which needs '
             'huggingface_hub>=1.0 for the bucket API. --best-effort keeps '
             'imperfect rows flagged instead of aborting the run; the dropped '
             'rows land in the failure report, which the runner reads as '
@@ -463,9 +476,27 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         ),
     ),
     AdapterSpec(
-        key='terminal_bench_2',
-        module='every_eval_ever.adapters.terminal_bench_2.adapter',
-        collections=('terminal-bench-2.0',),
+        key='terminal_bench',
+        module='every_eval_ever.adapters.terminal_bench.adapter',
+        # Every version on tbench.ai's picker; one collection each.
+        collections=(
+            'terminal-bench-2.0',
+            'terminal-bench-2.1',
+            'terminal-bench-3.0',
+            'terminal-bench-4.0',
+        ),
+        output_scope='data_root',
+    ),
+    AdapterSpec(
+        key='terminal_bench_science',
+        module='every_eval_ever.adapters.terminal_bench_science.adapter',
+        collections=('terminal-bench-science',),
+        notes=(
+            'Reads the JSON the terminal-bench-science.ai leaderboard page '
+            'itself reads. The leaderboard carries no revision, so '
+            '--emit-source-version digests the published row ids, statuses '
+            'and metrics instead.'
+        ),
     ),
     AdapterSpec(
         key='vals_ai',
@@ -526,6 +557,17 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         runnable=False,
         unrunnable_reason=(
             'requires a local --logs-dir and --source-org; the run logs are '
+            'not published, so there is no live fetch path'
+        ),
+        captures_raw=False,
+    ),
+    AdapterSpec(
+        key='typed_decisions',
+        module='every_eval_ever.adapters.typed_decisions.adapter',
+        collections=('typed-decisions',),
+        runnable=False,
+        unrunnable_reason=(
+            'requires local --rows and --preds inputs; the run files are '
             'not published, so there is no live fetch path'
         ),
         captures_raw=False,

@@ -27,8 +27,8 @@ committing it.
 
 A run whose rebuilt manifest core hash matches the published one and that
 has no missing index, retire or retention work commits nothing. Conflicts
-still produce exit code 2; comparison failures and verification drift stop
-publication with an error.
+not listed in ``flat_acknowledged_conflicts.txt`` still produce exit code 2;
+comparison failures and verification drift stop publication with an error.
 """
 
 from __future__ import annotations
@@ -80,6 +80,10 @@ DEFAULT_KEEP_NEWEST = 2
 #: decide between trim and pin; unscanned ones are conservatively kept.
 DEFAULT_SCAN_BUDGET = 20
 DOWNLOAD_WORKERS = 8
+#: Excluded paths a maintainer has acknowledged; see ``exit_code_for``.
+ACKNOWLEDGED_CONFLICTS = Path(__file__).with_name(
+    'flat_acknowledged_conflicts.txt'
+)
 
 
 class FlatRebuildError(RuntimeError):
@@ -224,6 +228,8 @@ class RebuildReport:
     manifests_pinned: tuple[str, ...] = ()
     manifests_unscanned: tuple[str, ...] = ()
     conflicts: tuple[str, ...] = ()
+    #: The ``data/`` paths the conflicts excluded.
+    excluded_paths: frozenset[str] = frozenset()
     manifest_core_sha256: str | None = None
     verified_files: int = 0
     verified_reserialized: int = 0
@@ -1304,6 +1310,7 @@ def orchestrate(
             + '\n'.join(build.errors)
         )
     report.conflicts = build.conflicts
+    report.excluded_paths = build.excluded_paths
     rows = build.rows
     if verify:
         pending_objects = frozenset(
@@ -1475,7 +1482,23 @@ def orchestrate(
 # -- reporting -------------------------------------------------------------
 
 
-def summary_lines(report: RebuildReport) -> list[str]:
+def load_acknowledged_conflicts(path: Path | None) -> frozenset[str]:
+    """Read excluded paths a maintainer acknowledged, one per line.
+
+    Blank lines and ``#`` comments are skipped. ``None`` acknowledges nothing.
+    """
+    if path is None:
+        return frozenset()
+    return frozenset(
+        stripped
+        for line in path.read_text(encoding='utf-8').splitlines()
+        if (stripped := line.strip()) and not stripped.startswith('#')
+    )
+
+
+def summary_lines(
+    report: RebuildReport, acknowledged: frozenset[str] = frozenset()
+) -> list[str]:
     lines = [
         f'## Flat rebuild — {report.repo_id}',
         '',
@@ -1513,8 +1536,21 @@ def summary_lines(report: RebuildReport) -> list[str]:
             'published objects stay, upstream should re-emit with fresh '
             'UUIDs'
         )
+        known = report.excluded_paths & acknowledged
+        if known:
+            lines.append(
+                f'- acknowledged: {len(known)} of the excluded path(s) are '
+                'listed as known conflicts and do not fail the run'
+            )
+    stale = sorted(acknowledged - report.excluded_paths)
+    if stale:
+        lines.append(
+            f'- **stale acknowledgements: {len(stale)}** listed path(s) no '
+            'longer conflict; remove them from the acknowledged list'
+        )
     for label, paths in (
         ('Excluded records', report.conflicts),
+        ('Stale acknowledgements', stale),
         ('Retired indexes', report.indexes_retired),
         ('Trimmed snapshots', report.manifests_trimmed),
         ('Pinned snapshots', report.manifests_pinned),
@@ -1527,9 +1563,18 @@ def summary_lines(report: RebuildReport) -> list[str]:
     return lines
 
 
-def exit_code_for(report: RebuildReport) -> int:
-    """0 clean or no-op, 2 completed with exclusions, per the house codes."""
-    return 2 if report.conflicts else 0
+def exit_code_for(
+    report: RebuildReport, acknowledged: frozenset[str] = frozenset()
+) -> int:
+    """0 clean or no-op, 2 completed with exclusions, per the house codes.
+
+    Exclusions whose paths are all in ``acknowledged`` count as clean.
+    """
+    if not report.conflicts:
+        return 0
+    if report.excluded_paths and report.excluded_paths <= acknowledged:
+        return 0
+    return 2
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -1577,7 +1622,17 @@ def main(argv: list[str] | None = None) -> int:
             'loudly. Slow; intended for a periodic sweep, not every run.'
         ),
     )
+    parser.add_argument(
+        '--acknowledged-conflicts',
+        type=Path,
+        default=ACKNOWLEDGED_CONFLICTS,
+        help=(
+            'File of excluded data/ paths that do not fail the run, one per '
+            'line (default: the list shipped with this module).'
+        ),
+    )
     args = parser.parse_args(argv)
+    acknowledged = load_acknowledged_conflicts(args.acknowledged_conflicts)
     started = time.monotonic()
     try:
         report = orchestrate(
@@ -1596,7 +1651,7 @@ def main(argv: list[str] | None = None) -> int:
         else:
             print(f'error: {exc}', file=sys.stderr)
         return 1
-    lines = summary_lines(report)
+    lines = summary_lines(report, acknowledged)
     print('\n'.join(lines))
     summary_path = os.environ.get('GITHUB_STEP_SUMMARY')
     if summary_path:
@@ -1609,7 +1664,7 @@ def main(argv: list[str] | None = None) -> int:
             'content. See the run summary for the full list.'
         )
     print(f'done in {time.monotonic() - started:.1f}s')
-    return exit_code_for(report)
+    return exit_code_for(report, acknowledged)
 
 
 if __name__ == '__main__':

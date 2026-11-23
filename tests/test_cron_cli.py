@@ -179,6 +179,18 @@ def test_plan_carries_the_timeout_and_extra_packages(capsys) -> None:
     assert entries['swe_bench_verified']['packages'] == 'datasets'
 
 
+def test_plan_accepts_a_comma_separated_adapter_list(capsys) -> None:
+    assert (
+        cli.main(['plan', '--adapter', 'livebench, terminal_bench']) == 0
+    )
+
+    matrix = json.loads(capsys.readouterr().out)
+    assert [entry['adapter'] for entry in matrix['include']] == [
+        'livebench',
+        'terminal_bench',
+    ]
+
+
 def test_plan_gives_the_job_more_time_than_the_adapter(capsys) -> None:
     """The job also checks out, installs and uploads.
 
