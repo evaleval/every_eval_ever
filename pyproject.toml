@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "every-eval-ever"
-version = "0.2.3rc1"
+version = "0.3.0"
 description = "Every Eval Ever"
 readme = "README.md"
 authors = [
@@ -68,6 +68,7 @@ every_eval_ever = [
     # offline; without it an installed package cannot name a metric.
     "adapters/**/task_metadata.json",
     "cron/*.md",
+    "cron/flat_acknowledged_conflicts.txt",
     "tools/*.md",
     # Vendored eval-card-registry vocabulary, resolved against offline.
     "helpers/data/*.json",

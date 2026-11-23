@@ -997,6 +997,25 @@ def test_latest_dump_remote_path_lists_postgres_recursively(monkeypatch):
     assert seen == {'prefix': 'postgres', 'recursive': True}
 
 
+def test_bucket_api_reads_with_the_paperswithcode_token(monkeypatch):
+    tokens = []
+
+    class _FakeApi:
+        list_bucket_tree = None
+
+        def __init__(self, token=None):
+            tokens.append(token)
+
+    monkeypatch.setattr('huggingface_hub.HfApi', _FakeApi)
+    monkeypatch.setenv('PAPERSWITHCODE_HF_TOKEN', 'bucket-token')
+    adapter._require_bucket_api()
+    monkeypatch.delenv('PAPERSWITHCODE_HF_TOKEN')
+    adapter._require_bucket_api()
+
+    # unset falls back to the ambient login
+    assert tokens == ['bucket-token', None]
+
+
 def test_emit_source_version_names_a_local_dump_without_network(capsys):
     # A --dump path is named from its own stamp, so the probe touches no bucket.
     exit_code = adapter.run(

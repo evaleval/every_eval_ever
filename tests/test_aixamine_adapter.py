@@ -110,7 +110,7 @@ def test_hf_model_not_date_stamped(tmp_path):
     logs = aix.build_service_logs(REPORT, MODEL_HF, CATALOG, "123")
     _, _, model_name, log = logs[0]
     assert log.model_info.id == "meta-llama/Llama-3.1-8B-Instruct"
-    assert model_name == "meta-llama/Llama-3.1-8B-Instruct"
+    assert model_name == "Llama-3.1-8B-Instruct"
 
 
 def test_missing_developer_records_failure(tmp_path):

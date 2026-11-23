@@ -920,6 +920,61 @@ def test_pre_flight_reports_every_immutable_mismatch(tmp_path):
     assert fr.exit_code_for(report) == 2
 
 
+def _conflicting_rebuild(tmp_path):
+    rows = [make_row(str(uuid4()), 'gsm8k') for _ in range(2)]
+    files = {}
+    for row in rows:
+        files[row.legacy_path] = record_bytes(row.object_uuid, 'gsm8k')
+        files[row.object_path] = b'{}'
+    seed_pointer(files, seed_manifest_files(files, [], RECENT.isoformat()))
+    report = fr.orchestrate(FakeApi(files, tmp_path), 'org/ds', now=NOW)
+    return report, [row.legacy_path for row in rows]
+
+
+def test_acknowledged_conflicts_are_excluded_but_do_not_fail(tmp_path):
+    report, paths = _conflicting_rebuild(tmp_path)
+    assert report.excluded_paths == frozenset(paths)
+    acknowledged = frozenset(paths)
+    assert fr.exit_code_for(report, acknowledged) == 0
+    summary = '\n'.join(fr.summary_lines(report, acknowledged))
+    # still enumerated, so the exclusion stays visible
+    assert all(path in summary for path in paths)
+    assert 'acknowledged: 2' in summary
+
+
+def test_an_unacknowledged_conflict_still_fails(tmp_path):
+    report, paths = _conflicting_rebuild(tmp_path)
+    assert fr.exit_code_for(report, frozenset(paths[:1])) == 2
+
+
+def test_stale_acknowledgements_are_reported(tmp_path):
+    report, paths = _conflicting_rebuild(tmp_path)
+    gone = 'data/gsm8k/org/model/gone.json'
+    summary = '\n'.join(fr.summary_lines(report, frozenset([*paths, gone])))
+    assert 'stale acknowledgements: 1' in summary
+    assert gone in summary
+
+
+def test_load_acknowledged_conflicts_skips_comments(tmp_path):
+    listing = tmp_path / 'known.txt'
+    listing.write_text('# note\n\n  data/a/b.json  \n#data/c.json\n')
+    assert fr.load_acknowledged_conflicts(listing) == {'data/a/b.json'}
+    assert fr.load_acknowledged_conflicts(None) == frozenset()
+
+
+def test_shipped_acknowledged_conflicts_are_data_paths():
+    lines = [
+        line
+        for line in fr.ACKNOWLEDGED_CONFLICTS.read_text().splitlines()
+        if line.strip() and not line.startswith('#')
+    ]
+    assert len(lines) == len(set(lines))
+    for line in lines:
+        assert line == line.strip()
+        assert line.startswith(fr.DATA_PREFIX)
+        assert line.endswith(('.json', '.jsonl'))
+
+
 @pytest.mark.parametrize('change', ['add', 'remove', 'edit'])
 def test_existing_aggregate_companion_changes(tmp_path, change):
     row = make_row(str(uuid4()), 'gsm8k')
