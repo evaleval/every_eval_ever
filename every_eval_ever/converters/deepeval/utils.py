@@ -60,3 +60,12 @@ def is_number(value: object) -> bool:
         and not isinstance(value, bool)
         and math.isfinite(value)
     )
+
+
+def is_nonfinite_number(value: object) -> bool:
+    """True for NaN or infinite ints/floats; booleans are not scores."""
+    return (
+        isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and not math.isfinite(value)
+    )

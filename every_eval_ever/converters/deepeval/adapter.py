@@ -38,6 +38,7 @@ from every_eval_ever.helpers.io import (
 
 from .utils import (
     evaluation_result_id,
+    is_nonfinite_number,
     is_number,
     metric_key,
     parse_run_timestamp,
@@ -198,10 +199,26 @@ class DeepEvalAdapter(BaseEvaluationAdapter):
         per_metric = self._metric_data_by_name(cases, conversational)
 
         source_data = self._source_data(raw_data, evaluation_name)
-        evaluation_results, without_scores = self._build_results(
-            raw_data, evaluation_name, source_data, per_metric
+        (
+            evaluation_results,
+            without_scores,
+            nonfinite_names,
+            nonfinite_total,
+        ) = self._build_results(
+            raw_data,
+            evaluation_name,
+            source_data,
+            per_metric,
+            cases,
+            conversational,
         )
         if not evaluation_results:
+            if nonfinite_total:
+                raise ValueError(
+                    'DeepEval test run contains no metric with a finite '
+                    'score in metricsScores; its reported scores are '
+                    'non-finite (NaN or infinite) and cannot be published'
+                )
             raise ValueError(
                 'DeepEval test run contains no metric with a score in '
                 'metricsScores; nothing convertible to an evaluation result'
@@ -225,6 +242,14 @@ class DeepEvalAdapter(BaseEvaluationAdapter):
             )
         if without_scores:
             additional_details['metrics_without_scores'] = str(without_scores)
+        if nonfinite_names:
+            additional_details['metrics_with_nonfinite_scores'] = str(
+                len(nonfinite_names)
+            )
+        if nonfinite_total:
+            additional_details['nonfinite_scores_excluded'] = str(
+                nonfinite_total
+            )
         # The run's own case-level outcome counts are evaluation
         # outcomes, not operational metadata; carry them rather than
         # dropping them silently.
@@ -322,20 +347,36 @@ class DeepEvalAdapter(BaseEvaluationAdapter):
         evaluation_name: str,
         source_data: SourceDataPrivate,
         per_metric: dict[str, list[dict[str, Any]]],
-    ) -> tuple[list[EvaluationResult], int]:
+        cases: list[dict[str, Any]],
+        conversational: list[dict[str, Any]],
+    ) -> tuple[list[EvaluationResult], int, set[str], int]:
         results: list[EvaluationResult] = []
         without_scores = 0
+        nonfinite_names: set[str] = set()
+        nonfinite_total = 0
+        summary_names: set[str] = set()
         for entry in raw_data.get('metricsScores') or []:
             display_name = entry.get('metric')
-            scores = [
-                float(score)
-                for score in entry.get('scores') or []
-                if is_number(score)
-            ]
-            if not display_name or not scores:
-                # A metric whose every case errored has no score to
-                # publish; it is counted in source_metadata instead.
+            if display_name:
+                summary_names.add(display_name)
+            raw_scores = entry.get('scores') or []
+            scores = [float(score) for score in raw_scores if is_number(score)]
+            excluded = sum(
+                1 for score in raw_scores if is_nonfinite_number(score)
+            )
+            if excluded and display_name:
+                nonfinite_names.add(display_name)
+                nonfinite_total += excluded
+            if not display_name:
                 without_scores += 1
+                continue
+            if not scores:
+                # A metric whose every case errored has no score to
+                # publish; it is counted in source_metadata instead. A
+                # metric whose scores were all non-finite is counted
+                # under the non-finite counters instead.
+                if not excluded:
+                    without_scores += 1
                 continue
             results.append(
                 self._build_result(
@@ -345,9 +386,76 @@ class DeepEvalAdapter(BaseEvaluationAdapter):
                     evaluation_name,
                     source_data,
                     per_metric.get(display_name, []),
+                    excluded,
                 )
             )
-        return results, without_scores
+        scan_names, scan_total = self._verdictless_nonfinite_scores(
+            cases, conversational, summary_names
+        )
+        nonfinite_names |= scan_names
+        nonfinite_total += scan_total
+        return results, without_scores, nonfinite_names, nonfinite_total
+
+    @staticmethod
+    def _verdictless_nonfinite_scores(
+        cases: list[dict[str, Any]],
+        conversational: list[dict[str, Any]],
+        summary_names: set[str],
+    ) -> tuple[set[str], int]:
+        """Count non-finite scores the producer kept out of metricsScores.
+
+        DeepEval's summary admits a score only when its pair carries a
+        verdict (a ``success`` flag); a non-finite score on a verdictless
+        pair is counted as an error there and never reaches the summary,
+        so the summary alone cannot account for it. This scan walks the
+        same MetricData the producer's aggregation walks (case and
+        conversational metricsData, plus trace span metricsData) and
+        counts those excluded scores. The trace-level ``metricsData``
+        field is not walked: the producer duplicates those objects into
+        the case's own metricsData and walks them once, via the case.
+        Expectations entries are skipped, as the producer's aggregation
+        passes over them without scoring or erroring them.
+        """
+        names: set[str] = set()
+        total = 0
+
+        def scan(entries: Any) -> None:
+            nonlocal total
+            for entry in entries or []:
+                if not isinstance(entry, dict):
+                    continue
+                name = entry.get('name')
+                if name not in summary_names:
+                    continue
+                if entry.get('expectationsData') is not None:
+                    continue
+                if isinstance(entry.get('success'), bool):
+                    continue
+                if is_nonfinite_number(entry.get('score')):
+                    names.add(name)
+                    total += 1
+
+        span_keys = (
+            'baseSpans',
+            'agentSpans',
+            'llmSpans',
+            'retrieverSpans',
+            'toolSpans',
+        )
+        for case in cases:
+            if not isinstance(case, dict):
+                continue
+            scan(case.get('metricsData'))
+            trace = case.get('trace')
+            if isinstance(trace, dict):
+                for key in span_keys:
+                    for span in trace.get(key) or []:
+                        if isinstance(span, dict):
+                            scan(span.get('metricsData'))
+        for case in conversational:
+            if isinstance(case, dict):
+                scan(case.get('metricsData'))
+        return names, total
 
     @staticmethod
     def _build_result(
@@ -357,6 +465,7 @@ class DeepEvalAdapter(BaseEvaluationAdapter):
         evaluation_name: str,
         source_data: SourceDataPrivate,
         metric_data: list[dict[str, Any]],
+        nonfinite_excluded: int = 0,
     ) -> EvaluationResult:
         key = metric_key(display_name)
         fields = metric_config_fields(
@@ -411,6 +520,8 @@ class DeepEvalAdapter(BaseEvaluationAdapter):
         for field in ('passes', 'fails', 'errors'):
             if entry.get(field) is not None:
                 details[field] = str(entry[field])
+        if nonfinite_excluded:
+            details['nonfinite_scores_excluded'] = str(nonfinite_excluded)
 
         metric_config = MetricConfig(
             metric_name=key,

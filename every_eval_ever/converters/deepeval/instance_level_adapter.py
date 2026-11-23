@@ -30,11 +30,14 @@ from .utils import evaluation_result_id, is_int, is_number
 class DeepEvalInstanceLevelAdapter:
     """Converts DeepEval per-test-case metricsData to instance-level rows.
 
-    One row per (test case, metric) pair that carries a numeric score --
-    the same pairs the aggregate results summarize. Conversational test
-    cases are not expanded into rows: DeepEval scores them per turn,
-    which does not map onto single-turn instance rows; their scores are
-    already inside the run's aggregate metricsScores.
+    One row per (test case, metric) pair that carries a finite numeric
+    score and a producer verdict (a ``success`` flag). DeepEval counts
+    pairs without a success flag as errors and excludes their scores
+    from its run summary, so they get no row here either; non-finite
+    scores are likewise unpublished here and are counted on the
+    aggregate side. Conversational test cases are not expanded into
+    rows; their scores are already inside the run's aggregate
+    metricsScores.
     """
 
     def transform_samples(
@@ -154,18 +157,22 @@ class DeepEvalInstanceLevelAdapter:
                 continue
             score = metric_data.get('score')
             if not is_number(score):
-                # Errored metrics and classifier entries carry no score;
-                # the aggregate counts the run's errors separately.
+                # Entries with no finite score get no row: errored
+                # metrics and classifier entries carry no score, and
+                # non-finite scores (NaN or infinite) cannot be
+                # published; the aggregate counts the run's errors and
+                # its excluded non-finite scores separately.
                 continue
+            success = metric_data.get('success')
+            if not isinstance(success, bool):
+                # The producer recorded no verdict for this pair (it
+                # counts the pair as an error and excludes its score
+                # from the run summary), so no row is published rather
+                # than deriving a verdict from the score or threshold.
+                continue
+            is_correct = success
             display_name = metric_data.get('name') or ''
             threshold = metric_data.get('threshold')
-            success = metric_data.get('success')
-            if isinstance(success, bool):
-                is_correct = success
-            elif is_number(threshold):
-                is_correct = float(score) >= float(threshold)
-            else:
-                is_correct = float(score) == 1.0
 
             metadata: dict[str, str] = {'metric': display_name}
             if case.get('name'):

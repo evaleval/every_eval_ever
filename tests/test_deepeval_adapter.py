@@ -653,3 +653,275 @@ def test_cli_directory_mode_publishes_good_and_reports_bad(tmp_path):
     assert len(sidecars) == 1
     reports = list((tmp_path / 'adapter_reports').glob('*deepeval_inputs*'))
     assert len(reports) == 1
+
+
+# ── Producer-form defects: verdictless metrics and non-finite scores ──
+
+
+def _instance_rows(payload):
+    return DeepEvalInstanceLevelAdapter().transform_samples(
+        payload, 'eval-id', MODEL_ID, 'test_synthetic'
+    )
+
+
+def test_score_only_metric_publishes_no_instance_row():
+    payload = _run_payload()
+    payload['testCases'][0]['metricsData'].append(
+        {'name': 'Judge Agreement', 'score': 0.4, 'reason': 'kappa'}
+    )
+    rows = _instance_rows(payload)
+    assert [row.evaluation_result_id for row in rows] == ['exact_match']
+
+
+def test_score_only_metric_at_score_one_publishes_no_instance_row():
+    for score in (1.0, 0.0):
+        payload = _run_payload()
+        payload['testCases'][0]['metricsData'].append(
+            {'name': 'Judge Agreement', 'score': score}
+        )
+        rows = _instance_rows(payload)
+        assert [row.evaluation_result_id for row in rows] == ['exact_match']
+
+
+def test_threshold_only_metric_publishes_no_instance_row():
+    for score in (0.9, 0.4):
+        payload = _run_payload()
+        payload['testCases'][0]['metricsData'].append(
+            {'name': 'Judge Agreement', 'score': score, 'threshold': 0.5}
+        )
+        rows = _instance_rows(payload)
+        assert [row.evaluation_result_id for row in rows] == ['exact_match']
+
+
+def test_nan_score_excluded_from_aggregate_and_counted(tmp_path):
+    payload = _run_payload()
+    payload['metricsScores'][0]['scores'] = [0.8, float('nan')]
+    _, log = _convert_payload(payload, tmp_path)
+    result = log.evaluation_results[0]
+    assert result.score_details.score == 0.8
+    assert result.score_details.uncertainty.num_samples == 1
+    assert result.score_details.details['nonfinite_scores_excluded'] == '1'
+    details = log.source_metadata.additional_details
+    assert details['metrics_with_nonfinite_scores'] == '1'
+    assert details['nonfinite_scores_excluded'] == '1'
+    json.dumps(log.model_dump(mode='json'), allow_nan=False)
+
+
+def test_all_nan_metric_rejected_with_truthful_reason(tmp_path):
+    payload = _run_payload(
+        testCases=[],
+        metricsScores=[
+            {
+                'metric': 'GEval',
+                'scores': [float('nan')],
+                'passes': 0,
+                'fails': 0,
+                'errors': 0,
+            }
+        ],
+    )
+    with pytest.raises(ValueError, match='non-finite'):
+        _convert_payload(payload, tmp_path)
+
+
+def test_all_nan_metric_in_published_run_is_counted(tmp_path):
+    payload = _run_payload()
+    payload['metricsScores'].append(
+        {
+            'metric': 'GEval',
+            'scores': [float('nan'), float('nan')],
+            'passes': 0,
+            'fails': 0,
+            'errors': 0,
+        }
+    )
+    _, log = _convert_payload(payload, tmp_path)
+    assert len(log.evaluation_results) == 1
+    details = log.source_metadata.additional_details
+    assert details['metrics_with_nonfinite_scores'] == '1'
+    assert details['nonfinite_scores_excluded'] == '2'
+    assert 'metrics_without_scores' not in details
+
+
+def test_verdictless_nan_metric_rejected_with_truthful_reason(tmp_path):
+    payload = _run_payload(
+        testCases=[
+            {
+                'name': 'case_a',
+                'input': 'q',
+                'actualOutput': 'a',
+                'metricsData': [{'name': 'GEval', 'score': float('nan')}],
+                'order': 0,
+            }
+        ],
+        metricsScores=[
+            {
+                'metric': 'GEval',
+                'scores': [],
+                'passes': 0,
+                'fails': 0,
+                'errors': 1,
+            }
+        ],
+    )
+    with pytest.raises(ValueError, match='non-finite'):
+        _convert_payload(payload, tmp_path)
+
+
+def test_verdictless_nan_in_published_run_is_counted(tmp_path):
+    payload = _run_payload()
+    payload['testCases'][0]['metricsData'].append(
+        {'name': 'GEval', 'score': float('nan')}
+    )
+    payload['metricsScores'].append(
+        {
+            'metric': 'GEval',
+            'scores': [],
+            'passes': 0,
+            'fails': 0,
+            'errors': 1,
+        }
+    )
+    _, log = _convert_payload(payload, tmp_path)
+    details = log.source_metadata.additional_details
+    assert details['metrics_without_scores'] == '1'
+    assert details['metrics_with_nonfinite_scores'] == '1'
+    assert details['nonfinite_scores_excluded'] == '1'
+
+
+def test_span_metric_verdictless_nan_is_counted(tmp_path):
+    payload = _run_payload()
+    payload['testCases'][0]['trace'] = {
+        'agentSpans': [
+            {
+                'name': 'span-a',
+                'metricsData': [{'name': 'GEval', 'score': float('nan')}],
+            }
+        ]
+    }
+    payload['metricsScores'].append(
+        {
+            'metric': 'GEval',
+            'scores': [],
+            'passes': 0,
+            'fails': 0,
+            'errors': 1,
+        }
+    )
+    _, log = _convert_payload(payload, tmp_path)
+    details = log.source_metadata.additional_details
+    assert details['metrics_with_nonfinite_scores'] == '1'
+    assert details['nonfinite_scores_excluded'] == '1'
+
+
+def test_span_only_verdictless_nan_rejected_with_truthful_reason(tmp_path):
+    payload = _run_payload(
+        testCases=[
+            {
+                'name': 'case_a',
+                'input': 'q',
+                'actualOutput': 'a',
+                'metricsData': [],
+                'trace': {
+                    'agentSpans': [
+                        {
+                            'name': 'span-a',
+                            'metricsData': [
+                                {'name': 'GEval', 'score': float('nan')}
+                            ],
+                        }
+                    ]
+                },
+                'order': 0,
+            }
+        ],
+        metricsScores=[
+            {
+                'metric': 'GEval',
+                'scores': [],
+                'passes': 0,
+                'fails': 0,
+                'errors': 1,
+            }
+        ],
+    )
+    with pytest.raises(ValueError, match='non-finite'):
+        _convert_payload(payload, tmp_path)
+
+
+def test_verdictless_span_entry_does_not_change_published_threshold(tmp_path):
+    payload = _run_payload()
+    payload['testCases'][0]['trace'] = {
+        'agentSpans': [
+            {
+                'name': 'span-a',
+                'metricsData': [
+                    {
+                        'name': 'Exact Match',
+                        'score': float('nan'),
+                        'threshold': 0.9,
+                        'evaluationModel': 'other-judge',
+                    }
+                ],
+            }
+        ]
+    }
+    _, log = _convert_payload(payload, tmp_path)
+    result = log.evaluation_results[0]
+    assert result.metric_config.metric_parameters == {'threshold': 0.5}
+    config_details = result.metric_config.additional_details or {}
+    assert 'evaluation_model' not in config_details
+    assert 'evaluation_models' not in config_details
+
+
+def test_trace_level_metrics_data_is_not_double_counted(tmp_path):
+    payload = _run_payload()
+    payload['testCases'][0]['metricsData'].append(
+        {'name': 'GEval', 'score': float('nan')}
+    )
+    payload['testCases'][0]['trace'] = {
+        'metricsData': [{'name': 'GEval', 'score': float('nan')}]
+    }
+    payload['metricsScores'].append(
+        {
+            'metric': 'GEval',
+            'scores': [],
+            'passes': 0,
+            'fails': 0,
+            'errors': 1,
+        }
+    )
+    _, log = _convert_payload(payload, tmp_path)
+    details = log.source_metadata.additional_details
+    assert details['nonfinite_scores_excluded'] == '1'
+
+
+def test_span_expectations_entry_is_not_counted(tmp_path):
+    payload = _run_payload()
+    payload['testCases'][0]['trace'] = {
+        'agentSpans': [
+            {
+                'name': 'span-a',
+                'metricsData': [
+                    {
+                        'name': 'Exact Match',
+                        'score': float('nan'),
+                        'expectationsData': {'expected': 'x'},
+                    }
+                ],
+            }
+        ]
+    }
+    _, log = _convert_payload(payload, tmp_path)
+    details = log.source_metadata.additional_details
+    assert 'metrics_with_nonfinite_scores' not in details
+    assert 'nonfinite_scores_excluded' not in details
+
+
+def test_nan_instance_score_publishes_no_row():
+    payload = _run_payload()
+    payload['testCases'][0]['metricsData'].append(
+        {'name': 'GEval', 'score': float('nan'), 'success': False}
+    )
+    rows = _instance_rows(payload)
+    assert [row.evaluation_result_id for row in rows] == ['exact_match']
