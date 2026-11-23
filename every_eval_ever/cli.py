@@ -461,9 +461,7 @@ def _cmd_convert_alpaca_eval(args: argparse.Namespace) -> int:
     if args.input_json:
         with open(args.input_json, encoding='utf-8') as handle:
             snapshot = UpstreamSnapshot.from_payload(json.load(handle))
-        print(
-            f'Replaying upstream snapshot {args.input_json} (ref {snapshot.ref})'
-        )
+        print(f'Replaying upstream snapshot {args.input_json} (ref {snapshot.ref})')
     registry = Registry(
         enabled=not args.no_registry_resolve, live=args.registry_live
     )
@@ -481,12 +479,8 @@ def _cmd_convert_alpaca_eval(args: argparse.Namespace) -> int:
         # directory accumulates earlier runs' output and a reader cannot tell
         # which files this run produced. One directory per run instead of
         # deleting: a smoke run is worth looking at.
-        output_dir = (
-            Path(tempfile.mkdtemp(prefix='alpaca-eval-smoke-')) / 'data'
-        )
-        print(
-            f'No --output_dir given; writing throwaway output to {output_dir}'
-        )
+        output_dir = Path(tempfile.mkdtemp(prefix='alpaca-eval-smoke-')) / 'data'
+        print(f'No --output_dir given; writing throwaway output to {output_dir}')
     else:
         output_dir = Path(args.output_dir)
 

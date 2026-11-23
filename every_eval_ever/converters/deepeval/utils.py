@@ -1,5 +1,6 @@
 """Shared helpers for the DeepEval converter."""
 
+import math
 import re
 from datetime import datetime, timezone
 
@@ -53,5 +54,9 @@ def is_int(value: object) -> bool:
 
 
 def is_number(value: object) -> bool:
-    """True for genuine ints/floats; JSON booleans are not scores."""
-    return isinstance(value, (int, float)) and not isinstance(value, bool)
+    """True for genuine finite ints/floats; booleans and NaN/Inf are not scores."""
+    return (
+        isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and math.isfinite(value)
+    )

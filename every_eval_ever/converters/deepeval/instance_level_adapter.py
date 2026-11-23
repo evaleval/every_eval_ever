@@ -231,10 +231,12 @@ class DeepEvalInstanceLevelAdapter:
         """
         input_tokens = case.get('inputTokenCount')
         output_tokens = case.get('outputTokenCount')
-        if not is_int(input_tokens) and not is_int(output_tokens):
+        valid_input = is_int(input_tokens) and input_tokens >= 0
+        valid_output = is_int(output_tokens) and output_tokens >= 0
+        if not valid_input and not valid_output:
             return None
-        input_value = input_tokens if is_int(input_tokens) else 0
-        output_value = output_tokens if is_int(output_tokens) else 0
+        input_value = input_tokens if valid_input else 0
+        output_value = output_tokens if valid_output else 0
         return TokenUsage(
             input_tokens=input_value,
             output_tokens=output_value,
@@ -244,6 +246,6 @@ class DeepEvalInstanceLevelAdapter:
     @staticmethod
     def _performance(case: dict[str, Any]) -> Optional[Performance]:
         completion_time = case.get('completionTime')
-        if not is_number(completion_time):
+        if not is_number(completion_time) or completion_time < 0:
             return None
         return Performance(latency_ms=float(completion_time) * 1000.0)

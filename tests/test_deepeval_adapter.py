@@ -20,6 +20,7 @@ from every_eval_ever.converters.deepeval.instance_level_adapter import (
     DeepEvalInstanceLevelAdapter,
 )
 from every_eval_ever.converters.deepeval.utils import (
+    is_number,
     metric_key,
     parse_run_timestamp,
 )
@@ -343,10 +344,10 @@ def test_unknown_metric_keeps_unknown_bounds(tmp_path):
     assert result.metric_config.min_score is None
     assert result.metric_config.max_score is None
     assert result.score_details.score == pytest.approx(3.5)
-    # A single score has a spread of zero and no standard error.
+    # A single score has no sample standard deviation or standard error.
     uncertainty = result.score_details.uncertainty
     assert uncertainty.num_samples == 1
-    assert uncertainty.standard_deviation == 0.0
+    assert uncertainty.standard_deviation is None
     assert uncertainty.standard_error is None
     assert log.source_metadata.additional_details == {
         'metrics_with_unknown_bounds': '1',
@@ -502,6 +503,23 @@ def test_boolean_values_are_not_numbers():
     assert 'threshold' not in rows[0].metadata
 
 
+def test_nonfinite_numbers_and_negative_usage_are_rejected():
+    assert is_number(float('nan')) is False
+    assert is_number(float('inf')) is False
+    assert is_number(float('-inf')) is False
+
+    payload = _run_payload()
+    case = payload['testCases'][0]
+    case['inputTokenCount'] = -5
+    case['outputTokenCount'] = -1
+    case['completionTime'] = -0.25
+    rows = DeepEvalInstanceLevelAdapter().transform_samples(
+        payload, 'eval-id', MODEL_ID, 'test_synthetic'
+    )
+    assert rows[0].token_usage is None
+    assert rows[0].performance is None
+
+
 def test_case_token_counts_and_latency_reach_rows():
     payload = _run_payload()
     case = payload['testCases'][0]
@@ -548,6 +566,23 @@ def test_directory_mode_finds_rolling_snapshot(tmp_path):
     assert result.failures == []
     # The snapshot's name carries no run time: the record keys on its stem.
     assert result.records[0].evaluation_id.endswith('/.latest_run_full')
+
+
+def test_directory_mode_prefers_exports_over_rolling_snapshot(tmp_path):
+    (tmp_path / 'test_run_20261122_001137.json').write_text(
+        RUN_FILE.read_text(encoding='utf-8'), encoding='utf-8'
+    )
+    snapshot_dir = tmp_path / '.deepeval'
+    snapshot_dir.mkdir()
+    (snapshot_dir / '.latest_run_full.json').write_text(
+        RUN_FILE.read_text(encoding='utf-8'), encoding='utf-8'
+    )
+    result = DeepEvalAdapter().transform_from_directory_result(
+        tmp_path, _make_metadata_args()
+    )
+    assert len(result.records) == 1
+    assert result.failures == []
+    assert not result.records[0].evaluation_id.endswith('/.latest_run_full')
 
 
 def test_converter_module_entrypoint_converts(tmp_path):

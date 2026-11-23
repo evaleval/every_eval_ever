@@ -114,16 +114,17 @@ class DeepEvalAdapter(BaseEvaluationAdapter):
     ) -> SourceConversionResult[EvaluationLog]:
         """Transform all DeepEval exports under a directory.
 
-        Finds results-folder exports (test_run_*.json) recursively, plus
-        the rolling snapshot at .deepeval/.latest_run_full.json when the
-        directory is a DeepEval project root. Files that are not valid
-        test runs are reported as failures, never skipped silently.
+        Finds results-folder exports (test_run_*.json) recursively, or falls
+        back to the rolling snapshot at .deepeval/.latest_run_full.json when
+        no test_run_*.json files exist under the directory. Files that are not
+        valid test runs are reported as failures, never skipped silently.
         """
         dir_path = Path(dir_path)
         candidates = sorted(dir_path.glob('**/test_run_*.json'))
-        snapshot = dir_path / '.deepeval' / '.latest_run_full.json'
-        if snapshot.is_file():
-            candidates.append(snapshot)
+        if not candidates:
+            snapshot = dir_path / '.deepeval' / '.latest_run_full.json'
+            if snapshot.is_file():
+                candidates.append(snapshot)
         if not candidates:
             raise ValueError(
                 f'No DeepEval test_run_*.json files found under {dir_path}'
@@ -392,14 +393,14 @@ class DeepEvalAdapter(BaseEvaluationAdapter):
 
         num_samples = len(scores)
         mean = statistics.fmean(scores)
-        std = statistics.stdev(scores) if num_samples > 1 else 0.0
+        std = statistics.stdev(scores) if num_samples > 1 else None
         uncertainty = Uncertainty(
             standard_error=(
                 StandardError(
                     value=std / math.sqrt(num_samples),
                     method='analytic',
                 )
-                if num_samples > 1
+                if std is not None
                 else None
             ),
             standard_deviation=std,
