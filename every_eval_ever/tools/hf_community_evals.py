@@ -47,6 +47,10 @@ DEFAULT_PR_COMMIT_DESCRIPTION = (
     'Contributor: evaleval'
 )
 AUDIT_ERROR_STATUS = 'audit_error'
+# Collections whose results are never proposed to model repos.
+EXCLUDED_COLLECTIONS = {
+    'hfopenllm_v2': 'the Open LLM Leaderboard v2 is archived and unmaintained',
+}
 
 
 class HFEvalsError(RuntimeError):
@@ -1127,6 +1131,22 @@ def build_index_manifest(
             normalize_benchmark(raw_benchmark),
             normalize_benchmark(raw_benchmark),
         )
+        legacy_parts = Path(str(row.get('legacy_path') or '')).parts
+        if (
+            len(legacy_parts) > 1
+            and legacy_parts[0] == 'data'
+            and legacy_parts[1] in EXCLUDED_COLLECTIONS
+        ):
+            skipped.append(
+                {
+                    'reason': f'excluded_collection:{legacy_parts[1]}',
+                    'benchmark': raw_benchmark,
+                    'index_path': index_jsonl.as_posix(),
+                    'index_line': line_number,
+                    **_index_trace_fields(row),
+                }
+            )
+            continue
         if normalized_benchmark not in BENCHMARK_CONFIGS:
             skipped.append(
                 {
@@ -1347,6 +1367,11 @@ def build_collection_manifest(
     progress = progress or ReviewProgress()
     api = api or HfApi()
     collection_name = _safe_collection_name(collection_name)
+    if collection_name in EXCLUDED_COLLECTIONS:
+        raise HFEvalsError(
+            f'Collection {collection_name} is excluded: '
+            f'{EXCLUDED_COLLECTIONS[collection_name]}.'
+        )
     entries: list[dict[str, Any]] = []
     skipped: list[dict[str, Any]] = []
     errors: list[str] = []

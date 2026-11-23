@@ -72,6 +72,9 @@ Supported benchmarks in this workflow are:
 - `ifbench`
 - `lexam`
 
+Results from the `hfopenllm_v2` collection are never proposed: the Open LLM
+Leaderboard v2 is archived and unmaintained.
+
 ## Resume And Force
 
 Default reruns reuse exact-match local outputs:

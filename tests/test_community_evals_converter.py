@@ -1846,3 +1846,44 @@ def test_lexam_routes_each_result_to_its_config_task(tmp_path: Path) -> None:
         ('.eval_results/lexam.yaml', 'mcq_4_choices', 47.83),
         ('.eval_results/lexam.yaml', 'open_question', 44.36),
     }
+
+
+def test_build_collection_manifest_rejects_excluded_collection() -> None:
+    with pytest.raises(
+        community_evals_converter.HFEvalsError,
+        match='hfopenllm_v2 is excluded',
+    ):
+        community_evals_converter.build_collection_manifest(
+            collection_name='hfopenllm_v2',
+            datastore='evaleval/EEE_datastore',
+            api=FakeHfApi(datastore_sha='abc123'),
+        )
+
+
+def test_build_index_manifest_skips_rows_from_excluded_collection(
+    tmp_path: Path,
+) -> None:
+    object_uuid = '676f4465-ce78-411a-9f5a-c97b3d2eac4f'
+    datastore, index_jsonl = _write_index_row(
+        tmp_path,
+        _aggregate(),
+        object_uuid=object_uuid,
+        row_overrides={
+            'legacy_path': (
+                f'data/hfopenllm_v2/google/gemma-2b-it/{object_uuid}.json'
+            )
+        },
+    )
+
+    manifest = community_evals_converter.build_index_manifest(
+        index_jsonl=index_jsonl,
+        datastore='evaleval/EEE_datastore@abc123',
+        benchmarks=['mmlu_pro'],
+        api=FakeHfApi(),
+        download_file=_fake_download(datastore),
+    )
+
+    assert manifest['entries'] == []
+    assert [item['reason'] for item in manifest['skipped']] == [
+        'excluded_collection:hfopenllm_v2'
+    ]
