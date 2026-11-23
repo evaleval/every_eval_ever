@@ -1,0 +1,92 @@
+# Rebuild the EEE_datastore flat view after each ingestion run.
+#
+# tools/build_flat_datastore.py in the datastore repository defines the flat
+# layout and rebuilds it from a local checkout, but that checkout no longer
+# fits an Actions runner (data/ is ~15 GB), so cron/flat_rebuild.py rebuilds
+# against the Hub API instead: it diffs data/ against the current snapshot,
+# downloads only new records, and commits the rebuilt indexes, manifests and
+# objects with the same retry discipline as the adapter ingestion.
+#
+# Setup this workflow needs, once:
+#   - the `cron` environment holding `HF_TOKEN`, with write access to the
+#     datastore (the same one adapter_cron.yml uses);
+#   - optional `EEE_DATASTORE_REPO_ID` repository variable to point a
+#     rehearsal run at a throwaway repository.
+
+name: Flat rebuild
+
+on:
+  workflow_run:
+    workflows: ['Adapter ingestion']
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Plan and report, commit nothing'
+        required: false
+        type: boolean
+        default: false
+  schedule:
+    # 01:14 UTC catch-up sweep. Off the hour, because the hour is when
+    # everyone else runs. A run whose snapshot already matches commits
+    # nothing, so this only acts when data/ moved without an ingestion run.
+    - cron: '14 1 * * *'
+    # 02:44 UTC Sundays: the same sweep plus --verify, the deep pass that
+    # hashes every inherited data file against the snapshot, so same-length
+    # edits the nightly size diff cannot see still fail loudly.
+    - cron: '44 2 * * 0'
+
+permissions:
+  contents: read
+
+jobs:
+  rebuild:
+    name: Rebuild flat/
+    # A fork inherits the schedule; it should not commit on our behalf, and
+    # a failed ingestion must not be flattened into the datastore.
+    if: >-
+      github.repository == 'evaleval/every_eval_ever'
+      && (
+        github.event_name != 'workflow_run'
+        || github.event.workflow_run.conclusion == 'success'
+      )
+    runs-on: ubuntu-latest
+    # The first run downloads every record added since the last snapshot;
+    # steady-state runs move a few hundred files and finish far sooner.
+    timeout-minutes: 240
+    environment: cron
+    concurrency:
+      group: flat-rebuild
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - uses: astral-sh/setup-uv@v7.6.0
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        env:
+          # Keep the environment outside the checkout; nltk's import guard
+          # blocks dependency imports resolved beneath the working directory.
+          UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/eee-venv
+        run: uv sync --locked
+
+      - name: Rebuild flat view
+        env:
+          UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/eee-venv
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          # Empty when unset, which the CLI treats as "use the default".
+          EEE_DATASTORE_REPO_ID: ${{ vars.EEE_DATASTORE_REPO_ID }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          SCHEDULE: ${{ github.event.schedule }}
+        run: |
+          set -euo pipefail
+          args=()
+          if [ "${DRY_RUN}" = "true" ]; then
+              args+=(--dry-run)
+          fi
+          if [ "${SCHEDULE}" = "44 2 * * 0" ]; then
+              args+=(--verify)
+          fi
+          uv run --locked python -m every_eval_ever.cron.flat_rebuild \
+              "${args[@]+"${args[@]}"}"

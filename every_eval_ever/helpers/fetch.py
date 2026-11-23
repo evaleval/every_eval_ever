@@ -90,6 +90,7 @@ def fetch_text(
             url, timeout=timeout, headers=headers, allow_redirects=True
         )
         response.raise_for_status()
+        _capture(response)
         return response.text
     except requests.exceptions.RequestException as e:
         raise FetchError(f'Failed to fetch {url}: {e}') from e

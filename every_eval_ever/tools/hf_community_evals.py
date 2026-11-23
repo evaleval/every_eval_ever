@@ -37,6 +37,8 @@ from rich.text import Text
 from every_eval_ever.eval_types import EvaluationLog, EvaluationResult
 
 SOURCE_NAME = 'EvalEval'
+# Hub org slug; the Hub resolves the source avatar/icon from it.
+SOURCE_ORG = 'evaleval'
 MANIFEST_VERSION = 1
 DEFAULT_DATASTORE_REVISION = 'main'
 DEFAULT_DATASTORE_REPO = 'evaleval/EEE_datastore'
@@ -459,7 +461,11 @@ def _community_eval_entry(
     entry: dict[str, Any] = {
         'dataset': {'id': config.dataset_id, 'task_id': task_id},
         'value': value,
-        'source': {'url': source_url, 'name': SOURCE_NAME},
+        'source': {
+            'url': source_url,
+            'name': SOURCE_NAME,
+            'org': SOURCE_ORG,
+        },
     }
     if date is not None:
         entry['date'] = date

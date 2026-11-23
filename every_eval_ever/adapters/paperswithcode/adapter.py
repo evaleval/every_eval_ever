@@ -39,6 +39,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import re
 import statistics
 import sys
@@ -79,6 +80,8 @@ from every_eval_ever.helpers import (
 SRC = 'paperswithcode'
 PWC_SITE = 'https://paperswithcode.com'
 DEFAULT_BUCKET = 'huggingface/paperswithcode-backups'
+#: Token with read access to the private bucket.
+BUCKET_TOKEN_ENV = 'PAPERSWITHCODE_HF_TOKEN'
 DEFAULT_OUTPUT_DIR = 'data/paperswithcode'
 
 # A small slice that exercises every field decision:
@@ -1447,6 +1450,9 @@ def _require_bucket_api():
     The two bucket methods land together in ``huggingface_hub>=1.0``; feature-
     detecting ``list_bucket_tree`` is more robust than parsing a version string
     (and lets the test suite substitute a fake ``HfApi``).
+
+    The bucket is private: ``PAPERSWITHCODE_HF_TOKEN`` is used when set,
+    otherwise the ambient Hugging Face login.
     """
     from huggingface_hub import HfApi
 
@@ -1464,7 +1470,8 @@ def _require_bucket_api():
             '--dump <path> to convert a dump already on disk (that path needs '
             'only pgdumplib, no bucket API).'
         )
-    return HfApi()
+    token = os.environ.get(BUCKET_TOKEN_ENV)
+    return HfApi(token=token) if token else HfApi()
 
 
 def latest_dump_remote_path(bucket: str, prefix: str = 'postgres') -> str:
