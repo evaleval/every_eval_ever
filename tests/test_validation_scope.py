@@ -804,6 +804,23 @@ def test_redacted_sample_ids_warn_without_failing_validation(tmp_path):
     assert len(messages) == 1, messages
     assert '1 distinct sample_id(s)' in messages[0]
     assert 'instance_future-architect__vuls-<AWS-SECRET-KEY>' in messages[0]
+    assert (
+        'Scrub text fields only, or restore the source ids afterwards.'
+        in messages[0]
+    )
+
+    for placeholder in (
+        '<REDACTED>',
+        '<EMAIL_ADDRESS>',
+        '<PASSWORD>',
+        '<SECRET>',
+        '<TOKEN>',
+    ):
+        row = valid_sample()
+        row['sample_id'] = f'item-{placeholder}'
+        placeholder_report = _validate_samples_with_aggregate(tmp_path, [row])
+        assert placeholder_report.valid is True, placeholder_report.errors
+        assert len(placeholder_report.warnings) == 1, placeholder
 
 
 def test_source_sample_ids_do_not_warn(tmp_path):
@@ -814,6 +831,8 @@ def test_source_sample_ids_do_not_warn(tmp_path):
         'gsm8k_0001',
         'what is <b>bold</b>?',
         'pick <A> or <B>',
+        'token <UNK> <BOS> <EOS> <MASK>',
+        'html <BR> <H1> <DIV>',
     ):
         row = valid_sample()
         row['sample_id'] = sample_id

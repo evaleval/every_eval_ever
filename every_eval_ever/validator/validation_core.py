@@ -33,8 +33,12 @@ _UUID_RE = (
 _AGGREGATE_FILE_RE = re.compile(rf'{_UUID_RE}\.json$')
 _INSTANCE_FILE_RE = re.compile(rf'{_UUID_RE}_samples\.jsonl$')
 # Placeholder a secret or PII scrubber writes in place of what it matched,
-# e.g. <AWS-SECRET-KEY>, <REDACTED>, <EMAIL_ADDRESS>.
-_REDACTION_PLACEHOLDER_RE = re.compile(r'<[A-Z][A-Z0-9]+(?:[-_][A-Z0-9]+)*>')
+# e.g. <AWS-SECRET-KEY>, <REDACTED>, <EMAIL_ADDRESS>, <TOKEN>. Require either
+# a separator or at least 5 chars so short tokens/tags (<UNK>, <BOS>, <EOS>,
+# <MASK>, <BR>, <H1>, <DIV>) do not false-positive.
+_REDACTION_PLACEHOLDER_RE = re.compile(
+    r'<[A-Z][A-Z0-9]*(?:[-_][A-Z0-9]+)+>|<[A-Z][A-Z0-9]{4,}>'
+)
 
 _DEPLOYMENT_TYPES = ('self_deployed', 'externally_managed', 'unknown')
 _MODEL_AVAILABILITY_TYPES = ('open_weights', 'closed_weights', 'unknown')
@@ -484,7 +488,8 @@ def check_sample_id_redaction(samples: InstanceFileSummary) -> list[str]:
         f'sample_id: {len(ids)} distinct sample_id(s) contain a redaction '
         f'placeholder, e.g. {ids[0]!r}. A secret or PII scrubber has '
         'rewritten the identifier, so different samples can now share one '
-        'sample_id. Restore the source ids, or redact before the id is built.'
+        'sample_id. Scrub text fields only, or restore the source ids '
+        'afterwards.'
     ]
 
 
