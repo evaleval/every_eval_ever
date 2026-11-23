@@ -276,6 +276,7 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         cadence='weekly',
         weekday=5,
         timeout_minutes=30,
+        extra_args=('--url', 'https://epoch.ai/data/benchmark_data.zip'),
         skip_if_unchanged=False,
         notes=(
             'Downloads https://epoch.ai/data/benchmark_data.zip (CC BY 4.0). '

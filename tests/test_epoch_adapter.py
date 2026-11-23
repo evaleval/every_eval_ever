@@ -156,3 +156,15 @@ def test_duplicate_rows_are_excluded_not_published_twice(zip_bytes):
     assert len(result.records) == 8
     duplicates = [e for e in result.exclusions if 'duplicate' in e.reason]
     assert [e.source_ref for e in duplicates] == ['gpqa_diamond.csv:5']
+
+
+def test_catalog_entry_fetches_by_url_on_a_weekly_schedule():
+    from every_eval_ever.adapters import catalog
+
+    spec = catalog.get('epoch_ai')
+    argv = spec.argv('/tmp/staging/data')
+    assert argv[argv.index('--url') + 1] == adapter.DATA_URL
+    assert '--input' not in argv
+    assert spec.collections == (adapter.COLLECTION,)
+    assert (spec.cadence, spec.weekday) == ('weekly', 5)
+    assert spec.captures_raw  # the zip is snapshotted via raw_capture
