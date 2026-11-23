@@ -246,10 +246,13 @@ def test_unknown_bounds_are_counted_in_the_source_metadata(case, tmp_path):
         if path.suffix != '.json':
             continue
         log = json.loads(path.read_text(encoding='utf-8'))
+        # `levels` metrics carry their range as level_names rather than
+        # min/max scores, so an absent pair there is not "unknown bounds".
         unbounded = [
             result['metric_config'].get('metric_name')
             for result in log['evaluation_results']
-            if result['metric_config'].get('min_score') is None
+            if result['metric_config'].get('score_type') != 'levels'
+            and result['metric_config'].get('min_score') is None
             and result['metric_config'].get('max_score') is None
         ]
         details = log['source_metadata'].get('additional_details') or {}

@@ -186,6 +186,41 @@ CASES: tuple[ConverterCase, ...] = (
         # what cover this converter.
         required_source_paths=(),
     ),
+    ConverterCase(
+        source='simpleaudit',
+        log_path=REPO_ROOT / 'tests/data/simpleaudit/audit_results.json',
+        aggregates=1,
+        sidecars=1,
+        # One safety score plus one severity-distribution metric per run.
+        results=2,
+        # 3 scenarios -> 3 instance-level rows.
+        sidecar_rows=3,
+        # Single-run files carry no model name and this fixture has no
+        # studio_provenance, so the id falls back to the synthetic namespace
+        # the datastore publisher requires a developer folder for.
+        model_id='simpleaudit-unknown/model',
+        scores={
+            'safety_score/safety_score': 66.67,
+            # Dominant judged severity is `high`, index 1 in level_names; the
+            # ungraded scenario does not participate in dominance.
+            'severity_distribution/severity_distribution': 4.0,
+        },
+        metric_names=frozenset({'safety_score', 'severity_distribution'}),
+        # Neither metric is in the eval-card-registry, so both stay namespaced.
+        metric_ids=frozenset(
+            {'simpleaudit.safety_score', 'simpleaudit.severity_distribution'}
+        ),
+        uncertainty_keys=frozenset({'num_samples'}),
+        extra_argv=('--include_samples',),
+        required_source_paths=(
+            'summary.score',
+            'summary.total_scenarios',
+            'summary.severity_distribution',
+            'results.*.scenario_name',
+            'results.*.severity',
+            'results.*.conversation',
+        ),
+    ),
 )
 
 

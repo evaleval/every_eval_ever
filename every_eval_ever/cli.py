@@ -299,6 +299,80 @@ def _cmd_convert_inspect(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_convert_simpleaudit(args: argparse.Namespace) -> int:
+    from every_eval_ever.converters.simpleaudit.adapter import (
+        SimpleAuditAdapter,
+    )
+    from every_eval_ever.converters.simpleaudit.instance_level_adapter import (
+        SimpleAuditInstanceLevelAdapter,
+    )
+
+    adapter = SimpleAuditAdapter()
+    metadata = _common_metadata(args)
+    if getattr(args, 'model_id', None):
+        metadata['model_id'] = args.model_id
+
+    log_path = Path(args.log_path)
+    if not log_path.is_file():
+        raise FileNotFoundError(
+            f'SimpleAudit conversion expects a results JSON file, got {log_path}'
+        )
+
+    with tempfile.TemporaryDirectory(prefix='eee-simpleaudit-') as staging:
+        staging_dir = Path(staging)
+        metadata['parent_eval_output_dir'] = str(staging_dir)
+        logs = adapter.transform_from_file(log_path, metadata)
+
+        if not logs:
+            raise ValueError(
+                f'SimpleAudit conversion produced no logs from {log_path}'
+            )
+        # A single-run file yields one log; a repeated-experiment file yields
+        # one per model label, so the UUID list is sized after the transform.
+        eval_uuids = [str(uuid.uuid4()) for _ in logs]
+
+        # One sidecar per log: each model's run carries its own scenarios. The
+        # adapter stashes them on the log during transform so the CLI can write
+        # the instance-level JSONL without re-reading the input.
+        for log, eval_uuid in zip(logs, eval_uuids, strict=True):
+            if not getattr(args, 'include_samples', False):
+                continue
+            scenarios = getattr(log, '_simpleaudit_scenarios', None)
+            if not scenarios:
+                raise ValueError(
+                    '--include-samples was requested, but the SimpleAudit '
+                    f'run for {log.model_info.id!r} contained no scenarios'
+                )
+            out_dir = _output_dir_for_log(staging_dir, log)
+            detailed = SimpleAuditInstanceLevelAdapter().transform_and_save(
+                scenarios=scenarios,
+                evaluation_id=log.evaluation_id,
+                model_id=log.model_info.id,
+                output_dir=str(out_dir),
+                file_uuid=eval_uuid,
+                collection=log.evaluation_results[0].source_data.dataset_name,
+                developer=log.model_info.developer,
+            )
+            if detailed is None:
+                raise ValueError(
+                    '--include-samples was requested, but the SimpleAudit '
+                    f'run for {log.model_info.id!r} contained no scenarios'
+                )
+            log.detailed_evaluation_results = detailed
+
+        paths = publish_evaluation_logs(
+            logs,
+            args.output_dir,
+            eval_uuids,
+            staged_output_dir=staging_dir,
+        )
+    for path in paths:
+        print(path)
+
+    print(f'Converted {len(paths)} evaluation log(s).')
+    return 0
+
+
 def _cmd_convert_helm(args: argparse.Namespace) -> int:
     from every_eval_ever.converters.helm.adapter import HELMAdapter
 
@@ -587,7 +661,13 @@ def build_parser() -> argparse.ArgumentParser:
         dest='source', required=True
     )
 
-    for source in ['lm_eval', 'inspect', 'helm', 'alpaca_eval']:
+    for source in [
+        'lm_eval',
+        'inspect',
+        'helm',
+        'alpaca_eval',
+        'simpleaudit',
+    ]:
         source_parser = convert_subparsers.add_parser(
             source,
             help=f'Convert {source} logs',
@@ -743,6 +823,24 @@ def build_parser() -> argparse.ArgumentParser:
                     'evaluation details.'
                 ),
             )
+        if source == 'simpleaudit':
+            source_parser.add_argument(
+                '--model_id',
+                '--model-id',
+                default=None,
+                help=(
+                    'Model identifier for runs that do not name their model. '
+                    'Single-run files carry no model name unless '
+                    'studio_provenance.target_model is present; '
+                    'repeated-experiment files use their runs key.'
+                ),
+            )
+            source_parser.add_argument(
+                '--include_samples',
+                '--include-samples',
+                action='store_true',
+                help='Also convert per-scenario results into instance-level output.',
+            )
 
     return parser
 
@@ -779,6 +877,8 @@ def main(argv: list[str] | None = None) -> int:
             return _cmd_convert_helm(args)
         if args.source == 'alpaca_eval':
             return _cmd_convert_alpaca_eval(args)
+        if args.source == 'simpleaudit':
+            return _cmd_convert_simpleaudit(args)
 
     parser.print_help()
     return 1
