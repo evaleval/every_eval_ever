@@ -40,6 +40,7 @@ from every_eval_ever.helpers.io import (
     SourceConversionResult,
     SourceRecordExclusion,
     SourceRecordFailure,
+    datastore_path_components,
     default_failure_report_path,
     require_identity,
     save_evaluation_logs,
@@ -850,7 +851,10 @@ def build_eee_record(
         'evaluation_results': eval_results,
     }
 
-    return record, developer, slugify(model_slug_clean)
+    _, developer_dir, model_dir = datastore_path_components(
+        benchmark.output_name, model_id
+    )
+    return record, developer_dir, model_dir
 
 
 # ---------------------------------------------------------------------------

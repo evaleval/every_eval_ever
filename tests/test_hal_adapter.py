@@ -1,8 +1,13 @@
 from every_eval_ever.adapters.hal.adapter import (
     BENCHMARK_BY_SLUG,
+    LeaderboardRow,
     _parse_cost,
     _parse_percent,
+    build_eee_record,
     parse_table_result,
+)
+from every_eval_ever.validator.validation_core import (
+    check_model_identity_path,
 )
 
 
@@ -55,3 +60,28 @@ def test_invalid_optional_runs_is_recorded_but_score_row_is_retained():
     assert result.records[0].runs is None
     assert len(result.failures) == 1
     assert 'invalid run count' in result.failures[0].reason
+
+
+def test_record_directory_matches_its_model_identity():
+    benchmark = BENCHMARK_BY_SLUG['gaia']
+    row = LeaderboardRow(
+        rank=1,
+        agent_name='Example Agent',
+        model_raw='GPT-4.1 (April 2025)',
+        verified=True,
+        is_pareto=False,
+        accuracy=0.5,
+        accuracy_ci=None,
+        cost_usd=None,
+        cost_ci=None,
+        runs=1,
+    )
+
+    record, developer, model = build_eee_record(benchmark, row, '1.0')
+
+    assert (developer, model) == ('openai', 'gpt-4.1')
+    path = (
+        f'data/{benchmark.output_name}/{developer}/{model}/'
+        '00000000-0000-4000-8000-000000000000.json'
+    )
+    assert check_model_identity_path(path, record) == []
