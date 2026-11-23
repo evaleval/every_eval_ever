@@ -69,6 +69,8 @@ Supported benchmarks in this workflow are:
 - `gpqa`
 - `hle`
 - `gsm8k`
+- `ifbench`
+- `lexam`
 
 ## Resume And Force
 
