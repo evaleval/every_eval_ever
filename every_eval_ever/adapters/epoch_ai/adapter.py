@@ -16,8 +16,17 @@ names; the score is recorded on the scale Epoch gives it. ECI values
 (``epoch_capabilities_index/``) are not converted: this adapter is about the
 benchmark scores.
 
-Data is licensed CC BY 4.0 (https://epoch.ai/benchmarks/use-this-data); the
-attribution is carried on every record.
+Licensing (https://epoch.ai/benchmarks/use-this-data#licensing): Epoch AI's
+own data is CC BY 4.0, and data Epoch sourced from external projects "retains
+its original licensing". Epoch-run records carry ``license: CC-BY-4.0``;
+external records carry no blanket licence, only Epoch's contribution licence
+and a note pointing at the original source. Epoch's attribution is on every
+record.
+
+Archive-level facts (the zip's checksum and snapshot date) are not written into
+the records: the cron's raw capture keeps the zip and its sha256, and keeping
+them out of the records lets an unchanged result fingerprint identically when
+unrelated archive content changes.
 
 Run
 ---
@@ -76,6 +85,15 @@ COLLECTION = 'epoch-ai-benchmarking'
 DATA_URL = 'https://epoch.ai/data/benchmark_data.zip'
 HUB_URL = 'https://epoch.ai/benchmarks'
 LICENSE_URL = 'https://creativecommons.org/licenses/by/4.0/'
+LICENSE_TERMS_URL = 'https://epoch.ai/benchmarks/use-this-data#licensing'
+EXTERNAL_LICENSE_NOTE = (
+    'Compiled by Epoch AI from the external source named in epoch_source; '
+    'external data retains its original licensing. Epoch AI\'s own '
+    'contribution is CC BY 4.0.'
+)
+# https://epoch.ai/benchmarks/about: "Our internal evaluations are powered by
+# Inspect". The version is not published.
+EPOCH_RUN_LIBRARY = 'inspect_ai'
 USER_AGENT = 'every-eval-ever-epoch-adapter'
 CITATION = (
     "Epoch AI, 'Capabilities & benchmarking'. Published online at epoch.ai. "
@@ -100,6 +118,41 @@ MODEL_COLUMNS = (
     'Model version', 'Organization', 'Country', 'Release date',
     'Training compute (FLOP)', 'Training compute notes',
 )
+
+# Leading path segments of a model version that name the serving provider,
+# not the model's namespace (``chutes/Qwen3-8B``,
+# ``accounts/fireworks/models/glm-4p6``).
+INFERENCE_PROVIDERS = frozenset(
+    {'chutes', 'fireworks', 'deepinfra', 'hfendpoint', 'together',
+     'openrouter', 'groq'}
+)
+
+# Collaborative models whose published repository is not under the first
+# organization Epoch lists. base model -> (model id namespace, the Epoch
+# organization that is the developer). Each namespace was checked against the
+# model's Hugging Face repository; the developer is one of the organizations
+# Epoch lists for the model.
+MODEL_ID_OVERRIDES = {
+    'bloom': ('bigscience', 'BigScience'),
+    'starcoder2-3b': ('bigcode', 'BigCode'),
+    'starcoder2-7b': ('bigcode', 'BigCode'),
+    'starcoder2-15b': ('bigcode', 'BigCode'),
+    'vicuna-13b-v1.3': ('lmsys', 'Large Model Systems Organization'),
+    'Eurus-2-7B-PRIME': ('PRIME-RL', 'Tsinghua University'),
+    # Epoch lists Google before Google DeepMind for this one Gemini version
+    # only; the developer is Google DeepMind, as for every other Gemini model.
+    'gemini-2.5-deep-think-2025-08-01-webapp': (None, 'Google DeepMind'),
+}
+
+# Score columns whose meaning is a global metric (schema: "use a canonical
+# global id when applicable"). column -> (metric_id, metric_kind, parameters).
+# Every other column keeps a benchmark-namespaced id.
+GLOBAL_METRICS = {
+    'Accuracy': ('accuracy', 'accuracy', None),
+    'Overall accuracy': ('accuracy', 'accuracy', None),
+    'EM': ('exact_match', 'exact_match', None),
+    'Pass@1 score': ('pass_at_k', 'pass_rate', {'k': 1}),
+}
 
 # Suffixes Epoch appends to a model version for the reasoning setting. They
 # are a variant of one model, so they come off the model id and are kept in
@@ -180,6 +233,63 @@ def split_variant(model_version: str) -> tuple[str, str | None]:
     return model_version, None
 
 
+def _alias_key(name: str) -> str:
+    """Spelling-insensitive key: case, separators, and Fireworks' ``4p6``."""
+    key = re.sub(r'[\s_]+', '-', name.strip().lower())
+    return re.sub(r'(?<=\d)p(?=\d)', '.', key)
+
+
+def _model_groups(dataset: Dataset) -> dict[str, set[str]]:
+    """Epoch model group -> the base model versions (variant suffix removed)."""
+    groups: dict[str, set[str]] = {}
+    for row in dataset.tables.get('model_metadata.csv', []):
+        version, group = _clean(row.get('model_version')), _clean(
+            row.get('model_group'))
+        if version and group:
+            groups.setdefault(group, set()).add(split_variant(version)[0])
+    return groups
+
+
+def canonical_model_name(
+    base: str, group_versions: set[str],
+) -> tuple[str, dict[str, str]]:
+    """Return (model name for the id, provenance of how it was chosen).
+
+    A version qualified with a path (``openai/gpt-oss-120b``,
+    ``chutes/Qwen3-8B``, ``accounts/fireworks/models/glm-4p6``) keeps only its
+    last segment; a leading serving provider is recorded. The name is then
+    resolved, through Epoch's own model group, to the group's unqualified
+    spelling of the same model where one exists (``kimi-k2p5`` ->
+    ``kimi-k2.5``), else to a qualified sibling spelled as the normalized name.
+    """
+    details: dict[str, str] = {}
+    segments = [s for s in base.split('/') if s]
+    name = segments[-1] if segments else base
+    if len(segments) > 1:
+        leading = segments[:-1]
+        details['epoch_version_prefix'] = '/'.join(leading)
+        provider = next(
+            (s.lower() for s in leading if s.lower() in INFERENCE_PROVIDERS),
+            None,
+        )
+        if provider:
+            details['inference_provider'] = provider
+    key = _alias_key(name)
+    plain = sorted(
+        v for v in group_versions if '/' not in v and _alias_key(v) == key
+    )
+    qualified = sorted(
+        v.rsplit('/', 1)[-1] for v in group_versions
+        if '/' in v and v.rsplit('/', 1)[-1].lower() == key
+    )
+    chosen = plain[0] if plain else qualified[0] if qualified else name
+    if chosen != base:
+        details['model_name_resolution'] = (
+            'epoch_model_group' if chosen != name else 'version_path'
+        )
+    return chosen, details
+
+
 def _model_metadata(dataset: Dataset) -> dict[str, dict[str, str]]:
     """First non-blank group/accessibility/organization per model version."""
     out: dict[str, dict[str, str]] = {}
@@ -222,6 +332,7 @@ def _resolve_org(registry: Registry, name: str):
 
 def build_model_info(
     row: dict[str, str], meta: dict[str, str], registry: Registry,
+    groups: dict[str, set[str]] | None = None,
 ) -> tuple[ModelInfo, str, str, str | None]:
     """Return (ModelInfo, developer prefix, model slug, variant suffix).
 
@@ -238,16 +349,28 @@ def build_model_info(
             f'no Organization for model version {version!r} in the row or '
             'in model_metadata.csv'
         )
-    primary = organization.split(',')[0].strip()
-    base, variant = split_variant(version)
+    organizations = [o.strip() for o in organization.split(',') if o.strip()]
+    raw_base, variant = split_variant(version)
+    base, name_details = canonical_model_name(
+        raw_base, (groups or {}).get(meta.get('model_group', ''), set())
+    )
     availability, deployment = ACCESSIBILITY.get(
         meta.get('accessibility', ''), ('unknown', 'unknown')
     )
+    namespace, developer = MODEL_ID_OVERRIDES.get(base, (None, None))
+    if developer is not None and developer not in organizations:
+        raise ValueError(
+            f'model id override for {base!r} names {developer!r}, which Epoch '
+            f'does not list among {organizations}'
+        )
+    primary = developer or organizations[0]
     resolution = _resolve_org(registry, primary)
     org_id = resolution.canonical_id or _slug(primary)
     prefix = org_id
     if availability == 'open_weights':
         prefix = hf_namespace_of(org_id) or org_id
+    if namespace is not None:
+        prefix = namespace
     datastore_path_components(COLLECTION, f'{prefix}/{base}')  # raises on an unusable identity
     details = {
         'deployment_type': deployment,
@@ -261,7 +384,18 @@ def build_model_info(
         'epoch_model_group': meta.get('model_group'),
         'epoch_release_date': _clean(row.get('Release date')),
         'epoch_country': _clean(row.get('Country')),
+        'epoch_training_compute_flop': _clean(
+            row.get('Training compute (FLOP)')),
+        'epoch_training_compute_notes': _clean(
+            row.get('Training compute notes')),
+        'model_id_strategy': (
+            'reviewed_override' if developer or namespace
+            else 'organization_namespace'
+        ),
+        **name_details,
     }
+    if len(organizations) > 1:
+        details['epoch_organizations'] = json.dumps(organizations)
     if variant is not None:
         details['epoch_variant_suffix'] = variant
         key = 'reasoning_effort' if variant in EFFORT_SUFFIXES else 'thinking_budget'
@@ -294,7 +428,7 @@ def _row_key(row: dict[str, str], has_id: bool) -> str:
 def make_log(
     row: dict[str, str], spec: dict[str, str], row_key: str,
     meta: dict[str, str], registry: Registry, dataset: Dataset,
-    retrieved: str,
+    retrieved: str, groups: dict[str, set[str]] | None = None,
 ) -> tuple[EvaluationLog, str, str]:
     benchmark = spec['benchmark']
     bslug = _slug(benchmark)
@@ -303,7 +437,8 @@ def make_log(
     if raw_score is None:
         raise ValueError(f'blank {column!r} (the headline score column)')
     score = require_finite_number(raw_score, f'{column} score')
-    info, prefix, base, variant = build_model_info(row, meta, registry)
+    info, prefix, base, variant = build_model_info(
+        row, meta, registry, groups)
 
     scale = float(spec['scale'])
     # Epoch's `scale` multiplies a score onto 0-1; 0.01 means the column is
@@ -323,6 +458,9 @@ def make_log(
         for k in PROVENANCE_COLUMNS if _clean(row.get(k)) is not None
     }
 
+    metric_id, metric_kind, metric_parameters = GLOBAL_METRICS.get(
+        column, (f'{SRC}.{bslug}.score', 'score', None)
+    )
     result = EvaluationResult(
         evaluation_result_id=bslug,
         evaluation_name=f'{SRC}.{bslug}',
@@ -345,9 +483,10 @@ def make_log(
                 f'{benchmark}: Epoch AI headline score, column {column!r} of '
                 f'{spec["source_file"]}.'
             ),
-            metric_id=f'{SRC}.{bslug}.score',
+            metric_id=metric_id,
             metric_name=column,
-            metric_kind='score',
+            metric_kind=metric_kind,
+            metric_parameters=metric_parameters,
             metric_unit='percent' if percent else 'proportion',
             lower_is_better=False,
             score_type=ScoreType.continuous,
@@ -359,6 +498,24 @@ def make_log(
             },
         ),
         score_details=ScoreDetails(score=score, details=details or None),
+    )
+    if external:
+        license_fields = {
+            'license_note': EXTERNAL_LICENSE_NOTE,
+            'epoch_contribution_license': 'CC-BY-4.0',
+            'license_terms_url': LICENSE_TERMS_URL,
+        }
+    else:
+        license_fields = {
+            'license': 'CC-BY-4.0',
+            'license_url': LICENSE_URL,
+            'license_terms_url': LICENSE_TERMS_URL,
+        }
+    # Where this run fetched the archive, when that was a URL (a local
+    # --input path is not provenance anyone else can follow).
+    retrieval = (
+        {'retrieved_from': dataset.origin}
+        if dataset.origin.startswith(('http://', 'https://')) else {}
     )
     source = SourceMetadata(
         source_name='Epoch AI Benchmarking Hub',
@@ -372,12 +529,10 @@ def make_log(
         additional_details={
             'epoch_score_origin': origin,
             'epoch_source_file': spec['source_file'],
-            'license': 'CC-BY-4.0',
-            'license_url': LICENSE_URL,
+            **license_fields,
             'attribution': CITATION,
             'dataset_url': DATA_URL,
-            'epoch_snapshot': dataset.snapshot,
-            'epoch_zip_sha256': dataset.sha256,
+            **retrieval,
             **provenance,
         },
     )
@@ -391,7 +546,10 @@ def make_log(
         ),
         retrieved_timestamp=retrieved,
         source_metadata=source,
-        eval_library=EvalLibrary(name='unknown', version='unknown'),
+        eval_library=EvalLibrary(
+            name='unknown' if external else EPOCH_RUN_LIBRARY,
+            version='unknown',
+        ),
         model_info=info,
         evaluation_results=[result],
     )
@@ -403,6 +561,7 @@ def convert(dataset: Dataset, retrieved: str,
     """Convert every row of every benchmark that names a headline column."""
     registry = registry or Registry()
     models = _model_metadata(dataset)
+    groups = _model_groups(dataset)
     failures: list[SourceRecordFailure] = []
     exclusions: list[SourceRecordExclusion] = []
     logs: list[EvaluationLog] = []
@@ -444,11 +603,13 @@ def convert(dataset: Dataset, retrieved: str,
                 log, _, _ = make_log(
                     row, spec, _row_key(row, has_id),
                     models.get(version or '', {}), registry, dataset,
-                    retrieved,
+                    retrieved, groups,
                 )
                 log = EvaluationLog.model_validate(log.model_dump())
                 # Epoch lists some results twice under different row ids;
-                # the datastore rejects records that differ only in id.
+                # the datastore rejects records that differ only in id. Every
+                # source column is carried on the log, so equal content means
+                # the rows differ in nothing but the id.
                 content = log.model_dump(
                     mode='json', exclude={'evaluation_id'}
                 )
