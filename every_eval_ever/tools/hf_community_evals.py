@@ -42,13 +42,17 @@ SOURCE_ORG = 'evaleval'
 MANIFEST_VERSION = 1
 DEFAULT_DATASTORE_REVISION = 'main'
 DEFAULT_DATASTORE_REPO = 'evaleval/EEE_datastore'
-DEFAULT_BENCHMARKS = ('gpqa', 'hle', 'mmlu_pro', 'gsm8k')
+DEFAULT_BENCHMARKS = ('gpqa', 'hle', 'mmlu_pro', 'gsm8k', 'ifbench', 'lexam')
 DEFAULT_PR_COMMIT_DESCRIPTION = (
     'Adds EvalEval Community Evals YAML entries with source backlinks to EEE '
     'aggregate records.\n\n'
     'Contributor: evaleval'
 )
 AUDIT_ERROR_STATUS = 'audit_error'
+# Collections whose results are never proposed to model repos.
+EXCLUDED_COLLECTIONS = {
+    'hfopenllm_v2': 'the Open LLM Leaderboard v2 is archived and unmaintained',
+}
 
 
 class HFEvalsError(RuntimeError):
@@ -134,7 +138,14 @@ class BenchmarkConfig:
     task_id: str
     yaml_name: str
     dataset_aliases: tuple[str, ...] = ()
+    # Results whose evaluation_result_id or metric_id is listed here win.
     preferred_metric_ids: tuple[str, ...] = ()
+    # Without a preferred result, use the record's only matching result, or
+    # its one result whose metric_parameters say aggregation_level=overall.
+    overall_fallback: bool = False
+    # Task ids taken from source_data.additional_details['config']; a result
+    # with any other config does not match.
+    config_task_ids: tuple[str, ...] = ()
 
 
 BENCHMARK_CONFIGS: dict[str, BenchmarkConfig] = {
@@ -143,6 +154,8 @@ BENCHMARK_CONFIGS: dict[str, BenchmarkConfig] = {
         'diamond',
         'gpqa_diamond',
         ('reasoningMIA/gpqa_diamond',),
+        preferred_metric_ids=('gpqa.accuracy.extractive',),
+        overall_fallback=True,
     ),
     'hle': BenchmarkConfig(
         'cais/hle',
@@ -156,10 +169,24 @@ BENCHMARK_CONFIGS: dict[str, BenchmarkConfig] = {
         'mmlu_pro',
         preferred_metric_ids=(
             'mmlu_pro/overall',
+            'mmlu_pro.overall',
             'mmlu-pro::chain-of-thought-correctness',
         ),
+        overall_fallback=True,
     ),
     'gsm8k': BenchmarkConfig('openai/gsm8k', 'gsm8k', 'gsm8k', ('gsm8k',)),
+    'ifbench': BenchmarkConfig(
+        'allenai/IFBench_test',
+        'prompt_level_loose',
+        'ifbench',
+        preferred_metric_ids=('ifbench.prompt_level_loose_acc',),
+    ),
+    'lexam': BenchmarkConfig(
+        'LEXam-Benchmark/LEXam',
+        'mcq_4_choices',
+        'lexam',
+        config_task_ids=('mcq_4_choices', 'open_question'),
+    ),
 }
 BENCHMARK_ALIASES = {
     'gpqa_diamond': 'gpqa',
@@ -401,15 +428,36 @@ def _result_matches_preferred_metric(
     return bool(allowed & result_ids)
 
 
-def _result_for_dataset(
-    log: EvaluationLog, config: BenchmarkConfig
+def _result_config_task_id(
+    result: EvaluationResult, config: BenchmarkConfig
+) -> str | None:
+    additional_details = result.source_data.additional_details or {}
+    if not isinstance(additional_details, dict):
+        return None
+    value = additional_details.get('config')
+    if isinstance(value, str) and value.strip() in config.config_task_ids:
+        return value.strip()
+    return None
+
+
+def _result_task_group(
+    benchmark: str, config: BenchmarkConfig, result: EvaluationResult
+) -> str | None:
+    if config.config_task_ids:
+        return _result_config_task_id(result, config)
+    if benchmark == 'gpqa':
+        return _gpqa_variant_notes(result)
+    return None
+
+
+def _is_overall_result(result: EvaluationResult) -> bool:
+    parameters = result.metric_config.metric_parameters or {}
+    return parameters.get('aggregation_level') == 'overall'
+
+
+def _single_result(
+    log: EvaluationLog, config: BenchmarkConfig, matches: list[EvaluationResult]
 ) -> EvaluationResult | None:
-    matches = [
-        result
-        for result in log.evaluation_results
-        if _result_matches_dataset(result, config)
-        and _result_matches_preferred_metric(result, config)
-    ]
     if not matches:
         return None
     if len(matches) != 1:
@@ -424,29 +472,56 @@ def _result_for_dataset(
     return matches[0]
 
 
+def _select_result(
+    log: EvaluationLog, config: BenchmarkConfig, matches: list[EvaluationResult]
+) -> EvaluationResult | None:
+    if config.preferred_metric_ids:
+        preferred = [
+            result
+            for result in matches
+            if _result_matches_preferred_metric(result, config)
+        ]
+        if preferred or not config.overall_fallback:
+            return _single_result(log, config, preferred)
+    if config.overall_fallback and len(matches) > 1:
+        overall = [result for result in matches if _is_overall_result(result)]
+        if overall:
+            return _single_result(log, config, overall)
+    return _single_result(log, config, matches)
+
+
+def _results_for_dataset(
+    log: EvaluationLog, benchmark: str, config: BenchmarkConfig
+) -> list[EvaluationResult]:
+    """Return at most one result per task of ``config`` found in ``log``.
+
+    Raises HFEvalsError when a task has several candidate results and the
+    config gives no rule to choose between them.
+    """
+    groups: dict[str | None, list[EvaluationResult]] = {}
+    for result in log.evaluation_results:
+        if not _result_matches_dataset(result, config):
+            continue
+        task_group = _result_task_group(benchmark, config, result)
+        if config.config_task_ids and task_group is None:
+            continue
+        groups.setdefault(task_group, []).append(result)
+    selected = []
+    for matches in groups.values():
+        result = _select_result(log, config, matches)
+        if result is not None:
+            selected.append(result)
+    return selected
+
+
 def _results_for_supported_datasets(
     log: EvaluationLog,
 ) -> list[tuple[str, BenchmarkConfig, EvaluationResult]]:
-    results: list[tuple[str, BenchmarkConfig, EvaluationResult]] = []
-    for benchmark, config in BENCHMARK_CONFIGS.items():
-        matches = [
-            result
-            for result in log.evaluation_results
-            if _result_matches_dataset(result, config)
-            and _result_matches_preferred_metric(result, config)
-        ]
-        if len(matches) > 1:
-            ids = [
-                result.evaluation_result_id or result.evaluation_name
-                for result in matches
-            ]
-            raise HFEvalsError(
-                f'{log.evaluation_id} has {len(matches)} matching '
-                f'evaluation_results for {config.dataset_id}: {ids}'
-            )
-        if matches:
-            results.append((benchmark, config, matches[0]))
-    return results
+    return [
+        (benchmark, config, result)
+        for benchmark, config in BENCHMARK_CONFIGS.items()
+        for result in _results_for_dataset(log, benchmark, config)
+    ]
 
 
 def _community_eval_entry(
@@ -480,6 +555,17 @@ def _gpqa_variant_notes(result: EvaluationResult) -> str | None:
     dataset_name = normalize_benchmark(source_data.dataset_name).replace(' ', '_')
     result_id = (result.evaluation_result_id or '').strip().lower()
     metric_name = (result.metric_config.metric_name or '').strip().lower()
+
+    additional_details = source_data.additional_details or {}
+    dataset_config = ''
+    if isinstance(additional_details, dict):
+        dataset_config = normalize_benchmark(
+            str(additional_details.get('hf_dataset_config') or '')
+        )
+    if dataset_config == 'gpqa_main':
+        return 'GPQA Main'
+    if dataset_config == 'gpqa_diamond':
+        return 'GPQA Diamond'
 
     if (
         hf_repo == 'human-centered-eval/openeval'
@@ -528,10 +614,14 @@ def _community_eval_task_id(
     notes: str | None,
 ) -> str:
     if benchmark == 'gpqa':
-        if notes == 'GPQA chain-of-thought':
+        if notes in {'GPQA chain-of-thought', 'GPQA Main'}:
             return 'main'
         if notes == 'GPQA Diamond':
             return 'diamond'
+    if config.config_task_ids:
+        task_id = _result_config_task_id(result, config)
+        if task_id is not None:
+            return task_id
     return config.task_id
 
 
@@ -1047,6 +1137,22 @@ def build_index_manifest(
             normalize_benchmark(raw_benchmark),
             normalize_benchmark(raw_benchmark),
         )
+        legacy_parts = Path(str(row.get('legacy_path') or '')).parts
+        if (
+            len(legacy_parts) > 1
+            and legacy_parts[0] == 'data'
+            and legacy_parts[1] in EXCLUDED_COLLECTIONS
+        ):
+            skipped.append(
+                {
+                    'reason': f'excluded_collection:{legacy_parts[1]}',
+                    'benchmark': raw_benchmark,
+                    'index_path': index_jsonl.as_posix(),
+                    'index_line': line_number,
+                    **_index_trace_fields(row),
+                }
+            )
+            continue
         if normalized_benchmark not in BENCHMARK_CONFIGS:
             skipped.append(
                 {
@@ -1137,11 +1243,11 @@ def build_index_manifest(
 
         config = BENCHMARK_CONFIGS[normalized_benchmark]
         try:
-            result = _result_for_dataset(log, config)
+            results = _results_for_dataset(log, normalized_benchmark, config)
         except HFEvalsError as exc:
             errors.append(f'{line_ref}: {exc}')
             continue
-        if result is None:
+        if not results:
             skipped.append(
                 {
                     'reason': 'no_matching_evaluation_result',
@@ -1155,72 +1261,73 @@ def build_index_manifest(
             )
             continue
 
-        try:
-            entry = _candidate_from_record_result(
-                benchmark=normalized_benchmark,
-                config=config,
-                record_path=record_ref,
-                log=log,
-                result=result,
-                model_repo=model_repo,
-                source_url=source_url,
-                source=source_mode,
-                status=status,
-                hf_check_error=hf_check_error,
-                subset=subset,
+        for result in results:
+            try:
+                entry = _candidate_from_record_result(
+                    benchmark=normalized_benchmark,
+                    config=config,
+                    record_path=record_ref,
+                    log=log,
+                    result=result,
+                    model_repo=model_repo,
+                    source_url=source_url,
+                    source=source_mode,
+                    status=status,
+                    hf_check_error=hf_check_error,
+                    subset=subset,
+                )
+            except HFEvalsError as exc:
+                errors.append(f'{line_ref}: {exc}')
+                continue
+
+            entry['index_path'] = index_jsonl.as_posix()
+            entry['index_line'] = line_number
+            entry['flat_object_path'] = record_ref
+            for field in (
+                'legacy_path',
+                'object_uuid',
+                'subset',
+                'sha256',
+                'size_bytes',
+                'eval_schema_version',
+                'instance_object_path',
+                'instance_sha256',
+                'instance_size_bytes',
+            ):
+                value = row.get(field)
+                if value is not None:
+                    entry[field] = value
+
+            dataset = entry['yaml_entry']['dataset']
+            duplicate_key = (
+                model_repo.lower(),
+                dataset['id'],
+                dataset['task_id'],
+                entry['yaml_entry'].get('notes'),
             )
-        except HFEvalsError as exc:
-            errors.append(f'{line_ref}: {exc}')
-            continue
-
-        entry['index_path'] = index_jsonl.as_posix()
-        entry['index_line'] = line_number
-        entry['flat_object_path'] = record_ref
-        for field in (
-            'legacy_path',
-            'object_uuid',
-            'subset',
-            'sha256',
-            'size_bytes',
-            'eval_schema_version',
-            'instance_object_path',
-            'instance_sha256',
-            'instance_size_bytes',
-        ):
-            value = row.get(field)
-            if value is not None:
-                entry[field] = value
-
-        dataset = entry['yaml_entry']['dataset']
-        duplicate_key = (
-            model_repo.lower(),
-            dataset['id'],
-            dataset['task_id'],
-            entry['yaml_entry'].get('notes'),
-        )
-        existing_entry = seen_keys.get(duplicate_key)
-        if existing_entry is not None:
-            if existing_entry['yaml_entry'] == entry['yaml_entry']:
-                skipped.append(
-                    {
-                        'reason': 'duplicate_candidate_same_entry',
-                        'model_repo': model_repo,
-                        'eee_evaluation_id': log.evaluation_id,
-                        'eee_record_path': record_ref,
-                        'index_path': index_jsonl.as_posix(),
-                        'index_line': line_number,
-                        **_index_trace_fields(row),
-                    }
+            existing_entry = seen_keys.get(duplicate_key)
+            if existing_entry is not None:
+                if existing_entry['yaml_entry'] == entry['yaml_entry']:
+                    skipped.append(
+                        {
+                            'reason': 'duplicate_candidate_same_entry',
+                            'model_repo': model_repo,
+                            'eee_evaluation_id': log.evaluation_id,
+                            'eee_record_path': record_ref,
+                            'index_path': index_jsonl.as_posix(),
+                            'index_line': line_number,
+                            **_index_trace_fields(row),
+                        }
+                    )
+                    continue
+                errors.append(
+                    f'{line_ref}: duplicate candidate for {model_repo} '
+                    f'{dataset["id"]}/{dataset["task_id"]} with different '
+                    'YAML values.'
                 )
                 continue
-            errors.append(
-                f'{line_ref}: duplicate candidate for {model_repo} '
-                f'{dataset["id"]}/{dataset["task_id"]} with different '
-                'YAML values.'
-            )
-            continue
-        seen_keys[duplicate_key] = entry
-        entries.append(entry)
+            seen_keys[duplicate_key] = entry
+            entries.append(entry)
 
     manifest = {
         'version': MANIFEST_VERSION,
@@ -1266,6 +1373,11 @@ def build_collection_manifest(
     progress = progress or ReviewProgress()
     api = api or HfApi()
     collection_name = _safe_collection_name(collection_name)
+    if collection_name in EXCLUDED_COLLECTIONS:
+        raise HFEvalsError(
+            f'Collection {collection_name} is excluded: '
+            f'{EXCLUDED_COLLECTIONS[collection_name]}.'
+        )
     entries: list[dict[str, Any]] = []
     skipped: list[dict[str, Any]] = []
     errors: list[str] = []
