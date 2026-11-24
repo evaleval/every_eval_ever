@@ -90,6 +90,7 @@ DATASET_URL = f'https://huggingface.co/datasets/{HF_REPO}'
 DATASET_DOI = 'https://doi.org/10.57967/hf/11641'
 DATASET_LICENSE = 'CC BY 4.0'
 REPORT_URL = 'https://oroagents.com/benchmarks/smb-bench'
+PAPER_URL = 'https://arxiv.org/abs/2611.28158'
 RUN_PAGES_URL = 'https://oroagents.com/smb-bench/runs'
 GITHUB_URL = 'https://github.com/ORO-AI/smb-bench'
 HARBOR_HUB_URL = 'https://hub.harborframework.com/datasets/oro-agents/smb-bench'
@@ -822,6 +823,7 @@ def convert_model(
                     'dataset_version': dataset_version,
                     'campaign_cutoff_utc': source['campaign_cutoff_utc'],
                     'report_url': REPORT_URL,
+                    'paper_url': PAPER_URL,
                     'run_pages_url': RUN_PAGES_URL,
                     'github_url': GITHUB_URL,
                     'first_run_started_utc': aggregate['first_run_started_utc'],
