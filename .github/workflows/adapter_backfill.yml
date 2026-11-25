@@ -1,0 +1,71 @@
+# Carry one adapter's frozen source into the datastore, once.
+#
+# The nightly runs what the catalog marks runnable. An adapter whose upstream
+# is archived is deliberately excluded, which leaves whatever it once published
+# stranded at whichever schema was current then, with nothing to move it
+# forward. This is the manual counterpart: `cron run --backfill` reaches
+# exactly those adapters and refuses the ones the schedule owns.
+#
+# It goes through the cron rather than calling the adapter module directly, so
+# the run records fingerprints in the raw store. That ledger is what makes a
+# second dispatch a no-op instead of a second copy of every record — filenames
+# come from uuid4, so re-publishing appends rather than overwrites.
+
+name: Adapter backfill
+
+on:
+  workflow_dispatch:
+    inputs:
+      adapter:
+        description: 'Catalog key of the adapter to backfill'
+        required: true
+        type: string
+      dry_run:
+        description: 'Convert and validate without publishing'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  backfill:
+    name: ${{ inputs.adapter }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    environment: cron
+    # Two runs of one adapter would read the same ledger, and the second would
+    # overwrite the first's fingerprints.
+    concurrency:
+      group: adapter-backfill-${{ inputs.adapter }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - uses: astral-sh/setup-uv@v7.6.0
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        env:
+          UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/eee-venv
+        run: uv sync --locked
+
+      - name: Backfill
+        env:
+          UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/eee-venv
+          ADAPTER: ${{ inputs.adapter }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          ARTIFICIAL_ANALYSIS_API_KEY: ${{ secrets.ARTIFICIAL_ANALYSIS_API_KEY }}
+          LLM_STATS_API_KEY: ${{ secrets.LLM_STATS_API_KEY }}
+          MERCOR_EVAL_API_EVALEVAL_KEY: ${{ secrets.MERCOR_EVAL_API_EVALEVAL_KEY }}
+          EEE_DATASTORE_REPO_ID: ${{ vars.EEE_DATASTORE_REPO_ID }}
+          EEE_RAW_REPO_ID: ${{ vars.EEE_RAW_REPO_ID }}
+        run: |
+          set -euo pipefail
+          args=(run --adapter "${ADAPTER}" --backfill --force-full)
+          if [ "${DRY_RUN}" = "true" ]; then
+              args+=(--dry-run)
+          fi
+          uv run --locked python -m every_eval_ever.cron "${args[@]}"
