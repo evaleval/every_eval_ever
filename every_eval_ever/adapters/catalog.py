@@ -375,6 +375,24 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         ),
     ),
     AdapterSpec(
+        key='mteb',
+        module='every_eval_ever.adapters.mteb.adapter',
+        collections=('mteb',),
+        # The source is a ~470MB tarball of several hundred thousand small JSON
+        # files, so a run is dominated by fetching and walking it rather than by
+        # converting.
+        timeout_minutes=45,
+        notes=(
+            'Converts embeddings-benchmark/results at --ref, which defaults to '
+            'main and is resolved to a commit each run names, so a scheduled '
+            'run follows upstream and --emit-source-version reports real '
+            'movement. Scoped to the MTEB(eng, v2) and MTEB(Multilingual, v2) '
+            'suites. Tasks reporting more than --max-subsets-per-task '
+            'per-language cells are excluded by default and reported as '
+            'exclusions; see every_eval_ever/adapters/mteb/README.md.'
+        ),
+    ),
+    AdapterSpec(
         key='mmlu_pro',
         module='every_eval_ever.adapters.mmlu_pro.adapter',
         collections=('mmlu-pro',),

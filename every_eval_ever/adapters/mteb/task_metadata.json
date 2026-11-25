@@ -1,0 +1,2551 @@
+{
+ "_meta": {
+  "source": "mteb python package task + benchmark metadata",
+  "mteb_version": "2.21.6",
+  "retrieved_date": "2026-09-23",
+  "suites": [
+   "MTEB(Multilingual, v2)",
+   "MTEB(eng, v2)"
+  ],
+  "note": "Vendored so the adapter needs neither the mteb package (a heavy optional dependency) nor a network call to name a metric. Each task records the main_score mteb declares for it; the adapter re-checks that name against the score dump it converts and drops a row where they disagree, so a results file written by an older mteb than this snapshot cannot be silently mislabelled. Regenerate with every_eval_ever/adapters/mteb/refresh_task_metadata.py."
+ },
+ "suites": {
+  "MTEB(eng, v2)": [
+   "AmazonCounterfactualClassification",
+   "ArXivHierarchicalClusteringP2P",
+   "ArXivHierarchicalClusteringS2S",
+   "ArguAna",
+   "AskUbuntuDupQuestions",
+   "BIOSSES",
+   "Banking77Classification",
+   "BiorxivClusteringP2P.v2",
+   "CQADupstackGamingRetrieval",
+   "CQADupstackUnixRetrieval",
+   "ClimateFEVERHardNegatives",
+   "FEVERHardNegatives",
+   "FiQA2018",
+   "HotpotQAHardNegatives",
+   "ImdbClassification",
+   "MTOPDomainClassification",
+   "MassiveIntentClassification",
+   "MassiveScenarioClassification",
+   "MedrxivClusteringP2P.v2",
+   "MedrxivClusteringS2S.v2",
+   "MindSmallReranking",
+   "SCIDOCS",
+   "SICK-R",
+   "STS12",
+   "STS13",
+   "STS14",
+   "STS15",
+   "STS17",
+   "STS22.v2",
+   "STSBenchmark",
+   "SprintDuplicateQuestions",
+   "StackExchangeClustering.v2",
+   "StackExchangeClusteringP2P.v2",
+   "SummEvalSummarization.v2",
+   "TRECCOVID",
+   "Touche2020Retrieval.v3",
+   "ToxicConversationsClassification",
+   "TweetSentimentExtractionClassification",
+   "TwentyNewsgroupsClustering.v2",
+   "TwitterSemEval2015",
+   "TwitterURLCorpus"
+  ],
+  "MTEB(Multilingual, v2)": [
+   "AILAStatutes",
+   "AfriSentiClassification",
+   "AlloProfClusteringS2S.v2",
+   "AlloprofReranking",
+   "AmazonCounterfactualClassification",
+   "ArXivHierarchicalClusteringP2P",
+   "ArXivHierarchicalClusteringS2S",
+   "ArguAna",
+   "ArmenianParaphrasePC",
+   "BUCC.v2",
+   "BelebeleRetrieval",
+   "BibleNLPBitextMining",
+   "BigPatentClustering.v2",
+   "BiorxivClusteringP2P.v2",
+   "BornholmBitextMining",
+   "BrazilianToxicTweetsClassification",
+   "BulgarianStoreReviewSentimentClassfication",
+   "CEDRClassification",
+   "CLSClusteringP2P.v2",
+   "CSFDSKMovieReviewSentimentClassification",
+   "CTKFactsNLI",
+   "CataloniaTweetClassification",
+   "Core17InstructionRetrieval",
+   "CovidRetrieval",
+   "CyrillicTurkicLangClassification",
+   "CzechProductReviewSentimentClassification",
+   "DBpediaClassification",
+   "DalajClassification",
+   "DiaBlaBitextMining",
+   "EstonianValenceClassification",
+   "FaroeseSTS",
+   "FilipinoShopeeReviewsClassification",
+   "FinParaSTS",
+   "FinancialPhrasebankClassification",
+   "FloresBitextMining",
+   "GermanSTSBenchmark",
+   "GreekLegalCodeClassification",
+   "GujaratiNewsClassification",
+   "HALClusteringS2S.v2",
+   "HagridRetrieval",
+   "IN22GenBitextMining",
+   "IndicCrosslingualSTS",
+   "IndicGenBenchFloresBitextMining",
+   "IndicLangClassification",
+   "IndonesianIdClickbaitClassification",
+   "IsiZuluNewsClassification",
+   "ItaCaseholdClassification",
+   "JSICK",
+   "KorHateSpeechMLClassification",
+   "KorSarcasmClassification",
+   "KurdishSentimentClassification",
+   "LEMBPasskeyRetrieval",
+   "LegalBenchCorporateLobbying",
+   "MIRACLRetrievalHardNegatives",
+   "MLQARetrieval",
+   "MacedonianTweetSentimentClassification",
+   "MalteseNewsClassification",
+   "MasakhaNEWSClassification",
+   "MasakhaNEWSClusteringS2S",
+   "MassiveIntentClassification",
+   "MedrxivClusteringP2P.v2",
+   "MultiEURLEXMultilabelClassification",
+   "MultiHateClassification",
+   "NTREXBitextMining",
+   "NepaliNewsClassification",
+   "News21InstructionRetrieval",
+   "NollySentiBitextMining",
+   "NordicLangClassification",
+   "NorwegianCourtsBitextMining",
+   "NusaParagraphEmotionClassification",
+   "NusaTranslationBitextMining",
+   "NusaX-senti",
+   "NusaXBitextMining",
+   "OdiaNewsClassification",
+   "OpusparcusPC",
+   "PAC",
+   "PawsXPairClassification",
+   "PlscClusteringP2P.v2",
+   "PoemSentimentClassification",
+   "PolEmo2.0-OUT",
+   "PpcPC",
+   "PunjabiNewsClassification",
+   "RTE3",
+   "Robust04InstructionRetrieval",
+   "RomaniBibleClustering",
+   "RuBQReranking",
+   "SCIDOCS",
+   "SIB200ClusteringS2S",
+   "SICK-R",
+   "STS12",
+   "STS13",
+   "STS14",
+   "STS15",
+   "STS17",
+   "STS22.v2",
+   "STSB",
+   "STSBenchmark",
+   "STSES",
+   "ScalaClassification",
+   "SemRel24STS",
+   "SentimentAnalysisHindi",
+   "SinhalaNewsClassification",
+   "SiswatiNewsClassification",
+   "SlovakMovieReviewSentimentClassification",
+   "SpartQA",
+   "SprintDuplicateQuestions",
+   "StackExchangeClustering.v2",
+   "StackOverflowQA",
+   "StatcanDialogueDatasetRetrieval",
+   "SwahiliNewsClassification",
+   "SwednClusteringP2P",
+   "SwissJudgementClassification",
+   "T2Reranking",
+   "TERRa",
+   "TRECCOVID",
+   "Tatoeba",
+   "TempReasonL1",
+   "ToxicConversationsClassification",
+   "TswanaNewsClassification",
+   "TweetTopicSingleClassification",
+   "TwitterHjerneRetrieval",
+   "TwitterURLCorpus",
+   "VoyageMMarcoReranking",
+   "WebLINXCandidatesReranking",
+   "WikiCitiesClustering",
+   "WikiClusteringP2P.v2",
+   "WikipediaRerankingMultilingual",
+   "WikipediaRetrievalMultilingual",
+   "WinoGrande",
+   "XNLI",
+   "indonli"
+  ]
+ },
+ "tasks": {
+  "AILAStatutes": {
+   "type": "Retrieval",
+   "main_score": "ndcg_at_10",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/AILA_statutes",
+   "dataset_revision": "ebfcd844eadd3d667efa3c57fc5c8c87f5c2867e",
+   "license": "cc-by-4.0",
+   "reference": "https://zenodo.org/records/4063986",
+   "domains": [
+    "Legal",
+    "Written"
+   ]
+  },
+  "AfriSentiClassification": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/AfriSentiClassification",
+   "dataset_revision": "463850b9da81847227ff03f3f80a3310b93cba3c",
+   "license": "cc-by-4.0",
+   "reference": "https://arxiv.org/abs/2302.08956",
+   "domains": [
+    "Social",
+    "Written"
+   ]
+  },
+  "AlloProfClusteringS2S.v2": {
+   "type": "Clustering",
+   "main_score": "v_measure",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/AlloProfClusteringS2S.v2",
+   "dataset_revision": "c802b993cf2a8dcaeadb6f9cc8ccd364e251feaa",
+   "license": "mit",
+   "reference": "https://huggingface.co/datasets/lyon-nlp/alloprof",
+   "domains": [
+    "Encyclopaedic",
+    "Written"
+   ]
+  },
+  "AlloprofReranking": {
+   "type": "Reranking",
+   "main_score": "map_at_1000",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/AlloprofReranking",
+   "dataset_revision": "a7d2d793f2e5ba55139bb10088c2e8ee2df2ce02",
+   "license": "cc-by-nc-sa-4.0",
+   "reference": "https://huggingface.co/datasets/antoinelb7/alloprof",
+   "domains": [
+    "Web",
+    "Academic",
+    "Written"
+   ]
+  },
+  "AmazonCounterfactualClassification": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "validation",
+    "test"
+   ],
+   "hf_repo": "mteb/amazon_counterfactual",
+   "dataset_revision": "1f7e6a9d6fa6e64c53d146e428565640410c0df1",
+   "license": "cc-by-4.0",
+   "reference": "https://arxiv.org/abs/2104.06893",
+   "domains": [
+    "Reviews",
+    "Written"
+   ]
+  },
+  "ArXivHierarchicalClusteringP2P": {
+   "type": "Clustering",
+   "main_score": "v_measure",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/arxiv-clustering-p2p",
+   "dataset_revision": "0bbdb47bcbe3a90093699aefeed338a0f28a7ee8",
+   "license": "cc0-1.0",
+   "reference": "https://www.kaggle.com/Cornell-University/arxiv",
+   "domains": [
+    "Academic",
+    "Written"
+   ]
+  },
+  "ArXivHierarchicalClusteringS2S": {
+   "type": "Clustering",
+   "main_score": "v_measure",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/arxiv-clustering-s2s",
+   "dataset_revision": "b73bd54100e5abfa6e3a23dcafb46fe4d2438dc3",
+   "license": "cc0-1.0",
+   "reference": "https://www.kaggle.com/Cornell-University/arxiv",
+   "domains": [
+    "Academic",
+    "Written"
+   ]
+  },
+  "ArguAna": {
+   "type": "Retrieval",
+   "main_score": "ndcg_at_10",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/arguana",
+   "dataset_revision": "c22ab2a51041ffd869aaddef7af8d8215647e41a",
+   "license": "cc-by-sa-4.0",
+   "reference": "http://argumentation.bplaced.net/arguana/data",
+   "domains": [
+    "Social",
+    "Web",
+    "Written"
+   ]
+  },
+  "ArmenianParaphrasePC": {
+   "type": "PairClassification",
+   "main_score": "max_ap",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/ArmenianParaphrasePC",
+   "dataset_revision": "594f25dfef459cbfa30fc1765a6fb2053244f85b",
+   "license": "apache-2.0",
+   "reference": "https://github.com/ivannikov-lab/arpa-paraphrase-corpus",
+   "domains": [
+    "News",
+    "Written"
+   ]
+  },
+  "AskUbuntuDupQuestions": {
+   "type": "Reranking",
+   "main_score": "map_at_1000",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/AskUbuntuDupQuestions",
+   "dataset_revision": "c5691e3c48741d5f83b5cc8e630653d7a8cfc048",
+   "license": "cc-by-sa-3.0",
+   "reference": "https://github.com/taolei87/askubuntu",
+   "domains": [
+    "Programming",
+    "Web"
+   ]
+  },
+  "BIOSSES": {
+   "type": "STS",
+   "main_score": "cosine_spearman",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/biosses-sts",
+   "dataset_revision": "d3fb88f8f02e40887cd149695127462bbcf29b4a",
+   "license": "not specified",
+   "reference": "https://tabilab.cmpe.boun.edu.tr/BIOSSES/DataSet.html",
+   "domains": [
+    "Medical"
+   ]
+  },
+  "BUCC.v2": {
+   "type": "BitextMining",
+   "main_score": "f1",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/bucc-bitext-mining",
+   "dataset_revision": "1739dc11ffe9b7bfccd7f3d585aeb4c544fc6677",
+   "license": "not specified",
+   "reference": "https://comparable.limsi.fr/bucc2018/bucc2018-task.html",
+   "domains": [
+    "Written"
+   ]
+  },
+  "Banking77Classification": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/banking77",
+   "dataset_revision": "0fd18e25b25c072e09e0d92ab615fda904d66300",
+   "license": "mit",
+   "reference": "https://arxiv.org/abs/2003.04807",
+   "domains": [
+    "Written"
+   ]
+  },
+  "BelebeleRetrieval": {
+   "type": "Retrieval",
+   "main_score": "ndcg_at_10",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/belebele",
+   "dataset_revision": "979a211276faa22f671e69d096634193567cfd05",
+   "license": "cc-by-sa-4.0",
+   "reference": "https://arxiv.org/abs/2308.16884",
+   "domains": [
+    "Web",
+    "News",
+    "Written"
+   ]
+  },
+  "BibleNLPBitextMining": {
+   "type": "BitextMining",
+   "main_score": "f1",
+   "eval_splits": [
+    "train"
+   ],
+   "hf_repo": "mteb/biblenlp-corpus",
+   "dataset_revision": "94c4293ca75c04b908c6b8e30d15788fe20fb409",
+   "license": "cc-by-sa-4.0",
+   "reference": "https://arxiv.org/abs/2304.09919",
+   "domains": [
+    "Religious",
+    "Written"
+   ]
+  },
+  "BigPatentClustering.v2": {
+   "type": "Clustering",
+   "main_score": "v_measure",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/big-patent",
+   "dataset_revision": "58a863a958586a5d6ba51088b94ac74a46aa864f",
+   "license": "cc-by-4.0",
+   "reference": "https://huggingface.co/datasets/NortheasternUniversity/big_patent",
+   "domains": [
+    "Legal",
+    "Written"
+   ]
+  },
+  "BiorxivClusteringP2P.v2": {
+   "type": "Clustering",
+   "main_score": "v_measure",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/biorxiv-clustering-p2p",
+   "dataset_revision": "f5dbc242e11dd8e24def4c4268607a49e02946dc",
+   "license": "https://www.biorxiv.org/content/about-biorxiv",
+   "reference": "https://api.biorxiv.org/",
+   "domains": [
+    "Academic",
+    "Written"
+   ]
+  },
+  "BornholmBitextMining": {
+   "type": "BitextMining",
+   "main_score": "f1",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/BornholmBitextMining",
+   "dataset_revision": "5b02048bd75e79275aa91a1fce6cdfd3f4a391cb",
+   "license": "cc-by-4.0",
+   "reference": "https://aclanthology.org/W19-6138/",
+   "domains": [
+    "Web",
+    "Social",
+    "Fiction",
+    "Written"
+   ]
+  },
+  "BrazilianToxicTweetsClassification": {
+   "type": "MultilabelClassification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/BrazilianToxicTweetsClassification",
+   "dataset_revision": "d7af1f3c9ff00fbb4e1e40021788a32d78a936bd",
+   "license": "cc-by-sa-4.0",
+   "reference": "https://paperswithcode.com/dataset/told-br",
+   "domains": [
+    "Constructed",
+    "Written"
+   ]
+  },
+  "BulgarianStoreReviewSentimentClassfication": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/BulgarianStoreReviewSentimentClassfication",
+   "dataset_revision": "0d00595ed48ba8b802da579231a078557c6e9bc4",
+   "license": "cc-by-4.0",
+   "reference": "https://doi.org/10.7910/DVN/TXIK9P",
+   "domains": [
+    "Reviews",
+    "Written"
+   ]
+  },
+  "CEDRClassification": {
+   "type": "MultilabelClassification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/CEDRClassification",
+   "dataset_revision": "d872ceae33d049f0ef50e8abb9229b569ebfcf7d",
+   "license": "apache-2.0",
+   "reference": "https://www.sciencedirect.com/science/article/pii/S1877050921013247",
+   "domains": [
+    "Web",
+    "Social",
+    "Blog",
+    "Written"
+   ]
+  },
+  "CLSClusteringP2P.v2": {
+   "type": "Clustering",
+   "main_score": "v_measure",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/CLSClusteringP2P.v2",
+   "dataset_revision": "4b012f4818da8625de8e2e90526db1570e7ed2c7",
+   "license": "apache-2.0",
+   "reference": "https://arxiv.org/abs/2209.05034",
+   "domains": [
+    "Academic",
+    "Written"
+   ]
+  },
+  "CQADupstackGamingRetrieval": {
+   "type": "Retrieval",
+   "main_score": "ndcg_at_10",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/cqadupstack-gaming",
+   "dataset_revision": "4885aa143210c98657558c04aaf3dc47cfb54340",
+   "license": "apache-2.0",
+   "reference": "http://nlp.cis.unimelb.edu.au/resources/cqadupstack/",
+   "domains": [
+    "Web",
+    "Written"
+   ]
+  },
+  "CQADupstackUnixRetrieval": {
+   "type": "Retrieval",
+   "main_score": "ndcg_at_10",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/cqadupstack-unix",
+   "dataset_revision": "6c6430d3a6d36f8d2a829195bc5dc94d7e063e53",
+   "license": "apache-2.0",
+   "reference": "http://nlp.cis.unimelb.edu.au/resources/cqadupstack/",
+   "domains": [
+    "Written",
+    "Web",
+    "Programming"
+   ]
+  },
+  "CSFDSKMovieReviewSentimentClassification": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/CSFDSKMovieReviewSentimentClassification",
+   "dataset_revision": "029e0a726b46539547e872b90d3073a48ce9bc13",
+   "license": "cc-by-sa-4.0",
+   "reference": "https://arxiv.org/abs/2304.01922",
+   "domains": [
+    "Reviews",
+    "Written"
+   ]
+  },
+  "CTKFactsNLI": {
+   "type": "PairClassification",
+   "main_score": "max_ap",
+   "eval_splits": [
+    "validation",
+    "test"
+   ],
+   "hf_repo": "mteb/CTKFactsNLI",
+   "dataset_revision": "da834e176f18e4a4adc4cbc9ad9720c14168a4bb",
+   "license": "cc-by-sa-3.0",
+   "reference": "https://arxiv.org/abs/2201.11115",
+   "domains": [
+    "News",
+    "Written"
+   ]
+  },
+  "CataloniaTweetClassification": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "validation",
+    "test"
+   ],
+   "hf_repo": "mteb/CataloniaTweetClassification",
+   "dataset_revision": "a160e486a21cea511a4b23a90e6bd6f7920d3a8f",
+   "license": "cc-by-sa-4.0",
+   "reference": "https://aclanthology.org/2020.lrec-1.171/",
+   "domains": [
+    "Social",
+    "Government",
+    "Written"
+   ]
+  },
+  "ClimateFEVERHardNegatives": {
+   "type": "Retrieval",
+   "main_score": "ndcg_at_10",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/ClimateFEVER_test_top_250_only_w_correct-v2",
+   "dataset_revision": "3a309e201f3c2c4b13bd4a367a8f37eee2ec1d21",
+   "license": "cc-by-sa-4.0",
+   "reference": "https://www.sustainablefinance.uzh.ch/en/research/climate-fever.html",
+   "domains": [
+    "Encyclopaedic",
+    "Written"
+   ]
+  },
+  "Core17InstructionRetrieval": {
+   "type": "InstructionReranking",
+   "main_score": "p-MRR",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/Core17InstructionRetrieval",
+   "dataset_revision": "67d8733dd0691f08f34ed9dda5941578cba8d91c",
+   "license": "mit",
+   "reference": "https://arxiv.org/abs/2403.15246",
+   "domains": [
+    "News",
+    "Written"
+   ]
+  },
+  "CovidRetrieval": {
+   "type": "Retrieval",
+   "main_score": "ndcg_at_10",
+   "eval_splits": [
+    "dev"
+   ],
+   "hf_repo": "mteb/CovidRetrieval",
+   "dataset_revision": "9c6dc4b276bb47c3ff725bbc5ffcafd56dded38b",
+   "license": "not specified",
+   "reference": "https://arxiv.org/abs/2203.03367",
+   "domains": [
+    "Medical",
+    "Entertainment"
+   ]
+  },
+  "CyrillicTurkicLangClassification": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/CyrillicTurkicLangClassification",
+   "dataset_revision": "33fca064726e43e32ce645ed8d8c88c78f16c4d5",
+   "license": "cc-by-nc-4.0",
+   "reference": "https://huggingface.co/datasets/tatiana-merz/cyrillic_turkic_langs",
+   "domains": [
+    "Web",
+    "Written"
+   ]
+  },
+  "CzechProductReviewSentimentClassification": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/CzechProductReviewSentimentClassification",
+   "dataset_revision": "66bf87809951d5382f930fbbea09e73ce8b3d671",
+   "license": "cc-by-nc-sa-4.0",
+   "reference": "https://aclanthology.org/W13-1609/",
+   "domains": [
+    "Reviews",
+    "Written"
+   ]
+  },
+  "DBpediaClassification": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/DBpediaClassification",
+   "dataset_revision": "da1478c37d6ac46d5ca45aaf2a156020e2e9bfea",
+   "license": "cc-by-sa-3.0",
+   "reference": "https://arxiv.org/abs/1509.01626",
+   "domains": [
+    "Encyclopaedic",
+    "Written"
+   ]
+  },
+  "DalajClassification": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/DalajClassification",
+   "dataset_revision": "2a460943e43451e4c9aed3c0adafc83ccd6e3ee1",
+   "license": "cc-by-4.0",
+   "reference": "https://spraakbanken.gu.se/en/resources/superlim",
+   "domains": [
+    "Non-fiction",
+    "Written"
+   ]
+  },
+  "DiaBlaBitextMining": {
+   "type": "BitextMining",
+   "main_score": "f1",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/DiaBlaBitextMining",
+   "dataset_revision": "c458e9bf4306d6380604462926a38c34861b4d3b",
+   "license": "cc-by-nc-sa-4.0",
+   "reference": "https://inria.hal.science/hal-03021633",
+   "domains": [
+    "Social",
+    "Written"
+   ]
+  },
+  "EstonianValenceClassification": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/EstonianValenceClassification",
+   "dataset_revision": "41e23c86f6c4685f856887443c13f0da74f46ca4",
+   "license": "cc-by-4.0",
+   "reference": "https://figshare.com/articles/dataset/Estonian_Valence_Corpus_Eesti_valentsikorpus/24517054",
+   "domains": [
+    "News",
+    "Written"
+   ]
+  },
+  "FEVERHardNegatives": {
+   "type": "Retrieval",
+   "main_score": "ndcg_at_10",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/FEVER_test_top_250_only_w_correct-v2",
+   "dataset_revision": "080c9ed6267b65029207906e815d44a9240bafca",
+   "license": "cc-by-nc-sa-3.0",
+   "reference": "https://fever.ai/",
+   "domains": [
+    "Encyclopaedic",
+    "Written"
+   ]
+  },
+  "FaroeseSTS": {
+   "type": "STS",
+   "main_score": "cosine_spearman",
+   "eval_splits": [
+    "train"
+   ],
+   "hf_repo": "mteb/FaroeseSTS",
+   "dataset_revision": "06d4ff0e5366136f3bdce1307b7d220674c45a13",
+   "license": "cc-by-4.0",
+   "reference": "https://aclanthology.org/2023.nodalida-1.74.pdf",
+   "domains": [
+    "News",
+    "Web",
+    "Written"
+   ]
+  },
+  "FiQA2018": {
+   "type": "Retrieval",
+   "main_score": "ndcg_at_10",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/fiqa",
+   "dataset_revision": "27a168819829fe9bcd655c2df245fb19452e8e06",
+   "license": "not specified",
+   "reference": "https://sites.google.com/view/fiqa/",
+   "domains": [
+    "Written",
+    "Financial"
+   ]
+  },
+  "FilipinoShopeeReviewsClassification": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "validation",
+    "test"
+   ],
+   "hf_repo": "mteb/FilipinoShopeeReviewsClassification",
+   "dataset_revision": "c88a93f50ccbb36878cde3362cefd65e43bd6b75",
+   "license": "mpl-2.0",
+   "reference": "https://uijrt.com/articles/v4/i8/UIJRTV4I80009.pdf",
+   "domains": [
+    "Social",
+    "Written"
+   ]
+  },
+  "FinParaSTS": {
+   "type": "STS",
+   "main_score": "cosine_spearman",
+   "eval_splits": [
+    "validation",
+    "test"
+   ],
+   "hf_repo": "mteb/FinParaSTS",
+   "dataset_revision": "16d3834e2eb7f9faedbae0cf25df4b0962c97e71",
+   "license": "cc-by-sa-4.0",
+   "reference": "https://huggingface.co/datasets/TurkuNLP/turku_paraphrase_corpus",
+   "domains": [
+    "News",
+    "Subtitles",
+    "Written"
+   ]
+  },
+  "FinancialPhrasebankClassification": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "train"
+   ],
+   "hf_repo": "mteb/FinancialPhrasebankClassification",
+   "dataset_revision": "44023d2ee430a3be2d2ee573801616d9e1392fbd",
+   "license": "cc-by-nc-sa-3.0",
+   "reference": "https://arxiv.org/abs/1307.5336",
+   "domains": [
+    "News",
+    "Written",
+    "Financial"
+   ]
+  },
+  "FloresBitextMining": {
+   "type": "BitextMining",
+   "main_score": "f1",
+   "eval_splits": [
+    "devtest"
+   ],
+   "hf_repo": "mteb/FloresBitextMining",
+   "dataset_revision": "2144d16cc15edd22d4a9237d12bff5f31f5c07fc",
+   "license": "cc-by-sa-4.0",
+   "reference": "https://huggingface.co/datasets/facebook/flores",
+   "domains": [
+    "Non-fiction",
+    "Encyclopaedic",
+    "Written"
+   ]
+  },
+  "GermanSTSBenchmark": {
+   "type": "STS",
+   "main_score": "cosine_spearman",
+   "eval_splits": [
+    "validation",
+    "test"
+   ],
+   "hf_repo": "mteb/GermanSTSBenchmark",
+   "dataset_revision": "75829b73cccb64bf86a9f098cbc780d37b786091",
+   "license": "cc-by-sa-3.0",
+   "reference": "https://github.com/t-systems-on-site-services-gmbh/german-STSbenchmark",
+   "domains": [
+    "News",
+    "Web",
+    "Written"
+   ]
+  },
+  "GreekLegalCodeClassification": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "validation",
+    "test"
+   ],
+   "hf_repo": "mteb/GreekLegalCodeClassification",
+   "dataset_revision": "be2d1b5af388af523c24b0022786d03713a3b407",
+   "license": "cc-by-4.0",
+   "reference": "https://arxiv.org/abs/2109.15298",
+   "domains": [
+    "Legal",
+    "Written"
+   ]
+  },
+  "GujaratiNewsClassification": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/GujaratiNewsClassification",
+   "dataset_revision": "7f438910e374d37b9136d4ded9888edb3551a494",
+   "license": "mit",
+   "reference": "https://github.com/goru001/nlp-for-gujarati",
+   "domains": [
+    "News",
+    "Written"
+   ]
+  },
+  "HALClusteringS2S.v2": {
+   "type": "Clustering",
+   "main_score": "v_measure",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/HALClusteringS2S.v2",
+   "dataset_revision": "f1b4d7e7d58992005012c43c9dd2cc7436a1e378",
+   "license": "apache-2.0",
+   "reference": "https://huggingface.co/datasets/lyon-nlp/clustering-hal-s2s",
+   "domains": [
+    "Academic",
+    "Written"
+   ]
+  },
+  "HagridRetrieval": {
+   "type": "Retrieval",
+   "main_score": "ndcg_at_10",
+   "eval_splits": [
+    "dev"
+   ],
+   "hf_repo": "mteb/HagridRetrieval",
+   "dataset_revision": "ae4f8bebcb82af2028863b778e1eebf4f5f23628",
+   "license": "apache-2.0",
+   "reference": "https://github.com/project-miracl/hagrid",
+   "domains": [
+    "Encyclopaedic",
+    "Written"
+   ]
+  },
+  "HotpotQAHardNegatives": {
+   "type": "Retrieval",
+   "main_score": "ndcg_at_10",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/HotpotQA_test_top_250_only_w_correct-v2",
+   "dataset_revision": "617612fa63afcb60e3b134bed8b7216a99707c37",
+   "license": "cc-by-sa-4.0",
+   "reference": "https://hotpotqa.github.io/",
+   "domains": [
+    "Web",
+    "Written"
+   ]
+  },
+  "IN22GenBitextMining": {
+   "type": "BitextMining",
+   "main_score": "f1",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/IN22GenBitextMining",
+   "dataset_revision": "aed6ff7eed647cd6eead02f70efa23a4e67329dc",
+   "license": "cc-by-4.0",
+   "reference": "https://huggingface.co/datasets/ai4bharat/IN22-Gen",
+   "domains": [
+    "Web",
+    "Legal",
+    "Government",
+    "News",
+    "Religious",
+    "Non-fiction",
+    "Written"
+   ]
+  },
+  "ImdbClassification": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/imdb",
+   "dataset_revision": "3d86128a09e091d6018b6d26cad27f2739fc2db7",
+   "license": "not specified",
+   "reference": "http://www.aclweb.org/anthology/P11-1015",
+   "domains": [
+    "Reviews",
+    "Written"
+   ]
+  },
+  "IndicCrosslingualSTS": {
+   "type": "STS",
+   "main_score": "cosine_spearman",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/IndicCrosslingualSTS",
+   "dataset_revision": "f0366eb5a20087355c0e131162bbed943ba54b51",
+   "license": "cc0-1.0",
+   "reference": "https://huggingface.co/datasets/jaygala24/indic_sts",
+   "domains": [
+    "News",
+    "Non-fiction",
+    "Web",
+    "Spoken",
+    "Government",
+    "Written",
+    "Spoken"
+   ]
+  },
+  "IndicGenBenchFloresBitextMining": {
+   "type": "BitextMining",
+   "main_score": "f1",
+   "eval_splits": [
+    "validation",
+    "test"
+   ],
+   "hf_repo": "mteb/IndicGenBenchFloresBitextMining",
+   "dataset_revision": "07dcc23c08a2540ba37ebe1e487da9dc497cc15c",
+   "license": "cc-by-sa-4.0",
+   "reference": "https://github.com/google-research-datasets/indic-gen-bench/",
+   "domains": [
+    "Web",
+    "News",
+    "Written"
+   ]
+  },
+  "IndicLangClassification": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/IndicLangClassification",
+   "dataset_revision": "36d9c05b5a4ba276554abc4eaaae87666d1e9c61",
+   "license": "cc0-1.0",
+   "reference": "https://arxiv.org/abs/2305.15814",
+   "domains": [
+    "Web",
+    "Non-fiction",
+    "Written"
+   ]
+  },
+  "IndonesianIdClickbaitClassification": {
+   "type": "Classification",
+   "main_score": "f1",
+   "eval_splits": [
+    "train"
+   ],
+   "hf_repo": "mteb/IndonesianIdClickbaitClassification",
+   "dataset_revision": "fa22e2fe229619ae18cd236e23f538abf828f171",
+   "license": "cc-by-4.0",
+   "reference": "http://www.sciencedirect.com/science/article/pii/S2352340920311252",
+   "domains": [
+    "News",
+    "Written"
+   ]
+  },
+  "IsiZuluNewsClassification": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "train"
+   ],
+   "hf_repo": "mteb/IsiZuluNewsClassification",
+   "dataset_revision": "692de64a824f0620161b6fc0b2c20f84d2b07b6f",
+   "license": "cc-by-sa-4.0",
+   "reference": "https://huggingface.co/datasets/dsfsi/za-isizulu-siswati-news",
+   "domains": [
+    "News",
+    "Written"
+   ]
+  },
+  "ItaCaseholdClassification": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/ItaCaseholdClassification",
+   "dataset_revision": "2ca13897a3d1952b746e748a8584208699c0340e",
+   "license": "apache-2.0",
+   "reference": "https://doi.org/10.1145/3594536.3595177",
+   "domains": [
+    "Legal",
+    "Government",
+    "Written"
+   ]
+  },
+  "JSICK": {
+   "type": "STS",
+   "main_score": "cosine_spearman",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/JSICK",
+   "dataset_revision": "729cfe4a16d3c2b61c6aa9f9f6c8a96bb5512868",
+   "license": "cc-by-4.0",
+   "reference": "https://github.com/sbintuitions/JMTEB",
+   "domains": [
+    "Web",
+    "Written"
+   ]
+  },
+  "KorHateSpeechMLClassification": {
+   "type": "MultilabelClassification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/KorHateSpeechMLClassification",
+   "dataset_revision": "47cd2e61b64f2f11ccb006a579cda71318c6de9b",
+   "license": "cc-by-sa-4.0",
+   "reference": "https://paperswithcode.com/dataset/korean-multi-label-hate-speech-dataset",
+   "domains": [
+    "Social",
+    "Written"
+   ]
+  },
+  "KorSarcasmClassification": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "train"
+   ],
+   "hf_repo": "mteb/KorSarcasmClassification",
+   "dataset_revision": "6701f384372c04aa8c64b10582e72eb84135a1d4",
+   "license": "mit",
+   "reference": "https://github.com/SpellOnYou/korean-sarcasm",
+   "domains": [
+    "Social",
+    "Written"
+   ]
+  },
+  "KurdishSentimentClassification": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/KurdishSentimentClassification",
+   "dataset_revision": "154ca47b902abfd9a9340e03c09f630bf2ce657f",
+   "license": "cc-by-4.0",
+   "reference": "https://link.springer.com/article/10.1007/s10579-023-09716-6",
+   "domains": [
+    "Web",
+    "Written"
+   ]
+  },
+  "LEMBPasskeyRetrieval": {
+   "type": "Retrieval",
+   "main_score": "ndcg_at_1",
+   "eval_splits": [
+    "test_256",
+    "test_512",
+    "test_1024",
+    "test_2048",
+    "test_4096",
+    "test_8192",
+    "test_16384",
+    "test_32768"
+   ],
+   "hf_repo": "mteb/LEMBPasskeyRetrieval",
+   "dataset_revision": "86ac5a6437198a94ecd666440c78b3e78f258274",
+   "license": "not specified",
+   "reference": "https://huggingface.co/datasets/dwzhu/LongEmbed",
+   "domains": [
+    "Fiction",
+    "Written"
+   ]
+  },
+  "LegalBenchCorporateLobbying": {
+   "type": "Retrieval",
+   "main_score": "ndcg_at_10",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/legalbench_corporate_lobbying",
+   "dataset_revision": "f69691c650464e62546d7f2a4536f8f87c891e38",
+   "license": "cc-by-4.0",
+   "reference": "https://huggingface.co/datasets/nguha/legalbench/viewer/corporate_lobbying",
+   "domains": [
+    "Legal",
+    "Written"
+   ]
+  },
+  "MIRACLRetrievalHardNegatives": {
+   "type": "Retrieval",
+   "main_score": "ndcg_at_10",
+   "eval_splits": [
+    "dev"
+   ],
+   "hf_repo": "mteb/MIRACLRetrievalHardNegatives",
+   "dataset_revision": "d7d94fa4b946cec4a27c84653aa0cf6b33f74a3c",
+   "license": "cc-by-sa-4.0",
+   "reference": "http://miracl.ai/",
+   "domains": [
+    "Encyclopaedic",
+    "Written"
+   ]
+  },
+  "MLQARetrieval": {
+   "type": "Retrieval",
+   "main_score": "ndcg_at_10",
+   "eval_splits": [
+    "validation",
+    "test"
+   ],
+   "hf_repo": "mteb/MLQARetrieval",
+   "dataset_revision": "5bef8b6e2601af974fb1a1cca03fd702229be4b6",
+   "license": "cc-by-sa-3.0",
+   "reference": "https://huggingface.co/datasets/mlqa",
+   "domains": [
+    "Encyclopaedic",
+    "Written"
+   ]
+  },
+  "MTOPDomainClassification": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "validation",
+    "test"
+   ],
+   "hf_repo": "mteb/MTOPDomainClassification",
+   "dataset_revision": "a76d16fae880597b9c73047b50159220a441cb54",
+   "license": "not specified",
+   "reference": "https://arxiv.org/pdf/2008.09335.pdf",
+   "domains": [
+    "Spoken",
+    "Spoken"
+   ]
+  },
+  "MacedonianTweetSentimentClassification": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/MacedonianTweetSentimentClassification",
+   "dataset_revision": "6ec78a685dad2e2b37af77264676e9dddfa7dc8e",
+   "license": "cc-by-nc-sa-3.0",
+   "reference": "https://aclanthology.org/R15-1034/",
+   "domains": [
+    "Social",
+    "Written"
+   ]
+  },
+  "MalteseNewsClassification": {
+   "type": "MultilabelClassification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/MalteseNewsClassification",
+   "dataset_revision": "dd971b06303e3c3285a45a03afb5fb067b7bfced",
+   "license": "cc-by-nc-sa-4.0",
+   "reference": "https://huggingface.co/datasets/MLRS/maltese_news_categories",
+   "domains": [
+    "Constructed",
+    "Written"
+   ]
+  },
+  "MasakhaNEWSClassification": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/masakhanews",
+   "dataset_revision": "18193f187b92da67168c655c9973a165ed9593dd",
+   "license": "cc-by-nc-4.0",
+   "reference": "https://arxiv.org/abs/2304.09972",
+   "domains": [
+    "News",
+    "Written"
+   ]
+  },
+  "MasakhaNEWSClusteringS2S": {
+   "type": "Clustering",
+   "main_score": "v_measure",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/MasakhaNEWSClusteringS2S",
+   "dataset_revision": "5dddcb139010208a28c3dcc2568560061c210097",
+   "license": "afl-3.0",
+   "reference": "https://huggingface.co/datasets/masakhane/masakhanews",
+   "domains": [
+    "News",
+    "Written"
+   ]
+  },
+  "MassiveIntentClassification": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "validation",
+    "test"
+   ],
+   "hf_repo": "mteb/amazon_massive_intent",
+   "dataset_revision": "4672e20407010da34463acc759c162ca9734bca6",
+   "license": "apache-2.0",
+   "reference": "https://arxiv.org/abs/2204.08582",
+   "domains": [
+    "Spoken"
+   ]
+  },
+  "MassiveScenarioClassification": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "validation",
+    "test"
+   ],
+   "hf_repo": "mteb/amazon_massive_scenario",
+   "dataset_revision": "fad2c6e8459f9e1c45d9315f4953d921437d70f8",
+   "license": "apache-2.0",
+   "reference": "https://arxiv.org/abs/2204.08582",
+   "domains": [
+    "Spoken"
+   ]
+  },
+  "MedrxivClusteringP2P.v2": {
+   "type": "Clustering",
+   "main_score": "v_measure",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/medrxiv-clustering-p2p",
+   "dataset_revision": "e7a26af6f3ae46b30dde8737f02c07b1505bcc73",
+   "license": "https://www.medrxiv.org/content/about-medrxiv",
+   "reference": "https://api.medrxiv.org/",
+   "domains": [
+    "Academic",
+    "Medical",
+    "Written"
+   ]
+  },
+  "MedrxivClusteringS2S.v2": {
+   "type": "Clustering",
+   "main_score": "v_measure",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/medrxiv-clustering-s2s",
+   "dataset_revision": "35191c8c0dca72d8ff3efcd72aa802307d469663",
+   "license": "https://www.medrxiv.org/content/about-medrxiv",
+   "reference": "https://api.medrxiv.org/",
+   "domains": [
+    "Academic",
+    "Medical",
+    "Written"
+   ]
+  },
+  "MindSmallReranking": {
+   "type": "Reranking",
+   "main_score": "max_over_subqueries_map_at_1000",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/MindSmallReranking",
+   "dataset_revision": "227478e3235572039f4f7661840e059f31ef6eb1",
+   "license": "https://github.com/msnews/MIND/blob/master/MSR%20License_Data.pdf",
+   "reference": "https://msnews.github.io/assets/doc/ACL2020_MIND.pdf",
+   "domains": [
+    "News",
+    "Written"
+   ]
+  },
+  "MultiEURLEXMultilabelClassification": {
+   "type": "MultilabelClassification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/eurlex-multilingual",
+   "dataset_revision": "2aea5a6dc8fdcfeca41d0fb963c0a338930bde5c",
+   "license": "cc-by-sa-4.0",
+   "reference": "https://huggingface.co/datasets/coastalcph/multi_eurlex",
+   "domains": [
+    "Legal",
+    "Government",
+    "Written"
+   ]
+  },
+  "MultiHateClassification": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/multi-hatecheck",
+   "dataset_revision": "8f95949846bb9e33c6aaf730ccfdb8fe6bcfb7a9",
+   "license": "cc-by-4.0",
+   "reference": "https://aclanthology.org/2022.woah-1.15/",
+   "domains": [
+    "Constructed",
+    "Written"
+   ]
+  },
+  "NTREXBitextMining": {
+   "type": "BitextMining",
+   "main_score": "f1",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/NTREXBitextMining",
+   "dataset_revision": "66b8b27efc99658903127730575e9fa0cb9f075c",
+   "license": "cc-by-sa-4.0",
+   "reference": "https://huggingface.co/datasets/davidstap/NTREX",
+   "domains": [
+    "News",
+    "Written"
+   ]
+  },
+  "NepaliNewsClassification": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "train"
+   ],
+   "hf_repo": "mteb/NepaliNewsClassification",
+   "dataset_revision": "517059b8db27c65544a855d90b3e30e5a9853fc3",
+   "license": "cc-by-sa-4.0",
+   "reference": "https://github.com/goru001/nlp-for-nepali",
+   "domains": [
+    "News",
+    "Written"
+   ]
+  },
+  "News21InstructionRetrieval": {
+   "type": "InstructionReranking",
+   "main_score": "p-MRR",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/News21InstructionRetrieval",
+   "dataset_revision": "c6fffeb9cdd95c1ffa81c62c687b48b56352872b",
+   "license": "mit",
+   "reference": "https://arxiv.org/abs/2403.15246",
+   "domains": [
+    "News",
+    "Written"
+   ]
+  },
+  "NollySentiBitextMining": {
+   "type": "BitextMining",
+   "main_score": "f1",
+   "eval_splits": [
+    "train"
+   ],
+   "hf_repo": "mteb/NollySentiBitextMining",
+   "dataset_revision": "77d807ea44797c4663a3e0aca353d630c62d85cf",
+   "license": "cc-by-sa-4.0",
+   "reference": "https://github.com/IyanuSh/NollySenti",
+   "domains": [
+    "Social",
+    "Reviews",
+    "Written"
+   ]
+  },
+  "NordicLangClassification": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/NordicLangClassification",
+   "dataset_revision": "425d7e9de276902b73d5359ecd4811f3b80cc7c0",
+   "license": "cc-by-sa-3.0",
+   "reference": "https://aclanthology.org/2021.vardial-1.8/",
+   "domains": [
+    "Encyclopaedic"
+   ]
+  },
+  "NorwegianCourtsBitextMining": {
+   "type": "BitextMining",
+   "main_score": "f1",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/NorwegianCourtsBitextMining",
+   "dataset_revision": "ddf68e49e8d393964288ad5b498f1d61cca7b23f",
+   "license": "cc-by-4.0",
+   "reference": "https://opus.nlpl.eu/index.php",
+   "domains": [
+    "Legal",
+    "Written"
+   ]
+  },
+  "NusaParagraphEmotionClassification": {
+   "type": "Classification",
+   "main_score": "f1",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/NusaParagraphEmotionClassification",
+   "dataset_revision": "5d4381326f7df57557c5a63032efba4a9a9b537a",
+   "license": "apache-2.0",
+   "reference": "https://github.com/IndoNLP/nusa-writes",
+   "domains": [
+    "Non-fiction",
+    "Fiction",
+    "Written"
+   ]
+  },
+  "NusaTranslationBitextMining": {
+   "type": "BitextMining",
+   "main_score": "f1",
+   "eval_splits": [
+    "train"
+   ],
+   "hf_repo": "mteb/NusaTranslationBitextMining",
+   "dataset_revision": "d08eca02c75a0b2ea9bfaaed1e42b7679588fa59",
+   "license": "cc-by-sa-4.0",
+   "reference": "https://huggingface.co/datasets/indonlp/nusatranslation_mt",
+   "domains": [
+    "Social",
+    "Written"
+   ]
+  },
+  "NusaX-senti": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/NusaX-senti",
+   "dataset_revision": "7b2ff4facde8a6473f667a38edef1d03ce9ca0dc",
+   "license": "cc-by-sa-4.0",
+   "reference": "https://arxiv.org/abs/2205.15960",
+   "domains": [
+    "Reviews",
+    "Web",
+    "Social",
+    "Constructed",
+    "Written"
+   ]
+  },
+  "NusaXBitextMining": {
+   "type": "BitextMining",
+   "main_score": "f1",
+   "eval_splits": [
+    "train"
+   ],
+   "hf_repo": "mteb/NusaXBitextMining",
+   "dataset_revision": "6db681bd37d6827f8d132590429ce33a2af4c96e",
+   "license": "cc-by-sa-4.0",
+   "reference": "https://huggingface.co/datasets/indonlp/NusaX-senti/",
+   "domains": [
+    "Reviews",
+    "Written"
+   ]
+  },
+  "OdiaNewsClassification": {
+   "type": "Classification",
+   "main_score": "f1",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/OdiaNewsClassification",
+   "dataset_revision": "066005f6178254a40a22c24b98c8bd40a073c0ac",
+   "license": "mit",
+   "reference": "https://github.com/goru001/nlp-for-odia",
+   "domains": [
+    "News",
+    "Written"
+   ]
+  },
+  "OpusparcusPC": {
+   "type": "PairClassification",
+   "main_score": "max_ap",
+   "eval_splits": [
+    "test.full",
+    "validation.full"
+   ],
+   "hf_repo": "mteb/OpusparcusPC",
+   "dataset_revision": "e95831b0fa902edc955f3b60e3e63b349bb7bd02",
+   "license": "cc-by-nc-4.0",
+   "reference": "https://gem-benchmark.com/data_cards/opusparcus",
+   "domains": [
+    "Spoken",
+    "Spoken"
+   ]
+  },
+  "PAC": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/PAC",
+   "dataset_revision": "d09e1c9f0f04f7f52f5cbfb74fa6c793c4eb84da",
+   "license": "cc-by-nc-sa-4.0",
+   "reference": "https://arxiv.org/pdf/2211.13112.pdf",
+   "domains": [
+    "Legal",
+    "Written"
+   ]
+  },
+  "PawsXPairClassification": {
+   "type": "PairClassification",
+   "main_score": "max_ap",
+   "eval_splits": [
+    "test",
+    "validation"
+   ],
+   "hf_repo": "mteb/PawsXPairClassification",
+   "dataset_revision": "558da352e7dba3ed3229fc4922aef2ebaff0a90b",
+   "license": "https://huggingface.co/datasets/google-research-datasets/paws-x#licensing-information",
+   "reference": "https://arxiv.org/abs/1908.11828",
+   "domains": [
+    "Web",
+    "Encyclopaedic",
+    "Written"
+   ]
+  },
+  "PlscClusteringP2P.v2": {
+   "type": "Clustering",
+   "main_score": "v_measure",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/PlscClusteringP2P.v2",
+   "dataset_revision": "82128bcad8e4713bcaf0449ed7e02109aa00ca0c",
+   "license": "cc0-1.0",
+   "reference": "https://huggingface.co/datasets/rafalposwiata/plsc",
+   "domains": [
+    "Academic",
+    "Written"
+   ]
+  },
+  "PoemSentimentClassification": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "validation",
+    "test"
+   ],
+   "hf_repo": "mteb/PoemSentimentClassification",
+   "dataset_revision": "84af4753ebb04ca836fb54ce89a339839b03b748",
+   "license": "cc-by-4.0",
+   "reference": "https://arxiv.org/abs/2011.02686",
+   "domains": [
+    "Reviews",
+    "Written"
+   ]
+  },
+  "PolEmo2.0-OUT": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/PolEmo2.0-OUT",
+   "dataset_revision": "4cdfe32a4a7b964afb7aaf9430b9ce6804f7d7e9",
+   "license": "cc-by-sa-4.0",
+   "reference": "https://aclanthology.org/K19-1092.pdf",
+   "domains": [
+    "Written",
+    "Social"
+   ]
+  },
+  "PpcPC": {
+   "type": "PairClassification",
+   "main_score": "max_ap",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/PpcPC",
+   "dataset_revision": "e7f83d7d05792c2c57c8708a102e4ea785b9c301",
+   "license": "gpl-3.0",
+   "reference": "https://arxiv.org/pdf/2207.12759.pdf",
+   "domains": [
+    "Fiction",
+    "Non-fiction",
+    "Web",
+    "Written",
+    "Spoken",
+    "Social",
+    "News"
+   ]
+  },
+  "PunjabiNewsClassification": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/PunjabiNewsClassification",
+   "dataset_revision": "b76bb74317e828d00e474779c8c706eac8af231b",
+   "license": "mit",
+   "reference": "https://github.com/goru001/nlp-for-punjabi/",
+   "domains": [
+    "News",
+    "Written"
+   ]
+  },
+  "RTE3": {
+   "type": "PairClassification",
+   "main_score": "max_ap",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/RTE3",
+   "dataset_revision": "54ea0052267265f4906dd77b0a3d041d301a5ee6",
+   "license": "cc-by-4.0",
+   "reference": "https://aclanthology.org/W07-1401/",
+   "domains": [
+    "News",
+    "Web",
+    "Encyclopaedic",
+    "Written"
+   ]
+  },
+  "Robust04InstructionRetrieval": {
+   "type": "InstructionReranking",
+   "main_score": "p-MRR",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/Robust04InstructionRetrieval",
+   "dataset_revision": "0495a5cb69aa8fa5bca81bd56ac248911c19eeb6",
+   "license": "mit",
+   "reference": "https://arxiv.org/abs/2403.15246",
+   "domains": [
+    "News",
+    "Written"
+   ]
+  },
+  "RomaniBibleClustering": {
+   "type": "Clustering",
+   "main_score": "v_measure",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/RomaniBibleClustering",
+   "dataset_revision": "53db5afec1fe573b334cb6f1c8ee64a0849b3ce5",
+   "license": "mit",
+   "reference": "https://romani.global.bible/info",
+   "domains": [
+    "Religious",
+    "Written"
+   ]
+  },
+  "RuBQReranking": {
+   "type": "Reranking",
+   "main_score": "map_at_1000",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/RuBQReranking",
+   "dataset_revision": "e8233e2234f8b24ab47f203b69d1161c3c0bc5a1",
+   "license": "cc-by-sa-4.0",
+   "reference": "https://openreview.net/pdf?id=P5UQFFoQ4PJ",
+   "domains": [
+    "Encyclopaedic",
+    "Written"
+   ]
+  },
+  "SCIDOCS": {
+   "type": "Retrieval",
+   "main_score": "ndcg_at_10",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/scidocs",
+   "dataset_revision": "f8c2fcf00f625baaa80f62ec5bd9e1fff3b8ae88",
+   "license": "cc-by-sa-4.0",
+   "reference": "https://allenai.org/data/scidocs",
+   "domains": [
+    "Academic",
+    "Written",
+    "Non-fiction"
+   ]
+  },
+  "SIB200ClusteringS2S": {
+   "type": "Clustering",
+   "main_score": "v_measure",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/sib200",
+   "dataset_revision": "a74d7350ea12af010cfb1c21e34f1f81fd2e615b",
+   "license": "cc-by-sa-4.0",
+   "reference": "https://arxiv.org/abs/2309.07445",
+   "domains": [
+    "News",
+    "Written"
+   ]
+  },
+  "SICK-R": {
+   "type": "STS",
+   "main_score": "cosine_spearman",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/sickr-sts",
+   "dataset_revision": "20a6d6f312dd54037fe07a32d58e5e168867909d",
+   "license": "cc-by-nc-sa-3.0",
+   "reference": "https://aclanthology.org/L14-1314/",
+   "domains": [
+    "Web",
+    "Written"
+   ]
+  },
+  "STS12": {
+   "type": "STS",
+   "main_score": "cosine_spearman",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/sts12-sts",
+   "dataset_revision": "a0d554a64d88156834ff5ae9920b964011b16384",
+   "license": "not specified",
+   "reference": "https://www.aclweb.org/anthology/S12-1051.pdf",
+   "domains": [
+    "Encyclopaedic",
+    "News",
+    "Written"
+   ]
+  },
+  "STS13": {
+   "type": "STS",
+   "main_score": "cosine_spearman",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/sts13-sts",
+   "dataset_revision": "7e90230a92c190f1bf69ae9002b8cea547a64cca",
+   "license": "not specified",
+   "reference": "https://www.aclweb.org/anthology/S13-1004/",
+   "domains": [
+    "Web",
+    "News",
+    "Non-fiction",
+    "Written"
+   ]
+  },
+  "STS14": {
+   "type": "STS",
+   "main_score": "cosine_spearman",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/sts14-sts",
+   "dataset_revision": "6031580fec1f6af667f0bd2da0a551cf4f0b2375",
+   "license": "not specified",
+   "reference": "https://www.aclweb.org/anthology/S14-1002",
+   "domains": [
+    "Blog",
+    "Web",
+    "Spoken"
+   ]
+  },
+  "STS15": {
+   "type": "STS",
+   "main_score": "cosine_spearman",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/sts15-sts",
+   "dataset_revision": "ae752c7c21bf194d8b67fd573edf7ae58183cbe3",
+   "license": "not specified",
+   "reference": "https://www.aclweb.org/anthology/S15-2010",
+   "domains": [
+    "Blog",
+    "News",
+    "Web",
+    "Written",
+    "Spoken"
+   ]
+  },
+  "STS17": {
+   "type": "STS",
+   "main_score": "cosine_spearman",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/sts17-crosslingual-sts",
+   "dataset_revision": "faeb762787bd10488a50c8b5be4a3b82e411949c",
+   "license": "not specified",
+   "reference": "https://alt.qcri.org/semeval2017/task1/",
+   "domains": [
+    "News",
+    "Web",
+    "Written"
+   ]
+  },
+  "STS22.v2": {
+   "type": "STS",
+   "main_score": "cosine_spearman",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/sts22-crosslingual-sts",
+   "dataset_revision": "d31f33a128469b20e357535c39b82fb3c3f6f2bd",
+   "license": "not specified",
+   "reference": "https://competitions.codalab.org/competitions/33835",
+   "domains": [
+    "News",
+    "Written"
+   ]
+  },
+  "STSB": {
+   "type": "STS",
+   "main_score": "cosine_spearman",
+   "eval_splits": [
+    "validation",
+    "test"
+   ],
+   "hf_repo": "mteb/STSB",
+   "dataset_revision": "e036defee8f190911de6fc825a944b928c8cda53",
+   "license": "not specified",
+   "reference": "https://aclanthology.org/2021.emnlp-main.357",
+   "domains": [
+    "News",
+    "Web",
+    "Written"
+   ]
+  },
+  "STSBenchmark": {
+   "type": "STS",
+   "main_score": "cosine_spearman",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/stsbenchmark-sts",
+   "dataset_revision": "b0fddb56ed78048fa8b90373c8a3cfc37b684831",
+   "license": "not specified",
+   "reference": "https://github.com/PhilipMay/stsb-multi-mt/",
+   "domains": [
+    "Blog",
+    "News",
+    "Written"
+   ]
+  },
+  "STSES": {
+   "type": "STS",
+   "main_score": "cosine_spearman",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/STSES",
+   "dataset_revision": "fe7158e70012087b5a692ce175226a0d213936ad",
+   "license": "cc-by-4.0",
+   "reference": "https://huggingface.co/datasets/PlanTL-GOB-ES/sts-es",
+   "domains": [
+    "News",
+    "Web",
+    "Written"
+   ]
+  },
+  "ScalaClassification": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/multilingual-scala-classification",
+   "dataset_revision": "ec85bb6c69679ed15ac66c0bf6e180bf563eb137",
+   "license": "cc-by-sa-4.0",
+   "reference": "https://aclanthology.org/2023.nodalida-1.20/",
+   "domains": [
+    "Fiction",
+    "News",
+    "Non-fiction",
+    "Blog",
+    "Spoken",
+    "Web",
+    "Written"
+   ]
+  },
+  "SemRel24STS": {
+   "type": "STS",
+   "main_score": "cosine_spearman",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/SemRel24STS",
+   "dataset_revision": "f5146bf724c55899ca20502851dc98c5405b67f9",
+   "license": "not specified",
+   "reference": "https://huggingface.co/datasets/SemRel/SemRel2024",
+   "domains": [
+    "Spoken",
+    "Written"
+   ]
+  },
+  "SentimentAnalysisHindi": {
+   "type": "Classification",
+   "main_score": "f1",
+   "eval_splits": [
+    "train"
+   ],
+   "hf_repo": "mteb/SentimentAnalysisHindi",
+   "dataset_revision": "feab4a1cfc55f4b799f4ed902d8967e2ab68425c",
+   "license": "cc-by-nc-sa-4.0",
+   "reference": "https://huggingface.co/datasets/OdiaGenAI/sentiment_analysis_hindi",
+   "domains": [
+    "Reviews",
+    "Written"
+   ]
+  },
+  "SinhalaNewsClassification": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "train"
+   ],
+   "hf_repo": "mteb/SinhalaNewsClassification",
+   "dataset_revision": "a86de19f6b79cf464f2bb5ca71d89cdbf41eeb9f",
+   "license": "mit",
+   "reference": "https://huggingface.co/datasets/NLPC-UOM/Sinhala-News-Category-classification",
+   "domains": [
+    "News",
+    "Written"
+   ]
+  },
+  "SiswatiNewsClassification": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "train"
+   ],
+   "hf_repo": "mteb/SiswatiNewsClassification",
+   "dataset_revision": "a93a678f0b4e3acb63eb2d46e0a1667a0800c54b",
+   "license": "cc-by-sa-4.0",
+   "reference": "https://huggingface.co/datasets/dsfsi/za-isizulu-siswati-news",
+   "domains": [
+    "News",
+    "Written"
+   ]
+  },
+  "SlovakMovieReviewSentimentClassification": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/SlovakMovieReviewSentimentClassification",
+   "dataset_revision": "7d408f245f0d3df0eaaca08f89ab6a1936ada6f5",
+   "license": "cc-by-nc-sa-4.0",
+   "reference": "https://arxiv.org/pdf/2304.01922",
+   "domains": [
+    "Reviews",
+    "Written"
+   ]
+  },
+  "SpartQA": {
+   "type": "Retrieval",
+   "main_score": "ndcg_at_10",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/SpartQA",
+   "dataset_revision": "1c858df377e57725a014a1b7321ebd79d62016b6",
+   "license": "mit",
+   "reference": "https://github.com/HLR/SpartQA_generation",
+   "domains": [
+    "Encyclopaedic",
+    "Written"
+   ]
+  },
+  "SprintDuplicateQuestions": {
+   "type": "PairClassification",
+   "main_score": "max_ap",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/sprintduplicatequestions-pairclassification",
+   "dataset_revision": "d66bd1f72af766a5cc4b0ca5e00c162f89e8cc46",
+   "license": "not specified",
+   "reference": "https://www.aclweb.org/anthology/D18-1131/",
+   "domains": [
+    "Programming",
+    "Written"
+   ]
+  },
+  "StackExchangeClustering.v2": {
+   "type": "Clustering",
+   "main_score": "v_measure",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/stackexchange-clustering",
+   "dataset_revision": "6cbc1f7b2bc0622f2e39d2c77fa502909748c259",
+   "license": "not specified",
+   "reference": "https://arxiv.org/abs/2104.07081",
+   "domains": [
+    "Web",
+    "Written"
+   ]
+  },
+  "StackExchangeClusteringP2P.v2": {
+   "type": "Clustering",
+   "main_score": "v_measure",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/stackexchange-clustering-p2p",
+   "dataset_revision": "815ca46b2622cec33ccafc3735d572c266efdb44",
+   "license": "not specified",
+   "reference": "https://arxiv.org/abs/2104.07081",
+   "domains": [
+    "Web",
+    "Written"
+   ]
+  },
+  "StackOverflowQA": {
+   "type": "Retrieval",
+   "main_score": "ndcg_at_10",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/StackOverflowQA",
+   "dataset_revision": "7b46f5ebd2365278c1bb025986dda2fee893bbf5",
+   "license": "mit",
+   "reference": "https://arxiv.org/abs/2407.02883",
+   "domains": [
+    "Programming",
+    "Written"
+   ]
+  },
+  "StatcanDialogueDatasetRetrieval": {
+   "type": "Retrieval",
+   "main_score": "recall_at_10",
+   "eval_splits": [
+    "dev",
+    "test"
+   ],
+   "hf_repo": "mteb/StatcanDialogueDatasetRetrieval",
+   "dataset_revision": "6f9747b22a93c6cf714945bca43576089fb80de3",
+   "license": "https://huggingface.co/datasets/McGill-NLP/statcan-dialogue-dataset-retrieval/blob/main/LICENSE.md",
+   "reference": "https://mcgill-nlp.github.io/statcan-dialogue-dataset/",
+   "domains": [
+    "Government",
+    "Web",
+    "Written"
+   ]
+  },
+  "SummEvalSummarization.v2": {
+   "type": "Summarization",
+   "main_score": "cosine_spearman",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/summeval",
+   "dataset_revision": "cda12ad7615edc362dbf25a00fdd61d3b1eaf93c",
+   "license": "mit",
+   "reference": "https://github.com/Yale-LILY/SummEval",
+   "domains": [
+    "News",
+    "Written"
+   ]
+  },
+  "SwahiliNewsClassification": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "train"
+   ],
+   "hf_repo": "mteb/SwahiliNewsClassification",
+   "dataset_revision": "e9b91a8bc13eb2797ef476d72feda71581d0a4fe",
+   "license": "cc-by-nc-sa-4.0",
+   "reference": "https://huggingface.co/datasets/Mollel/SwahiliNewsClassification",
+   "domains": [
+    "News",
+    "Written"
+   ]
+  },
+  "SwednClusteringP2P": {
+   "type": "Clustering",
+   "main_score": "v_measure",
+   "eval_splits": [
+    "summaries",
+    "articles"
+   ],
+   "hf_repo": "mteb/SwednClusteringP2P",
+   "dataset_revision": "f8dbf10ec231cc25e9f63454d5cd2d90af95e5f8",
+   "license": "cc-by-4.0",
+   "reference": "https://spraakbanken.gu.se/en/resources/swedn",
+   "domains": [
+    "News",
+    "Non-fiction",
+    "Written"
+   ]
+  },
+  "SwissJudgementClassification": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/SwissJudgementClassification",
+   "dataset_revision": "2541705ce837c495e85aa3c44b41a92fa4bd12a8",
+   "license": "cc-by-4.0",
+   "reference": "https://aclanthology.org/2021.nllp-1.3/",
+   "domains": [
+    "Legal",
+    "Written"
+   ]
+  },
+  "T2Reranking": {
+   "type": "Reranking",
+   "main_score": "map_at_1000",
+   "eval_splits": [
+    "dev"
+   ],
+   "hf_repo": "mteb/T2Reranking",
+   "dataset_revision": "a34fe6bc0dff185af1228e49a0f6fb1de1565627",
+   "license": "not specified",
+   "reference": "https://arxiv.org/abs/2304.03679",
+   "domains": [
+    "Web",
+    "Written"
+   ]
+  },
+  "TERRa": {
+   "type": "PairClassification",
+   "main_score": "max_ap",
+   "eval_splits": [
+    "dev"
+   ],
+   "hf_repo": "mteb/TERRa",
+   "dataset_revision": "48312c334eb916d88481dc4a41bd0d8b2fa0d576",
+   "license": "mit",
+   "reference": "https://arxiv.org/pdf/2010.15925",
+   "domains": [
+    "News",
+    "Web",
+    "Written"
+   ]
+  },
+  "TRECCOVID": {
+   "type": "Retrieval",
+   "main_score": "ndcg_at_10",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/trec-covid",
+   "dataset_revision": "bb9466bac8153a0349341eb1b22e06409e78ef4e",
+   "license": "not specified",
+   "reference": "https://ir.nist.gov/covidSubmit/index.html",
+   "domains": [
+    "Medical",
+    "Academic",
+    "Written"
+   ]
+  },
+  "Tatoeba": {
+   "type": "BitextMining",
+   "main_score": "f1",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/tatoeba-bitext-mining",
+   "dataset_revision": "69e8f12da6e31d59addadda9a9c8a2e601a0e282",
+   "license": "cc-by-2.0",
+   "reference": "https://github.com/facebookresearch/LASER/tree/main/data/tatoeba/v1",
+   "domains": [
+    "Written"
+   ]
+  },
+  "TempReasonL1": {
+   "type": "Retrieval",
+   "main_score": "ndcg_at_10",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/TempReasonL1",
+   "dataset_revision": "2065ce0bde70750ed98bb91abd96d0d68ab94324",
+   "license": "cc-by-sa-3.0",
+   "reference": "https://github.com/DAMO-NLP-SG/TempReason",
+   "domains": [
+    "Encyclopaedic",
+    "Written"
+   ]
+  },
+  "Touche2020Retrieval.v3": {
+   "type": "Retrieval",
+   "main_score": "ndcg_at_10",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/webis-touche2020-v3",
+   "dataset_revision": "431886eaecc48f067a3975b70d0949ea2862463c",
+   "license": "cc-by-sa-4.0",
+   "reference": "https://github.com/castorini/touche-error-analysis",
+   "domains": [
+    "Academic"
+   ]
+  },
+  "ToxicConversationsClassification": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/toxic_conversations_50k",
+   "dataset_revision": "edfaf9da55d3dd50d43143d90c1ac476895ae6de",
+   "license": "cc-by-4.0",
+   "reference": "https://www.kaggle.com/competitions/jigsaw-unintended-bias-in-toxicity-classification/overview",
+   "domains": [
+    "Social",
+    "Written"
+   ]
+  },
+  "TswanaNewsClassification": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/TswanaNewsClassification",
+   "dataset_revision": "57b79978c2a361b5b8161569d1470b30e5dda867",
+   "license": "cc-by-sa-4.0",
+   "reference": "https://link.springer.com/chapter/10.1007/978-3-031-49002-6_17",
+   "domains": [
+    "News",
+    "Written"
+   ]
+  },
+  "TweetSentimentExtractionClassification": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/tweet_sentiment_extraction",
+   "dataset_revision": "d604517c81ca91fe16a244d1248fc021f9ecee7a",
+   "license": "not specified",
+   "reference": "https://www.kaggle.com/competitions/tweet-sentiment-extraction/overview",
+   "domains": [
+    "Social",
+    "Written"
+   ]
+  },
+  "TweetTopicSingleClassification": {
+   "type": "Classification",
+   "main_score": "accuracy",
+   "eval_splits": [
+    "test_2021"
+   ],
+   "hf_repo": "mteb/TweetTopicSingleClassification",
+   "dataset_revision": "b4280e921a2760ce34d2dd80a9e5dc8bcbf61785",
+   "license": "not specified",
+   "reference": "https://arxiv.org/abs/2209.09824",
+   "domains": [
+    "Social",
+    "News",
+    "Written"
+   ]
+  },
+  "TwentyNewsgroupsClustering.v2": {
+   "type": "Clustering",
+   "main_score": "v_measure",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/twentynewsgroups-clustering",
+   "dataset_revision": "6125ec4e24fa026cec8a478383ee943acfbd5449",
+   "license": "not specified",
+   "reference": "https://scikit-learn.org/0.19/datasets/twenty_newsgroups.html",
+   "domains": [
+    "News",
+    "Written"
+   ]
+  },
+  "TwitterHjerneRetrieval": {
+   "type": "Retrieval",
+   "main_score": "ndcg_at_10",
+   "eval_splits": [
+    "train"
+   ],
+   "hf_repo": "mteb/TwitterHjerneRetrieval",
+   "dataset_revision": "97ad55673cf9746f8e4b3aaa92b1bb92d82e52db",
+   "license": "cc-by-4.0",
+   "reference": "https://huggingface.co/datasets/sorenmulli/da-hashtag-twitterhjerne",
+   "domains": [
+    "Social",
+    "Written"
+   ]
+  },
+  "TwitterSemEval2015": {
+   "type": "PairClassification",
+   "main_score": "max_ap",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/twittersemeval2015-pairclassification",
+   "dataset_revision": "70970daeab8776df92f5ea462b6173c0b46fd2d1",
+   "license": "not specified",
+   "reference": "https://alt.qcri.org/semeval2015/task1/",
+   "domains": [
+    "Social",
+    "Written"
+   ]
+  },
+  "TwitterURLCorpus": {
+   "type": "PairClassification",
+   "main_score": "max_ap",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/twitterurlcorpus-pairclassification",
+   "dataset_revision": "8b6510b0b1fa4e4c4f879467980e9be563ec1cdf",
+   "license": "not specified",
+   "reference": "https://languagenet.github.io/",
+   "domains": [
+    "Social",
+    "Written"
+   ]
+  },
+  "VoyageMMarcoReranking": {
+   "type": "Reranking",
+   "main_score": "map_at_1000",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/VoyageMMarcoReranking",
+   "dataset_revision": "bd2050c52b480e48c51372b4ec98a1cbbc4515f2",
+   "license": "cc-by-4.0",
+   "reference": "https://arxiv.org/abs/2312.16144",
+   "domains": [
+    "Academic",
+    "Non-fiction",
+    "Written"
+   ]
+  },
+  "WebLINXCandidatesReranking": {
+   "type": "Reranking",
+   "main_score": "mrr_at_10",
+   "eval_splits": [
+    "validation",
+    "test_iid",
+    "test_cat",
+    "test_geo",
+    "test_vis",
+    "test_web"
+   ],
+   "hf_repo": "mteb/WebLINXCandidatesReranking",
+   "dataset_revision": "107fdc2402d2c4bfb2a720dfcfe1f6ff9d21151b",
+   "license": "cc-by-nc-sa-4.0",
+   "reference": "https://mcgill-nlp.github.io/weblinx",
+   "domains": [
+    "Academic",
+    "Web",
+    "Written"
+   ]
+  },
+  "WikiCitiesClustering": {
+   "type": "Clustering",
+   "main_score": "v_measure",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/WikiCitiesClustering",
+   "dataset_revision": "9f302fc86ddf2d9133ebcc03ee3a285f4729bb16",
+   "license": "cc-by-sa-4.0",
+   "reference": "https://huggingface.co/datasets/wikipedia",
+   "domains": [
+    "Encyclopaedic",
+    "Written"
+   ]
+  },
+  "WikiClusteringP2P.v2": {
+   "type": "Clustering",
+   "main_score": "v_measure",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/WikiClusteringP2P.v2",
+   "dataset_revision": "596293afadbf41fd03571343f9f3d2b869b4f2e3",
+   "license": "cc-by-sa-3.0",
+   "reference": "https://github.com/Rysias/wiki-clustering",
+   "domains": [
+    "Encyclopaedic",
+    "Written"
+   ]
+  },
+  "WikipediaRerankingMultilingual": {
+   "type": "Reranking",
+   "main_score": "map_at_1000",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/WikipediaRerankingMultilingual",
+   "dataset_revision": "803771c366038ed587b21e3d8fe25f8f73134fad",
+   "license": "cc-by-sa-3.0",
+   "reference": "https://huggingface.co/datasets/ellamind/wikipedia-2023-11-reranking-multilingual",
+   "domains": [
+    "Encyclopaedic",
+    "Written"
+   ]
+  },
+  "WikipediaRetrievalMultilingual": {
+   "type": "Retrieval",
+   "main_score": "ndcg_at_10",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/WikipediaRetrievalMultilingual",
+   "dataset_revision": "5f6c91d21f2f5b9afb663858d19848fbd223c775",
+   "license": "cc-by-sa-3.0",
+   "reference": "https://huggingface.co/datasets/ellamind/wikipedia-2023-11-retrieval-multilingual-queries",
+   "domains": [
+    "Encyclopaedic",
+    "Written"
+   ]
+  },
+  "WinoGrande": {
+   "type": "Retrieval",
+   "main_score": "ndcg_at_10",
+   "eval_splits": [
+    "test"
+   ],
+   "hf_repo": "mteb/WinoGrande",
+   "dataset_revision": "4dec9c5666e9f84702ac614363db6d96a68bc6de",
+   "license": "not specified",
+   "reference": "https://winogrande.allenai.org/",
+   "domains": [
+    "Encyclopaedic",
+    "Written"
+   ]
+  },
+  "XNLI": {
+   "type": "PairClassification",
+   "main_score": "max_ap",
+   "eval_splits": [
+    "test",
+    "validation"
+   ],
+   "hf_repo": "mteb/xnli",
+   "dataset_revision": "09698e0180d87dc247ca447d3a1248b931ac0cdb",
+   "license": "not specified",
+   "reference": "https://aclanthology.org/D18-1269/",
+   "domains": [
+    "Non-fiction",
+    "Fiction",
+    "Government",
+    "Written"
+   ]
+  },
+  "indonli": {
+   "type": "PairClassification",
+   "main_score": "max_ap",
+   "eval_splits": [
+    "test_expert"
+   ],
+   "hf_repo": "mteb/indonli",
+   "dataset_revision": "cb76e5ca05b56d4f1e0ecaee4d03c1167f162ea6",
+   "license": "cc-by-sa-4.0",
+   "reference": "https://link.springer.com/chapter/10.1007/978-3-030-41505-1_39",
+   "domains": [
+    "Encyclopaedic",
+    "Web",
+    "News",
+    "Written"
+   ]
+  }
+ }
+}
