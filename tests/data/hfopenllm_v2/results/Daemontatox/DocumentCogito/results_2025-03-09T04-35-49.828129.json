@@ -1,0 +1,502 @@
+{
+ "config": {
+  "limit": null,
+  "model_args": "pretrained=Daemontatox/DocumentCogito,revision=9bdbfd8f330754c4103822ce180e0e3e3ce0973e,trust_remote_code=False,dtype=float16,parallelize=False",
+  "model_dtype": "torch.float16"
+ },
+ "configs": {
+  "leaderboard_bbh_boolean_expressions": {
+   "dataset_path": "SaylorTwift/bbh",
+   "num_fewshot": 3,
+   "output_type": "multiple_choice",
+   "task": "leaderboard_bbh_boolean_expressions",
+   "test_split": "test"
+  },
+  "leaderboard_bbh_causal_judgement": {
+   "dataset_path": "SaylorTwift/bbh",
+   "num_fewshot": 3,
+   "output_type": "multiple_choice",
+   "task": "leaderboard_bbh_causal_judgement",
+   "test_split": "test"
+  },
+  "leaderboard_bbh_date_understanding": {
+   "dataset_path": "SaylorTwift/bbh",
+   "num_fewshot": 3,
+   "output_type": "multiple_choice",
+   "task": "leaderboard_bbh_date_understanding",
+   "test_split": "test"
+  },
+  "leaderboard_bbh_disambiguation_qa": {
+   "dataset_path": "SaylorTwift/bbh",
+   "num_fewshot": 3,
+   "output_type": "multiple_choice",
+   "task": "leaderboard_bbh_disambiguation_qa",
+   "test_split": "test"
+  },
+  "leaderboard_bbh_formal_fallacies": {
+   "dataset_path": "SaylorTwift/bbh",
+   "num_fewshot": 3,
+   "output_type": "multiple_choice",
+   "task": "leaderboard_bbh_formal_fallacies",
+   "test_split": "test"
+  },
+  "leaderboard_bbh_geometric_shapes": {
+   "dataset_path": "SaylorTwift/bbh",
+   "num_fewshot": 3,
+   "output_type": "multiple_choice",
+   "task": "leaderboard_bbh_geometric_shapes",
+   "test_split": "test"
+  },
+  "leaderboard_bbh_hyperbaton": {
+   "dataset_path": "SaylorTwift/bbh",
+   "num_fewshot": 3,
+   "output_type": "multiple_choice",
+   "task": "leaderboard_bbh_hyperbaton",
+   "test_split": "test"
+  },
+  "leaderboard_bbh_logical_deduction_five_objects": {
+   "dataset_path": "SaylorTwift/bbh",
+   "num_fewshot": 3,
+   "output_type": "multiple_choice",
+   "task": "leaderboard_bbh_logical_deduction_five_objects",
+   "test_split": "test"
+  },
+  "leaderboard_bbh_logical_deduction_seven_objects": {
+   "dataset_path": "SaylorTwift/bbh",
+   "num_fewshot": 3,
+   "output_type": "multiple_choice",
+   "task": "leaderboard_bbh_logical_deduction_seven_objects",
+   "test_split": "test"
+  },
+  "leaderboard_bbh_logical_deduction_three_objects": {
+   "dataset_path": "SaylorTwift/bbh",
+   "num_fewshot": 3,
+   "output_type": "multiple_choice",
+   "task": "leaderboard_bbh_logical_deduction_three_objects",
+   "test_split": "test"
+  },
+  "leaderboard_bbh_movie_recommendation": {
+   "dataset_path": "SaylorTwift/bbh",
+   "num_fewshot": 3,
+   "output_type": "multiple_choice",
+   "task": "leaderboard_bbh_movie_recommendation",
+   "test_split": "test"
+  },
+  "leaderboard_bbh_navigate": {
+   "dataset_path": "SaylorTwift/bbh",
+   "num_fewshot": 3,
+   "output_type": "multiple_choice",
+   "task": "leaderboard_bbh_navigate",
+   "test_split": "test"
+  },
+  "leaderboard_bbh_object_counting": {
+   "dataset_path": "SaylorTwift/bbh",
+   "num_fewshot": 3,
+   "output_type": "multiple_choice",
+   "task": "leaderboard_bbh_object_counting",
+   "test_split": "test"
+  },
+  "leaderboard_bbh_penguins_in_a_table": {
+   "dataset_path": "SaylorTwift/bbh",
+   "num_fewshot": 3,
+   "output_type": "multiple_choice",
+   "task": "leaderboard_bbh_penguins_in_a_table",
+   "test_split": "test"
+  },
+  "leaderboard_bbh_reasoning_about_colored_objects": {
+   "dataset_path": "SaylorTwift/bbh",
+   "num_fewshot": 3,
+   "output_type": "multiple_choice",
+   "task": "leaderboard_bbh_reasoning_about_colored_objects",
+   "test_split": "test"
+  },
+  "leaderboard_bbh_ruin_names": {
+   "dataset_path": "SaylorTwift/bbh",
+   "num_fewshot": 3,
+   "output_type": "multiple_choice",
+   "task": "leaderboard_bbh_ruin_names",
+   "test_split": "test"
+  },
+  "leaderboard_bbh_salient_translation_error_detection": {
+   "dataset_path": "SaylorTwift/bbh",
+   "num_fewshot": 3,
+   "output_type": "multiple_choice",
+   "task": "leaderboard_bbh_salient_translation_error_detection",
+   "test_split": "test"
+  },
+  "leaderboard_bbh_snarks": {
+   "dataset_path": "SaylorTwift/bbh",
+   "num_fewshot": 3,
+   "output_type": "multiple_choice",
+   "task": "leaderboard_bbh_snarks",
+   "test_split": "test"
+  },
+  "leaderboard_bbh_sports_understanding": {
+   "dataset_path": "SaylorTwift/bbh",
+   "num_fewshot": 3,
+   "output_type": "multiple_choice",
+   "task": "leaderboard_bbh_sports_understanding",
+   "test_split": "test"
+  },
+  "leaderboard_bbh_temporal_sequences": {
+   "dataset_path": "SaylorTwift/bbh",
+   "num_fewshot": 3,
+   "output_type": "multiple_choice",
+   "task": "leaderboard_bbh_temporal_sequences",
+   "test_split": "test"
+  },
+  "leaderboard_bbh_tracking_shuffled_objects_five_objects": {
+   "dataset_path": "SaylorTwift/bbh",
+   "num_fewshot": 3,
+   "output_type": "multiple_choice",
+   "task": "leaderboard_bbh_tracking_shuffled_objects_five_objects",
+   "test_split": "test"
+  },
+  "leaderboard_bbh_tracking_shuffled_objects_seven_objects": {
+   "dataset_path": "SaylorTwift/bbh",
+   "num_fewshot": 3,
+   "output_type": "multiple_choice",
+   "task": "leaderboard_bbh_tracking_shuffled_objects_seven_objects",
+   "test_split": "test"
+  },
+  "leaderboard_bbh_tracking_shuffled_objects_three_objects": {
+   "dataset_path": "SaylorTwift/bbh",
+   "num_fewshot": 3,
+   "output_type": "multiple_choice",
+   "task": "leaderboard_bbh_tracking_shuffled_objects_three_objects",
+   "test_split": "test"
+  },
+  "leaderboard_bbh_web_of_lies": {
+   "dataset_path": "SaylorTwift/bbh",
+   "num_fewshot": 3,
+   "output_type": "multiple_choice",
+   "task": "leaderboard_bbh_web_of_lies",
+   "test_split": "test"
+  },
+  "leaderboard_gpqa_diamond": {
+   "dataset_path": "Idavidrein/gpqa",
+   "num_fewshot": 0,
+   "output_type": "multiple_choice",
+   "task": "leaderboard_gpqa_diamond"
+  },
+  "leaderboard_gpqa_extended": {
+   "dataset_path": "Idavidrein/gpqa",
+   "num_fewshot": 0,
+   "output_type": "multiple_choice",
+   "task": "leaderboard_gpqa_extended"
+  },
+  "leaderboard_gpqa_main": {
+   "dataset_path": "Idavidrein/gpqa",
+   "num_fewshot": 0,
+   "output_type": "multiple_choice",
+   "task": "leaderboard_gpqa_main"
+  },
+  "leaderboard_ifeval": {
+   "dataset_path": "wis-k/instruction-following-eval",
+   "generation_kwargs": {
+    "do_sample": false,
+    "max_gen_toks": 1280,
+    "temperature": 0.0,
+    "until": []
+   },
+   "num_fewshot": 0,
+   "output_type": "generate_until",
+   "task": "leaderboard_ifeval",
+   "test_split": "train"
+  },
+  "leaderboard_math_algebra_hard": {
+   "dataset_path": "lighteval/MATH-Hard",
+   "generation_kwargs": {
+    "do_sample": false,
+    "max_gen_toks": 1024,
+    "temperature": 0.0,
+    "until": [
+     "Problem:"
+    ]
+   },
+   "num_fewshot": 4,
+   "output_type": "generate_until",
+   "task": "leaderboard_math_algebra_hard",
+   "test_split": "test"
+  },
+  "leaderboard_math_counting_and_prob_hard": {
+   "dataset_path": "lighteval/MATH-Hard",
+   "generation_kwargs": {
+    "do_sample": false,
+    "max_gen_toks": 1024,
+    "temperature": 0.0,
+    "until": [
+     "Problem:"
+    ]
+   },
+   "num_fewshot": 4,
+   "output_type": "generate_until",
+   "task": "leaderboard_math_counting_and_prob_hard",
+   "test_split": "test"
+  },
+  "leaderboard_math_geometry_hard": {
+   "dataset_path": "lighteval/MATH-Hard",
+   "generation_kwargs": {
+    "do_sample": false,
+    "max_gen_toks": 1024,
+    "temperature": 0.0,
+    "until": [
+     "Problem:"
+    ]
+   },
+   "num_fewshot": 4,
+   "output_type": "generate_until",
+   "task": "leaderboard_math_geometry_hard",
+   "test_split": "test"
+  },
+  "leaderboard_math_intermediate_algebra_hard": {
+   "dataset_path": "lighteval/MATH-Hard",
+   "generation_kwargs": {
+    "do_sample": false,
+    "max_gen_toks": 1024,
+    "temperature": 0.0,
+    "until": [
+     "Problem:"
+    ]
+   },
+   "num_fewshot": 4,
+   "output_type": "generate_until",
+   "task": "leaderboard_math_intermediate_algebra_hard",
+   "test_split": "test"
+  },
+  "leaderboard_math_num_theory_hard": {
+   "dataset_path": "lighteval/MATH-Hard",
+   "generation_kwargs": {
+    "do_sample": false,
+    "max_gen_toks": 1024,
+    "temperature": 0.0,
+    "until": [
+     "Problem:"
+    ]
+   },
+   "num_fewshot": 4,
+   "output_type": "generate_until",
+   "task": "leaderboard_math_num_theory_hard",
+   "test_split": "test"
+  },
+  "leaderboard_math_prealgebra_hard": {
+   "dataset_path": "lighteval/MATH-Hard",
+   "generation_kwargs": {
+    "do_sample": false,
+    "max_gen_toks": 1024,
+    "temperature": 0.0,
+    "until": [
+     "Problem:"
+    ]
+   },
+   "num_fewshot": 4,
+   "output_type": "generate_until",
+   "task": "leaderboard_math_prealgebra_hard",
+   "test_split": "test"
+  },
+  "leaderboard_math_precalculus_hard": {
+   "dataset_path": "lighteval/MATH-Hard",
+   "generation_kwargs": {
+    "do_sample": false,
+    "max_gen_toks": 1024,
+    "temperature": 0.0,
+    "until": [
+     "Problem:"
+    ]
+   },
+   "num_fewshot": 4,
+   "output_type": "generate_until",
+   "task": "leaderboard_math_precalculus_hard",
+   "test_split": "test"
+  },
+  "leaderboard_mmlu_pro": {
+   "dataset_path": "TIGER-Lab/MMLU-Pro",
+   "num_fewshot": 5,
+   "output_type": "multiple_choice",
+   "task": "leaderboard_mmlu_pro",
+   "test_split": "test"
+  },
+  "leaderboard_musr_murder_mysteries": {
+   "dataset_path": "TAUR-Lab/MuSR",
+   "num_fewshot": 0,
+   "output_type": "multiple_choice",
+   "task": "leaderboard_musr_murder_mysteries",
+   "test_split": "murder_mysteries"
+  },
+  "leaderboard_musr_object_placements": {
+   "dataset_path": "TAUR-Lab/MuSR",
+   "num_fewshot": 0,
+   "output_type": "multiple_choice",
+   "task": "leaderboard_musr_object_placements",
+   "test_split": "object_placements"
+  },
+  "leaderboard_musr_team_allocation": {
+   "dataset_path": "TAUR-Lab/MuSR",
+   "num_fewshot": 0,
+   "output_type": "multiple_choice",
+   "task": "leaderboard_musr_team_allocation",
+   "test_split": "team_allocation"
+  }
+ },
+ "git_hash": "a781a6b",
+ "model_name": "Daemontatox/DocumentCogito",
+ "n-samples": {
+  "leaderboard_bbh_boolean_expressions": {
+   "effective": 250,
+   "original": 250
+  },
+  "leaderboard_bbh_causal_judgement": {
+   "effective": 187,
+   "original": 187
+  },
+  "leaderboard_bbh_date_understanding": {
+   "effective": 250,
+   "original": 250
+  },
+  "leaderboard_bbh_disambiguation_qa": {
+   "effective": 250,
+   "original": 250
+  },
+  "leaderboard_bbh_formal_fallacies": {
+   "effective": 250,
+   "original": 250
+  },
+  "leaderboard_bbh_geometric_shapes": {
+   "effective": 250,
+   "original": 250
+  },
+  "leaderboard_bbh_hyperbaton": {
+   "effective": 250,
+   "original": 250
+  },
+  "leaderboard_bbh_logical_deduction_five_objects": {
+   "effective": 250,
+   "original": 250
+  },
+  "leaderboard_bbh_logical_deduction_seven_objects": {
+   "effective": 250,
+   "original": 250
+  },
+  "leaderboard_bbh_logical_deduction_three_objects": {
+   "effective": 250,
+   "original": 250
+  },
+  "leaderboard_bbh_movie_recommendation": {
+   "effective": 250,
+   "original": 250
+  },
+  "leaderboard_bbh_navigate": {
+   "effective": 250,
+   "original": 250
+  },
+  "leaderboard_bbh_object_counting": {
+   "effective": 250,
+   "original": 250
+  },
+  "leaderboard_bbh_penguins_in_a_table": {
+   "effective": 146,
+   "original": 146
+  },
+  "leaderboard_bbh_reasoning_about_colored_objects": {
+   "effective": 250,
+   "original": 250
+  },
+  "leaderboard_bbh_ruin_names": {
+   "effective": 250,
+   "original": 250
+  },
+  "leaderboard_bbh_salient_translation_error_detection": {
+   "effective": 250,
+   "original": 250
+  },
+  "leaderboard_bbh_snarks": {
+   "effective": 178,
+   "original": 178
+  },
+  "leaderboard_bbh_sports_understanding": {
+   "effective": 250,
+   "original": 250
+  },
+  "leaderboard_bbh_temporal_sequences": {
+   "effective": 250,
+   "original": 250
+  },
+  "leaderboard_bbh_tracking_shuffled_objects_five_objects": {
+   "effective": 250,
+   "original": 250
+  },
+  "leaderboard_bbh_tracking_shuffled_objects_seven_objects": {
+   "effective": 250,
+   "original": 250
+  },
+  "leaderboard_bbh_tracking_shuffled_objects_three_objects": {
+   "effective": 250,
+   "original": 250
+  },
+  "leaderboard_bbh_web_of_lies": {
+   "effective": 250,
+   "original": 250
+  },
+  "leaderboard_gpqa_diamond": {
+   "effective": 198,
+   "original": 198
+  },
+  "leaderboard_gpqa_extended": {
+   "effective": 546,
+   "original": 546
+  },
+  "leaderboard_gpqa_main": {
+   "effective": 448,
+   "original": 448
+  },
+  "leaderboard_ifeval": {
+   "effective": 541,
+   "original": 541
+  },
+  "leaderboard_math_algebra_hard": {
+   "effective": 307,
+   "original": 307
+  },
+  "leaderboard_math_counting_and_prob_hard": {
+   "effective": 123,
+   "original": 123
+  },
+  "leaderboard_math_geometry_hard": {
+   "effective": 132,
+   "original": 132
+  },
+  "leaderboard_math_intermediate_algebra_hard": {
+   "effective": 280,
+   "original": 280
+  },
+  "leaderboard_math_num_theory_hard": {
+   "effective": 154,
+   "original": 154
+  },
+  "leaderboard_math_prealgebra_hard": {
+   "effective": 193,
+   "original": 193
+  },
+  "leaderboard_math_precalculus_hard": {
+   "effective": 135,
+   "original": 135
+  },
+  "leaderboard_mmlu_pro": {
+   "effective": 12032,
+   "original": 12032
+  },
+  "leaderboard_musr_murder_mysteries": {
+   "effective": 250,
+   "original": 250
+  },
+  "leaderboard_musr_object_placements": {
+   "effective": 256,
+   "original": 256
+  },
+  "leaderboard_musr_team_allocation": {
+   "effective": 250,
+   "original": 250
+  }
+ },
+ "transformers_version": "4.49.0"
+}
