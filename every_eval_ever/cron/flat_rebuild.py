@@ -1609,6 +1609,12 @@ def main(argv: list[str] | None = None) -> int:
         help='Allow a full initial build when no snapshot exists yet.',
     )
     parser.add_argument(
+        '--allow-production',
+        action='store_true',
+        default=False,
+        help='Authorize modifying production datastore outside GitHub Actions.',
+    )
+    parser.add_argument(
         '--dry-run',
         action='store_true',
         help='Plan and report, commit nothing.',
@@ -1633,6 +1639,10 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
     acknowledged = load_acknowledged_conflicts(args.acknowledged_conflicts)
+    if not args.dry_run:
+        from every_eval_ever.cron.submit import check_production_guard
+        check_production_guard(args.repo_id, allow_production=args.allow_production)
+
     started = time.monotonic()
     try:
         report = orchestrate(

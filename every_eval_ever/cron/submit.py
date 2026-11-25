@@ -17,6 +17,7 @@ can go once no adapter's state names a pull request.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from typing import Any, Sequence
 
@@ -70,6 +71,44 @@ class PartialSubmissionError(SubmissionError):
         super().__init__(message)
         self.committed_paths = tuple(committed_paths)
         self.unresolved_paths = tuple(unresolved_paths)
+
+
+class ProductionDatastoreGuardError(SubmissionError):
+    """Raised when an attempt is made to commit directly to the production datastore outside CI."""
+
+
+def check_production_guard(
+    repo_id: str,
+    *,
+    allow_production: bool = False,
+) -> None:
+    """Verify that commits to the production datastore are authorized.
+
+    Direct commits to ``DEFAULT_DATASTORE_REPO`` are permitted only when:
+    - Running in CI under GitHub Actions (``GITHUB_ACTIONS == 'true'``);
+    - Explicitly enabled via ``allow_production=True``; or
+    - Enabled via environment variable ``EEE_ALLOW_PRODUCTION == 'true'``.
+    """
+    clean_repo = repo_id.strip()
+    if clean_repo.startswith('https://huggingface.co/datasets/'):
+        clean_repo = clean_repo[len('https://huggingface.co/datasets/'):]
+    if clean_repo.startswith('https://huggingface.co/'):
+        clean_repo = clean_repo[len('https://huggingface.co/'):]
+
+    if clean_repo != DEFAULT_DATASTORE_REPO:
+        return
+
+    in_ci = os.environ.get('GITHUB_ACTIONS') == 'true'
+    env_override = os.environ.get('EEE_ALLOW_PRODUCTION') == 'true'
+
+    if not (in_ci or allow_production or env_override):
+        raise ProductionDatastoreGuardError(
+            f'Direct commits to the production datastore ({DEFAULT_DATASTORE_REPO}) '
+            'are restricted to GitHub Actions (GITHUB_ACTIONS=true). '
+            'When testing locally, use --dry-run to validate without publishing, '
+            'target a personal repository via --datastore-repo, or pass '
+            '--allow-production to explicitly authorize a local commit.'
+        )
 
 
 def marker(adapter: str) -> str:
@@ -151,12 +190,14 @@ class DatastoreSubmitter:
         *,
         repo_id: str = DEFAULT_DATASTORE_REPO,
         batch_size: int = DEFAULT_BATCH_SIZE,
+        allow_production: bool = False,
     ) -> None:
         if not repo_id:
             raise SubmissionError('a datastore repository id is required')
         self.api = api
         self.repo_id = repo_id
         self.batch_size = batch_size
+        self.allow_production = allow_production
         self._identity: dict[str, Any] | None = None
 
     @property
@@ -194,6 +235,7 @@ class DatastoreSubmitter:
         return self._resolve_identity()['name']
 
     def ensure_writable(self) -> None:
+        check_production_guard(self.repo_id, allow_production=self.allow_production)
         """Check what can be checked before an adapter spends an hour.
 
         Both failures this catches are already caught, at the publish step, an
@@ -233,6 +275,7 @@ class DatastoreSubmitter:
         description: str,
         message: str,
     ) -> Submission:
+        check_production_guard(self.repo_id, allow_production=self.allow_production)
         """Commit records to the datastore, in bounded batches.
 
         Batches are whole records (see :func:`_batches`), so every commit
@@ -616,6 +659,8 @@ __all__ = [
     'AmbiguousPullRequestError',
     'DatastoreSubmitter',
     'PartialSubmissionError',
+    'ProductionDatastoreGuardError',
+    'check_production_guard',
     'PullRequest',
     'Submission',
     'SubmissionError',
