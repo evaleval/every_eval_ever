@@ -442,7 +442,7 @@ def make_instance(row: dict, evaluation_id: str, model: str,
             turn_idx=0, source=attribution_source,
             extracted_value=extracted,
             extraction_method=scorer, is_terminal=True)],
-        evaluation=Evaluation(score=score, is_correct=score == 1.0),
+        evaluation=Evaluation(score=score),
         # Omitted rather than zeroed when the row carries no usage.
         token_usage=(
             TokenUsage(input_tokens=int(in_t), output_tokens=int(out_t),

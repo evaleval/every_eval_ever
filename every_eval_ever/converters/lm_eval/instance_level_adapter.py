@@ -206,10 +206,7 @@ class LMEvalInstanceLevelAdapter:
                 ),
                 output=Output(raw=[raw_output]),
                 answer_attribution=answer_attribution,
-                evaluation=Evaluation(
-                    score=score,
-                    is_correct=score == 1.0,
-                ),
+                evaluation=Evaluation(score=score),
                 metadata={
                     'doc_hash': str(sample.get('doc_hash', '')),
                     'prompt_hash': str(sample.get('prompt_hash', '')),

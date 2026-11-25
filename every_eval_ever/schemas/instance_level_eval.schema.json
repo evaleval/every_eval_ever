@@ -184,16 +184,13 @@
         },
         "evaluation": {
             "type": "object",
-            "description": "Evaluation results and scoring data",
-            "required": ["score", "is_correct"],
+            "description": "Evaluation results and scoring data. Scale and binary/continuous semantics of `score` are defined by the parent aggregate's `metric_config`.",
+            "additionalProperties": false,
+            "required": ["score"],
             "properties": {
                 "score": {
                     "type": "number",
-                    "description": "Instance-level score"
-                },
-                "is_correct": {
-                    "type": "boolean",
-                    "description": "Whether the final answer is correct"
+                    "description": "Instance-level score (on the scale declared by the parent aggregate's metric_config; 0.0 or 1.0 for binary metrics)"
                 },
                 "num_turns": {
                     "type": ["integer", "null"],

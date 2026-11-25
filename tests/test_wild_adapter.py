@@ -138,7 +138,7 @@ def test_instances(tmp_path):
     assert det["format"] == "jsonl" and det["total_rows"] == 6
     inst = json.loads(next((out / "openai" / "gpt-x").glob("*_samples.jsonl")).read_text().splitlines()[0])
     assert inst["interaction_type"] == "single_turn"
-    assert inst["evaluation"]["is_correct"] in (True, False)
+    assert inst["evaluation"]["score"] in (0.0, 1.0)
     assert inst["token_usage"]["total_tokens"] == inst["token_usage"]["input_tokens"] + inst["token_usage"]["output_tokens"]
     assert inst["evaluation_name"].startswith("wild.mmlu.")
     # output.raw is the model's FULL generation (assistant turn), NOT the parsed answer

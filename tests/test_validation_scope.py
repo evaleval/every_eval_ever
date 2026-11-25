@@ -106,7 +106,7 @@ def valid_sample() -> dict:
                 'is_terminal': True,
             }
         ],
-        'evaluation': {'score': 1.0, 'is_correct': True},
+        'evaluation': {'score': 1.0},
     }
 
 
@@ -770,3 +770,64 @@ def test_local_command_runs_the_same_repository_checks(
     assert exit_code == 1
     errors = json.loads(capsys.readouterr().out)[0]['errors']
     assert any('was not found' in error['msg'] for error in errors)
+
+
+def test_evaluation_rejects_extra_keys(tmp_path):
+    sample = valid_sample()
+    sample['evaluation']['extra_flag'] = True
+    sample_path = write_samples(tmp_path, [sample])
+
+    report = validate_instance_file(sample_path)
+
+    assert report.valid is False
+    assert any('extra_flag' in error['loc'] for error in report.errors)
+
+
+def test_binary_aggregate_rejects_non_binary_sample_scores(tmp_path):
+    data = valid_aggregate()
+    data['detailed_evaluation_results'] = {
+        'format': 'jsonl',
+        'file_path': COMPANION_REPO_PATH,
+        'total_rows': 1,
+    }
+    sample = valid_sample()
+    sample['evaluation']['score'] = 0.5
+    samples_text = f'{json.dumps(sample)}\n'
+
+    agg_report = validate_data(
+        tmp_path,
+        data,
+        available_files={AGGREGATE_REPO_PATH, COMPANION_REPO_PATH},
+        repo_files={COMPANION_REPO_PATH: samples_text},
+    )
+    assert agg_report.valid is False
+    assert any(
+        'binary metric' in error['msg'] and '0.5' in error['msg']
+        for error in agg_report.errors
+    )
+
+    sample_path = write_samples(tmp_path, [sample])
+    inst_report = validate_instance_file(
+        sample_path,
+        repo_path=COMPANION_REPO_PATH,
+        available_files={AGGREGATE_REPO_PATH, COMPANION_REPO_PATH},
+        read_repo_file={AGGREGATE_REPO_PATH: json.dumps(data)}.__getitem__,
+        run_semantic_checks=True,
+    )
+    assert inst_report.valid is False
+    assert any(
+        'binary metric' in error['msg'] and '0.5' in error['msg']
+        for error in inst_report.errors
+    )
+
+    # Continuous aggregate results allow fractional per-sample scores.
+    data['evaluation_results'][0]['metric_config'].update(
+        {'score_type': 'continuous', 'min_score': 0.0, 'max_score': 1.0}
+    )
+    cont_report = validate_data(
+        tmp_path,
+        data,
+        available_files={AGGREGATE_REPO_PATH, COMPANION_REPO_PATH},
+        repo_files={COMPANION_REPO_PATH: samples_text},
+    )
+    assert cont_report.valid is True, cont_report.errors

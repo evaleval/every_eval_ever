@@ -98,7 +98,6 @@ class LogBundle:
     model: str
     instance_path: Path | None = None
     instance_count: int = 0
-    binary_result_ids: set[str] = field(default_factory=set)
 
 
 @dataclass
@@ -1070,22 +1069,11 @@ def make_instance_log(
     instance: PendingInstance,
     evaluation_id: str,
     model_id: str,
-    binary_result_ids: set[str] | None = None,
 ) -> InstanceLevelEvaluationLog:
     bench_slug = normalize_slug(benchmark_name(instance.benchmark))
     metric_slug = normalize_slug(instance.metric_name)
     evaluation_result_id = f'{bench_slug}::{metric_slug}'
     extracted_value = instance.output[0] if instance.output else ''
-    is_binary_metric = evaluation_result_id in (binary_result_ids or set())
-    metadata = {
-        **instance.metadata,
-        'is_correct_applicable': stringify(is_binary_metric),
-        'is_correct_rule': (
-            'score == 1.0 for binary 0/1 metric'
-            if is_binary_metric
-            else 'false for non-binary metric; use evaluation.score'
-        ),
-    }
 
     return InstanceLevelEvaluationLog(
         schema_version=SCHEMA_VERSION,
@@ -1107,11 +1095,8 @@ def make_instance_log(
                 is_terminal=True,
             )
         ],
-        evaluation=Evaluation(
-            score=instance.score,
-            is_correct=is_binary_metric and instance.score == 1.0,
-        ),
-        metadata=metadata,
+        evaluation=Evaluation(score=instance.score),
+        metadata=dict(instance.metadata),
     )
 
 
@@ -1265,22 +1250,12 @@ def _make_log_bundle(
             results, key=lambda item: item.evaluation_result_id or ''
         ),
     )
-    binary_result_ids = {
-        result.evaluation_result_id
-        for result in results
-        if result.evaluation_result_id
-        and (result.metric_config.additional_details or {}).get(
-            'score_values_are_binary'
-        )
-        == 'true'
-    }
     return LogBundle(
         log=log,
         developer=developer,
         model=model_slug,
         instance_path=group.instance_path,
         instance_count=group.instance_count,
-        binary_result_ids=binary_result_ids,
     )
 
 
@@ -1417,7 +1392,6 @@ def export_logs(bundles: list[LogBundle], output_dir: Path) -> list[Path]:
                                 instance,
                                 log.evaluation_id,
                                 log.model_info.id,
-                                bundle.binary_result_ids,
                             )
                         )
                     if len(sample_rows) != bundle.instance_count:

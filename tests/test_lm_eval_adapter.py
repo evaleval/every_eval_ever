@@ -323,7 +323,6 @@ def test_instance_level_transform_samples():
     assert first.model_id == 'test-model'
     assert first.input.reference == ['3']
     assert first.evaluation.score == 0.0
-    assert first.evaluation.is_correct is False
     assert first.input.choices is None  # generation task, not MC
     assert first.sample_hash  # non-empty hash
 
@@ -412,7 +411,6 @@ def test_instance_level_one_row_per_metric():
         ('acc_norm:flexible-extract', 0.0),
         ('brier_score:flexible-extract', 0.25),
     ]
-    assert [log.evaluation.is_correct for log in logs] == [True, False, False]
     # One underlying interaction, so the rows share a sample id and hash.
     assert {log.sample_id for log in logs} == {'0'}
     assert len({log.sample_hash for log in logs}) == 1
@@ -497,7 +495,6 @@ def test_instance_level_bool_metric_is_canonicalized_to_float():
         ('passed', 1.0),
         ('failed', 0.0),
     ]
-    assert [log.evaluation.is_correct for log in logs] == [True, False]
     # No unjoined synthetic row was emitted.
     assert all(log.evaluation_result_id is not None for log in logs)
 

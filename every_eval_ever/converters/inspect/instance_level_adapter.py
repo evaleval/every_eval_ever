@@ -287,7 +287,7 @@ class InspectInstanceLevelDataAdapter:
         ],
         reductions_by_sample: Dict[str, List[Tuple[float, bool]]],
         scorer_name: str | None = None,
-    ) -> Tuple[float, bool]:
+    ) -> float:
         """Resolve one row's score, preferring the scorer that owns the row.
 
         `scorer_name` is the scorer whose aggregate result this row joins to;
@@ -302,7 +302,7 @@ class InspectInstanceLevelDataAdapter:
             )
             if matched is not None:
                 score, _ = matched
-                return score, False
+                return score
 
             own_score = (sample.scores or {}).get(scorer_name)
             if own_score is not None:
@@ -310,7 +310,7 @@ class InspectInstanceLevelDataAdapter:
                     getattr(own_score, 'value', None)
                 )
                 if parsed_score is not None:
-                    return parsed_score, False
+                    return parsed_score
 
         if sample.scores:
             for candidate_name in sample.scores.keys():
@@ -320,13 +320,13 @@ class InspectInstanceLevelDataAdapter:
                 )
                 if matched is not None:
                     score, _ = matched
-                    return score, False
+                    return score
 
         sample_reduction_scores = reductions_by_sample.get(sample_id, [])
         unique_sample_reduction_scores = set(sample_reduction_scores)
         if len(unique_sample_reduction_scores) == 1:
             score, _ = unique_sample_reduction_scores.pop()
-            return score, False
+            return score
 
         if sample.scores:
             for score in sample.scores.values():
@@ -334,10 +334,9 @@ class InspectInstanceLevelDataAdapter:
                     getattr(score, 'value', None)
                 )
                 if parsed_score is not None:
-                    return parsed_score, False
+                    return parsed_score
 
-        fallback_score = 1.0 if response_in_reference else 0.0
-        return fallback_score, True
+        return 1.0 if response_in_reference else 0.0
 
     def _scorer_emissions(
         self,
@@ -488,25 +487,16 @@ class InspectInstanceLevelDataAdapter:
                     sample_output = None
 
                 response_in_reference = response in sample_input.reference
-                (
-                    evaluation_score,
-                    is_fallback_score,
-                ) = self._resolve_evaluation_score(
+                evaluation_score = self._resolve_evaluation_score(
                     sample,
                     response_in_reference,
                     reductions_by_sample_and_scorer,
                     reductions_by_sample,
                     scorer_name,
                 )
-                is_correct = (
-                    response_in_reference
-                    if is_fallback_score
-                    else evaluation_score > 0
-                )
 
                 evaluation = Evaluation(
                     score=evaluation_score,
-                    is_correct=is_correct,
                     num_turns=len(messages) if messages else 1,
                     tool_calls_count=sum(
                         len(msg.tool_calls) if msg.tool_calls else 0

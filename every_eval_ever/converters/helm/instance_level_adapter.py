@@ -93,43 +93,6 @@ def _evaluation_result_id(
     return ':'.join(parts)
 
 
-# Metric names whose per-instance score is a correctness signal in [0, 1]
-# where ``score > 0`` reasonably maps to ``is_correct=True``. Keep this list
-# tight: graded core metrics such as rouge/bleu/f1 should stay out of it
-# because a positive score is not the same as a binary correctness claim.
-_BINARY_CORRECTNESS_METRIC_NAMES: frozenset[str] = frozenset(
-    {
-        'exact_match',
-        'quasi_exact_match',
-        'prefix_exact_match',
-        'quasi_prefix_exact_match',
-        'exact_match@5',
-        'quasi_exact_match@5',
-        'prefix_exact_match@5',
-        'quasi_prefix_exact_match@5',
-        'ifeval_strict_accuracy',
-        'chain_of_thought_correctness',
-        'math_equiv',
-        'math_equiv_chain_of_thought',
-    }
-)
-
-
-def _is_correct_for_metric(metric_name: str | None, score: float) -> bool:
-    """Decide ``is_correct`` honestly per metric name.
-
-    For correctness metrics in the allowlist, the HELM convention is that
-    score==1.0 means correct and 0.0 means wrong, so any positive score
-    rounds up to "correct". For graded metrics like rouge_l/bleu/f1 where
-    >0 is not a correctness signal, we deliberately do not claim correctness.
-    """
-    if metric_name is None:
-        return False
-    if metric_name in _BINARY_CORRECTNESS_METRIC_NAMES:
-        return score > 0
-    return False
-
-
 class HELMInstanceLevelDataAdapter:
     def __init__(
         self,
@@ -278,14 +241,8 @@ class HELMInstanceLevelDataAdapter:
 
             for stat in metric_stats:
                 if stat is None:
-                    metric_name = None
                     evaluation_result_id = None
                     score = fallback_score
-                    # Fallback path: ``score`` here is an exact-match
-                    # proxy from completion-vs-reference matching, so
-                    # the correctness claim is honest in the same sense
-                    # as the legacy single-row behavior.
-                    is_correct = score > 0
                 else:
                     stat_name = getattr(stat, 'name', None)
                     metric_name = getattr(stat_name, 'name', None)
@@ -297,7 +254,6 @@ class HELMInstanceLevelDataAdapter:
                     score = _score_from_stat(stat)
                     if score is None:
                         continue
-                    is_correct = _is_correct_for_metric(metric_name, score)
                 instance_level_logs.append(
                     InstanceLevelEvaluationLog(
                         schema_version=SCHEMA_VERSION,
@@ -339,9 +295,7 @@ class HELMInstanceLevelDataAdapter:
                                 is_terminal=True,
                             )
                         ],
-                        evaluation=Evaluation(
-                            score=float(score), is_correct=is_correct
-                        ),
+                        evaluation=Evaluation(score=float(score)),
                         token_usage=token_usage,
                         performance=Performance(
                             generation_time_ms=(
