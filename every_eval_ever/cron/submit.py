@@ -277,12 +277,13 @@ class DatastoreSubmitter:
                     if (
                         landed is not None
                         and attempt < store.COMMIT_ATTEMPTS
-                        and store.is_commit_conflict(exc)
+                        and store.is_retryable_commit_error(exc)
                     ):
                         # Every adapter job of a matrix publishes to this one
                         # branch, so the Hub's per-repository commit lock is
-                        # contended. Retried only where the datastore proved
-                        # the batch absent, so a retry cannot duplicate it.
+                        # contended, and the Hub itself faults from time to
+                        # time. Retried only where the datastore proved the
+                        # batch absent, so a retry cannot duplicate it.
                         store.wait_before_retry(attempt)
                         continue
                     unresolved: list[str] = []

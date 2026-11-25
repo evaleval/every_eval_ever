@@ -94,6 +94,14 @@ _COMMIT_IN_PROGRESS = 'commit operation is in progress'
 #: Hub errors name the status in their message, which is how a conflict is
 #: recognised when the exception carries no response to read it from.
 _STATUS_CODE = re.compile(r'\b(409|412)\b')
+#: Statuses that mean the Hub itself faulted rather than refusing the commit.
+#: The write was never applied, so replaying it is safe, and the same backoff
+#: that waits out a lock waits out a bad minute on the Hub.
+_TRANSIENT_STATUSES = frozenset({500, 502, 503, 504})
+#: The Hub's phrasing for a server fault. Matched against the whole clause
+#: rather than the bare number, because a request id or a byte count in the
+#: message would otherwise read as a status.
+_SERVER_STATUS = re.compile(r"server error '(500|502|503|504)\b", re.IGNORECASE)
 
 
 def is_commit_conflict(exc: BaseException) -> bool:
@@ -117,6 +125,25 @@ def is_commit_conflict(exc: BaseException) -> bool:
     ):
         return True
     return _STATUS_CODE.search(text) is not None
+
+
+def is_transient_hub_error(exc: BaseException) -> bool:
+    """Return whether the Hub faulted on its own side and may yet succeed.
+
+    A 5xx means the Hub failed to apply the commit, not that it refused one,
+    so nothing landed and replaying sends the same operations at a Hub that
+    has had time to recover. One fault therefore costs a wait rather than the
+    adapter's whole run, and the run's records for the day with it.
+    """
+    status = getattr(getattr(exc, 'response', None), 'status_code', None)
+    if status in _TRANSIENT_STATUSES:
+        return True
+    return _SERVER_STATUS.search(str(exc)) is not None
+
+
+def is_retryable_commit_error(exc: BaseException) -> bool:
+    """Return whether waiting and sending the same commit again is worthwhile."""
+    return is_commit_conflict(exc) or is_transient_hub_error(exc)
 
 
 def commit_retry_delay(attempt: int) -> float:
@@ -599,14 +626,19 @@ class RawStore:
                 )
             except Exception as exc:  # noqa: BLE001 - re-raised with context
                 last = attempt == COMMIT_ATTEMPTS
-                if last or not is_commit_conflict(exc):
+                if last or not is_retryable_commit_error(exc):
                     raise StoreError(
                         f'could not write to {self.repo_id}: '
                         f'{type(exc).__name__}: {exc}'
                     ) from exc
+                cause = (
+                    'lost the per-repository lock'
+                    if is_commit_conflict(exc)
+                    else 'hit a Hub server error'
+                )
                 print(
-                    f'{self.repo_id}: commit attempt {attempt} lost the '
-                    f'per-repository lock ({type(exc).__name__}), retrying',
+                    f'{self.repo_id}: commit attempt {attempt} {cause} '
+                    f'({type(exc).__name__}), retrying',
                     file=sys.stderr,
                 )
                 wait_before_retry(attempt)
@@ -755,6 +787,8 @@ __all__ = [
     'inflight_operation',
     'inflight_path',
     'is_commit_conflict',
+    'is_retryable_commit_error',
+    'is_transient_hub_error',
     'pending_fingerprints_path',
     'plan_raw_upload',
     'raw_prefix',
