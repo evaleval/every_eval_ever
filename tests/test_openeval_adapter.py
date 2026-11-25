@@ -443,12 +443,10 @@ def test_include_instances_writes_valid_jsonl_sidecar(tmp_path: Path):
         first,
         gemma_bundle.log.evaluation_id,
         gemma_bundle.log.model_info.id,
-        gemma_bundle.binary_result_ids,
     )
     assert first_log.evaluation_id == gemma_bundle.log.evaluation_id
     assert first_log.evaluation_result_id == 'ifeval::ifeval-strict-accuracy'
-    assert first_log.evaluation.is_correct is False
-    assert first_log.metadata['is_correct_applicable'] == 'true'
+    assert first_log.evaluation.score == 0.0
     assert first.sample_id == 'ifeval_20260305T211125Z_0'
     assert first.raw_input == 'Write one sentence.'
     assert first.references == ['A sentence.']
@@ -519,7 +517,7 @@ def test_duplicate_response_metrics_are_deduped():
     assert result.source_data.samples_number == 2
 
 
-def test_non_binary_instance_scores_do_not_claim_correctness():
+def test_non_binary_instance_scores_preserve_raw_score():
     bundles = adapter.make_logs(
         sample_payload(),
         retrieved_timestamp='1234567890.0',
@@ -540,12 +538,9 @@ def test_non_binary_instance_scores_do_not_claim_correctness():
         accuracy,
         gpt_bundle.log.evaluation_id,
         gpt_bundle.log.model_info.id,
-        gpt_bundle.binary_result_ids,
     )
 
     assert instance.evaluation.score == 0.75
-    assert instance.evaluation.is_correct is False
-    assert instance.metadata['is_correct_applicable'] == 'false'
 
 
 def test_export_rollback_does_not_delete_competing_file(

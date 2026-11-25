@@ -60,7 +60,7 @@ For evaluations that include per-sample results, the individual results should b
 - **`multi_turn`**: Conversational evaluations with multiple exchanges — uses `messages` array
 - **`agentic`**: Tool-using evaluations with function calls and sandbox execution — uses `messages` array with `tool_calls`
 
-Each instance captures: `input` (raw question + reference answer), `answer_attribution` (how the answer was extracted), `evaluation` (score, is_correct), and optional `token_usage` and `performance` metrics. Instance-level JSONL files are produced automatically by the [eval converters](every_eval_ever/converters/README.md).
+Each instance captures: `input` (raw question + reference answer), `answer_attribution` (how the answer was extracted), `evaluation` (`score`, whose scale and binary/continuous semantics live in the parent aggregate's `metric_config`), and optional `token_usage` and `performance` metrics. Instance-level JSONL files are produced automatically by the [eval converters](every_eval_ever/converters/README.md).
 
 Example `single_turn` instance:
 
@@ -77,7 +77,7 @@ Example `single_turn` instance:
   "answer_attribution": [
     { "turn_idx": 0, "source": "output.raw", "extracted_value": "5", "extraction_method": "match", "is_terminal": true }
   ],
-  "evaluation": { "score": 1.0, "is_correct": true }
+  "evaluation": { "score": 1.0 }
 }
 ```
 

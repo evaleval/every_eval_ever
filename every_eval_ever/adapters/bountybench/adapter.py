@@ -673,7 +673,6 @@ def build_instance_level(
         answer_attribution=[],
         evaluation=Evaluation(
             score=1.0 if log['success'] else 0.0,
-            is_correct=log['success'],
             num_turns=len(messages),
             tool_calls_count=sum(
                 len(message.tool_calls)

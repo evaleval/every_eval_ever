@@ -83,7 +83,6 @@ def test_pubmedqa_instance_level():
         assert log.messages is None
 
         assert log.evaluation.score == 1.0
-        assert log.evaluation.is_correct is True
 
 
 def test_arc_sonnet_instance_level():
@@ -114,7 +113,6 @@ def test_arc_sonnet_instance_level():
         assert log.messages is None
 
         assert log.evaluation.score == 1.0
-        assert log.evaluation.is_correct is True
 
         assert log.token_usage.input_tokens > 0
         assert log.token_usage.output_tokens > 0
@@ -277,9 +275,7 @@ def test_multiple_scorers_report_their_own_score_on_their_own_row():
     assert {row.sample_id for row in rows} == {'sample_1'}
 
     assert by_result_id['scorer_a:accuracy'].evaluation.score == 1.0
-    assert by_result_id['scorer_a:accuracy'].evaluation.is_correct is True
     assert by_result_id['scorer_b:accuracy'].evaluation.score == 0.0
-    assert by_result_id['scorer_b:accuracy'].evaluation.is_correct is False
     assert by_result_id['scorer_b:std'].evaluation.score == 0.0
 
     # Each row shows the answer its own scorer graded, not the last scorer's.
@@ -425,7 +421,6 @@ def test_reductions_override_answer_match_heuristic_for_score():
     )
 
     assert instance_log.evaluation.score == 0.0
-    assert instance_log.evaluation.is_correct is False
 
 
 def test_score_value_ci_fallback_without_reductions():
@@ -440,10 +435,9 @@ def test_score_value_ci_fallback_without_reductions():
     instance_log = _convert_single_synthetic_sample(sample, reductions=None)
 
     assert instance_log.evaluation.score == 1.0
-    assert instance_log.evaluation.is_correct is True
 
 
-def test_non_binary_numeric_score_marks_correct_even_without_ref_match():
+def test_non_binary_numeric_score_preserves_raw_value():
     sample = _make_synthetic_sample(
         sample_id='sample_2b',
         target='target_answer',
@@ -455,7 +449,6 @@ def test_non_binary_numeric_score_marks_correct_even_without_ref_match():
     instance_log = _convert_single_synthetic_sample(sample, reductions=None)
 
     assert instance_log.evaluation.score == 0.6
-    assert instance_log.evaluation.is_correct is True
 
 
 def test_unparseable_score_value_falls_back_to_response_reference_match():
@@ -470,7 +463,6 @@ def test_unparseable_score_value_falls_back_to_response_reference_match():
     instance_log = _convert_single_synthetic_sample(sample, reductions=None)
 
     assert instance_log.evaluation.score == 1.0
-    assert instance_log.evaluation.is_correct is True
 
 
 def test_unparseable_score_value_falls_back_to_reference_mismatch():
@@ -485,4 +477,3 @@ def test_unparseable_score_value_falls_back_to_reference_mismatch():
     instance_log = _convert_single_synthetic_sample(sample, reductions=None)
 
     assert instance_log.evaluation.score == 0.0
-    assert instance_log.evaluation.is_correct is False

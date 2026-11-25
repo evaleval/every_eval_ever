@@ -18,7 +18,7 @@ Kensho ran the evaluations, so it's an `evaluation_run` source with
   id as-is (e.g. `01-ai/Yi-1.5-34B-Chat`).
 - **Instances** (`--include-instances`) — the raw per-item rows become an
   instance-level `<uuid>_samples.jsonl` sidecar (single-turn: `input` = the prompt +
-  `target`, `output` = the model's full generation, `evaluation` = score/is_correct,
+  `target`, `output` = the model's full generation, `evaluation` = `score`,
   `token_usage`), referenced by the aggregate's `detailed_evaluation_results`. This
   is the faithful use of the *raw* dataset; it is off by default because it is large.
 

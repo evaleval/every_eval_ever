@@ -124,7 +124,6 @@ def _sample_item() -> types.SimpleNamespace:
         parsed='4',
         scorer='match',
         score=1.0,
-        is_correct=True,
         in_tok=12,
         out_tok=5,
         subject='arithmetic',

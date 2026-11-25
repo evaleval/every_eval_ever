@@ -65,8 +65,7 @@ def _instance(item, evaluation_id, evaluation_name, evaluation_result_id, model_
             extracted_value=item.parsed,                   # parsed answer (re-run scorer if source lacks it)
             extraction_method=item.scorer,                 # PLACEHOLDER: the scorer you ACTUALLY ran (e.g. "match")
             is_terminal=True)],                            # true = final answer
-        evaluation=Evaluation(score=item.score,            # unconstrained float; 0.0/1.0 for binary
-                              is_correct=item.is_correct),  # from the SOURCE score; binary-only meaningful
+        evaluation=Evaluation(score=item.score),           # per-item score; scale/binary semantics live in aggregate metric_config
         token_usage=tok,                                   # None unless all three counts present
         metadata={"subject": str(item.subject)})           # extras go HERE; str values only
 

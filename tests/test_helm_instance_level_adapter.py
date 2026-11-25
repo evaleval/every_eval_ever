@@ -8,10 +8,8 @@ import pytest
 from every_eval_ever.converters.helm import adapter as helm_adapter_module
 from every_eval_ever.converters.helm.adapter import HELMAdapter
 from every_eval_ever.converters.helm.instance_level_adapter import (
-    _BINARY_CORRECTNESS_METRIC_NAMES,
     HELMInstanceLevelDataAdapter,
     _evaluation_result_id,
-    _is_correct_for_metric,
     _score_from_stat,
 )
 from every_eval_ever.converters.helm.metrics import is_core_metric
@@ -170,7 +168,6 @@ def test_mmlu_instance_level():
         assert log.answer_attribution[0].is_terminal is True
 
         assert log.evaluation.score == 0.0
-        assert log.evaluation.is_correct is False
 
         assert log.token_usage.input_tokens > 0
         assert log.token_usage.output_tokens > 0
@@ -219,7 +216,6 @@ def test_hellaswag_instance_level():
         assert log.messages is None
 
         assert log.evaluation.score == 0.0
-        assert log.evaluation.is_correct is False
 
         assert log.performance.generation_time_ms > 0
 
@@ -267,7 +263,6 @@ def test_narrativeqa_instance_level():
         assert log.messages is None
 
         assert log.evaluation.score == 0.0
-        assert log.evaluation.is_correct is False
 
         assert len(log.answer_attribution) == 1
         assert log.answer_attribution[0].extraction_method == 'exact_match'
@@ -342,7 +337,7 @@ def test_bookkeeping_stats_are_not_emitted_as_metric_rows():
         assert emitted_metric_names.isdisjoint(bookkeeping_names)
 
 
-def test_graded_core_metrics_are_not_binary_correctness():
+def test_graded_core_metrics_emit_raw_scores():
     _require_helm()
     adapter = HELMAdapter()
     with tempfile.TemporaryDirectory() as tmpdir2:
@@ -357,8 +352,6 @@ def test_graded_core_metrics_are_not_binary_correctness():
             'tests/data/helm/narrative_qa-model=openai_gpt2',
             metadata_args2,
         )
-        # Graded generation metrics also should not be coerced into a
-        # binary correctness label just because their scores are positive.
         graded = [
             log
             for log in narr_logs
@@ -366,13 +359,10 @@ def test_graded_core_metrics_are_not_binary_correctness():
             in {'rouge_l', 'f1_score', 'bleu_1', 'bleu_4'}
         ]
         assert graded, 'expected graded score rows in narrative_qa fixture'
-        assert all(log.evaluation.is_correct is False for log in graded), (
-            'graded metrics (rouge_l/f1_score/bleu_*) must not be '
-            'treated as binary correctness'
-        )
+        assert all(isinstance(log.evaluation.score, float) for log in graded)
 
 
-def test_is_correct_is_true_for_correct_exact_match_rows():
+def test_exact_match_rows_emit_positive_scores():
     _require_helm()
     adapter = HELMAdapter()
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -387,8 +377,6 @@ def test_is_correct_is_true_for_correct_exact_match_rows():
             'tests/data/helm/mmlu-subject=philosophy,method=multiple_choice_joint,model=openai_gpt2',
             metadata_args,
         )
-        # Correctness metrics are the exception: positive exact-match rows
-        # should still carry is_correct=True.
         positive_em_rows = [
             log
             for log in instance_logs
@@ -397,26 +385,7 @@ def test_is_correct_is_true_for_correct_exact_match_rows():
             and log.evaluation.score > 0
         ]
         assert positive_em_rows
-        for log in positive_em_rows:
-            assert log.evaluation.is_correct is True
-
-
-def test_is_correct_for_metric_helper():
-    for name in _BINARY_CORRECTNESS_METRIC_NAMES:
-        assert _is_correct_for_metric(name, 1.0) is True
-        assert _is_correct_for_metric(name, 0.0) is False
-    for name in (
-        'num_prompt_tokens',
-        'num_references',
-        'inference_runtime',
-        'rouge_l',
-        'f1_score',
-        'bleu_1',
-        'logprob',
-        None,
-    ):
-        assert _is_correct_for_metric(name, 1.0) is False
-        assert _is_correct_for_metric(name, 0.0) is False
+        assert all(log.evaluation.score == 1.0 for log in positive_em_rows)
 
 
 def test_score_from_stat_helper_edge_cases():
@@ -575,7 +544,6 @@ def test_missing_inst_stats_uses_legacy_exact_match_fallback():
         log = InstanceLevelEvaluationLog.model_validate(data)
         assert log.evaluation_result_id is None
         assert log.evaluation.score == 1.0
-        assert log.evaluation.is_correct is True
 
 
 def test_reasoning_traces_none_does_not_break_conversion(monkeypatch):

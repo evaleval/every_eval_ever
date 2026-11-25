@@ -61,7 +61,7 @@ sub-objects, never at top level either) — route instance extras into `metadata
   `turn_idx` (≥0; 0 for single_turn), `source` (`"output.raw"`), `extracted_value`,
   `extraction_method` (the scorer you *actually ran*), `is_terminal` (bool). If the
   source didn't persist a parsed value, re-run the scorer's extractor and set
-  `extraction_method` to what you ran — but keep `evaluation.is_correct` from the
+  `extraction_method` to what you ran — but keep `evaluation.score` from the
   *source* score.
 
 ### Hashing (`sample_hash`)
@@ -77,9 +77,15 @@ sample_hash = hashlib.sha256(
 ```
 
 ### Scoring (`evaluation`, `token_usage`)
-- `evaluation` = `{score, is_correct}`, both required. `score` is an unconstrained
-  float (per-item contribution; not range-checked, independent of the aggregate
-  score). `is_correct` is only meaningful for binary 0/1 metrics.
+- `evaluation` requires `score` (no `is_correct` field; `additionalProperties: false`
+  rejects unknown keys). Binary vs continuous semantics and scale bounds live in the
+  parent aggregate's `metric_config` (`score_type`, `[min_score, max_score]`).
+  - Downstream IRT and binary-accuracy pipelines filter on `score_type == "binary"`
+    in the parent aggregate and read `evaluation.score` (`0.0`/`1.0`). When a parent
+    aggregate declares `score_type == "binary"`, the companion validator requires every
+    linked sample's `evaluation.score` to be `0` or `1`.
+  - Do not upload mixed benchmarks (combining heterogeneous tasks/metrics under one
+    ambiguous result) as a single JSONL.
 - `token_usage` — optional but all-or-nothing: if present, all three of
   `input_tokens`/`output_tokens`/`total_tokens` are required — with partial data,
   omit the whole object.

@@ -76,6 +76,7 @@ class InstanceFileSummary:
     evaluation_ids: frozenset[str]
     model_ids: frozenset[str]
     content_valid: bool = True
+    non_binary_scores_by_result: tuple[tuple[str | None, str | None, float], ...] = ()
 
 
 CheckScope = Literal['aggregate', 'instance', 'file']
@@ -284,9 +285,36 @@ def _summary_identifier(value: Any) -> str:
     return value if isinstance(value, str) else repr(value)
 
 
+def _record_non_binary_score(
+    row: dict[str, Any],
+    non_binary_scores: dict[tuple[str | None, str | None], float],
+) -> None:
+    evaluation = row.get('evaluation')
+    if not isinstance(evaluation, dict):
+        return
+    score = evaluation.get('score')
+    if (
+        isinstance(score, bool)
+        or not isinstance(score, (int, float))
+        or not math.isfinite(score)
+    ):
+        return
+    score_val = float(score)
+    if score_val in (0.0, 1.0):
+        return
+    result_id = row.get('evaluation_result_id')
+    eval_name = row.get('evaluation_name')
+    key = (
+        result_id if isinstance(result_id, str) else None,
+        eval_name if isinstance(eval_name, str) else None,
+    )
+    non_binary_scores.setdefault(key, score_val)
+
+
 def _summarize_jsonl_text(content: str) -> InstanceFileSummary:
     evaluation_ids: set[str] = set()
     model_ids: set[str] = set()
+    non_binary_scores: dict[tuple[str | None, str | None], float] = {}
     line_count = 0
     for source_line, line in enumerate(content.splitlines(), start=1):
         stripped = line.strip()
@@ -306,10 +334,18 @@ def _summarize_jsonl_text(content: str) -> InstanceFileSummary:
             )
         evaluation_ids.add(_summary_identifier(row.get('evaluation_id')))
         model_ids.add(_summary_identifier(row.get('model_id')))
+        _record_non_binary_score(row, non_binary_scores)
     return InstanceFileSummary(
         line_count=line_count,
         evaluation_ids=frozenset(evaluation_ids),
         model_ids=frozenset(model_ids),
+        non_binary_scores_by_result=tuple(
+            (rid, name, score)
+            for (rid, name), score in sorted(
+                non_binary_scores.items(),
+                key=lambda item: (item[0][0] or '', item[0][1] or ''),
+            )
+        ),
     )
 
 
@@ -354,6 +390,47 @@ def _compare_aggregate_and_samples(
             'detailed_evaluation_results.total_rows does not match the '
             f'companion file: declared {total_rows}, found {samples.line_count}'
         )
+
+    if samples.non_binary_scores_by_result:
+        eval_results = aggregate_data.get('evaluation_results')
+        if isinstance(eval_results, list):
+            binary_by_id: set[str] = set()
+            score_types_by_name: dict[str, set[str | None]] = {}
+            all_score_types: set[str | None] = set()
+            for result in eval_results:
+                if not isinstance(result, dict):
+                    continue
+                metric = result.get('metric_config')
+                score_type = (
+                    metric.get('score_type')
+                    if isinstance(metric, dict)
+                    else None
+                )
+                all_score_types.add(score_type)
+                rid = result.get('evaluation_result_id')
+                if isinstance(rid, str) and score_type == 'binary':
+                    binary_by_id.add(rid)
+                ename = result.get('evaluation_name')
+                if isinstance(ename, str):
+                    score_types_by_name.setdefault(ename, set()).add(score_type)
+            for rid, ename, bad_score in samples.non_binary_scores_by_result:
+                if rid is not None and rid in binary_by_id:
+                    errors.append(
+                        'samples evaluation.score for binary metric '
+                        f'{rid!r} must be 0 or 1; got {bad_score}'
+                    )
+                elif rid is None and (
+                    (
+                        ename is not None
+                        and score_types_by_name.get(ename) == {'binary'}
+                    )
+                    or all_score_types == {'binary'}
+                ):
+                    label = ename or '(binary)'
+                    errors.append(
+                        'samples evaluation.score for binary metric '
+                        f'{label!r} must be 0 or 1; got {bad_score}'
+                    )
     return errors
 
 
@@ -1025,6 +1102,7 @@ def validate_instance_file(
 
     evaluation_ids: set[str] = set()
     model_ids: set[str] = set()
+    non_binary_scores: dict[tuple[str | None, str | None], float] = {}
     content_valid = True
     try:
         for line_num, line in enumerate(
@@ -1041,6 +1119,7 @@ def validate_instance_file(
                     _summary_identifier(data.get('evaluation_id'))
                 )
                 model_ids.add(_summary_identifier(data.get('model_id')))
+                _record_non_binary_score(data, non_binary_scores)
             if not line_errors:
                 continue
 
@@ -1086,6 +1165,13 @@ def validate_instance_file(
         evaluation_ids=frozenset(evaluation_ids),
         model_ids=frozenset(model_ids),
         content_valid=content_valid,
+        non_binary_scores_by_result=tuple(
+            (rid, name, score)
+            for (rid, name), score in sorted(
+                non_binary_scores.items(),
+                key=lambda item: (item[0][0] or '', item[0][1] or ''),
+            )
+        ),
     )
 
     if run_semantic_checks:

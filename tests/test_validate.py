@@ -98,7 +98,7 @@ VALID_SINGLE_TURN: dict = {
             'is_terminal': True,
         }
     ],
-    'evaluation': {'score': 1.0, 'is_correct': True},
+    'evaluation': {'score': 1.0},
 }
 
 VALID_MULTI_TURN: dict = {
@@ -122,7 +122,7 @@ VALID_MULTI_TURN: dict = {
             'is_terminal': True,
         }
     ],
-    'evaluation': {'score': 1.0, 'is_correct': True},
+    'evaluation': {'score': 1.0},
 }
 
 
