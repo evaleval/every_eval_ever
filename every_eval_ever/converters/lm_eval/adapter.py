@@ -163,10 +163,23 @@ class LMEvalAdapter(BaseEvaluationAdapter):
             tasks.append(task_name)
         return tasks
 
-    def _build_source_data(self, task_config: Dict[str, Any], task_name: str):
-        """Build source_data from task config."""
+    def _build_source_data(
+        self,
+        task_config: Dict[str, Any],
+        task_name: str,
+        n_samples: Dict[str, Any] | None = None,
+    ):
+        """Build source_data from task config and the task's `n-samples` entry."""
         dataset_path = task_config.get('dataset_path', '')
         dataset_name = task_config.get('task', task_name)
+        n_samples = n_samples or {}
+        original = n_samples.get('original')
+        original = original if isinstance(original, int) else None
+        effective = n_samples.get('effective')
+        samples_number = effective if isinstance(effective, int) else original
+        additional: Dict[str, str] = {}
+        if original is not None and original != samples_number:
+            additional['dataset_size'] = str(original)
 
         if (
             dataset_path
@@ -181,33 +194,51 @@ class LMEvalAdapter(BaseEvaluationAdapter):
                     task_config.get('test_split')
                     or task_config.get('validation_split')
                 ),
+                samples_number=samples_number,
+                additional_details=additional or None,
             )
+        if samples_number is not None:
+            additional['samples_number'] = str(samples_number)
         return SourceDataPrivate(
             dataset_name=dataset_name,
             source_type='other',
+            additional_details=additional or None,
         )
 
     def _build_generation_config(
         self, task_config: Dict[str, Any]
     ) -> Optional[GenerationConfig]:
         """Build generation config from task config."""
-        gen_kwargs = task_config.get('generation_kwargs', {})
-        if not gen_kwargs:
-            return None
+        gen_kwargs = task_config.get('generation_kwargs') or {}
+        output_type = task_config.get('output_type')
+        output_type = output_type if isinstance(output_type, str) else None
+        scored_by_likelihood = output_type in (
+            'loglikelihood',
+            'loglikelihood_rolling',
+            'multiple_choice',
+        )
 
-        args = GenerationArgs(
-            temperature=gen_kwargs.get('temperature'),
-            top_p=gen_kwargs.get('top_p'),
-            top_k=gen_kwargs.get('top_k'),
-            max_tokens=gen_kwargs.get('max_gen_toks'),
+        args = (
+            GenerationArgs(
+                temperature=gen_kwargs.get('temperature'),
+                top_p=gen_kwargs.get('top_p'),
+                top_k=gen_kwargs.get('top_k'),
+                max_tokens=gen_kwargs.get('max_gen_toks'),
+            )
+            if gen_kwargs and not scored_by_likelihood
+            else None
         )
 
         additional = {}
+        if output_type is not None:
+            additional['output_type'] = output_type
         for k, v in gen_kwargs.items():
             if k not in ('temperature', 'top_p', 'top_k', 'max_gen_toks'):
                 additional[k] = json.dumps(v) if not isinstance(v, str) else v
         if task_config.get('num_fewshot') is not None:
             additional['num_fewshot'] = str(task_config['num_fewshot'])
+        if args is None and not additional:
+            return None
 
         return GenerationConfig(
             generation_args=args,
@@ -229,7 +260,7 @@ class LMEvalAdapter(BaseEvaluationAdapter):
         if not isinstance(bootstrap_iters, int):
             bootstrap_iters = None
 
-        source_data = self._build_source_data(task_config, task_name)
+        source_data = self._build_source_data(task_config, task_name, n_samples)
         gen_config = self._build_generation_config(task_config)
         eval_timestamp = raw_data.get('date')
         if eval_timestamp is not None:
