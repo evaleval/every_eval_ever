@@ -208,3 +208,166 @@ def test_per_task_files_are_skipped_and_reported(monkeypatch):
     keep, skipped = adapter.list_result_files(SHA)
     assert keep == ['evals/external/a.json']
     assert skipped == [f'{adapter.SKIP_PREFIX}b-hellaswag.json']
+
+
+# --------------------------------------------------------------------------- #
+# evaluator relationship and conversion failure accounting
+# --------------------------------------------------------------------------- #
+def test_evaluator_relationship_is_first_party_only_for_stabilityai():
+    assert adapter.evaluator_relationship_for('stabilityai/stablelm-3b-4e1t') == 'first_party'
+    assert adapter.evaluator_relationship_for('StabilityAI/stablelm-tuned-alpha-7b') == 'first_party'
+    assert adapter.evaluator_relationship_for('bigscience/bloom-3b') == 'third_party'
+
+
+def test_convert_sets_per_model_relationship_and_records_failures(tmp_path, monkeypatch):
+    seen_relationships: dict[str, str] = {}
+
+    class FakeLMEvalAdapter:
+        def transform_from_file(self, file_path, metadata):
+            seen_relationships[file_path.name] = metadata['evaluator_relationship']
+            if 'broken' in file_path.name:
+                raise ValueError('bad result schema')
+            return [{'ok': file_path.name}]
+
+    monkeypatch.setattr(adapter, 'LMEvalAdapter', FakeLMEvalAdapter)
+    staged = {
+        'results_stablelm-3b-4e1t.json': 'stabilityai/stablelm-3b-4e1t',
+        'results_bigscience-bloom-3b.json': 'bigscience/bloom-3b',
+        'results_broken.json': 'other/broken',
+    }
+    logs, failures = adapter.convert(SHA, tmp_path, staged, '1700000000')
+    assert len(logs) == 2
+    assert seen_relationships == {
+        'results_stablelm-3b-4e1t.json': 'first_party',
+        'results_bigscience-bloom-3b.json': 'third_party',
+        'results_broken.json': 'third_party',
+    }
+    assert len(failures) == 1
+    assert failures[0].source_ref == 'results_broken.json'
+    assert 'bad result schema' in failures[0].reason
+
+
+def test_replace_existing_keeps_existing_records_when_conversion_fails(
+    tmp_path, monkeypatch
+):
+    from every_eval_ever.helpers import SourceRecordsError
+
+    output_dir = tmp_path / 'data' / adapter.COLLECTION
+    existing_file = output_dir / 'bigscience' / 'bloom-3b' / 'old.json'
+    existing_file.parent.mkdir(parents=True)
+    existing_file.write_text('{"keep": true}')
+    report_path = tmp_path / 'failures.json'
+
+    class FakeResp:
+        status_code = 200
+        content = b'{}'
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return _payload('bigscience/bloom-3b')
+
+    class BrokenLMEvalAdapter:
+        def transform_from_file(self, file_path, metadata):
+            raise ValueError('converter boom')
+
+    monkeypatch.setattr(adapter, 'resolve_commit', lambda revision, **kw: SHA)
+    monkeypatch.setattr(
+        adapter,
+        'list_result_files',
+        lambda sha, **kw: (['evals/external/bigscience-bloom-3b.json'], []),
+    )
+    monkeypatch.setattr(adapter.requests, 'get', lambda url, timeout=None: FakeResp())
+    monkeypatch.setattr(adapter, 'LMEvalAdapter', BrokenLMEvalAdapter)
+
+    args = adapter.parse_args([
+        '--output-dir', str(output_dir),
+        '--replace-existing',
+        '--failure-report', str(report_path),
+    ])
+    with pytest.raises(SourceRecordsError):
+        adapter.run(args)
+
+    assert existing_file.exists()
+    report = json.loads(report_path.read_text())
+    assert report['failed_record_count'] == 1
+    assert 'converter boom' in report['failed_records'][0]['reason']
+
+
+def test_replace_existing_on_partial_failure_only_replaces_succeeded_models(
+    tmp_path, monkeypatch
+):
+    from every_eval_ever.helpers import SourceRecordsError
+
+    output_dir = tmp_path / 'data' / adapter.COLLECTION
+    good_old = output_dir / 'stabilityai' / 'stablelm-3b-4e1t' / 'old-good.json'
+    bad_old = output_dir / 'bigscience' / 'bloom-3b' / 'old-bad.json'
+    for path in (good_old, bad_old):
+        path.parent.mkdir(parents=True)
+        path.write_text('{"keep": true}')
+    report_path = tmp_path / 'failures.json'
+
+    class FakeResp:
+        status_code = 200
+        content = b'{}'
+
+        def __init__(self, pretrained: str):
+            self._pretrained = pretrained
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return _payload(self._pretrained)
+
+    def fake_get(url, timeout=None):
+        if 'stablelm' in url:
+            return FakeResp('stablelm-3b-4e1t')
+        return FakeResp('bigscience/bloom-3b')
+
+    class PartialLMEvalAdapter:
+        def transform_from_file(self, file_path, metadata):
+            if 'bloom' in file_path.name:
+                raise ValueError('bloom failed')
+            return ['good-log']
+
+    def fake_publish(logs, *, base_output_dir, file_uuids, collection_override):
+        out = (
+            base_output_dir
+            / collection_override
+            / 'stabilityai'
+            / 'stablelm-3b-4e1t'
+            / f'{file_uuids[0]}.json'
+        )
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text('{"new": true}')
+        return [out]
+
+    monkeypatch.setattr(adapter, 'resolve_commit', lambda revision, **kw: SHA)
+    monkeypatch.setattr(
+        adapter,
+        'list_result_files',
+        lambda sha, **kw: (
+            ['evals/stablelm-3b-4e1t.json', 'evals/external/bigscience-bloom-3b.json'],
+            [],
+        ),
+    )
+    monkeypatch.setattr(adapter.requests, 'get', fake_get)
+    monkeypatch.setattr(adapter, 'LMEvalAdapter', PartialLMEvalAdapter)
+    monkeypatch.setattr(adapter, 'publish_evaluation_logs', fake_publish)
+
+    args = adapter.parse_args([
+        '--output-dir', str(output_dir),
+        '--replace-existing',
+        '--failure-report', str(report_path),
+    ])
+    with pytest.raises(SourceRecordsError):
+        adapter.run(args)
+
+    assert not good_old.exists()
+    assert len(list(good_old.parent.glob('*.json'))) == 1
+    assert bad_old.exists()
+    report = json.loads(report_path.read_text())
+    assert report['failed_record_count'] == 1
+    assert 'bloom failed' in report['failed_records'][0]['reason']

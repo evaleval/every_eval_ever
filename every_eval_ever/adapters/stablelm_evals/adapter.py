@@ -184,22 +184,46 @@ def stage_sources(
     return staged, failures
 
 
+def evaluator_relationship_for(model_id: str) -> str:
+    """Stability AI is first-party for its own models and third-party for baselines."""
+    developer = model_id.split('/', 1)[0].strip().lower()
+    return 'first_party' if developer == 'stabilityai' else 'third_party'
+
+
 def convert(
     sha: str, staging: Path, staged: dict[str, str], retrieved_ts: str
-) -> list[Any]:
-    """Hand the staged files to the in-tree lm_eval converter."""
-    metadata = {
-        'source_organization_name': 'Stability AI',
-        'source_organization_url': PROJECT_URL,
-        'evaluator_relationship': 'third_party',
-        'eval_library_name': EVAL_LIBRARY_NAME,
-        'eval_library_version': EVAL_LIBRARY_VERSION,
-        'parent_eval_output_dir': str(staging),
-        'retrieved_timestamp': retrieved_ts,
-        'source_commit': sha,
-    }
-    result = LMEvalAdapter().transform_from_directory_result(staging, metadata)
-    return list(result.records)
+) -> tuple[list[Any], list[SourceRecordFailure]]:
+    """Hand each staged file to the in-tree lm_eval converter.
+
+    Returns ``(logs, failures)`` so conversion failures are carried into the
+    wrapper's failure report rather than silently dropped.
+    """
+    adapter = LMEvalAdapter()
+    logs: list[Any] = []
+    failures: list[SourceRecordFailure] = []
+    for filename, model_id in sorted(staged.items()):
+        file_path = staging / filename
+        metadata = {
+            'source_organization_name': 'Stability AI',
+            'source_organization_url': PROJECT_URL,
+            'evaluator_relationship': evaluator_relationship_for(model_id),
+            'eval_library_name': EVAL_LIBRARY_NAME,
+            'eval_library_version': EVAL_LIBRARY_VERSION,
+            'parent_eval_output_dir': str(staging),
+            'retrieved_timestamp': retrieved_ts,
+            'source_commit': sha,
+        }
+        try:
+            logs.extend(adapter.transform_from_file(file_path, metadata))
+        except Exception as exc:  # noqa: BLE001 -- one broken file must not hide others
+            failures.append(
+                SourceRecordFailure(
+                    source_ref=filename,
+                    reason=f'conversion failed: {exc}',
+                    source_record={'file': filename, 'model_id': model_id},
+                )
+            )
+    return logs, failures
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -270,11 +294,12 @@ def run(args: argparse.Namespace) -> list[Path]:
                 f'none of the {len(paths)} source file(s) yielded a usable model '
                 'identity, so nothing would be published'
             )
-        logs = convert(sha, staging, staged, str(time.time()))
+        logs, convert_failures = convert(sha, staging, staged, str(time.time()))
+        failures.extend(convert_failures)
         result = SourceConversionResult(
             source_name='StableLM evals',
             total_records=len(paths),
-            records=[],
+            records=logs,
             failures=failures,
         )
         report = save_failure_report(
@@ -293,15 +318,21 @@ def run(args: argparse.Namespace) -> list[Path]:
                 'add a second copy of every evaluation. Pass --replace-existing.'
             )
 
-        written = publish_evaluation_logs(
-            logs,
-            base_output_dir=output_dir.parent,
-            file_uuids=[str(uuid.uuid4()) for _ in logs],
-            collection_override=COLLECTION,
+        written = (
+            publish_evaluation_logs(
+                logs,
+                base_output_dir=output_dir.parent,
+                file_uuids=[str(uuid.uuid4()) for _ in logs],
+                collection_override=COLLECTION,
+            )
+            if logs
+            else []
         )
-        if existing and args.replace_existing:
+        if existing and args.replace_existing and written:
+            replaced_dirs = {path.parent for path in written}
             for path in existing:
-                path.unlink()
+                if not failures or path.parent in replaced_dirs:
+                    path.unlink()
     finally:
         shutil.rmtree(staging_root, ignore_errors=True)
 
