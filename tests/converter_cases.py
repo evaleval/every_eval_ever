@@ -186,6 +186,50 @@ CASES: tuple[ConverterCase, ...] = (
         # what cover this converter.
         required_source_paths=(),
     ),
+    ConverterCase(
+        source='deepeval',
+        log_path=REPO_ROOT
+        / 'tests/data/deepeval/test_run_20261122_001137.json',
+        aggregates=1,
+        sidecars=1,
+        # One result per metric in the run's own metricsScores summary. The
+        # fixture is a real `deepeval test run` export (deepeval 4.3.4,
+        # deterministic metrics only): six test cases, one of them scored
+        # by two metrics, which is what makes the sidecar row count 7
+        # rather than 6.
+        results=3,
+        sidecar_rows=7,
+        # DeepEval logs do not record the model under test, so the id a
+        # user would pass is part of the case.
+        model_id='example/support-agent-7b',
+        scores={
+            'test_support_agent_eval/exact_match': 2 / 3,
+            'test_support_agent_eval/tool_correctness': 0.5,
+            'test_support_agent_eval/pattern_match': 0.5,
+        },
+        metric_names=frozenset(
+            {'exact_match', 'tool_correctness', 'pattern_match'}
+        ),
+        # Only `exact_match` resolves to a registry id; the DeepEval-native
+        # metrics stay namespaced until the registry carries them.
+        metric_ids=frozenset(
+            {
+                'exact-match',
+                'deepeval.tool_correctness',
+                'deepeval.pattern_match',
+            }
+        ),
+        uncertainty_keys=frozenset(
+            {'standard_error', 'standard_deviation', 'num_samples'}
+        ),
+        extra_argv=('--model_id', 'example/support-agent-7b'),
+        required_source_paths=(
+            'testFile',
+            'testCases',
+            'testCases.*.metricsData',
+            'metricsScores',
+        ),
+    ),
 )
 
 

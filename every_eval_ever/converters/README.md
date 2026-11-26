@@ -6,7 +6,7 @@ A collection of scripts to convert evaluation logs from local evaluation framewo
 Install dependencies for the converter(s) you need:
 
 ```bash
-uv sync                   # core dependencies only (includes lm-eval)
+uv sync                   # core dependencies only (includes the lm-eval and deepeval converters)
 uv sync --extra inspect   # + Inspect AI
 uv sync --extra helm      # + HELM
 uv sync --extra all       # + all
@@ -277,6 +277,65 @@ options:
                         lm_eval, helm)
   --eval_library_version EVAL_LIBRARY_VERSION
                         Version of the evaluation library
+```
+
+## DeepEval
+
+The conversion script from `DeepEval` test-run logs to the unified schema can be run using `every_eval_ever/converters/deepeval/__main__.py`, or through the main CLI:
+
+```bash
+uv run every_eval_ever convert deepeval --log_path tests/data/deepeval/test_run_20261122_001137.json --model_id example/support-agent-7b
+```
+
+`--log_path` takes one test-run JSON file — a results-folder export (`test_run_<YYYYMMDD>_<HHMMSS>.json`), the rolling snapshot (`.deepeval/.latest_run_full.json`), or the wrapped `.deepeval/.latest_test_run.json` — or a directory, which is searched recursively for `test_run_*.json` exports plus the rolling snapshot at `.deepeval/.latest_run_full.json`. Files that are not valid test runs are reported as failures, never skipped silently.
+
+DeepEval logs do not record the model under test, so `--model_id` is required; `--model_name` defaults to it. Nothing about the model is inferred from the file.
+
+One test-run file becomes one `EvaluationLog`:
+
+- `evaluation_name` is the run's `datasetAlias`, or the `testFile` stem when the run has no dataset. The record is keyed on the run time the export's file name carries, read as UTC (`evaluation_id` = `<evaluation_name>/<model_id>/<run time>`), so re-converting the same export is idempotent on any machine; the rolling snapshot, whose name carries no time, keys on its file stem instead.
+- One `EvaluationResult` per metric in the run's own `metricsScores` summary. The score is the mean of the per-case scores DeepEval reports, with the analytic standard error and standard deviation of those scores as uncertainty, and the run's own pass/fail/error counts in `score_details.details`. The run's case-level outcome counts are carried in `source_metadata.additional_details` (`deepeval_test_passed` / `deepeval_test_failed`). A metric whose every case errored has no score to publish; it is counted in `source_metadata.additional_details.metrics_without_scores` instead.
+- Metric names are normalized from DeepEval's display names to snake_case (`Exact Match` → `exact_match`); the verbatim display name is kept in `metric_config.additional_details.deepeval_metric_name`. Bounds are asserted only for `exact_match`, `pattern_match`, `tool_correctness` — the metrics whose own DeepEval implementation deterministically returns a 0/1 verdict or a ratio in [0, 1], verified in DeepEval's source. Judge metrics are left out deliberately (their scores are parsed from a model's output and no range was verified for them here); every other metric keeps unknown bounds, counted in `source_metadata`.
+- A metric's threshold is recorded in `metric_parameters` when every case used the same one. The judge model a metric names (`evaluationModel`) is recorded in `metric_config.additional_details.evaluation_model`: the schema's `llm_scoring` block requires the judge's prompt template, which DeepEval run files do not carry, so the typed block is left unset rather than filled with a paraphrase.
+- The instance-level sidecar carries one row per (test case, metric) pair with a numeric score, joined to the aggregate result by `evaluation_result_id`. Conversational test cases are counted in `source_metadata` but not expanded into rows: DeepEval scores them per turn, which does not map onto single-turn instance rows. Their scores are already inside the aggregate `metricsScores`.
+
+```bash
+usage: __main__.py [-h] --log_path LOG_PATH [--output_dir OUTPUT_DIR]
+                   --model_id MODEL_ID [--model_name MODEL_NAME]
+                   [--source_organization_name SOURCE_ORGANIZATION_NAME]
+                   [--evaluator_relationship {first_party,third_party,collaborative,other}]
+                   [--source_organization_url SOURCE_ORGANIZATION_URL]
+                   [--source_organization_logo_url SOURCE_ORGANIZATION_LOGO_URL]
+                   [--eval_library_name EVAL_LIBRARY_NAME]
+                   [--eval_library_version EVAL_LIBRARY_VERSION]
+
+Convert DeepEval output to every_eval_ever format
+
+options:
+  -h, --help            show this help message and exit
+  --log_path LOG_PATH   Path to a DeepEval test-run JSON file or a directory
+                        containing test_run_*.json exports
+  --output_dir OUTPUT_DIR
+                        Output directory for converted files
+  --model_id MODEL_ID   HF-format id of the model under test (e.g. meta-
+                        llama/Llama-3.1-8B). DeepEval logs do not record it,
+                        so it must be provided manually.
+  --model_name MODEL_NAME
+                        Display name of the model under test. Defaults to
+                        --model_id.
+  --source_organization_name SOURCE_ORGANIZATION_NAME
+                        Name of the organization that ran the evaluation
+  --evaluator_relationship {first_party,third_party,collaborative,other}
+                        Relationship of the evaluator to the model
+  --source_organization_url SOURCE_ORGANIZATION_URL
+                        URL of the source organization
+  --source_organization_logo_url SOURCE_ORGANIZATION_LOGO_URL
+                        Logo of the source organization
+  --eval_library_name EVAL_LIBRARY_NAME
+                        Name of the evaluation library (e.g. inspect_ai,
+                        lm_eval, helm)
+  --eval_library_version EVAL_LIBRARY_VERSION
+                        Version of the evaluation library. It should be extracted in the adapter if available in the evaluation log.
 ```
 
 ## AlpacaEval
