@@ -564,6 +564,59 @@ def test_instance_level_continuous_and_graded_metrics_set_is_correct_false():
         assert by_metric[graded].evaluation.is_correct is False, graded
 
 
+def test_instance_level_failure_and_non_correctness_bools_never_set_is_correct_true():
+    """Failure/error/unclassified boolean metrics must never emit is_correct=True."""
+    inst_adapter = LMEvalInstanceLevelAdapter()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        samples_path = _write_samples(
+            tmpdir,
+            [
+                {
+                    'doc_id': 0,
+                    'target': 'yes',
+                    'filter': 'none',
+                    'metrics': [
+                        'passed',
+                        'failed',
+                        'errored',
+                        'timed_out',
+                        'custom_flag',
+                    ],
+                    'passed': True,
+                    'failed': True,
+                    'errored': True,
+                    'timed_out': True,
+                    'custom_flag': True,
+                    'arguments': {'gen_args_0': {'arg_0': 'Test'}},
+                    'filtered_resps': ['yes'],
+                },
+                {
+                    'doc_id': 1,
+                    'target': 'yes',
+                    'filter': 'none',
+                    'metrics': ['failed'],
+                    'failed': 1.0,
+                    'arguments': {'gen_args_0': {'arg_0': 'Test 2'}},
+                    'filtered_resps': ['no'],
+                },
+            ],
+        )
+        logs = inst_adapter.transform_samples(
+            samples_path,
+            evaluation_id='test/eval/123',
+            model_id='test-model',
+            task_name='mytask',
+        )
+
+    by_key = {(log.sample_id, log.evaluation_result_id): log for log in logs}
+    assert by_key[('0', 'passed')].evaluation.is_correct is True
+    assert by_key[('0', 'failed')].evaluation.is_correct is False
+    assert by_key[('0', 'errored')].evaluation.is_correct is False
+    assert by_key[('0', 'timed_out')].evaluation.is_correct is False
+    assert by_key[('0', 'custom_flag')].evaluation.is_correct is False
+    assert by_key[('1', 'failed')].evaluation.is_correct is False
+
+
 def test_na_stderr_treated_as_absent():
     """lm-eval reports stderr as the string 'N/A' for non-bootstrapped metrics
     (aggregated/grouped or custom metrics, e.g. ECLeKTic). Conversion must not

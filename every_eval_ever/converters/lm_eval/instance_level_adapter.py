@@ -36,7 +36,6 @@ _BINARY_CORRECTNESS_METRIC_NAMES: frozenset[str] = frozenset(
         'correct',
         'em',
         'exact_match',
-        'failed',
         'flexible_match',
         'ifeval_strict_accuracy',
         'inst_level_loose_acc',
@@ -70,8 +69,12 @@ _NON_BINARY_METRIC_NAMES: frozenset[str] = frozenset(
         'chrf++',
         'cider',
         'edit_distance',
+        'error',
+        'errored',
         'f1',
         'f1_score',
+        'fail',
+        'failed',
         'kendall',
         'loglikelihood',
         'mae',
@@ -111,9 +114,9 @@ def _is_correct_for_metric(
 ) -> bool:
     """Decide ``is_correct`` for an lm-eval sample metric under v0.3.0.
 
-    Graded, continuous, and non-binary metrics always emit ``False``; only
-    explicit boolean verdicts or known binary correctness metrics with
-    ``score == 1.0`` emit ``True``.
+    Graded, continuous, error/failure, and non-binary metrics always emit
+    ``False``; only known binary correctness metrics with ``score == 1.0``
+    (or boolean ``True``) emit ``True``.
     """
     if metric_name is None or score not in (0.0, 1.0):
         return False
@@ -124,12 +127,10 @@ def _is_correct_for_metric(
         or base.endswith('_stderr')
     ):
         return False
-    if isinstance(raw_value, bool):
-        return raw_value
     if base in _BINARY_CORRECTNESS_METRIC_NAMES or base.startswith(
         _BINARY_CORRECTNESS_METRIC_PREFIXES
     ):
-        return score == 1.0
+        return bool(raw_value) if isinstance(raw_value, bool) else score == 1.0
     return False
 
 
