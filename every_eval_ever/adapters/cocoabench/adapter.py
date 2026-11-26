@@ -327,15 +327,16 @@ def compute_metric_bounds(
         }
     }
 
+    # A duration and a dollar cost have no ceiling. An observed maximum is a
+    # property of this batch, so declaring it makes the same metric a different
+    # scale on every refresh.
+    unbounded = {'min_score': 0.0, 'max_score': float('inf')}
     if avg_times:
-        bounds['avg_time_s'] = {'min_score': 0.0, 'max_score': max(avg_times)}
+        bounds['avg_time_s'] = dict(unbounded)
     if avg_costs:
-        bounds['avg_cost_usd'] = {'min_score': 0.0, 'max_score': max(avg_costs)}
+        bounds['avg_cost_usd'] = dict(unbounded)
     if total_costs:
-        bounds['total_cost_usd'] = {
-            'min_score': 0.0,
-            'max_score': max(total_costs),
-        }
+        bounds['total_cost_usd'] = dict(unbounded)
 
     return bounds
 
