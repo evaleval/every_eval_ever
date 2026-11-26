@@ -89,6 +89,8 @@ def test_an_unknown_metric_gets_no_range_at_all():
 
 def test_a_metric_whose_definition_fixes_its_direction_says_so():
     assert _config('word_perplexity').lower_is_better is True
+    assert _config('ppl').lower_is_better is True
+    assert 'polarity' not in (_config('ppl').additional_details or {})
     assert _config('exact_match').lower_is_better is False
 
 

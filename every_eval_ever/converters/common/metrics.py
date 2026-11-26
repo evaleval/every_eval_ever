@@ -61,6 +61,7 @@ LOWER_IS_BETTER: frozenset[str] = frozenset(
         'cer',
         'ece',
         'perplexity',
+        'ppl',
         'ter',
         'wer',
         'word_perplexity',
