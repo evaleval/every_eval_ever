@@ -271,6 +271,44 @@ def test_records_land_under_the_model_ids_own_developer_directory(payload, tmp_p
     assert got == {'Qwen/Qwen2.5-7B-Instruct', 'openai-community/gpt2'}
 
 
+def test_resolved_model_id_controls_output_directory(payload, tmp_path, monkeypatch):
+    def fake_resolve(raw, entity_type, *, enabled=True):
+        if entity_type == 'model' and raw == 'openai-community/gpt2':
+            return 'openai/gpt2', {'resolution': 'live_exact'}
+        return raw, {'resolution': 'disabled'}
+
+    monkeypatch.setattr(adapter, 'resolve_entity', fake_resolve)
+    output_dir = tmp_path / 'data' / adapter.COLLECTION
+    result, _ = adapter.convert(
+        payload,
+        SHA,
+        '1700000000',
+        output_dir,
+        resolve_enabled=True,
+    )
+    paths = save_evaluation_logs(result.records)
+    got = {str(p.relative_to(output_dir).parent) for p in paths}
+    assert got == {'Qwen/Qwen2.5-7B-Instruct', 'openai/gpt2'}
+
+
+def test_excluded_and_unknown_tasks_count_both_protocols(tmp_path):
+    data = _payload()
+    # Add a second model only in train_before_test for an excluded task, and an
+    # unknown task that exists only in train_before_test.
+    data['train_before_test']['wiki_2025'][MODELS[1]] = 0.9
+    data['train_before_test']['trained_only_unknown'] = {MODELS[0]: 0.5}
+    result, _, _ = _convert(data, tmp_path)
+    wiki_exclusions = [e for e in result.exclusions if e.source_ref == 'task=wiki_2025']
+    assert len(wiki_exclusions) == 1
+    assert wiki_exclusions[0].source_record['models_covered'] == 2
+    assert any(f.source_ref == 'task=trained_only_unknown' for f in result.failures)
+    # 4 known tasks * 2 models * 2 modes (16)
+    # + 2 cells per undefined task + 1 extra train_before_test wiki_2025 cell
+    # + 1 trained_only_unknown cell
+    assert result.total_records == 16 + 2 * len(adapter.UNDEFINED_TASKS) + 2
+    assert adapter.EVAL_LIBRARY.version == '0.4.8'
+
+
 # --------------------------------------------------------------------------- #
 # CLI
 # --------------------------------------------------------------------------- #

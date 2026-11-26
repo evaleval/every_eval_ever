@@ -69,6 +69,7 @@ from every_eval_ever.helpers import (
     save_evaluation_logs,
     save_failure_report,
 )
+from every_eval_ever.helpers.io import datastore_path_components
 
 SRC = 'lm_harmony'
 COLLECTION = 'lm-harmony'
@@ -80,9 +81,9 @@ PAPER_URL = 'https://arxiv.org/abs/2507.05195'
 COMMITS_API = f'https://api.github.com/repos/{OWNER_REPO}/commits/'
 RAW_BASE = f'https://raw.githubusercontent.com/{OWNER_REPO}/'
 
-#: The harness LM-Harmony vendors and calls. ``lm_eval/`` in the repository is a
-#: fork of v0.4.9, which its README names as the task reference.
-EVAL_LIBRARY = EvalLibrary(name='lm-evaluation-harness', version='0.4.9')
+#: The harness LM-Harmony vendors and calls. ``lm_eval/__init__.py`` defines
+#: 0.4.8 (the repository README links to v0.4.9 as the task reference).
+EVAL_LIBRARY = EvalLibrary(name='lm-evaluation-harness', version='0.4.8')
 
 #: Hosted eval-card-registry resolver (public HF Space, no auth).
 RESOLVER_URL = 'https://evaleval-entity-registry.hf.space/api/v1/resolve'
@@ -581,10 +582,11 @@ def convert(
     total = 0
 
     for task_name in sorted(UNDEFINED_TASKS):
-        if task_name not in payload[DIRECT]:
+        scores_by_mode = [payload[mode].get(task_name, {}) for mode in MODES]
+        covered = len(set().union(*scores_by_mode))
+        if not covered:
             continue
-        covered = len(payload[DIRECT][task_name])
-        total += covered
+        total += sum(len(scores) for scores in scores_by_mode)
         exclusions.append(SourceRecordExclusion(
             source_ref=f'task={task_name}',
             reason=(
@@ -595,10 +597,14 @@ def convert(
             source_record={'task': task_name, 'models_covered': covered},
         ))
 
-    unknown = sorted(set(payload[DIRECT]) - set(TASKS) - set(UNDEFINED_TASKS))
+    all_source_tasks = set().union(*(payload[mode] for mode in MODES))
+    unknown = sorted(all_source_tasks - set(TASKS) - set(UNDEFINED_TASKS))
     for task_name in unknown:
-        covered = len(payload[DIRECT][task_name])
-        total += covered
+        scores_by_mode = [payload[mode].get(task_name, {}) for mode in MODES]
+        covered = len(set().union(*scores_by_mode))
+        if not covered:
+            continue
+        total += sum(len(scores) for scores in scores_by_mode)
         failures.append(SourceRecordFailure(
             source_ref=f'task={task_name}',
             reason=(
@@ -645,12 +651,16 @@ def convert(
                 source_record={'model': model_raw},
             ))
             continue
-        developer, _, model_name = model_raw.partition('/')
         log = build_log(
             model_raw, results, sha, retrieved_ts,
             model_id or model_raw, model_prov,
         )
-        records.append((log, developer, model_name or model_raw))
+        _, developer, model_name = datastore_path_components(
+            COLLECTION,
+            log.model_info.id,
+            log.model_info.developer,
+        )
+        records.append((log, developer, model_name))
 
     outputs = [
         EvaluationLogOutput(
