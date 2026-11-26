@@ -60,7 +60,7 @@ For evaluations that include per-sample results, the individual results should b
 - **`multi_turn`**: Conversational evaluations with multiple exchanges — uses `messages` array
 - **`agentic`**: Tool-using evaluations with function calls and sandbox execution — uses `messages` array with `tool_calls`
 
-Each instance captures: `input` (raw question + reference answer), `answer_attribution` (how the answer was extracted), `evaluation` (score, is_correct), and optional `token_usage` and `performance` metrics. Instance-level JSONL files are produced automatically by the [eval converters](every_eval_ever/converters/README.md).
+Each instance captures: `input` (raw question + reference answer), `answer_attribution` (how the answer was extracted), `evaluation` (`score`, `is_correct`), and optional `token_usage` and `performance` metrics. In schema `0.3.0`, `evaluation.is_correct` is required alongside `evaluation.score` (planned for removal in `v0.4.0`): set `true`/`false` for binary metrics, and for continuous/graded metrics (e.g. BLEU, ROUGE, F1) either submit aggregate-only until `v0.4.0` or set `is_correct: false` while storing the actual score in `evaluation.score`. Mixed benchmarks should not be uploaded as a single JSONL. Instance-level JSONL files are produced automatically by the [eval converters](every_eval_ever/converters/README.md).
 
 Example `single_turn` instance:
 

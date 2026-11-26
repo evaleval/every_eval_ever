@@ -502,6 +502,68 @@ def test_instance_level_bool_metric_is_canonicalized_to_float():
     assert all(log.evaluation_result_id is not None for log in logs)
 
 
+def test_instance_level_continuous_and_graded_metrics_set_is_correct_false():
+    """Graded/continuous lm-eval metrics never claim is_correct=True, even at 1.0."""
+    inst_adapter = LMEvalInstanceLevelAdapter()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        samples_path = _write_samples(
+            tmpdir,
+            [
+                {
+                    'doc_id': 0,
+                    'target': 'hello world',
+                    'filter': 'none',
+                    'metrics': [
+                        'acc',
+                        'exact_match',
+                        'bleu',
+                        'rougeL',
+                        'f1',
+                        'chrf',
+                        'ter',
+                        'perplexity',
+                        'bits_per_byte',
+                        'brier_score',
+                    ],
+                    'acc': 1.0,
+                    'exact_match': 0.5,
+                    'bleu': 1.0,
+                    'rougeL': 1.0,
+                    'f1': 1.0,
+                    'chrf': 1.0,
+                    'ter': 1.0,
+                    'perplexity': 1.0,
+                    'bits_per_byte': 1.0,
+                    'brier_score': 1.0,
+                    'arguments': {'gen_args_0': {'arg_0': 'Translate'}},
+                    'filtered_resps': ['hello world'],
+                }
+            ],
+        )
+        logs = inst_adapter.transform_samples(
+            samples_path,
+            evaluation_id='test/eval/123',
+            model_id='test-model',
+            task_name='mytask',
+        )
+
+    by_metric = {log.evaluation_result_id: log for log in logs}
+    assert by_metric['acc'].evaluation.is_correct is True
+    assert by_metric['exact_match'].evaluation.is_correct is False
+    for graded in (
+        'bleu',
+        'rougeL',
+        'f1',
+        'chrf',
+        'ter',
+        'perplexity',
+        'bits_per_byte',
+        'brier_score',
+    ):
+        assert by_metric[graded].evaluation.score == 1.0
+        assert by_metric[graded].evaluation.is_correct is False, graded
+
+
 def test_na_stderr_treated_as_absent():
     """lm-eval reports stderr as the string 'N/A' for non-bootstrapped metrics
     (aggregated/grouped or custom metrics, e.g. ECLeKTic). Conversion must not

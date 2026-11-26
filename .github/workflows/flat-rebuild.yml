@@ -88,5 +88,7 @@ jobs:
           if [ "${SCHEDULE}" = "44 2 * * 0" ]; then
               args+=(--verify)
           fi
-          uv run --locked python -m every_eval_ever.cron.flat_rebuild \
+          # Dependencies were prepared by the preceding secret-free step.
+          "${UV_PROJECT_ENVIRONMENT}/bin/python" \
+              -m every_eval_ever.cron.flat_rebuild \
               "${args[@]+"${args[@]}"}"

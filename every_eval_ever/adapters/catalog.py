@@ -225,6 +225,7 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         collections=(
             'aixamine_adversarial_robustness',
             'aixamine_code_security',
+            'aixamine_cybersecurity_knowledge',
             'aixamine_fairness_bias',
             'aixamine_hallucination',
             'aixamine_jailbreak',
@@ -588,6 +589,22 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         runnable=False,
         unrunnable_reason='requires --input-json; no live fetch path',
         captures_raw=False,
+    ),
+    AdapterSpec(
+        key='smb_bench',
+        module='every_eval_ever.adapters.smb_bench.adapter',
+        collections=('smb-bench',),
+        runnable=False,
+        unrunnable_reason=(
+            'converts one pinned revision of a frozen dataset release whose '
+            'records were submitted by hand; a scheduled run would publish '
+            'the same records a second time'
+        ),
+        notes=(
+            'A manual run needs no credentials and no extras. A dataset '
+            'revision that adds models is a bump of DEFAULT_REVISION and a '
+            'refresh of registry_snapshot.json.'
+        ),
     ),
 )
 
