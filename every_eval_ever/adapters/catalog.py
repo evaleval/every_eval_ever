@@ -332,6 +332,54 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         collections=('hle',),
     ),
     AdapterSpec(
+        key='kaggle',
+        module='every_eval_ever.adapters.kaggle.adapter',
+        collections=('kaggle',),
+        # `--all` means every published benchmark; what a scheduled sweep leaves
+        # out is declared here rather than hidden in the adapter.
+        # cohere-labs/global-mmlu-lite and its per-language boards are excluded
+        # because the global_mmlu_lite adapter publishes those numbers, and one
+        # leaderboard under two collections is the same numbers twice.
+        extra_args=(
+            '--all',
+            '--exclude',
+            'cohere-labs/global-mmlu-lite',
+            *(
+                arg
+                for language in (
+                    'arabic', 'bengali', 'burmese', 'ca', 'chinese', 'cs',
+                    'english', 'french', 'german', 'hindi', 'indonesian',
+                    'italian', 'japanese', 'korean', 'portuguese', 'spanish',
+                    'swahili', 'yoruba',
+                )
+                for arg in (
+                    '--exclude',
+                    f'cohere-labs/global-mmlu-lite-{language}',
+                )
+            ),
+        ),
+        # One GET per leaderboard over every published benchmark: a serial
+        # sweep of the ~1,400 that exist took 6-14 minutes in November 2026,
+        # and Kaggle answers a faster one with 429s, so the budget is the
+        # sweep plus room for the retries.
+        cadence='weekly',
+        weekday=4,
+        timeout_minutes=30,
+        # ListBenchmarks reports a benchmark's definition, not its
+        # submissions, so nothing cheap here changes when a new result lands —
+        # a source version would skip runs that had new data to convert.
+        skip_if_unchanged=False,
+        notes=(
+            'Community benchmarks, so a run publishes whatever their authors '
+            'submitted. Kaggle publishes no unit or bounds for a numeric '
+            'metric, and its rendering hints do not imply one, so numeric '
+            'scores carry no metric_unit, no score_type and no bounds; boolean '
+            'task results are binary. Model ids are resolved against the '
+            'eval-card-registry, which is what keeps Kaggle effort tiers such '
+            'as claude-opus-4-6-default out of model_info.id.'
+        ),
+    ),
+    AdapterSpec(
         key='lexam',
         module='every_eval_ever.adapters.lexam.adapter',
         collections=('lexam',),
