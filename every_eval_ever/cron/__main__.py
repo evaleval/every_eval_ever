@@ -125,18 +125,21 @@ def cmd_plan(args: argparse.Namespace) -> int:
     """
     run_date = args.date or _today()
     if args.adapter:
-        try:
-            spec = catalog.get(args.adapter)
-        except catalog.UnknownAdapterError as exc:
-            print(str(exc), file=sys.stderr)
-            return 1
-        if not spec.runnable:
-            print(
-                f'{spec.key} is not schedulable: {spec.unrunnable_reason}',
-                file=sys.stderr,
-            )
-            return 1
-        due = (spec,)
+        keys = [part for part in re.split(r'[\s,]+', args.adapter) if part]
+        due = []
+        for key in keys:
+            try:
+                spec = catalog.get(key)
+            except catalog.UnknownAdapterError as exc:
+                print(str(exc), file=sys.stderr)
+                return 1
+            if not spec.runnable:
+                print(
+                    f'{spec.key} is not schedulable: {spec.unrunnable_reason}',
+                    file=sys.stderr,
+                )
+                return 1
+            due.append(spec)
     else:
         due = catalog.scheduled_for(run_date)
     include = [

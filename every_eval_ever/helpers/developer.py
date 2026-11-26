@@ -48,6 +48,7 @@ DEVELOPER_PATTERNS = {
     'cohere': 'CohereForAI',
     'aya': 'CohereForAI',
     'granite': 'ibm',
+    'merlinite': 'ibm',
     # Other providers
     'falcon': 'tiiuae',
     'bloom': 'bigscience',
