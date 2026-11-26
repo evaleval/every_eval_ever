@@ -69,6 +69,11 @@ Supported benchmarks in this workflow are:
 - `gpqa`
 - `hle`
 - `gsm8k`
+- `ifbench`
+- `lexam`
+
+Results from the `hfopenllm_v2` collection are never proposed: the Open LLM
+Leaderboard v2 is archived and unmaintained.
 
 ## Resume And Force
 
