@@ -973,6 +973,37 @@ def test_a_clean_sweep_exits_zero(monkeypatch, tmp_path):
     assert written == 1
 
 
+def test_a_sweep_that_reads_rows_and_writes_nothing_exits_nonzero(
+    monkeypatch, tmp_path
+):
+    # What a change in Kaggle's result payload shape looks like to the cron.
+    rows = [
+        {"modelVersionSlug": "gemma-3-27b-it", "taskResults": [unscored_task("x")]}
+    ]
+    with pytest.raises(SourceRecordsError, match="produced no records"):
+        _run_main(monkeypatch, tmp_path, ["unrun"], {"o/unrun": rows})
+    report = json.loads(
+        (tmp_path / "adapter_reports" / "k_failures.json").read_text()
+    )
+    assert report["converted_records"] == 0
+    assert [f["source_ref"] for f in report["failed_records"]] == ["run"]
+
+
+def test_one_all_unscored_benchmark_does_not_red_a_sweep_that_wrote_records(
+    monkeypatch, tmp_path
+):
+    rows = [
+        {"modelVersionSlug": "gemma-3-27b-it", "taskResults": [unscored_task("x")]}
+    ]
+    written = _run_main(
+        monkeypatch,
+        tmp_path,
+        ["good", "unrun"],
+        {"o/good": sample_rows()[:1], "o/unrun": rows},
+    )
+    assert written == 1
+
+
 def test_no_target_selector_is_a_usage_error():
     with pytest.raises(SystemExit):
         adapter.parse_args([])

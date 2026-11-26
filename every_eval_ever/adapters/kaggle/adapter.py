@@ -1054,6 +1054,16 @@ def main(argv: list[str] | None = None) -> int:
         written.extend(save_evaluation_logs(result.records))
         print(f"  -> {len(result.records)} of {result.total_records} model(s)")
 
+    # Run-level, not per benchmark: one all-unscored benchmark is ordinary, but
+    # a sweep that read rows and wrote nothing is a payload-shape change.
+    if total_rows and not written:
+        failures.append(
+            SourceRecordFailure(
+                source_ref="run",
+                reason=f"{total_rows} leaderboard row(s) produced no records",
+            )
+        )
+
     result = SourceConversionResult[Path](
         source_name=SOURCE_NAME,
         total_records=total_rows,
