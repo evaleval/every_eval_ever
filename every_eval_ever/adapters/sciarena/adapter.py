@@ -98,7 +98,7 @@ def compute_metric_bounds(rows: list[dict]) -> dict[str, dict[str, float]]:
     # observed extremes are properties of today's roster, so declaring them
     # gives the same metric a different scale whenever the roster changes.
     bounds = {
-        "elo": {"min_score": 0.0, "max_score": float("inf")},
+        "elo": {"min_score": float("-inf"), "max_score": float("inf")},
         "rank": {"min_score": 1.0, "max_score": float("inf")},
     }
 

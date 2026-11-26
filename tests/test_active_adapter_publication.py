@@ -59,6 +59,10 @@ def test_sciarena_keeps_valid_rows_when_provider_is_unmapped(
     invalid = valid | {'modelId': 'Unmapped Model'}
 
     bounds = sciarena.compute_metric_bounds([valid, invalid])
+    assert bounds['elo'] == {
+        'min_score': float('-inf'),
+        'max_score': float('inf'),
+    }
     result = sciarena.convert_rows(
         [valid, invalid], tmp_path / 'data', bounds, '123'
     )

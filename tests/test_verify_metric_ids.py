@@ -82,3 +82,38 @@ def test_an_unmapped_name_is_not_compared(seed, monkeypatch):
     monkeypatch.delitem(verifier.CANONICAL_METRIC_IDS, 'bleu', raising=False)
     monkeypatch.setitem(verifier.LM_EVAL_METRIC_BOUNDS, 'bleu', (0.0, 100.0))
     assert not [r for r in verifier.bounds_conflicts(seed) if 'bleu' in r]
+
+
+def test_each_harness_is_checked_independently(seed, monkeypatch):
+    """A later harness's override must not mask an earlier harness's conflict."""
+    monkeypatch.setitem(verifier.CANONICAL_METRIC_IDS, 'bleu', 'bleu')
+    monkeypatch.setitem(verifier.HELM_METRIC_BOUNDS, 'bleu', (0.0, 100.0))
+    monkeypatch.setitem(verifier.LM_EVAL_METRIC_BOUNDS, 'bleu', (0.0, 1.0))
+    found = verifier.bounds_conflicts(seed)
+    assert any(
+        verifier.HELM_HARNESS_ID in row
+        and 'bleu -> bleu' in row
+        and '100.0' in row
+        for row in found
+    )
+    assert not any(
+        verifier.LM_EVAL_HARNESS_ID in row and 'bleu -> bleu' in row
+        for row in found
+    )
+
+
+def test_infinite_declared_bound_conflicts_with_finite_registry_bound(
+    seed, monkeypatch
+):
+    """An unbounded declaration contradicts a finite bound in the registry."""
+    monkeypatch.setitem(verifier.CANONICAL_METRIC_IDS, 'bleu', 'bleu')
+    monkeypatch.setitem(
+        verifier.LM_EVAL_METRIC_BOUNDS, 'bleu', (0.0, float('inf'))
+    )
+    found = verifier.bounds_conflicts(seed)
+    assert any(
+        verifier.LM_EVAL_HARNESS_ID in row
+        and 'bleu -> bleu' in row
+        and 'inf' in row
+        for row in found
+    )

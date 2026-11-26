@@ -16,7 +16,6 @@ of the test suite: it needs a checkout of a different repository.
 from __future__ import annotations
 
 import argparse
-import math
 import re
 import sys
 from pathlib import Path
@@ -118,33 +117,32 @@ def bounds_conflicts(seed_path: Path) -> list[str]:
     normalizes from the entry gets the wrong number.
     """
     entry_bounds = registry_bounds(seed_path)
-    #: Every table a converter declares a scale in, so the check covers all
-    #: three rather than only the harness that happened to surface it.
-    declared_bounds: dict[str, tuple] = {}
-    for table in (
-        SHARED_METRIC_BOUNDS,
-        HELM_METRIC_BOUNDS,
-        LM_EVAL_METRIC_BOUNDS,
-    ):
-        declared_bounds.update(table)
+    #: Compare each harness's effective bounds separately (shared defaults plus
+    #: that harness's overrides) so one harness cannot mask another's conflict.
+    harness_tables: tuple[tuple[str, dict[str, tuple[float, float]]], ...] = (
+        (INSPECT_HARNESS_ID, SHARED_METRIC_BOUNDS),
+        (HELM_HARNESS_ID, {**SHARED_METRIC_BOUNDS, **HELM_METRIC_BOUNDS}),
+        (LM_EVAL_HARNESS_ID, {**SHARED_METRIC_BOUNDS, **LM_EVAL_METRIC_BOUNDS}),
+    )
     found: list[str] = []
-    for name, declared in sorted(declared_bounds.items()):
-        canonical = CANONICAL_METRIC_IDS.get(name)
-        if canonical is None:
-            continue
-        entry = entry_bounds.get(canonical)
-        if entry is None:
-            continue
-        for position, index in (('min', 0), ('max', 1)):
-            ours, theirs = declared[index], entry[index]
-            if theirs is None or ours is None:
+    for harness_id, declared_bounds in harness_tables:
+        for name, declared in sorted(declared_bounds.items()):
+            canonical = CANONICAL_METRIC_IDS.get(name)
+            if canonical is None:
                 continue
-            if math.isinf(float(ours)) or float(ours) == float(theirs):
+            entry = entry_bounds.get(canonical)
+            if entry is None:
                 continue
-            found.append(
-                f'{name} -> {canonical}: declares {position}_score '
-                f'{ours}, entry says {theirs}'
-            )
+            for position, index in (('min', 0), ('max', 1)):
+                ours, theirs = declared[index], entry[index]
+                if theirs is None or ours is None:
+                    continue
+                if float(ours) == float(theirs):
+                    continue
+                found.append(
+                    f'{harness_id}: {name} -> {canonical}: declares '
+                    f'{position}_score {ours}, entry says {theirs}'
+                )
     return found
 
 
