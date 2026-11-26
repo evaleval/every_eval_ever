@@ -404,6 +404,7 @@ def test_is_correct_is_true_for_correct_exact_match_rows():
 def test_is_correct_for_metric_helper():
     for name in _BINARY_CORRECTNESS_METRIC_NAMES:
         assert _is_correct_for_metric(name, 1.0) is True
+        assert _is_correct_for_metric(name, 0.5) is False
         assert _is_correct_for_metric(name, 0.0) is False
     for name in (
         'num_prompt_tokens',

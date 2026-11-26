@@ -93,10 +93,9 @@ def _evaluation_result_id(
     return ':'.join(parts)
 
 
-# Metric names whose per-instance score is a correctness signal in [0, 1]
-# where ``score > 0`` reasonably maps to ``is_correct=True``. Keep this list
-# tight: graded core metrics such as rouge/bleu/f1 should stay out of it
-# because a positive score is not the same as a binary correctness claim.
+# Metric names whose per-instance score is a correctness signal in {0.0, 1.0}
+# where ``score == 1.0`` maps to ``is_correct=True``. Keep this list tight:
+# graded core metrics such as rouge/bleu/f1 and fractional scores stay False.
 _BINARY_CORRECTNESS_METRIC_NAMES: frozenset[str] = frozenset(
     {
         'exact_match',
@@ -116,17 +115,16 @@ _BINARY_CORRECTNESS_METRIC_NAMES: frozenset[str] = frozenset(
 
 
 def _is_correct_for_metric(metric_name: str | None, score: float) -> bool:
-    """Decide ``is_correct`` honestly per metric name.
+    """Decide ``is_correct`` honestly per metric name under v0.3.0.
 
-    For correctness metrics in the allowlist, the HELM convention is that
-    score==1.0 means correct and 0.0 means wrong, so any positive score
-    rounds up to "correct". For graded metrics like rouge_l/bleu/f1 where
-    >0 is not a correctness signal, we deliberately do not claim correctness.
+    Only known binary correctness metrics with ``score == 1.0`` emit ``True``;
+    fractional scores (e.g. partial multi-completion scores) and graded
+    metrics like rouge_l/bleu/f1 emit ``False``.
     """
     if metric_name is None:
         return False
     if metric_name in _BINARY_CORRECTNESS_METRIC_NAMES:
-        return score > 0
+        return score == 1.0
     return False
 
 
@@ -282,10 +280,9 @@ class HELMInstanceLevelDataAdapter:
                     evaluation_result_id = None
                     score = fallback_score
                     # Fallback path: ``score`` here is an exact-match
-                    # proxy from completion-vs-reference matching, so
-                    # the correctness claim is honest in the same sense
-                    # as the legacy single-row behavior.
-                    is_correct = score > 0
+                    # proxy from completion-vs-reference matching; only a full
+                    # 1.0 match counts as binary is_correct=True under v0.3.0.
+                    is_correct = score == 1.0
                 else:
                     stat_name = getattr(stat, 'name', None)
                     metric_name = getattr(stat_name, 'name', None)
