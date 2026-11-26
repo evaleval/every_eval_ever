@@ -24,6 +24,114 @@ from every_eval_ever.instance_level_types import (
 
 from .utils import evaluation_result_id
 
+# Binary correctness metric names in lm-evaluation-harness whose per-sample
+# score in {0.0, 1.0} represents a true correctness verdict under v0.3.0.
+_BINARY_CORRECTNESS_METRIC_NAMES: frozenset[str] = frozenset(
+    {
+        'acc',
+        'acc_all',
+        'acc_norm',
+        'accuracy',
+        'contains',
+        'correct',
+        'em',
+        'exact_match',
+        'failed',
+        'flexible_match',
+        'ifeval_strict_accuracy',
+        'inst_level_loose_acc',
+        'inst_level_strict_acc',
+        'is_correct',
+        'math_verify',
+        'mc1',
+        'mc2',
+        'pass',
+        'passed',
+        'prefix_exact_match',
+        'prompt_level_loose_acc',
+        'prompt_level_strict_acc',
+        'quasi_exact_match',
+        'strict_match',
+    }
+)
+_BINARY_CORRECTNESS_METRIC_PREFIXES: tuple[str, ...] = ('pass@', 'pass_at_')
+
+# Continuous, graded, or error metrics where even a 1.0 sample value is never
+# a binary correctness claim.
+_NON_BINARY_METRIC_NAMES: frozenset[str] = frozenset(
+    {
+        'bertscore',
+        'bits_per_byte',
+        'bleu',
+        'brier_score',
+        'byte_perplexity',
+        'cer',
+        'chrf',
+        'chrf++',
+        'cider',
+        'edit_distance',
+        'f1',
+        'f1_score',
+        'kendall',
+        'loglikelihood',
+        'mae',
+        'matthews_corrcoef',
+        'meteor',
+        'mse',
+        'pearson',
+        'perplexity',
+        'rmse',
+        'rouge',
+        'rouge1',
+        'rouge2',
+        'rouge_l',
+        'rougel',
+        'rougelsum',
+        'sacrebleu',
+        'spearman',
+        'std',
+        'stderr',
+        'ter',
+        'wer',
+        'word_perplexity',
+    }
+)
+_NON_BINARY_METRIC_PREFIXES: tuple[str, ...] = (
+    'bertscore_',
+    'bleu_',
+    'chrf_',
+    'rouge',
+)
+
+
+def _is_correct_for_metric(
+    metric_name: str | None,
+    score: float,
+    raw_value: Any = None,
+) -> bool:
+    """Decide ``is_correct`` for an lm-eval sample metric under v0.3.0.
+
+    Graded, continuous, and non-binary metrics always emit ``False``; only
+    explicit boolean verdicts or known binary correctness metrics with
+    ``score == 1.0`` emit ``True``.
+    """
+    if metric_name is None or score not in (0.0, 1.0):
+        return False
+    base = metric_name.split(',', 1)[0].strip().lower()
+    if (
+        base in _NON_BINARY_METRIC_NAMES
+        or base.startswith(_NON_BINARY_METRIC_PREFIXES)
+        or base.endswith('_stderr')
+    ):
+        return False
+    if isinstance(raw_value, bool):
+        return raw_value
+    if base in _BINARY_CORRECTNESS_METRIC_NAMES or base.startswith(
+        _BINARY_CORRECTNESS_METRIC_PREFIXES
+    ):
+        return score == 1.0
+    return False
+
 
 class LMEvalInstanceLevelAdapter:
     """Converts lm-eval per-sample JSONL to instance-level every_eval_ever format."""
@@ -147,7 +255,7 @@ class LMEvalInstanceLevelAdapter:
 
         metrics = sample.get('metrics', [])
         scored = [
-            (metric_name, float(sample[metric_name]))
+            (metric_name, float(sample[metric_name]), sample[metric_name])
             for metric_name in metrics
             if isinstance(sample.get(metric_name), (int, float))
         ]
@@ -183,7 +291,7 @@ class LMEvalInstanceLevelAdapter:
 
         # A sample whose metrics are all non-numeric still belongs in the
         # sidecar, with no aggregate result to point at.
-        emissions = scored or [(None, 0.0)]
+        emissions = scored or [(None, 0.0, None)]
 
         return [
             InstanceLevelEvaluationLog(
@@ -208,7 +316,9 @@ class LMEvalInstanceLevelAdapter:
                 answer_attribution=answer_attribution,
                 evaluation=Evaluation(
                     score=score,
-                    is_correct=score == 1.0,
+                    is_correct=_is_correct_for_metric(
+                        metric_name, score, raw_value
+                    ),
                 ),
                 metadata={
                     'doc_hash': str(sample.get('doc_hash', '')),
@@ -220,7 +330,7 @@ class LMEvalInstanceLevelAdapter:
                     ),
                 },
             )
-            for metric_name, score in emissions
+            for metric_name, score, raw_value in emissions
         ]
 
     def _is_multiple_choice(self, sample: dict[str, Any]) -> bool:
