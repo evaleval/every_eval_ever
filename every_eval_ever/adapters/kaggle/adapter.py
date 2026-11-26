@@ -22,12 +22,13 @@ every benchmark instead of one per author.
 
 A benchmark's overall score and its sub-benchmark scores live in one record, so
 ``evaluation_name`` distinguishes them: ``kaggle.<owner>.<benchmark>`` for the
-aggregate and ``kaggle.<owner>.<benchmark>.<sub-benchmark>`` for each part.
+aggregate and ``kaggle.<owner>.<benchmark>.<sub-benchmark>`` for each part
+(``<task owner>.<sub-benchmark>`` when someone else published the task).
 Summing a file would otherwise double-count. The owner is part of the name
 because a benchmark is an ``owner/slug`` resource and 15 slugs are published by
 more than one owner.
 
-What Kaggle does *not* publish is a metric's unit or scale. Across the 1,079
+What Kaggle does *not* publish is a metric's unit or scale. Across the
 published benchmarks, ``displayType``/``aggregationType`` do not determine
 either: values under ``PERCENTAGES``/``PERCENTAGE_PASSED`` range from -180 to
 7.4e7, and only ~69% of them fall in [0, 1]. Numeric scores are therefore
@@ -65,15 +66,19 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import math
 import re
 import time
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterator, Optional
 
 import requests
 
+from every_eval_ever.adapters.kaggle import registry
 from every_eval_ever.eval_types import (
+    AgenticEvalConfig,
     ConfidenceInterval,
     EvalLibrary,
     EvaluationLog,
@@ -100,7 +105,6 @@ from every_eval_ever.helpers import (
     make_model_info,
     make_source_metadata,
     raw_capture,
-    registry,
     require_finite_number,
     require_identity,
     save_evaluation_logs,
@@ -221,15 +225,67 @@ class ModelIdentity:
         return registry.needs_review(self.provenance)
 
 
+#: ``candidateClass``: what a leaderboard row ran.
+CANDIDATE_CLASSES = frozenset({"modelVersion", "modelVersionConfig", "agent"})
+
+
+@dataclass(frozen=True)
+class Candidate:
+    """What one leaderboard row ran: a model, a named configuration of it, or
+    an agent harness driving it. Names and slugs are as Kaggle published them.
+    """
+
+    candidate_class: str = "modelVersion"
+    config_name: str = ""
+    config_slug: str = ""
+    agent_name: str = ""
+    agent_slug: str = ""
+    harness_name: str = ""
+    harness_slug: str = ""
+
+    @property
+    def variant(self) -> str:
+        """The part of ``evaluation_id`` that tells this row from the bare model."""
+        return self.agent_slug or self.config_slug
+
+
+def _text(row: dict, field: str) -> str:
+    value = row.get(field)
+    return value.strip() if isinstance(value, str) else ""
+
+
+def make_candidate(row: dict) -> Candidate:
+    """Read a row's ``candidateClass`` and the configuration/agent it names."""
+    candidate_class = row.get("candidateClass")
+    if candidate_class not in CANDIDATE_CLASSES:
+        raise ValueError(f"unsupported candidateClass {candidate_class!r}")
+    candidate = Candidate(
+        candidate_class=candidate_class,
+        config_name=_text(row, "modelVersionConfigName"),
+        config_slug=_text(row, "modelVersionConfigSlug"),
+        agent_name=_text(row, "agentName"),
+        agent_slug=_text(row, "agentSlug"),
+        harness_name=_text(row, "harnessName"),
+        harness_slug=_text(row, "harnessSlug"),
+    )
+    if candidate_class == "modelVersionConfig" and not candidate.config_slug:
+        raise ValueError("configuration row has no modelVersionConfigSlug")
+    if candidate_class == "agent" and not candidate.agent_slug:
+        raise ValueError("agent row has no agentSlug")
+    return candidate
+
+
 def _split_effort_tier(
     slug: str, display_name: str
 ) -> tuple[Optional[str], str, Optional[bool]]:
     """Return ``(tier, slug without it, reasoning)`` from the source's markers.
 
     Only Kaggle's own two markers are read: the literal ``-default`` suffix, and
-    a parenthetical in the display name whose slug appears in the model slug.
-    ``reasoning`` is left unknown unless that marker states it, because a model
-    merely *named* Thinking is a model, not a setting.
+    a parenthetical in the display name that names a thinking/reasoning mode
+    and whose slug appears in the model slug (``(Non-Reasoning)``), so a size
+    such as ``Gemma 3 (27B)`` is never read as a tier. ``reasoning`` is left
+    unknown unless that marker states it, because a model merely *named*
+    Thinking is a model, not a setting.
     """
     if slug.endswith(f"-{DEFAULT_EFFORT_TIER}"):
         base = slug[: -len(DEFAULT_EFFORT_TIER) - 1]
@@ -241,9 +297,9 @@ def _split_effort_tier(
     token = tier.lower().replace(" ", "-").replace("_", "-")
     if not token or f"-{token}" not in slug:
         return None, slug, None
-    reasoning = None
-    if "thinking" in token or "reasoning" in token:
-        reasoning = not token.startswith("non-")
+    if "thinking" not in token and "reasoning" not in token:
+        return None, slug, None
+    reasoning = not token.startswith("non-")
     return token, slug.replace(f"-{token}", "", 1), reasoning
 
 
@@ -271,9 +327,10 @@ def resolve_model_identity(
                 "model_id_resolved_from": base,
             }
     if not registry.resolved_canonically(provenance):
-        # No canonical id: keep the lexical developer/model form so the record
-        # still lands in a plausible datastore directory, flagged for review.
-        model_id = get_model_id(base, get_developer(base))
+        # No canonical id: the lexical developer/model form of the slug as
+        # published, flagged for review. The tier stays in it, because nothing
+        # has established that the stripped form names the same model.
+        model_id = get_model_id(slug, get_developer(slug))
     return ModelIdentity(
         id=model_id,
         raw_slug=slug,
@@ -311,9 +368,11 @@ def _retry_delay(response: requests.Response, attempt: int) -> float:
     header = response.headers.get("Retry-After")
     if header:
         try:
-            return min(float(header), MAX_RETRY_AFTER_SECONDS)
+            delay = float(header)
         except ValueError:
-            pass
+            delay = -1.0
+        if math.isfinite(delay) and delay >= 0:
+            return min(delay, MAX_RETRY_AFTER_SECONDS)
     return BACKOFF_SECONDS**attempt
 
 
@@ -337,6 +396,9 @@ def request_json(
             else:
                 response = session.post(url, json=json_body, timeout=60)
         except requests.RequestException as exc:
+            if attempt < MAX_ATTEMPTS - 1:
+                time.sleep(BACKOFF_SECONDS**attempt)
+                continue
             raise FetchError(f"Failed to fetch {url}: {exc}") from exc
         if (
             response.status_code in RETRY_STATUSES
@@ -388,7 +450,10 @@ def make_benchmark(entry: dict) -> Benchmark:
         raise ValueError(
             "index entry has neither an organization slug nor an owner username"
         )
-    version = (entry.get("task") or {}).get("version") or {}
+    task = entry.get("task")
+    version = (task.get("version") if isinstance(task, dict) else None) or {}
+    if not isinstance(version, dict):
+        raise ValueError("index entry task.version must be an object")
     benchmark_id = entry.get("id")
     return Benchmark(
         owner=owner,
@@ -453,8 +518,8 @@ def fetch_leaderboard(
     return rows
 
 
-def _task_key(task_slug: str) -> str:
-    """Extract the task's own slug from Kaggle's site path for it.
+def _task_ref(task_slug: str) -> tuple[str, str]:
+    """Extract ``(owner, task)`` from Kaggle's site path for a task.
 
     Two shapes are published: ``/benchmarks/tasks/<owner>/<task>`` for a
     standalone task, and ``/benchmarks/<owner>/<task>/versions/<n>`` for a task
@@ -465,7 +530,9 @@ def _task_key(task_slug: str) -> str:
     parts = [part for part in task_slug.split("/") if part]
     if len(parts) >= 2 and parts[-2] == "versions":
         parts = parts[:-2]
-    return parts[-1] if parts else ""
+    if not parts:
+        return "", ""
+    return (parts[-2] if len(parts) >= 2 else ""), parts[-1]
 
 
 @dataclass(frozen=True)
@@ -473,14 +540,17 @@ class TaskIdentity:
     """One leaderboard column: the benchmark overall, or one sub-benchmark."""
 
     #: ``kaggle.<owner>.<benchmark>`` for the overall score, and
-    #: ``kaggle.<owner>.<benchmark>.<sub>`` for a sub-benchmark, so a consumer
+    #: ``kaggle.<owner>.<benchmark>.<sub>`` for a sub-benchmark, or
+    #: ``kaggle.<owner>.<benchmark>.<task owner>.<sub>`` when another owner
+    #: published the task, so a consumer
     #: can tell the aggregate from its parts instead of summing a file and
     #: double-counting. The owner is in the name because a Kaggle benchmark is
     #: an ``owner/slug`` resource and 15 slugs are published by more than one
     #: owner (``animalimagerecognition`` by six), so the slug alone would give
     #: unrelated benchmarks one identity.
     evaluation_name: str
-    #: The subset a sub-benchmark scored, or the benchmark for the overall.
+    #: The subset a sub-benchmark scored (``<task owner>/<sub>`` when another
+    #: owner published it), or the benchmark for the overall.
     dataset_name: str
     #: Page for that subset, or the benchmark page for the overall.
     url: str
@@ -488,33 +558,69 @@ class TaskIdentity:
     title: Optional[str]
 
 
-def make_task_identity(task: dict, benchmark: Benchmark) -> TaskIdentity:
+def _title_key(title: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
+
+
+#: Titles Kaggle gives a benchmark's own overall column.
+AGGREGATE_TITLES = frozenset({"", "(Overall)"})
+
+
+def make_task_identity(
+    task: dict, benchmark: Benchmark, versioned: frozenset[str] = frozenset()
+) -> TaskIdentity:
     """Name one task result relative to its benchmark.
 
-    A benchmark's overall score is published as a task with an empty name and
-    slug, and is the aggregate of the rest of the file.
+    A task with a slug is a sub-benchmark. A task without one is a column of
+    the benchmark itself: the aggregate when Kaggle titles it ``(Overall)``
+    (or leaves it untitled), otherwise named by its title — arena leaderboards
+    publish ``Score``, ``Avg. Tokens/Turn`` and ``Avg. Cost/Turn`` side by side.
+    A name in ``versioned`` appears at more than one ``taskVersion`` on this
+    leaderboard, so it carries ``.v<N>``.
     """
     title = (task.get("benchmarkTaskName") or "").strip() or None
     raw_slug = (task.get("benchmarkTaskSlug") or "").strip()
     stem = f"{ID_NAMESPACE}.{benchmark.owner}.{benchmark.slug}"
-    key = _task_key(raw_slug)
-    if not key:
-        return TaskIdentity(
-            evaluation_name=stem,
-            dataset_name=benchmark.slug,
-            url=benchmark.url,
-            title=title,
-        )
+    task_owner, key = _task_ref(raw_slug)
+    url = f"{KAGGLE_BASE}{raw_slug}" if raw_slug.startswith("/") else benchmark.url
+    if not key and (title or "") in AGGREGATE_TITLES:
+        evaluation_name, dataset_name = stem, benchmark.slug
+    elif not key:
+        column = _title_key(title or "")
+        if not column:
+            raise ValueError(f"column has no slug and no usable title: {title!r}")
+        evaluation_name, dataset_name = f"{stem}.{column}", benchmark.slug
+    elif task_owner and task_owner != benchmark.owner:
+        # One benchmark can include same-named tasks by different owners
+        # (`alexandrepedrosai/what-is-kaggle`, `neshdev/what-is-kaggle`).
+        evaluation_name = f"{stem}.{task_owner}.{key}"
+        dataset_name = f"{task_owner}/{key}"
+    else:
+        evaluation_name, dataset_name = f"{stem}.{key}", key
+    if evaluation_name in versioned:
+        evaluation_name += f".v{task.get('taskVersion')}"
     return TaskIdentity(
-        evaluation_name=f"{stem}.{key}",
-        dataset_name=key,
-        url=(
-            f"{KAGGLE_BASE}{raw_slug}"
-            if raw_slug.startswith("/")
-            else benchmark.url
-        ),
+        evaluation_name=evaluation_name,
+        dataset_name=dataset_name,
+        url=url,
         title=title,
     )
+
+
+def versioned_names(benchmark: Benchmark, rows: list) -> frozenset[str]:
+    """Task names that appear at more than one ``taskVersion`` on a leaderboard."""
+    versions: dict[str, set] = {}
+    for row in rows:
+        tasks = row.get("taskResults") if isinstance(row, dict) else None
+        for task in tasks if isinstance(tasks, list) else []:
+            if not isinstance(task, dict):
+                continue
+            try:
+                name = make_task_identity(task, benchmark).evaluation_name
+            except ValueError:
+                continue  # reported when the task itself is converted
+            versions.setdefault(name, set()).add(task.get("taskVersion"))
+    return frozenset(name for name, seen in versions.items() if len(seen) > 1)
 
 
 def _confidence_interval(
@@ -543,8 +649,8 @@ def _confidence_interval(
     if lower_offset == 0.0 and upper_offset == 0.0:
         return None
     return ConfidenceInterval(
-        lower=round(score - lower_offset, 4),
-        upper=round(score + upper_offset, 4),
+        lower=score - lower_offset,
+        upper=score + upper_offset,
         method="unknown",
     )
 
@@ -564,53 +670,89 @@ def _metric_details(task: dict, benchmark: Benchmark) -> dict[str, str]:
     These describe how Kaggle renders and aggregates the metric. They are not
     reliable enough to derive a unit or bounds from, but they are the only
     description of the metric that exists, so they travel with the score.
+    ``displayType`` is published per column (``cents`` beside ``counts``) and
+    for the benchmark as a whole, and both are kept.
     """
     details = {}
     if benchmark.aggregation_type:
         details["kaggle_aggregation_type"] = benchmark.aggregation_type
+    display_type = task.get("displayType")
+    if isinstance(display_type, str) and display_type:
+        details["kaggle_display_type"] = display_type
     if benchmark.display_type:
-        details["kaggle_display_type"] = benchmark.display_type
+        details["kaggle_benchmark_display_type"] = benchmark.display_type
     task_version = task.get("taskVersion")
     if task_version is not None:
         details["kaggle_task_version"] = str(task_version)
     return details
 
 
-def make_generation_config(model: ModelIdentity) -> Optional[GenerationConfig]:
+def make_generation_config(
+    model: ModelIdentity, candidate: Candidate = Candidate()
+) -> Optional[GenerationConfig]:
     """Record how the model was run, rather than folding it into its id.
 
     ``reasoning`` is the schema's typed field for whether chain-of-thought was
-    used; there is no typed effort field, so the tier Kaggle names goes in
-    ``additional_details`` as a string.
+    used; there is no typed effort field, so the tier goes in
+    ``additional_details`` as a string. A row that names its configuration
+    (``Gemini 4 Carbon High Reasoning``) reports that, verbatim, instead of a
+    tier read off the model slug, which it can contradict (``-default``). An
+    agent row reports its agent and harness.
     """
+    if candidate.config_slug:
+        reasoning = None
+        details = {
+            "kaggle_model_version_config": candidate.config_name,
+            "kaggle_model_version_config_slug": candidate.config_slug,
+        }
+    else:
+        reasoning = model.reasoning
+        details = {"reasoning_effort": model.effort_tier or ""}
+    details = {key: value for key, value in details.items() if value}
+    agentic = None
+    if candidate.agent_slug:
+        agent = {
+            "kaggle_agent": candidate.agent_name,
+            "kaggle_agent_slug": candidate.agent_slug,
+            "kaggle_harness": candidate.harness_name,
+            "kaggle_harness_slug": candidate.harness_slug,
+        }
+        agentic = AgenticEvalConfig(
+            additional_details={k: v for k, v in agent.items() if v}
+        )
     args = (
         # ``max_attempts`` defaults to 1 on the model; Kaggle never states it,
         # so it is cleared rather than published as a fact of the run.
-        GenerationArgs(reasoning=model.reasoning, max_attempts=None)
-        if model.reasoning is not None
+        GenerationArgs(
+            reasoning=reasoning, agentic_eval_config=agentic, max_attempts=None
+        )
+        if reasoning is not None or agentic is not None
         else None
     )
-    details = (
-        {"reasoning_effort": model.effort_tier} if model.effort_tier else None
-    )
-    if args is None and details is None:
+    if args is None and not details:
         return None
-    return GenerationConfig(generation_args=args, additional_details=details)
+    return GenerationConfig(generation_args=args, additional_details=details or None)
 
 
 def build_eval_result(
-    task: dict, benchmark: Benchmark, model: ModelIdentity
+    task: dict,
+    benchmark: Benchmark,
+    model: ModelIdentity,
+    candidate: Candidate = Candidate(),
+    versioned: frozenset[str] = frozenset(),
 ) -> EvaluationResult:
     """Convert one ``taskResult`` entry into an EvaluationResult.
 
     Raises :class:`UnscoredTask` when Kaggle reports no score for the task, and
     ``ValueError`` when a scored task cannot be converted.
     """
+    if not isinstance(task, dict):
+        raise ValueError("task result entry must be an object")
     result = task.get("result")
     if not isinstance(result, dict):
         raise ValueError("task result must be an object")
     result_case = result.get("resultCase")
-    identity = make_task_identity(task, benchmark)
+    identity = make_task_identity(task, benchmark, versioned)
     metric_slug, metric_name, metric_kind = AGGREGATION_METRICS.get(
         benchmark.aggregation_type, UNKNOWN_METRIC
     )
@@ -631,13 +773,23 @@ def build_eval_result(
         # its rendering hints do not imply one (see the module docstring), so
         # the score is reported as given and nothing about it is claimed.
         interval = _confidence_interval(numeric, score)
-        if interval is not None:
-            uncertainty = Uncertainty(confidence_interval=interval)
+        deviation = (
+            _non_negative(numeric.get("standardDeviation"))
+            if numeric.get("hasStandardDeviation")
+            else None
+        )
+        if interval is not None or deviation is not None:
+            uncertainty = Uncertainty(
+                confidence_interval=interval, standard_deviation=deviation
+            )
     elif result_case == "booleanResult":
         # A pass/fail task result genuinely is binary, whatever scale the
         # benchmark's own numeric metric turns out to be on.
         score_type = ScoreType.binary
-        score = 1.0 if result.get("booleanResult") else 0.0
+        passed = result.get("booleanResult")
+        if not isinstance(passed, bool):
+            raise ValueError(f"boolean result is not a boolean: {passed!r}")
+        score = 1.0 if passed else 0.0
         min_score, max_score = 0.0, 1.0
     elif result_case == "none":
         raise UnscoredTask(f"{identity.evaluation_name} has no result")
@@ -647,6 +799,8 @@ def build_eval_result(
     details = _metric_details(task, benchmark)
     if identity.title:
         details["kaggle_task_title"] = identity.title
+    if score_type is None:
+        details["bounds_status"] = "unknown"
     return EvaluationResult(
         evaluation_name=identity.evaluation_name,
         evaluation_timestamp=result.get("evaluationDate"),
@@ -670,10 +824,8 @@ def build_eval_result(
             max_score=max_score,
             additional_details=details or None,
         ),
-        score_details=ScoreDetails(
-            score=round(score, 4), uncertainty=uncertainty
-        ),
-        generation_config=make_generation_config(model),
+        score_details=ScoreDetails(score=score, uncertainty=uncertainty),
+        generation_config=make_generation_config(model, candidate),
     )
 
 
@@ -711,13 +863,18 @@ def convert_benchmark(
     if benchmark.benchmark_id is not None:
         source_details["benchmark_id"] = benchmark.benchmark_id
 
+    versioned = versioned_names(benchmark, rows)
+    evaluation_ids: dict[str, int] = {}
     for row_index, row in enumerate(rows):
         row_ref = f"{benchmark.ref} row {row_index}"
         failures_before = len(failures)
         try:
+            if not isinstance(row, dict):
+                raise ValueError("leaderboard row must be an object")
             model_slug = require_identity(
                 row.get("modelVersionSlug"), "model version slug"
             )
+            candidate = make_candidate(row)
             display_name = (row.get("modelVersionName") or "").strip()
             cache_key = (model_slug, display_name)
             model = identities.get(cache_key)
@@ -726,6 +883,13 @@ def convert_benchmark(
                     model_slug, display_name, use_registry=use_registry
                 )
                 identities[cache_key] = model
+            if model.provenance.get("model_id_resolution") == "unreachable":
+                # A guessed id would be published beside the canonical one the
+                # next run resolves, and the datastore keeps both.
+                raise ValueError(
+                    f"model id registry unreachable for {model_slug!r}: "
+                    f"{model.provenance.get('model_id_resolution_error')}"
+                )
 
             task_results = row.get("taskResults")
             if not isinstance(task_results, list):
@@ -736,7 +900,9 @@ def convert_benchmark(
                 task_ref = f"{row_ref} task {task_index}"
                 try:
                     eval_results.append(
-                        build_eval_result(task, benchmark, model)
+                        build_eval_result(
+                            task, benchmark, model, candidate, versioned
+                        )
                     )
                 except UnscoredTask as exc:
                     exclusions.append(
@@ -753,6 +919,11 @@ def convert_benchmark(
                             source_record=task,
                         )
                     )
+
+            names = Counter(result.evaluation_name for result in eval_results)
+            shared = sorted(name for name, count in names.items() if count > 1)
+            if shared:
+                raise ValueError(f"task results share a name: {shared}")
 
             if not eval_results:
                 if len(failures) > failures_before:
@@ -781,6 +952,8 @@ def convert_benchmark(
                     model.provenance.get("model_id_resolution")
                 ),
             }
+            if candidate.candidate_class != "modelVersion":
+                model_details["kaggle_candidate_class"] = candidate.candidate_class
             for key in (
                 "model_id_resolution_strategy",
                 "model_id_review_status",
@@ -794,24 +967,37 @@ def convert_benchmark(
                 model_details["model_id_resolution_confidence"] = str(
                     round(float(confidence), 4)
                 )
-            if display_name and display_name != model.raw_slug:
-                model_details["display_name"] = display_name
             if model.needs_review:
                 model_details["model_id_needs_review"] = "true"
             model_info = make_model_info(
                 model_name=model_id,
                 developer=path_developer,
                 additional_details=model_details,
-            )
+            ).model_copy(update={"name": display_name or model.raw_slug})
 
             # Keyed by the slug as published, not the canonical id: two rows of
             # one benchmark can resolve to the same model run at different
             # effort (`claude-sonnet-4-5[-thinking]-20250929`), and they are
-            # distinct evaluations.
-            evaluation_id = (
-                f"{benchmark.owner}/{benchmark.slug}/"
-                f"{model.raw_slug}/{retrieved_timestamp}"
-            )
+            # distinct evaluations; so are a model's configurations and the
+            # agents driving it. The latest published evaluation date makes a
+            # re-run a new evaluation while a re-read of the same leaderboard
+            # keeps its id.
+            dates = [
+                result.evaluation_timestamp
+                for result in eval_results
+                if result.evaluation_timestamp
+            ]
+            evaluation_id = f"{benchmark.owner}/{benchmark.slug}/{model.raw_slug}"
+            if candidate.variant:
+                evaluation_id += f"/{candidate.variant}"
+            if dates:
+                evaluation_id += f"/{max(dates)}"
+            if evaluation_id in evaluation_ids:
+                raise ValueError(
+                    f"evaluation_id {evaluation_id!r} already used by row "
+                    f"{evaluation_ids[evaluation_id]}"
+                )
+            evaluation_ids[evaluation_id] = row_index
             eval_log = EvaluationLog(
                 schema_version=SCHEMA_VERSION,
                 evaluation_id=evaluation_id,
@@ -823,8 +1009,8 @@ def convert_benchmark(
                     evaluator_relationship=EvaluatorRelationship.third_party,
                     additional_details=source_details,
                 ),
-                # Kaggle runs these from a notebook definition and names no
-                # harness, so there is no library to report.
+                # Kaggle names no evaluation library; an agent row's harness is
+                # in generation_config.generation_args.agentic_eval_config.
                 eval_library=EvalLibrary(
                     name="unknown",
                     version="unknown",
@@ -933,10 +1119,20 @@ def resolve_targets(
     targets: dict[tuple[str, str], Benchmark] = {}
     for key in requested:
         benchmark = index.get(key)
+        if benchmark is None and failures:
+            # The index is incomplete, so a missing target may simply be
+            # unread: report it and convert the targets that were found.
+            failures.append(
+                SourceRecordFailure(
+                    source_ref=f"{key[0]}/{key[1]}",
+                    reason="requested benchmark not in the incomplete index",
+                )
+            )
+            continue
         if benchmark is None:
             raise SystemExit(
                 f"--benchmark {key[0]}/{key[1]} is not a published Kaggle "
-                "benchmark (or the index could not be read)"
+                "benchmark"
             )
         targets[key] = benchmark
     if args.all:
@@ -945,7 +1141,24 @@ def resolve_targets(
                 print(f"  excluding {benchmark.ref}")
                 continue
             targets.setdefault(key, benchmark)
+    if args.all and not args.limit and not failures:
+        # The catalog's exclusions keep another adapter's collection its own;
+        # one that matches nothing means the excluded benchmark was renamed.
+        for owner, slug in sorted(excluded - index.keys()):
+            failures.append(
+                SourceRecordFailure(
+                    source_ref=f"{owner}/{slug}",
+                    reason="--exclude matches no published benchmark",
+                )
+            )
     return list(targets.values()), failures
+
+
+def _positive_int(value: str) -> int:
+    number = int(value)
+    if number < 1:
+        raise argparse.ArgumentTypeError(f"must be at least 1, got {number}")
+    return number
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -980,7 +1193,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--limit",
-        type=int,
+        type=_positive_int,
         default=None,
         help=(
             "With --all, read only this many benchmarks from the index "
@@ -1046,10 +1259,9 @@ def main(argv: list[str] | None = None) -> int:
         total_rows += result.total_records
         failures.extend(result.failures)
         exclusions.extend(result.exclusions)
-        # Published per benchmark rather than once at the end, so a sweep
-        # stopped by the job timeout keeps the benchmarks it had already
-        # converted. A write that fails is left to crash: the benchmarks
-        # before it are already on disk, and a filesystem or routing fault is
+        # Published per benchmark rather than once at the end, so a manual
+        # sweep that is interrupted keeps the benchmarks already on disk. A
+        # write that fails is left to crash: a filesystem or routing fault is
         # not a fact about the source to file a per-record failure over.
         written.extend(save_evaluation_logs(result.records))
         print(f"  -> {len(result.records)} of {result.total_records} model(s)")

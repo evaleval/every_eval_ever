@@ -1,9 +1,8 @@
-"""The registry resolver promises never to raise, so prove it.
+"""The Kaggle registry resolver promises never to raise, so prove it.
 
-`model_info.id` is what the datastore is queried by, so this helper sits in
-front of every record an adapter writes. Its contract is that a bad answer
-degrades to the source's own id, marked unverified — never an exception that
-aborts a sweep, and never a malformed reply mistaken for a confident one.
+Its contract is that a bad answer degrades to the source's own id with
+provenance saying why — never an exception that aborts a sweep, and never a
+malformed reply mistaken for a confident one.
 """
 
 from __future__ import annotations
@@ -11,7 +10,12 @@ from __future__ import annotations
 import pytest
 import requests
 
-from every_eval_ever.helpers import registry
+from every_eval_ever.adapters.kaggle import registry
+
+
+@pytest.fixture(autouse=True)
+def no_retry_pause(monkeypatch):
+    monkeypatch.setattr(registry, "RETRY_DELAYS", (0.0, 0.0))
 
 
 class _FakeResponse:
@@ -150,6 +154,33 @@ def test_the_error_detail_is_bounded(monkeypatch):
     _post(monkeypatch, requests.ConnectionError("x" * 5000))
     _, provenance = registry.resolve_model_id("y")
     assert len(provenance["model_id_resolution_error"]) <= 200
+
+
+def test_a_transient_failure_is_retried(monkeypatch):
+    replies = iter(
+        [
+            requests.ConnectionError("blip"),
+            _FakeResponse(
+                {
+                    "canonical_id": "google/gemma-3-27b-it",
+                    "strategy": "exact",
+                    "confidence": 1.0,
+                    "review_status": "reviewed",
+                }
+            ),
+        ]
+    )
+
+    def fake_post(url, **kwargs):
+        reply = next(replies)
+        if isinstance(reply, Exception):
+            raise reply
+        return reply
+
+    monkeypatch.setattr(registry.requests, "post", fake_post)
+    model_id, provenance = registry.resolve_model_id("gemma-3-27b-it")
+    assert model_id == "google/gemma-3-27b-it"
+    assert provenance["model_id_resolution"] == "registry"
 
 
 # ---------------------------------------------------------------------------

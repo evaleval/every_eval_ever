@@ -337,18 +337,31 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         collections=('kaggle',),
         # `--all` means every published benchmark; what a scheduled sweep leaves
         # out is declared here rather than hidden in the adapter.
-        # cohere-labs/global-mmlu-lite is excluded because the
-        # global_mmlu_lite adapter owns that collection, and publishing one
+        # cohere-labs/global-mmlu-lite and its per-language boards are excluded
+        # because the global_mmlu_lite adapter publishes those numbers, and one
         # leaderboard under two collections is the same numbers twice.
         extra_args=(
             '--all',
             '--exclude',
             'cohere-labs/global-mmlu-lite',
+            *(
+                arg
+                for language in (
+                    'arabic', 'bengali', 'burmese', 'ca', 'chinese', 'cs',
+                    'english', 'french', 'german', 'hindi', 'indonesian',
+                    'italian', 'japanese', 'korean', 'portuguese', 'spanish',
+                    'swahili', 'yoruba',
+                )
+                for arg in (
+                    '--exclude',
+                    f'cohere-labs/global-mmlu-lite-{language}',
+                )
+            ),
         ),
         # One GET per leaderboard over every published benchmark: a serial
-        # sweep of the ~1,080 that exist takes about five minutes, and Kaggle
-        # answers a faster one with 429s, so the budget is the sweep plus room
-        # for the retries rather than a figure the usual case needs.
+        # sweep of the ~1,400 that exist took 6-14 minutes in November 2026,
+        # and Kaggle answers a faster one with 429s, so the budget is the
+        # sweep plus room for the retries.
         cadence='weekly',
         weekday=4,
         timeout_minutes=30,

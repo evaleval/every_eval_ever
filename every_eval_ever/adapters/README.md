@@ -153,8 +153,8 @@ uv run python -m every_eval_ever.adapters.kaggle.adapter \
   --output-dir /tmp/eee-kaggle
 ```
 
-Convert every published benchmark (~1,080 of them, about five minutes; use
-`--limit` to cap a test run):
+Convert every published benchmark (~1,400 of them, 6–14 minutes; use `--limit`
+to cap a test run):
 
 ```bash
 uv run python -m every_eval_ever.adapters.kaggle.adapter \
@@ -180,18 +180,30 @@ A benchmark's overall score and its sub-benchmark scores are all
 
 | | `evaluation_name` | `source_data.dataset_name` | `metric_id` |
 |---|---|---|---|
-| aggregate | `kaggle.<owner>.<bench>` | `<bench>` | `kaggle.<owner>.<bench>.<metric>` |
+| aggregate (`(Overall)` column) | `kaggle.<owner>.<bench>` | `<bench>` | `kaggle.<owner>.<bench>.<metric>` |
+| other column without a slug | `kaggle.<owner>.<bench>.<title>` | `<bench>` | `kaggle.<owner>.<bench>.<title>.<metric>` |
 | sub-benchmark | `kaggle.<owner>.<bench>.<sub>` | `<sub>` | `kaggle.<owner>.<bench>.<sub>.<metric>` |
+| sub-benchmark another owner published | `kaggle.<owner>.<bench>.<task owner>.<sub>` | `<task owner>/<sub>` | `kaggle.<owner>.<bench>.<task owner>.<sub>.<metric>` |
 
 The owner is part of the name because a Kaggle benchmark is an `owner/slug`
 resource and 15 slugs are published by more than one owner —
 `animalimagerecognition` by six, `metacognition-benchmark` by five — so the slug
-alone would give unrelated benchmarks one `metric_id`.
+alone would give unrelated benchmarks one `metric_id`. For the same reason a
+sub-benchmark published by someone other than the benchmark's owner carries its
+owner: 108 benchmarks include such tasks, and some include two same-named tasks
+by different owners (`alexandrepedrosai/what-is-kaggle` and
+`neshdev/what-is-kaggle`).
 
 `metric_name` and `metric_kind` name the *metric* — `aggregationType`
 `PERCENTAGE_PASSED` gives `pass rate` / `pass_rate` — and Kaggle's title for the
-column is kept as `metric_config.additional_details.kaggle_task_title`. The
-aggregate is published as a task with an empty name and slug.
+column is kept as `metric_config.additional_details.kaggle_task_title`. Kaggle
+titles the aggregate `(Overall)`. Arena leaderboards publish several columns
+without a slug (`Score`, `Avg. Tokens/Turn`, `Avg. Cost/Turn`); each is named by
+its title (`…score`, `…avg-tokens-turn`), and none is promoted to the aggregate.
+A name that appears at more than one `taskVersion` on the leaderboard gets
+`.v<N>` (`…avalon-merlin-trust-analysis.v5`); a task at a single version keeps
+its plain name. Two results in one record never share a name: a row that would
+is a failure.
 
 A sub-benchmark may carry its parent's slug, giving
 `kaggle.<owner>.<bench>.<bench>` (1.4% of results, 58 benchmarks). That is not a
@@ -209,18 +221,21 @@ not imply one: across the published corpus, values under
 `displayType=PERCENTAGES` / `aggregationType=PERCENTAGE_PASSED` run from -180 to
 7.4e7, with only ~69% of them in `[0, 1]`. Numeric results therefore carry no
 `metric_unit`, no `score_type` and no bounds, and Kaggle's raw
-`aggregationType`/`displayType`/task version are kept in
-`metric_config.additional_details` so a later pass can normalize what this
-adapter refuses to guess. Boolean task results are genuinely pass/fail and are
+`aggregationType`/`displayType` (per column and for the benchmark)/task version
+are kept in `metric_config.additional_details`, with `bounds_status: unknown`, so
+a later pass can normalize what this adapter refuses to guess. A published
+`standardDeviation` is kept as `uncertainty.standard_deviation`.
+Boolean task results are genuinely pass/fail and are
 emitted as `binary` on `[0, 1]`. `sortOrder` *is* published, and is the only
-source of `lower_is_better`.
+source of `lower_is_better`. Scores and interval bounds are written as
+published, unrounded: some are as small as `1e-10`.
 
 #### Model identity
 
 `modelVersionSlug` mixes the model with the effort it was run at, so
 `model_info.id` is resolved against the
 [eval-card-registry](https://github.com/evaleval/eval-card-registry) through the
-shared [`helpers/registry.py`](../helpers/registry.py) resolver:
+adapter's [`registry.py`](kaggle/registry.py) resolver:
 
 | Kaggle slug | `model_info.id` | generation config |
 |---|---|---|
@@ -233,13 +248,33 @@ The registry decides the identity, so nothing is inferred from a model's name.
 The slug as published is offered first; only when the registry has no canonical
 id for it is the effort-stripped form tried, and only a canonical answer is
 adopted. That is why the last two rows keep their reasoning variant — the
-registry considers those models of their own — while the first two do not.
-`evaluation_id` is keyed by the raw slug, because one benchmark can score the
-same model at two efforts and those are distinct evaluations. The raw slug,
-resolution strategy, confidence and review status all travel in
-`model_info.additional_details`, with `model_id_needs_review: "true"` on any id
-the registry could not confidently confirm — so auditing a run means querying
-the records it wrote, not reading its log:
+registry considers those models of their own — while the first two do not. When
+neither form resolves, the id is the lexical `developer/<slug as published>`,
+tier included, flagged for review. When the registry cannot be reached (after
+retries) the row is a failure rather than a guessed id, because the datastore
+would keep the guess beside the canonical id the next run resolves.
+
+A row is a bare model, a named configuration of it, or an agent driving it
+(`candidateClass` `modelVersion` / `modelVersionConfig` / `agent`). One slug can
+appear in all three on one leaderboard with three different scores. A
+configuration is reported verbatim in `generation_config.additional_details`
+(`kaggle_model_version_config`) instead of a tier read off the slug, which it can
+contradict (`claude-opus-5-5-default` run at Max Reasoning). An agent's name and
+harness (`Claude Code`, `Codex`) go in
+`generation_config.generation_args.agentic_eval_config.additional_details`.
+
+`evaluation_id` is
+`<owner>/<bench>/<raw slug>[/<config or agent slug>]/<latest evaluationDate>`
+(the date omitted when Kaggle publishes none): keyed by what the row ran,
+because two efforts, configurations or agents of one model are distinct
+evaluations, and by the evaluation date rather than the time of the read, so a
+weekly re-read of an unchanged leaderboard keeps its ids. Two rows of one
+leaderboard that would share one are a failure. `model_info.name` is Kaggle's
+display name. The raw slug, resolution strategy, confidence and review status
+all travel in `model_info.additional_details`, with
+`model_id_needs_review: "true"` on any id the registry could not confidently
+confirm — so auditing a run means querying the records it wrote, not reading
+its log:
 
 ```bash
 jq -r '.model_info.additional_details
@@ -263,16 +298,16 @@ tiers got into ids in the first place — so `ls data/kaggle/` is where you see 
   too. Both are listed in the failure report.
 - `evaluation_timestamp` carries Kaggle's `evaluationDate` where present (~85%
   of results).
-- `eval_library.name` is `unknown`: Kaggle runs these from a notebook definition
-  and names no harness.
-- `--all` means every published benchmark. The scheduled run passes
-  `--exclude cohere-labs/global-mmlu-lite`, which
+- `eval_library.name` is `unknown`: Kaggle names no evaluation library.
+- `--all` means every published benchmark. The scheduled run excludes
+  `cohere-labs/global-mmlu-lite` and its 18 per-language boards, whose numbers
   [`global_mmlu_lite`](global_mmlu_lite) already publishes under its own
-  collection; the exclusion is declared in [`catalog.py`](catalog.py) rather
-  than hidden in the adapter.
+  collection; the exclusions are declared in [`catalog.py`](catalog.py) rather
+  than hidden in the adapter, and one that matches no published benchmark is a
+  failure.
 - A sweep is rate-limited in bursts, so leaderboard fetches retry with backoff
-  on 429/5xx. A benchmark that still cannot be fetched is a failure and the run
-  exits non-zero.
+  on 429/5xx and dropped connections. A benchmark that still cannot be fetched
+  is a failure and the run exits non-zero.
 
 ### Mercor Evaluation Exports
 

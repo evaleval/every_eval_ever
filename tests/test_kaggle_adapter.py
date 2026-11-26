@@ -163,6 +163,17 @@ def unscored_task(name, *, slug=""):
     }
 
 
+def row(slug, tasks, *, name="", candidate_class="modelVersion", **fields):
+    """A leaderboard row as Kaggle publishes it (``candidateClass`` included)."""
+    return {
+        "modelVersionName": name,
+        "modelVersionSlug": slug,
+        "candidateClass": candidate_class,
+        "taskResults": tasks,
+        **fields,
+    }
+
+
 def index_entry(
     owner, slug, *, published=True, sort_order="DESCENDING", org=True
 ):
@@ -190,27 +201,30 @@ def build(task, benchmark=BENCH, model=MODEL):
 
 
 # ---------------------------------------------------------------------------
-# _task_key: Kaggle publishes two site-path spellings for a task
+# _task_ref: Kaggle publishes two site-path spellings for a task
 # ---------------------------------------------------------------------------
 @pytest.mark.parametrize(
     "slug,expected",
     [
         (
             "/benchmarks/tasks/aanaakaliil/sandbox-in-single",
-            "sandbox-in-single",
+            ("aanaakaliil", "sandbox-in-single"),
         ),
         # The versioned form must not collapse to its version number, which
         # would give every task in a benchmark the same identity.
         (
             "/benchmarks/cohere-labs/global-mmlu-lite-chinese/versions/1",
-            "global-mmlu-lite-chinese",
+            ("cohere-labs", "global-mmlu-lite-chinese"),
         ),
-        ("/benchmarks/google/facts-grounding/versions/2", "facts-grounding"),
-        ("", ""),
+        (
+            "/benchmarks/google/facts-grounding/versions/2",
+            ("google", "facts-grounding"),
+        ),
+        ("", ("", "")),
     ],
 )
-def test_task_key_reads_both_published_slug_shapes(slug, expected):
-    assert adapter._task_key(slug) == expected
+def test_task_ref_reads_both_published_slug_shapes(slug, expected):
+    assert adapter._task_ref(slug) == expected
 
 
 # ---------------------------------------------------------------------------
@@ -225,20 +239,24 @@ def test_unnamed_unslugged_task_is_the_benchmark_aggregate():
 
 def test_a_sub_benchmark_is_named_under_its_benchmark():
     identity = adapter.make_task_identity(
-        numeric_task("Emotion Inference", 0.5, slug="/benchmarks/tasks/o/emo"),
+        numeric_task(
+            "Emotion Inference", 0.5, slug="/benchmarks/tasks/owner/emo"
+        ),
         BENCH,
     )
     assert identity.evaluation_name == "kaggle.owner.my-bench.emo"
     # The subset it scored, not the parent benchmark.
     assert identity.dataset_name == "emo"
-    assert identity.url == "https://www.kaggle.com/benchmarks/tasks/o/emo"
+    assert identity.url == "https://www.kaggle.com/benchmarks/tasks/owner/emo"
     assert identity.title == "Emotion Inference"
 
 
 def test_versioned_sibling_tasks_get_distinct_identities():
     names = {
         adapter.make_task_identity(
-            numeric_task(title, 0.5, slug=f"/benchmarks/google/{key}/versions/2"),
+            numeric_task(
+                title, 0.5, slug=f"/benchmarks/owner/{key}/versions/2"
+            ),
             BENCH,
         ).evaluation_name
         for title, key in (
@@ -252,9 +270,31 @@ def test_versioned_sibling_tasks_get_distinct_identities():
     }
 
 
+def test_same_named_tasks_of_different_owners_stay_distinct():
+    # Seen live: one benchmark includes `alexandrepedrosai/what-is-kaggle` and
+    # `neshdev/what-is-kaggle`.
+    identities = [
+        adapter.make_task_identity(
+            numeric_task("", 0.5, slug=f"/benchmarks/tasks/{owner}/what"),
+            BENCH,
+        )
+        for owner in ("alice", "bob")
+    ]
+    assert [identity.evaluation_name for identity in identities] == [
+        "kaggle.owner.my-bench.alice.what",
+        "kaggle.owner.my-bench.bob.what",
+    ]
+    assert [identity.dataset_name for identity in identities] == [
+        "alice/what",
+        "bob/what",
+    ]
+
+
 def test_metric_id_and_name_describe_the_metric_not_the_eval():
     result = build(
-        numeric_task("Emotion Inference", 0.5, slug="/benchmarks/tasks/o/emo")
+        numeric_task(
+            "Emotion Inference", 0.5, slug="/benchmarks/tasks/owner/emo"
+        )
     )
     metric = result.metric_config
     assert metric.metric_id == "kaggle.owner.my-bench.emo.pass_rate"
@@ -266,7 +306,7 @@ def test_metric_id_and_name_describe_the_metric_not_the_eval():
 
 def test_metric_family_is_consistent_across_a_record():
     aggregate = build(numeric_task("", 0.9))
-    sub = build(boolean_task("Sub", True, slug="/benchmarks/tasks/o/sub"))
+    sub = build(boolean_task("Sub", True, slug="/benchmarks/tasks/owner/sub"))
     assert aggregate.metric_config.metric_kind == "pass_rate"
     assert sub.metric_config.metric_kind == "pass_rate"
 
@@ -288,7 +328,7 @@ def test_numeric_score_claims_no_unit_scale_or_bounds():
     # Kaggle publishes none of them and its rendering hints do not imply one,
     # so a value in [0, 1] must not be dressed up as a bounded proportion.
     result = build(numeric_task("acc", 0.87654))
-    assert result.score_details.score == 0.8765
+    assert result.score_details.score == 0.87654
     assert result.metric_config.score_type is None
     assert result.metric_config.min_score is None
     assert result.metric_config.max_score is None
@@ -303,14 +343,92 @@ def test_numeric_score_is_reported_as_published():
     assert result.metric_config.score_type is None
 
 
+def test_a_tiny_score_is_not_rounded_away():
+    # Published live: 4.8e-18 and 1e-10 are scores, not zeros.
+    assert build(numeric_task("loss", 4.8e-18)).score_details.score == 4.8e-18
+
+
 def test_kaggle_scoring_config_travels_as_provenance():
-    result = build(numeric_task("acc", 0.5, task_version=3))
+    task = numeric_task("acc", 0.5, task_version=3)
+    task["displayType"] = "cents"
+    result = build(task)
     assert result.metric_config.additional_details == {
         "kaggle_aggregation_type": "PERCENTAGE_PASSED",
-        "kaggle_display_type": "PERCENTAGES",
+        # Kaggle publishes a display type per column and for the benchmark.
+        "kaggle_display_type": "cents",
+        "kaggle_benchmark_display_type": "PERCENTAGES",
         "kaggle_task_version": "3",
         "kaggle_task_title": "acc",
+        "bounds_status": "unknown",
     }
+
+
+def test_a_published_standard_deviation_is_kept():
+    task = numeric_task("acc", 0.4)
+    task["result"]["numericResult"].update(
+        {"hasStandardDeviation": True, "standardDeviation": 0.55}
+    )
+    assert build(task).score_details.uncertainty.standard_deviation == 0.55
+
+
+def test_an_unflagged_standard_deviation_is_a_default_not_a_value():
+    task = numeric_task("acc", 0.4)
+    task["result"]["numericResult"].update(
+        {"hasStandardDeviation": False, "standardDeviation": 0.0}
+    )
+    assert build(task).score_details.uncertainty is None
+
+
+# ---------------------------------------------------------------------------
+# Columns without a slug, and tasks published at several versions
+# ---------------------------------------------------------------------------
+def test_arena_columns_without_slugs_are_named_by_title():
+    # kaggle/checkers publishes these three side by side, none of them a slug.
+    names = [
+        adapter.make_task_identity(numeric_task(title, 1.0), BENCH).evaluation_name
+        for title in ("Score", "Avg. Tokens/Turn", "Avg. Cost/Turn")
+    ]
+    assert names == [
+        "kaggle.owner.my-bench.score",
+        "kaggle.owner.my-bench.avg-tokens-turn",
+        "kaggle.owner.my-bench.avg-cost-turn",
+    ]
+
+
+def test_the_overall_column_is_the_aggregate():
+    identity = adapter.make_task_identity(numeric_task("(Overall)", 1.0), BENCH)
+    assert identity.evaluation_name == "kaggle.owner.my-bench"
+
+
+def test_a_task_at_several_versions_is_named_per_version(tmp_path):
+    slug = "/benchmarks/tasks/owner/avalon"
+    rows = [
+        row(
+            "gemma-3-27b-it",
+            [
+                numeric_task("avalon", 0.5, slug=slug, task_version=5),
+                numeric_task("avalon", 0.6, slug=slug, task_version=6),
+            ],
+        ),
+        row("claude-opus-5", [numeric_task("avalon", 0.7, slug=slug, task_version=6)]),
+    ]
+    result = convert(rows, tmp_path)
+    assert result.failures == []
+    assert [
+        [r.evaluation_name for r in output.eval_log.evaluation_results]
+        for output in result.records
+    ] == [
+        ["kaggle.owner.my-bench.avalon.v5", "kaggle.owner.my-bench.avalon.v6"],
+        # Named by the leaderboard, not the row: v6 is v6 everywhere.
+        ["kaggle.owner.my-bench.avalon.v6"],
+    ]
+
+
+def test_a_task_at_one_version_keeps_its_plain_name(tmp_path):
+    task = numeric_task("acc", 0.5, slug="/benchmarks/tasks/owner/acc", task_version=2)
+    result = convert([row("gemma-3-27b-it", [task])], tmp_path)
+    names = [r.evaluation_name for r in result.records[0].eval_log.evaluation_results]
+    assert names == ["kaggle.owner.my-bench.acc"]
 
 
 def test_boolean_results_are_binary_on_zero_to_one():
@@ -323,6 +441,19 @@ def test_boolean_results_are_binary_on_zero_to_one():
     ) == (0.0, 1.0)
     assert passed.score_details.score == 1.0
     assert failed.score_details.score == 0.0
+
+
+@pytest.mark.parametrize("value", [None, "false", 1])
+def test_a_boolean_result_that_is_not_a_boolean_is_a_failure(value):
+    task = boolean_task("solved", True)
+    task["result"]["booleanResult"] = value
+    with pytest.raises(ValueError, match="not a boolean"):
+        build(task)
+
+
+def test_a_task_entry_that_is_not_an_object_is_a_failure():
+    with pytest.raises(ValueError, match="task result entry"):
+        build(None)
 
 
 def test_unscored_task_is_excluded_not_failed():
@@ -380,7 +511,7 @@ def test_missing_evaluation_date_leaves_timestamp_unset():
 def test_symmetric_confidence_interval_brackets_the_score():
     result = build(numeric_task("acc", 0.87, ci=0.02))
     interval = result.score_details.uncertainty.confidence_interval
-    assert (interval.lower, interval.upper) == (0.85, 0.89)
+    assert (interval.lower, interval.upper) == pytest.approx((0.85, 0.89))
 
 
 def test_uneven_confidence_interval_uses_both_offsets():
@@ -388,7 +519,7 @@ def test_uneven_confidence_interval_uses_both_offsets():
         numeric_task("elo", 1137.17, uneven={"plus": 20.01, "minus": 23.42})
     )
     interval = result.score_details.uncertainty.confidence_interval
-    assert (interval.lower, interval.upper) == (1113.75, 1157.18)
+    assert (interval.lower, interval.upper) == pytest.approx((1113.75, 1157.18))
 
 
 @pytest.mark.parametrize("ci", [-0.83, "wide", 0.0, None])
@@ -455,6 +586,17 @@ def test_an_unresolvable_model_falls_back_and_is_flagged():
     assert model.id == "openai/gpt-5.9-unreleased"
     assert model.provenance["model_id_resolution_strategy"] == "no_match"
     assert model.needs_review is True
+
+
+def test_an_unresolved_tier_stays_in_the_fallback_id():
+    # Nothing established that the stripped form names the same model.
+    model = adapter.resolve_model_identity(
+        "grok-4.20-0309-non-reasoning",
+        "Grok 4.20 (Non-Reasoning)",
+        use_registry=False,
+    )
+    assert model.id == "xai/grok-4.20-0309-non-reasoning"
+    assert model.effort_tier == "non-reasoning"
 
 
 def test_resolution_can_be_turned_off_for_an_offline_run():
@@ -558,6 +700,36 @@ def test_retry_after_header_is_capped(monkeypatch):
     assert slept == [adapter.MAX_RETRY_AFTER_SECONDS]
 
 
+@pytest.mark.parametrize("header", ["-5", "nan", "soon"])
+def test_an_unusable_retry_after_falls_back_to_backoff(monkeypatch, header):
+    slept = []
+    monkeypatch.setattr(adapter.time, "sleep", slept.append)
+    session = _FakeSession(
+        [
+            _FakeResponse(429, headers={"Retry-After": header}),
+            _FakeResponse(200, {"ok": 1}),
+        ]
+    )
+    adapter.request_json(session, "https://example.invalid/x")
+    assert slept == [1.0]
+
+
+def test_a_dropped_connection_is_retried(monkeypatch):
+    import requests
+
+    monkeypatch.setattr(adapter.time, "sleep", lambda seconds: None)
+    replies = [requests.ConnectionError("reset"), _FakeResponse(200, {"ok": 1})]
+
+    class Session:
+        def get(self, url, **kwargs):
+            reply = replies.pop(0)
+            if isinstance(reply, Exception):
+                raise reply
+            return reply
+
+    assert adapter.request_json(Session(), "https://example.invalid/x") == {"ok": 1}
+
+
 # ---------------------------------------------------------------------------
 # list_benchmark_entries / make_benchmark
 # ---------------------------------------------------------------------------
@@ -614,6 +786,10 @@ def test_user_owned_benchmark_is_addressed_by_username():
         ),
         (index_entry("org", "no-order", sort_order=None), "sortOrder"),
         (index_entry("org", "odd-order", sort_order="SIDEWAYS"), "sortOrder"),
+        (
+            {**index_entry("org", "odd-task"), "task": {"version": ["x"]}},
+            "task.version",
+        ),
     ],
 )
 def test_an_undescribable_index_entry_says_what_is_missing(entry, reason):
@@ -702,6 +878,22 @@ def test_unknown_explicit_target_is_rejected(monkeypatch):
         adapter.resolve_targets(object(), _args(benchmark=["o/nope"]))
 
 
+def test_a_target_missing_from_a_truncated_index_is_a_failure(monkeypatch):
+    def truncated(session):
+        yield index_entry("o", "first")
+        raise FetchError("page 2")
+
+    monkeypatch.setattr(adapter, "list_benchmark_entries", truncated)
+    targets, failures = adapter.resolve_targets(
+        object(), _args(benchmark=["o/first", "o/second"])
+    )
+    assert [target.ref for target in targets] == ["o/first"]
+    assert [failure.source_ref for failure in failures] == [
+        "ListBenchmarks",
+        "o/second",
+    ]
+
+
 @pytest.mark.parametrize("flag", ["benchmark", "exclude"])
 def test_a_ref_without_a_slash_is_rejected(monkeypatch, flag):
     _stub_index(monkeypatch, [])
@@ -770,15 +962,31 @@ def test_limit_caps_the_sweep(monkeypatch):
     assert len(targets) == 2
 
 
+@pytest.mark.parametrize("limit", ["0", "-1"])
+def test_a_limit_below_one_is_a_usage_error(limit):
+    with pytest.raises(SystemExit):
+        adapter.parse_args(["--all", "--limit", limit])
+
+
+def test_an_exclusion_that_matches_nothing_is_a_failure(monkeypatch):
+    # The catalog excludes another adapter's benchmark; a rename upstream must
+    # not quietly hand it to this adapter.
+    _stub_index(monkeypatch, [index_entry("o", "one")])
+    targets, failures = adapter.resolve_targets(
+        object(), _args(all=True, exclude=["o/renamed"])
+    )
+    assert [target.ref for target in targets] == ["o/one"]
+    assert [failure.source_ref for failure in failures] == ["o/renamed"]
+
+
 # ---------------------------------------------------------------------------
 # convert_benchmark: records, exclusions, failures
 # ---------------------------------------------------------------------------
 def sample_rows():
     return [
-        {
-            "modelVersionName": "Gemma 3 27B",
-            "modelVersionSlug": "gemma-3-27b-it",
-            "taskResults": [
+        row(
+            "gemma-3-27b-it",
+            [
                 numeric_task("", 0.9123, ci=0.01, date="2026-03-20T17:14:42Z"),
                 boolean_task(
                     "Emotion Inference",
@@ -787,17 +995,14 @@ def sample_rows():
                 ),
                 unscored_task("Not Run"),
             ],
-        },
-        {
-            "modelVersionName": "Nothing Scored",
-            "modelVersionSlug": "claude-opus-5",
-            "taskResults": [unscored_task("Not Run")],
-        },
-        {
-            "modelVersionName": "Unknown Vendor",
-            "modelVersionSlug": "some-model-nobody-registered",
-            "taskResults": [numeric_task("acc", 0.5)],
-        },
+            name="Gemma 3 27B",
+        ),
+        row("claude-opus-5", [unscored_task("Not Run")], name="Nothing Scored"),
+        row(
+            "some-model-nobody-registered",
+            [numeric_task("acc", 0.5)],
+            name="Unknown Vendor",
+        ),
     ]
 
 
@@ -845,13 +1050,15 @@ def test_converted_record_is_platform_led_and_routed_by_canonical_id(tmp_path):
     # No harness ran these.
     assert log.eval_library.name == "unknown"
 
-    assert log.evaluation_id == "owner/my-bench/gemma-3-27b-it/123.0"
+    # The latest published evaluation date, never the time of the read.
+    assert log.evaluation_id == "owner/my-bench/gemma-3-27b-it/2026-03-20T17:14:42Z"
     model_details = log.model_info.additional_details
     assert model_details["kaggle_model_version_slug"] == "gemma-3-27b-it"
     assert model_details["model_id_resolution"] == "registry"
     assert model_details["model_id_resolution_strategy"] == "exact"
     assert "model_id_created_new" not in model_details
-    assert model_details["display_name"] == "Gemma 3 27B"
+    # The name the source gives, not the resolved id.
+    assert log.model_info.name == "Gemma 3 27B"
     assert [
         result.evaluation_name for result in log.evaluation_results
     ] == ["kaggle.owner.my-bench", "kaggle.owner.my-bench.emotion-inference"]
@@ -861,11 +1068,7 @@ def test_two_efforts_of_one_model_stay_distinct_evaluations(tmp_path):
     # Both resolve to the same canonical id, so only evaluation_id keeps them
     # apart; a shared one would collapse two runs into one row.
     rows = [
-        {
-            "modelVersionName": f"Claude Sonnet 4.5{suffix}",
-            "modelVersionSlug": slug,
-            "taskResults": [numeric_task("", 0.5)],
-        }
+        row(slug, [numeric_task("", 0.5)], name=f"Claude Sonnet 4.5{suffix}")
         for slug, suffix in (
             ("claude-sonnet-4-5-20250929", ""),
             ("claude-sonnet-4-5-thinking-20250929", " (thinking)"),
@@ -906,7 +1109,7 @@ def test_one_registry_lookup_serves_every_row_of_a_model(tmp_path, monkeypatch):
 
 def test_taskresults_of_the_wrong_type_fails_only_that_row(tmp_path):
     rows = sample_rows()[:1] + [
-        {"modelVersionSlug": "claude-opus-5", "taskResults": None}
+        row("claude-opus-5", None)
     ]
     result = convert(rows, tmp_path / "kaggle")
     assert len(result.records) == 1
@@ -915,14 +1118,145 @@ def test_taskresults_of_the_wrong_type_fails_only_that_row(tmp_path):
     ]
 
 
+def test_a_row_that_is_not_an_object_fails_only_that_row(tmp_path):
+    result = convert(sample_rows()[:1] + [None], tmp_path / "kaggle")
+    assert len(result.records) == 1
+    assert [failure.source_ref for failure in result.failures] == [
+        "owner/my-bench row 1"
+    ]
+
+
+def test_rereading_a_leaderboard_keeps_its_evaluation_ids(tmp_path):
+    ids = [
+        [
+            output.eval_log.evaluation_id
+            for output in adapter.convert_benchmark(
+                BENCH, sample_rows(), stamp, tmp_path, use_registry=True
+            ).records
+        ]
+        for stamp in ("123.0", "124.0")
+    ]
+    assert ids[0] == ids[1]
+
+
+def test_a_row_that_repeats_a_task_is_a_failure(tmp_path):
+    task = numeric_task("acc", 0.5, slug="/benchmarks/tasks/owner/acc")
+    rows = [row("gemma-3-27b-it", [task, task])]
+    result = convert(rows, tmp_path / "kaggle")
+    assert result.records == []
+    assert "share a name" in result.failures[0].reason
+
+
+# ---------------------------------------------------------------------------
+# candidateClass: a model, a named configuration of it, or an agent driving it
+# ---------------------------------------------------------------------------
+CONFIG_FIELDS = {
+    "modelVersionConfigName": "Claude Opus 5 Max Reasoning",
+    "modelVersionConfigSlug": "claude-opus-5-max-reasoning",
+}
+AGENT_FIELDS = {
+    **CONFIG_FIELDS,
+    "agentName": "Claude Code 2.1 (Claude Opus 5 Max Reasoning)",
+    "agentSlug": "claude-code-2-1-claude-opus-5-max-reasoning",
+    "harnessName": "Claude Code",
+    "harnessSlug": "claude-code",
+}
+
+
+def test_a_model_its_configuration_and_its_agent_are_three_evaluations(tmp_path):
+    # Seen live on deepmind-agi: one slug, three rows, three scores.
+    tasks = [numeric_task("", 0.5)]
+    rows = [
+        row("claude-opus-5-default", tasks),
+        row(
+            "claude-opus-5-default",
+            tasks,
+            candidate_class="modelVersionConfig",
+            **CONFIG_FIELDS,
+        ),
+        row("claude-opus-5-default", tasks, candidate_class="agent", **AGENT_FIELDS),
+    ]
+    result = convert(rows, tmp_path)
+    assert result.failures == []
+    logs = [output.eval_log for output in result.records]
+    assert [log.evaluation_id for log in logs] == [
+        "owner/my-bench/claude-opus-5-default",
+        "owner/my-bench/claude-opus-5-default/claude-opus-5-max-reasoning",
+        "owner/my-bench/claude-opus-5-default/"
+        "claude-code-2-1-claude-opus-5-max-reasoning",
+    ]
+    plain, config, agent = (log.evaluation_results[0].generation_config for log in logs)
+    assert plain.additional_details == {"reasoning_effort": "default"}
+    # The configuration Kaggle names wins over the slug's `-default`.
+    assert config.additional_details == {
+        "kaggle_model_version_config": "Claude Opus 5 Max Reasoning",
+        "kaggle_model_version_config_slug": "claude-opus-5-max-reasoning",
+    }
+    assert agent.generation_args.agentic_eval_config.additional_details == {
+        "kaggle_agent": "Claude Code 2.1 (Claude Opus 5 Max Reasoning)",
+        "kaggle_agent_slug": "claude-code-2-1-claude-opus-5-max-reasoning",
+        "kaggle_harness": "Claude Code",
+        "kaggle_harness_slug": "claude-code",
+    }
+    assert logs[2].model_info.additional_details["kaggle_candidate_class"] == "agent"
+
+
+@pytest.mark.parametrize(
+    "candidate_class,fields,reason",
+    [
+        ("team", {}, "candidateClass"),
+        ("modelVersionConfig", {}, "modelVersionConfigSlug"),
+        ("agent", CONFIG_FIELDS, "agentSlug"),
+    ],
+)
+def test_an_undescribable_candidate_is_a_failure(
+    tmp_path, candidate_class, fields, reason
+):
+    rows = [
+        row(
+            "gemma-3-27b-it",
+            [numeric_task("", 0.5)],
+            candidate_class=candidate_class,
+            **fields,
+        )
+    ]
+    result = convert(rows, tmp_path)
+    assert result.records == []
+    assert reason in result.failures[0].reason
+
+
+def test_two_rows_that_would_share_an_evaluation_id_fail(tmp_path):
+    rows = [row("gemma-3-27b-it", [numeric_task("", 0.5)])] * 2
+    result = convert(rows, tmp_path)
+    assert len(result.records) == 1
+    assert "already used by row 0" in result.failures[0].reason
+
+
+def test_an_unreachable_registry_fails_the_row_instead_of_guessing(
+    tmp_path, stub_registry, monkeypatch
+):
+    def unreachable(raw_value, *, enabled=True, timeout=15.0):
+        return raw_value, {
+            "model_id_resolution": "unreachable",
+            "model_id_resolution_error": "timed out",
+        }
+
+    monkeypatch.setattr(adapter.registry, "resolve_model_id", unreachable)
+    result = convert([row("gemma-3-27b-it", [numeric_task("", 0.5)])], tmp_path)
+    assert result.records == []
+    assert "registry unreachable" in result.failures[0].reason
+
+
+def test_a_parenthetical_size_is_not_an_effort_tier():
+    model = adapter.resolve_model_identity("gemma-3-27b", "Gemma 3 (27B)")
+    assert model.effort_tier is None
+
+
 def test_a_row_whose_every_task_failed_is_a_failure_not_an_exclusion(tmp_path):
     # It was scored; the conversion is what went wrong, so the run must go red
     # rather than record it as a model Kaggle never ran.
     rows = [
-        {
-            "modelVersionSlug": "claude-opus-5",
-            "taskResults": [numeric_task("acc", None)],
-        }
+        row("claude-opus-5", [numeric_task("acc", None)])
     ]
     result = convert(rows, tmp_path / "kaggle")
     assert result.records == []
@@ -978,7 +1312,7 @@ def test_a_sweep_that_reads_rows_and_writes_nothing_exits_nonzero(
 ):
     # What a change in Kaggle's result payload shape looks like to the cron.
     rows = [
-        {"modelVersionSlug": "gemma-3-27b-it", "taskResults": [unscored_task("x")]}
+        row("gemma-3-27b-it", [unscored_task("x")])
     ]
     with pytest.raises(SourceRecordsError, match="produced no records"):
         _run_main(monkeypatch, tmp_path, ["unrun"], {"o/unrun": rows})
@@ -993,7 +1327,7 @@ def test_one_all_unscored_benchmark_does_not_red_a_sweep_that_wrote_records(
     monkeypatch, tmp_path
 ):
     rows = [
-        {"modelVersionSlug": "gemma-3-27b-it", "taskResults": [unscored_task("x")]}
+        row("gemma-3-27b-it", [unscored_task("x")])
     ]
     written = _run_main(
         monkeypatch,

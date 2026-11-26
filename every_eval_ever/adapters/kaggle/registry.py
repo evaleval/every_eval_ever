@@ -1,27 +1,29 @@
-"""Canonicalize a model id against the hosted eval-card-registry.
+"""Canonicalize a Kaggle model slug against the hosted eval-card-registry.
 
 ``model_info.id`` is what the datastore is queried by, so one model spelled two
 ways is two models to every reader. The registry
-(https://github.com/evaleval/eval-card-registry) is the shared authority on that
+(https://github.com/evaleval/eval-card-registry) is the authority on that
 spelling, and publishes a no-auth resolver so an adapter does not need a clone.
 
-Resolution is best-effort by design: the caller opts out for an offline or
-deterministic run, and any network error or unusable reply falls back to the id
-the source gave, marked unverified. It never raises, because a source that
-resolved yesterday must still convert today — which means the reply is parsed
-inside the same boundary that catches the request, not after it. Every caller
-records the returned provenance, so an unresolved or low-confidence id is
-reviewable rather than invisible.
+This never raises: the caller opts out for an offline run, and a request that
+still fails after retries, or an unusable reply, returns the id the source gave
+with provenance saying why (``unreachable`` / ``unresolved``). The reply is
+parsed inside the same boundary that catches the request. What to do with an
+unverified id is the caller's decision.
 """
 
 from __future__ import annotations
 
+import time
 from typing import Any, Optional
 
 import requests
 
 #: Hosted eval-card-registry resolver (public HF Space, no auth).
 RESOLVER_URL = "https://evaleval-entity-registry.hf.space/api/v1/resolve"
+
+#: Pauses before retrying a request that failed; a malformed reply is final.
+RETRY_DELAYS = (2.0, 8.0)
 
 #: Below this, the resolver's alias is treated as unverified and flagged for
 #: review rather than trusted as canonical.
@@ -56,6 +58,23 @@ def _canonical(payload: Any) -> tuple[Optional[str], str]:
     return canonical.strip(), strategy.strip()
 
 
+def _post(raw_repo: str, timeout: float) -> requests.Response:
+    for delay in (*RETRY_DELAYS, None):
+        try:
+            response = requests.post(
+                RESOLVER_URL,
+                json={"raw_value": raw_repo, "entity_type": "model"},
+                timeout=timeout,
+            )
+            response.raise_for_status()
+            return response
+        except requests.RequestException:
+            if delay is None:
+                raise
+            time.sleep(delay)
+    raise AssertionError("unreachable")  # the loop returns or raises
+
+
 def resolve_model_id(
     raw_repo: str, *, enabled: bool = True, timeout: float = 15.0
 ) -> tuple[str, dict[str, Any]]:
@@ -69,12 +88,7 @@ def resolve_model_id(
     if not enabled:
         return raw_repo, {"model_id_resolution": "offline"}
     try:
-        response = requests.post(
-            RESOLVER_URL,
-            json={"raw_value": raw_repo, "entity_type": "model"},
-            timeout=timeout,
-        )
-        response.raise_for_status()
+        response = _post(raw_repo, timeout)
         payload = response.json()
         canonical, strategy = _canonical(payload)
     except Exception as exc:  # noqa: BLE001 - best-effort, never fatal
