@@ -364,10 +364,10 @@ uv run python -m every_eval_ever.cron.flat_rebuild --dry-run
 uv run python -m every_eval_ever.cron.flat_rebuild --repo-id evaleval/EEE_datastore
 ```
 
-It does not clone the datastore (`data/` is ~15 GB, more than a runner
-holds). Instead it diffs the current `data/` tree against the published
-snapshot by path and size, downloads new and size-changed source files,
-and writes the flat row and manifest format in bounded commit batches.
+It does not check out the datastore (`data/` with LFS companions is ~15 GB,
+more than a runner holds). Instead normal rebuilds diff the current `data/` tree against the published
+snapshot by path and size, download new and size-changed source files,
+and write the flat row and manifest format in bounded commit batches.
 Unlike the checkout builder, it supports semantic reserialization and
 reports conflicting UUID reuse while preserving published objects. Commit
 conflicts use the ingestion retry helpers; adoption verifies file content.
@@ -397,12 +397,13 @@ Three policies are built in, all decided in the 2026-09 design round:
   bytes stay.
 
 The nightly diff detects changes by size, which cannot see a same-length
-edit. `--verify` hashes inherited aggregate and companion source files
-against their snapshot sha256 values. Missing inherited files and content
-drift are errors; reserialization is accepted only against intact published
-objects. Objects explicitly planned for first upload are excluded from this
-inherited-file check. The
-workflow runs it in a weekly Sunday sweep; expect it to be slow.
+edit. `--verify` hashes inherited aggregate and companion files (both `data/`
+and `flat/objects/`) against their snapshot sha256 values, using LFS pointer
+digests from `list_repo_tree` and a temporary LFS-skipped `--bare --depth 1`
+packfile before falling back to per-file downloads. Missing inherited files and
+content drift are errors; reserialization is accepted only against intact
+published objects. Objects explicitly planned for first upload are excluded
+from this inherited-file check. The workflow runs it in a weekly Sunday sweep.
 
 Exit codes follow the house convention: 0 clean or no-op, 1 error, 2
 completed with excluded conflicts that are not all acknowledged. Records are not validated here: the ingestion cron validated
