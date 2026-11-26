@@ -1036,6 +1036,24 @@ def test_an_adapter_that_asks_for_a_hub_token_still_gets_it(tmp_path) -> None:
     assert env['HF_TOKEN'] == 'read-token'
 
 
+def test_paperswithcode_gets_its_bucket_token_but_not_the_publish_token(
+    tmp_path,
+) -> None:
+    from every_eval_ever.adapters import catalog
+
+    env = runner.adapter_environment(
+        catalog.get('paperswithcode'),
+        raw_dir=tmp_path / 'raw',
+        base_env={
+            'HF_TOKEN': 'write-token',
+            'PAPERSWITHCODE_HF_TOKEN': 'bucket-token',
+        },
+    )
+
+    assert env['PAPERSWITHCODE_HF_TOKEN'] == 'bucket-token'
+    assert 'HF_TOKEN' not in env
+
+
 def test_adapter_output_encoding_does_not_depend_on_the_platform(
     tmp_path,
 ) -> None:

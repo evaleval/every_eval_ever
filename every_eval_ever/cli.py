@@ -369,15 +369,51 @@ def _cmd_convert_helm(args: argparse.Namespace) -> int:
     return 0
 
 
+#: What ``convert alpaca_eval`` writes to when no ``--output_dir`` is given. A
+#: marker, not the directory itself: it is resolved per run (see
+#: :func:`_cmd_convert_alpaca_eval`), and building the parser must not create
+#: anything on disk.
+SMOKE_OUTPUT_DIR = str(
+    Path(tempfile.gettempdir()) / 'alpaca-eval-smoke' / 'data'
+)
+
+
 def _cmd_convert_alpaca_eval(args: argparse.Namespace) -> int:
+    import json
+
     from every_eval_ever.converters.alpaca_eval.adapter import (
         LEADERBOARDS,
         AlpacaEvalAdapter,
     )
+    from every_eval_ever.converters.alpaca_eval.upstream import UpstreamSnapshot
+    from every_eval_ever.helpers.eval_card_registry import Registry, gaps
 
-    adapter = AlpacaEvalAdapter()
+    snapshot = None
+    if args.input_json:
+        with open(args.input_json, encoding='utf-8') as handle:
+            snapshot = UpstreamSnapshot.from_payload(json.load(handle))
+        print(f'Replaying upstream snapshot {args.input_json} (ref {snapshot.ref})')
+    registry = Registry(
+        enabled=not args.no_registry_resolve, live=args.registry_live
+    )
+    print(f'eval-card-registry: {registry.status()}')
+    if registry.enabled and gaps():
+        # Surfaced every run: a missing canonical is a registry-side follow-up,
+        # and it silently shapes the ids in the output until someone files it.
+        print('  no canonical entry for: ' + ', '.join(gaps()))
+    adapter = AlpacaEvalAdapter(
+        ref=args.ref, snapshot=snapshot, registry=registry
+    )
     versions = [args.version] if args.version else list(LEADERBOARDS.keys())
-    output_dir = Path(args.output_dir)
+    if args.output_dir == SMOKE_OUTPUT_DIR:
+        # Records are named with a fresh UUID per run, so a fixed throwaway
+        # directory accumulates earlier runs' output and a reader cannot tell
+        # which files this run produced. One directory per run instead of
+        # deleting: a smoke run is worth looking at.
+        output_dir = Path(tempfile.mkdtemp(prefix='alpaca-eval-smoke-')) / 'data'
+        print(f'No --output_dir given; writing throwaway output to {output_dir}')
+    else:
+        output_dir = Path(args.output_dir)
 
     logs_to_publish = []
     eval_uuids = []
@@ -448,6 +484,22 @@ def _cmd_convert_alpaca_eval(args: argparse.Namespace) -> int:
             logs_to_publish.append(log)
             eval_uuids.append(str(uuid.uuid4()))
 
+    if registry.live:
+        # The line printed before conversion cannot carry these: no lookup has
+        # happened yet. `live_error` is sticky, so it reports the run, not a call.
+        print(
+            f'\neval-card-registry live lookups: {registry.live_queries} '
+            f'queries, {registry.live_hits} resolved'
+            + (f', error: {registry.live_error}' if registry.live_error else '')
+        )
+
+    if args.save_raw_json:
+        raw_path = Path(args.save_raw_json)
+        raw_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(raw_path, 'w', encoding='utf-8') as handle:
+            json.dump(adapter.snapshot.to_payload(), handle, indent=2)
+        print(f'Upstream snapshot: {raw_path}')
+
     paths = publish_evaluation_logs(logs_to_publish, output_dir, eval_uuids)
     for path in paths:
         print(f'  {path}')
@@ -463,6 +515,63 @@ def _cmd_convert_alpaca_eval(args: argparse.Namespace) -> int:
     for _, conversion_result in conversion_results:
         conversion_result.raise_if_incomplete()
     print(f'\nConverted {len(paths)} model evaluation(s).')
+    return 0
+
+
+def _cmd_convert_sayf_eval(args: argparse.Namespace) -> int:
+    from every_eval_ever.converters.sayf_eval.adapter import SayfEvalAdapter
+
+    adapter = SayfEvalAdapter()
+    metadata = _common_metadata(args)
+    # The shared arg loop defaults --eval_library_name to the source id
+    # ('sayf_eval'); prefer the canonical package name unless overridden.
+    if args.eval_library_name == 'sayf_eval':
+        metadata['eval_library_name'] = 'sayf-eval'
+    # Route each task into its own namespaced collection (data/<prefix><task>/...)
+    # so the datastore has one collection per benchmark, matching EEE's
+    # per-collection Community-Evals tooling; upstream dataset names stay in each
+    # log's source_data.
+    collection_prefix = getattr(args, 'collection_prefix', None) or 'sayf-eval-'
+
+    log_path = Path(args.log_path)
+    input_result: SourceConversionResult[Any] | None = None
+    if log_path.is_file():
+        logs = adapter.transform_from_file(log_path, metadata)
+    elif log_path.is_dir():
+        input_result = adapter.transform_from_directory_result(
+            log_path, metadata
+        )
+        logs = input_result.records
+    else:
+        raise FileNotFoundError(f'Path is not a file or directory: {log_path}')
+
+    if not logs and input_result is None:
+        raise ValueError(
+            f'sayf-eval conversion produced no logs from {log_path}'
+        )
+
+    output_dir = Path(args.output_dir)
+    # Aggregate-only: sayf-eval per-sample item text is dual-use and never
+    # published, so no instance-level samples and no staging directory. Each log
+    # goes into its own per-task collection (the task is the evaluation_id stem).
+    paths = []
+    for log, eval_uuid in zip(logs, [str(uuid.uuid4()) for _ in logs]):
+        task = log.evaluation_id.split('/', 1)[0]
+        collection = f'{collection_prefix}{task.replace("_", "-")}'
+        paths.extend(
+            publish_evaluation_logs(
+                [log], output_dir, [eval_uuid], collection_override=collection
+            )
+        )
+    for path in paths:
+        print(path)
+
+    _save_partial_conversion_report(
+        input_result, output_dir, 'sayf_eval_inputs'
+    )
+    if input_result is not None:
+        input_result.raise_if_incomplete()
+    print(f'Converted {len(paths)} evaluation log(s).')
     return 0
 
 
@@ -535,7 +644,7 @@ def build_parser() -> argparse.ArgumentParser:
         dest='source', required=True
     )
 
-    for source in ['lm_eval', 'inspect', 'helm', 'alpaca_eval']:
+    for source in ['lm_eval', 'inspect', 'helm', 'alpaca_eval', 'sayf_eval']:
         source_parser = convert_subparsers.add_parser(
             source,
             help=f'Convert {source} logs',
@@ -592,6 +701,16 @@ def build_parser() -> argparse.ArgumentParser:
         )
 
         if source == 'alpaca_eval':
+            from every_eval_ever.converters.alpaca_eval.upstream import (
+                DEFAULT_UPSTREAM_REF,
+            )
+
+            # This source fetches from the network rather than from a local log,
+            # so a plain `convert alpaca_eval` would otherwise write a data/
+            # tree into whatever directory it was run from. Default to a temp
+            # path so a smoke run is throwaway; publishing is opt-in via
+            # --output_dir.
+            source_parser.set_defaults(output_dir=SMOKE_OUTPUT_DIR)
             source_parser.add_argument(
                 '--version',
                 choices=['v1', 'v2'],
@@ -599,6 +718,56 @@ def build_parser() -> argparse.ArgumentParser:
                 help=(
                     'Which leaderboard version to convert: v1 (AlpacaEval 1.0) '
                     'or v2 (AlpacaEval 2.0). Omit to convert both (default).'
+                ),
+            )
+            source_parser.add_argument(
+                '--ref',
+                default=DEFAULT_UPSTREAM_REF,
+                help=(
+                    'Upstream tatsu-lab/alpaca_eval git ref to convert from. '
+                    'Pinning a commit (the default) keeps evaluation_id stable '
+                    'across reruns; pass a branch to pick up new submissions.'
+                ),
+            )
+            source_parser.add_argument(
+                '--save_raw_json',
+                '--save-raw-json',
+                default=None,
+                help=(
+                    'Write the fetched upstream artefacts (leaderboard CSVs, '
+                    'judge configs and prompts, per-model configs) to this JSON '
+                    'file so the conversion can be replayed offline.'
+                ),
+            )
+            source_parser.add_argument(
+                '--input_json',
+                '--input-json',
+                default=None,
+                help=(
+                    'Convert from a --save_raw_json snapshot instead of '
+                    'fetching from GitHub. Nothing is fetched unless '
+                    '--registry_live is also given.'
+                ),
+            )
+            source_parser.add_argument(
+                '--no_registry_resolve',
+                '--no-registry-resolve',
+                action='store_true',
+                help=(
+                    'Do not resolve organization, metric and benchmark ids '
+                    'against the eval-card-registry. Records then carry the '
+                    'source-derived spellings, marked registry_disabled.'
+                ),
+            )
+            source_parser.add_argument(
+                '--registry_live',
+                '--registry-live',
+                action='store_true',
+                help=(
+                    'Additionally query the live registry for values the '
+                    'vendored snapshot cannot place. Uses mode=exact, which '
+                    'resolves without creating draft canonicals. Never fatal: '
+                    'a failure falls back to the snapshot.'
                 ),
             )
 
@@ -629,6 +798,18 @@ def build_parser() -> argparse.ArgumentParser:
                 help=(
                     'Optional JSON file containing supplemental model and '
                     'evaluation details.'
+                ),
+            )
+        if source == 'sayf_eval':
+            source_parser.add_argument(
+                '--collection_prefix',
+                '--collection-prefix',
+                default='sayf-eval-',
+                help=(
+                    'Prefix for the per-task datastore collection '
+                    '(data/<prefix><task>/...): one collection per benchmark. '
+                    'Upstream dataset names are kept in each log source_data. '
+                    'Default: sayf-eval-.'
                 ),
             )
 
@@ -667,6 +848,8 @@ def main(argv: list[str] | None = None) -> int:
             return _cmd_convert_helm(args)
         if args.source == 'alpaca_eval':
             return _cmd_convert_alpaca_eval(args)
+        if args.source == 'sayf_eval':
+            return _cmd_convert_sayf_eval(args)
 
     parser.print_help()
     return 1

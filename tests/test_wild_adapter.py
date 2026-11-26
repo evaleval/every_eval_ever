@@ -156,6 +156,28 @@ def test_instances(tmp_path):
         agg.with_name(f"{agg.stem}_samples.jsonl").read_bytes()).hexdigest()
 
 
+def test_make_instance_rejects_fractional_scores_and_maps_binary():
+    base_row = {
+        "task": "mmlu",
+        "subtask": "math",
+        "item_id": "item-1",
+        "score": 0.5,
+        "input_tokens": 10,
+        "output_tokens": 5,
+        "scores": '{"match": {"answer": "4"}}',
+        "answer": "4",
+        "conversation": '[{"role": "user", "content": "2+2?"}, {"role": "assistant", "content": "4"}]',
+        "target": "4",
+        "stop_reason": "stop",
+    }
+    assert adapter.make_instance(base_row, "wild/m/mmlu/1", "org/m", False) is None
+
+    one = adapter.make_instance({**base_row, "score": 1.0}, "wild/m/mmlu/1", "org/m", False)
+    zero = adapter.make_instance({**base_row, "score": 0.0}, "wild/m/mmlu/1", "org/m", False)
+    assert one is not None and one.evaluation.is_correct is True
+    assert zero is not None and zero.evaluation.is_correct is False
+
+
 def test_rerun_needs_replace_existing(tmp_path):
     # filenames are fresh uuid4s, so a second run into the same directory would add a
     # duplicate copy of every evaluation_id instead of replacing it

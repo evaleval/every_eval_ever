@@ -97,6 +97,13 @@ Re-derive this list from `REGISTERED_CHECKS`, `_DEPLOYMENT_TYPES`,
   `datastore_output_dir` / `datastore_repo_file_path` — rather than publishing the
   same model under two.
 
+## §sample_id — `check_sample_id_redaction` (warning)
+- Warns when a samples file has `sample_id`s containing a scrubber placeholder
+  (`<AWS-SECRET-KEY>`, `<REDACTED>`, `<EMAIL_ADDRESS>`). A secret or PII scrubber run over
+  whole records also rewrites identifiers: a 40-character git SHA matches the usual
+  AWS-secret pattern, so SWE-bench-style ids lose their commit hash and different tasks
+  share one id. Scrub text fields only, or restore the source ids afterwards.
+
 ## §publish — `publish_evaluation_logs`
 **Mind which root each entry point wants — they differ, and a mismatch is silent until
 the path check rejects the depth:** `publish_evaluation_logs(base_output_dir=…)` takes the

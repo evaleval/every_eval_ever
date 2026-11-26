@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "every-eval-ever"
-version = "0.2.3rc1"
+version = "0.3.0"
 description = "Every Eval Ever"
 readme = "README.md"
 authors = [
@@ -65,9 +65,19 @@ every_eval_ever = [
     "adapters/**/*.sh",
     "adapters/**/registry_snapshot.json",
     "cron/*.md",
+    "cron/flat_acknowledged_conflicts.txt",
     "tools/*.md",
+    # Vendored eval-card-registry vocabulary, resolved against offline.
+    "helpers/data/*.json",
+    # Vendored upstream snapshots converters resolve against offline.
+    "converters/**/*.json",
 ]
 [dependency-groups]
+cron = [
+    "datasets>=3.6.0",
+    "pgdumplib>=4.0.0",
+    "pyarrow>=14.0",
+]
 dev = [
     "datamodel-code-generator>=0.43.1",
     "pytest>=9.0.2",

@@ -443,6 +443,27 @@ def test_fetch_csv_captures_the_response_body(tmp_path, monkeypatch) -> None:
     assert entry['path'].endswith('.csv')
 
 
+def test_fetch_text_captures_the_response_body(tmp_path, monkeypatch) -> None:
+    sink = raw_capture.activate(tmp_path)
+    monkeypatch.setattr(
+        requests,
+        'get',
+        lambda *args, **kwargs: FakeResponse(
+            url='https://example.com/App.js',
+            content=b'const release = 1;',
+            content_type='text/javascript',
+        ),
+    )
+
+    assert fetch.fetch_text('https://example.com/App.js') == (
+        'const release = 1;'
+    )
+
+    entry = entries(sink)[0]
+    assert entry['url'] == 'https://example.com/App.js'
+    assert (tmp_path / entry['path']).read_bytes() == b'const release = 1;'
+
+
 def test_fetch_helpers_write_nothing_when_capture_is_off(
     tmp_path, monkeypatch
 ) -> None:

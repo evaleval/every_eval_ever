@@ -44,6 +44,74 @@ from every_eval_ever.instance_level_types import (
     ToolCall,
 )
 
+# Continuous, graded, or dispersion metric names where a 1.0 sample value is
+# still not a binary correctness verdict (v0.3.0 interim is_correct rule).
+_NON_BINARY_METRIC_NAMES: frozenset[str] = frozenset(
+    {
+        'bertscore',
+        'bits_per_byte',
+        'bleu',
+        'bootstrap_stderr',
+        'brier_score',
+        'cer',
+        'chrf',
+        'chrf++',
+        'cider',
+        'edit_distance',
+        'f1',
+        'f1_score',
+        'kendall',
+        'loglikelihood',
+        'mae',
+        'matthews_corrcoef',
+        'meteor',
+        'mse',
+        'pearson',
+        'perplexity',
+        'rmse',
+        'rouge',
+        'rouge1',
+        'rouge2',
+        'rouge_l',
+        'rougel',
+        'rougelsum',
+        'sacrebleu',
+        'spearman',
+        'std',
+        'stderr',
+        'ter',
+        'var',
+        'variance',
+        'wer',
+    }
+)
+_NON_BINARY_METRIC_PREFIXES: tuple[str, ...] = (
+    'bertscore_',
+    'bleu_',
+    'chrf_',
+    'rouge',
+)
+
+
+def _is_non_binary_metric(
+    result_id: str | None, scorer_name: str | None
+) -> bool:
+    """True when the metric or scorer is a known graded/continuous/dispersion metric."""
+    candidates: list[str] = []
+    if result_id:
+        candidates.append(result_id.split(':', 1)[-1])
+    if scorer_name:
+        candidates.append(scorer_name)
+    for raw in candidates:
+        name = raw.strip().lower()
+        if (
+            name in _NON_BINARY_METRIC_NAMES
+            or name.startswith(_NON_BINARY_METRIC_PREFIXES)
+            or name.endswith('_stderr')
+        ):
+            return True
+    return False
+
 
 def evaluation_result_id(
     scorer_name: str | None, metric_name: str | None
@@ -288,7 +356,7 @@ class InspectInstanceLevelDataAdapter:
         reductions_by_sample: Dict[str, List[Tuple[float, bool]]],
         scorer_name: str | None = None,
     ) -> Tuple[float, bool]:
-        """Resolve one row's score, preferring the scorer that owns the row.
+        """Resolve one row's ``(score, is_binary)``, preferring the owning scorer.
 
         `scorer_name` is the scorer whose aggregate result this row joins to;
         with it, a sample scored by several scorers reports each scorer's own
@@ -301,16 +369,15 @@ class InspectInstanceLevelDataAdapter:
                 (sample_id, self._normalize_sample_id(scorer_name))
             )
             if matched is not None:
-                score, _ = matched
-                return score, False
+                return matched
 
             own_score = (sample.scores or {}).get(scorer_name)
             if own_score is not None:
-                parsed_score, _ = self._parse_score_value(
+                parsed_score, parsed_is_binary = self._parse_score_value(
                     getattr(own_score, 'value', None)
                 )
                 if parsed_score is not None:
-                    return parsed_score, False
+                    return parsed_score, parsed_is_binary
 
         if sample.scores:
             for candidate_name in sample.scores.keys():
@@ -319,22 +386,20 @@ class InspectInstanceLevelDataAdapter:
                     (sample_id, scorer_key)
                 )
                 if matched is not None:
-                    score, _ = matched
-                    return score, False
+                    return matched
 
         sample_reduction_scores = reductions_by_sample.get(sample_id, [])
         unique_sample_reduction_scores = set(sample_reduction_scores)
         if len(unique_sample_reduction_scores) == 1:
-            score, _ = unique_sample_reduction_scores.pop()
-            return score, False
+            return unique_sample_reduction_scores.pop()
 
         if sample.scores:
             for score in sample.scores.values():
-                parsed_score, _ = self._parse_score_value(
+                parsed_score, parsed_is_binary = self._parse_score_value(
                     getattr(score, 'value', None)
                 )
                 if parsed_score is not None:
-                    return parsed_score, False
+                    return parsed_score, parsed_is_binary
 
         fallback_score = 1.0 if response_in_reference else 0.0
         return fallback_score, True
@@ -490,7 +555,7 @@ class InspectInstanceLevelDataAdapter:
                 response_in_reference = response in sample_input.reference
                 (
                     evaluation_score,
-                    is_fallback_score,
+                    score_is_binary,
                 ) = self._resolve_evaluation_score(
                     sample,
                     response_in_reference,
@@ -499,9 +564,9 @@ class InspectInstanceLevelDataAdapter:
                     scorer_name,
                 )
                 is_correct = (
-                    response_in_reference
-                    if is_fallback_score
-                    else evaluation_score > 0
+                    score_is_binary
+                    and not _is_non_binary_metric(result_id, scorer_name)
+                    and evaluation_score == 1.0
                 )
 
                 evaluation = Evaluation(
