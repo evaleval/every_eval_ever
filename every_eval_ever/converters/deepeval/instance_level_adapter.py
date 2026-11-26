@@ -24,7 +24,16 @@ from every_eval_ever.instance_level_types import (
     TokenUsage,
 )
 
-from .utils import evaluation_result_id, is_int, is_number
+from .utils import evaluation_result_id, is_int, is_number, metric_key
+
+# DeepEval metrics whose score is a strict {0.0, 1.0} correctness verdict,
+# keyed by their normalized metric name. Under the v0.3.0 is_correct rule
+# only these may emit is_correct=True; thresholded or graded metrics
+# (GEval, Answer Relevancy, Faithfulness, Tool Correctness, custom
+# metrics) always emit is_correct=False.
+_BINARY_CORRECTNESS_METRIC_KEYS: frozenset[str] = frozenset(
+    {'exact_match', 'pattern_match'}
+)
 
 
 class DeepEvalInstanceLevelAdapter:
@@ -170,11 +179,21 @@ class DeepEvalInstanceLevelAdapter:
                 # from the run summary), so no row is published rather
                 # than deriving a verdict from the score or threshold.
                 continue
-            is_correct = success
             display_name = metric_data.get('name') or ''
+            # The producer verdict is preserved verbatim in metadata;
+            # is_correct itself follows the v0.3.0 rule: True only for a
+            # strictly binary metric the producer passed at score 1.0.
+            is_correct = (
+                success
+                and float(score) == 1.0
+                and metric_key(display_name) in _BINARY_CORRECTNESS_METRIC_KEYS
+            )
             threshold = metric_data.get('threshold')
 
-            metadata: dict[str, str] = {'metric': display_name}
+            metadata: dict[str, str] = {
+                'metric': display_name,
+                'deepeval_success': str(success),
+            }
             if case.get('name'):
                 metadata['test_case_name'] = str(case['name'])
             if is_number(threshold):
