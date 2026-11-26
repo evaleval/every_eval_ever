@@ -16,6 +16,8 @@ from every_eval_ever.adapters.kaggle import registry
 @pytest.fixture(autouse=True)
 def no_retry_pause(monkeypatch):
     monkeypatch.setattr(registry, "RETRY_DELAYS", (0.0, 0.0))
+    monkeypatch.setattr(registry, "_unanswered_in_a_row", 0)
+    monkeypatch.setattr(registry, "_paused_until", 0.0)
 
 
 class _FakeResponse:
@@ -70,6 +72,8 @@ def test_a_canonical_answer_is_used_with_its_provenance(monkeypatch):
     assert calls[0][1]["json"] == {
         "raw_value": "gemma-3-27b-it",
         "entity_type": "model",
+        # The one mode that never creates a draft canonical in the registry.
+        "mode": "exact",
     }
 
 
@@ -125,10 +129,13 @@ def test_no_match_is_reported_as_the_reason(monkeypatch):
     assert provenance["model_id_resolution_strategy"] == "no_match"
 
 
-def test_a_malformed_reply_says_so_rather_than_naming_a_strategy(monkeypatch):
+def test_a_malformed_reply_is_not_read_as_a_miss(monkeypatch):
+    # A miss lets the caller try another spelling or publish a lexical id; a
+    # reply it cannot read establishes neither.
     _post(monkeypatch, _FakeResponse([]))
     _, provenance = registry.resolve_model_id("x")
-    assert "malformed reply" in provenance["model_id_resolution_strategy"]
+    assert provenance["model_id_resolution"] == "invalid_reply"
+    assert "malformed reply" in provenance["model_id_resolution_error"]
 
 
 @pytest.mark.parametrize(
@@ -154,6 +161,26 @@ def test_the_error_detail_is_bounded(monkeypatch):
     _post(monkeypatch, requests.ConnectionError("x" * 5000))
     _, provenance = registry.resolve_model_id("y")
     assert len(provenance["model_id_resolution_error"]) <= 200
+
+
+def test_repeated_failures_pause_lookups_instead_of_retrying_each(monkeypatch):
+    calls = _post(monkeypatch, requests.ConnectionError("down"))
+    for slug in ("a", "b", "c", "d", "e"):
+        _, provenance = registry.resolve_model_id(slug)
+        assert provenance["model_id_resolution"] == "unreachable"
+    # Three lookups spend their attempts; the rest fail without a request.
+    attempts = len(registry.RETRY_DELAYS) + 1
+    assert len(calls) == registry.BREAKER_THRESHOLD * attempts
+
+
+def test_lookups_resume_after_the_pause(monkeypatch):
+    monkeypatch.setattr(registry, "_paused_until", 0.0)
+    _post(
+        monkeypatch,
+        _FakeResponse({"canonical_id": "google/gemma", "strategy": "exact"}),
+    )
+    _, provenance = registry.resolve_model_id("gemma")
+    assert provenance["model_id_resolution"] == "registry"
 
 
 def test_a_transient_failure_is_retried(monkeypatch):

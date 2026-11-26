@@ -25,35 +25,49 @@ RESOLVER_URL = "https://evaleval-entity-registry.hf.space/api/v1/resolve"
 #: Pauses before retrying a request that failed; a malformed reply is final.
 RETRY_DELAYS = (2.0, 8.0)
 
+#: After this many lookups in a row get no answer, lookups fail at once for a
+#: pause instead of each spending its retries, so a registry outage reports in
+#: minutes rather than running the sweep into its job timeout.
+BREAKER_THRESHOLD = 3
+BREAKER_PAUSE_SECONDS = 60.0
+_unanswered_in_a_row = 0
+_paused_until = 0.0
+
 #: Below this, the resolver's alias is treated as unverified and flagged for
 #: review rather than trusted as canonical.
 RESOLVE_CONFIDENCE_FLOOR = 0.9
 
 #: ``model_id_resolution`` values that mean "this id is not the registry's".
-_UNRESOLVED = frozenset({"unreachable", "unresolved"})
+_UNRESOLVED = frozenset({"unreachable", "invalid_reply", "unresolved"})
+
+#: Values that mean the registry gave no usable answer at all: unlike a
+#: definitive ``unresolved``, these say nothing about whether the id is known.
+UNANSWERED = frozenset({"unreachable", "invalid_reply"})
+
+
+class _InvalidReply(ValueError):
+    """A 200 whose body is not a resolver answer."""
 
 
 def _canonical(payload: Any) -> tuple[Optional[str], str]:
     """Read one resolver reply.
 
-    Returns ``(canonical id, strategy)``, or ``(None, reason)`` when the reply
-    names no canonical id — whether because the registry does not know the
-    value (``no_match``) or because the reply is not one this code understands.
-    A 200 carrying a list, ``null`` or an object without a strategy is a
-    protocol change, and must not read as a confident answer.
+    Returns ``(canonical id, strategy)``, or ``(None, strategy)`` when the
+    registry answered that it does not know the value (``no_match``). Raises
+    :class:`_InvalidReply` for a 200 carrying a list, ``null`` or an object
+    without a strategy: a protocol change, which is neither a confident answer
+    nor a miss.
     """
     if not isinstance(payload, dict):
-        return None, (
+        raise _InvalidReply(
             f"malformed reply: expected an object, got {type(payload).__name__}"
         )
     strategy = payload.get("strategy")
     if not isinstance(strategy, str) or not strategy.strip():
-        return None, "malformed reply: no resolution strategy"
+        raise _InvalidReply("malformed reply: no resolution strategy")
     canonical = payload.get("canonical_id")
     if not isinstance(canonical, str) or not canonical.strip():
-        # The resolver's own "I do not know this one" (strategy ``no_match``)
-        # arrives this way, so it is reported as the reason rather than as an
-        # error.
+        # The resolver's own "I do not know this one" (strategy ``no_match``).
         return None, strategy.strip()
     return canonical.strip(), strategy.strip()
 
@@ -63,7 +77,10 @@ def _post(raw_repo: str, timeout: float) -> requests.Response:
         try:
             response = requests.post(
                 RESOLVER_URL,
-                json={"raw_value": raw_repo, "entity_type": "model"},
+                # `exact` is the one mode that never creates a draft canonical
+                # (helpers/eval_card_registry.py); for every Kaggle slug it
+                # answered as the default mode did (153/153, November 2026).
+                json={"raw_value": raw_repo, "entity_type": "model", "mode": "exact"},
                 timeout=timeout,
             )
             response.raise_for_status()
@@ -81,21 +98,36 @@ def resolve_model_id(
     """Canonicalize ``raw_repo``, returning ``(model_id, provenance)``.
 
     ``provenance['model_id_resolution']`` is one of ``offline`` (opted out),
-    ``unreachable`` (the request failed), ``unresolved`` (answered, but named no
-    canonical id) or ``registry`` (canonical). Only the last means the returned
-    id is the registry's; the others return ``raw_repo`` unchanged.
+    ``unreachable`` (the request failed), ``invalid_reply`` (a 200 that is not
+    a resolver answer), ``unresolved`` (answered, but named no canonical id) or
+    ``registry`` (canonical). Only the last means the returned id is the
+    registry's; the others return ``raw_repo`` unchanged.
     """
+    global _unanswered_in_a_row, _paused_until
     if not enabled:
         return raw_repo, {"model_id_resolution": "offline"}
+    if time.monotonic() < _paused_until:
+        return raw_repo, {
+            "model_id_resolution": "unreachable",
+            "model_id_resolution_error": "skipped: the registry failed repeatedly",
+        }
     try:
         response = _post(raw_repo, timeout)
         payload = response.json()
         canonical, strategy = _canonical(payload)
     except Exception as exc:  # noqa: BLE001 - best-effort, never fatal
+        _unanswered_in_a_row += 1
+        if _unanswered_in_a_row >= BREAKER_THRESHOLD:
+            _unanswered_in_a_row = 0
+            _paused_until = time.monotonic() + BREAKER_PAUSE_SECONDS
+        resolution = (
+            "invalid_reply" if isinstance(exc, _InvalidReply) else "unreachable"
+        )
         return raw_repo, {
-            "model_id_resolution": "unreachable",
+            "model_id_resolution": resolution,
             "model_id_resolution_error": str(exc)[:200],
         }
+    _unanswered_in_a_row = 0
     if canonical is None:
         return raw_repo, {
             "model_id_resolution": "unresolved",

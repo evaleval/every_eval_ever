@@ -25,13 +25,12 @@ A benchmark's overall score and its sub-benchmark scores live in one record, so
 aggregate and ``kaggle.<owner>.<benchmark>.<sub-benchmark>`` for each part
 (``<task owner>.<sub-benchmark>`` when someone else published the task).
 Summing a file would otherwise double-count. The owner is part of the name
-because a benchmark is an ``owner/slug`` resource and 15 slugs are published by
-more than one owner.
+because a benchmark is an ``owner/slug`` resource, and one slug can be published
+by several owners.
 
-What Kaggle does *not* publish is a metric's unit or scale. Across the
-published benchmarks, ``displayType``/``aggregationType`` do not determine
-either: values under ``PERCENTAGES``/``PERCENTAGE_PASSED`` range from -180 to
-7.4e7, and only ~69% of them fall in [0, 1]. Numeric scores are therefore
+What Kaggle does *not* publish is a metric's unit or scale, and
+``displayType``/``aggregationType`` do not determine either (see the adapters
+README for the observed spread). Numeric scores are therefore
 emitted with no unit, no bounds and no ``score_type``, and Kaggle's raw scoring
 configuration is kept in ``metric_config.additional_details`` so a later pass can
 normalize what this adapter refuses to guess. ``aggregationType`` *does* name the
@@ -54,11 +53,11 @@ Usage:
         --benchmark cohere-labs/global-mmlu-lite-korean \
         --output-dir /tmp/eee-kaggle
 
-    # Convert every published benchmark (~5 minutes)
+    # Convert every published benchmark (~1,400; 6-14 minutes)
     uv run python -m every_eval_ever.adapters.kaggle.adapter \
         --all --output-dir data/kaggle
 
-    # Smoke test: read only the first 5 benchmarks from the index
+    # Smoke test: convert only the first 5 published benchmarks
     uv run python -m every_eval_ever.adapters.kaggle.adapter \
         --all --limit 5 --output-dir /tmp/eee-kaggle
 """
@@ -190,7 +189,10 @@ class Benchmark:
     display_type: Optional[str] = None
 
     def __post_init__(self) -> None:
-        if self.sort_order not in SORT_ORDER_LOWER_IS_BETTER:
+        if (
+            not isinstance(self.sort_order, str)
+            or self.sort_order not in SORT_ORDER_LOWER_IS_BETTER
+        ):
             raise ValueError(
                 f"unsupported Kaggle sortOrder {self.sort_order!r}; expected "
                 f"one of {sorted(SORT_ORDER_LOWER_IS_BETTER)}"
@@ -245,19 +247,42 @@ class Candidate:
 
     @property
     def variant(self) -> str:
-        """The part of ``evaluation_id`` that tells this row from the bare model."""
-        return self.agent_slug or self.config_slug
+        """The part of ``evaluation_id`` that tells this row from the bare model,
+        namespaced by kind so a configuration and an agent cannot share it."""
+        if self.agent_slug:
+            return f"agent/{self.agent_slug}"
+        return f"config/{self.config_slug}" if self.config_slug else ""
 
 
-def _text(row: dict, field: str) -> str:
-    value = row.get(field)
+def _text(record: dict, field: str) -> str:
+    """A string field as published; anything else (absent, null, a number) is ''."""
+    value = record.get(field)
     return value.strip() if isinstance(value, str) else ""
+
+
+def _task_version(task: dict) -> Optional[int]:
+    version = task.get("taskVersion")
+    if version is None or (isinstance(version, int) and not isinstance(version, bool)):
+        return version
+    raise ValueError(f"taskVersion is not an integer: {version!r}")
+
+
+_ISO_UTC = re.compile(r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d+))?Z$")
+
+
+def _chronological(timestamp: str) -> tuple[str, str]:
+    """Sort key for Kaggle's ``evaluationDate``, whose fraction has 0-7 digits
+    (``…:18Z`` is earlier than ``…:18.1Z``, though it sorts later as text)."""
+    match = _ISO_UTC.match(timestamp)
+    if match is None:
+        return timestamp, ""
+    return match.group(1), (match.group(2) or "").ljust(9, "0")
 
 
 def make_candidate(row: dict) -> Candidate:
     """Read a row's ``candidateClass`` and the configuration/agent it names."""
     candidate_class = row.get("candidateClass")
-    if candidate_class not in CANDIDATE_CLASSES:
+    if not isinstance(candidate_class, str) or candidate_class not in CANDIDATE_CLASSES:
         raise ValueError(f"unsupported candidateClass {candidate_class!r}")
     candidate = Candidate(
         candidate_class=candidate_class,
@@ -310,22 +335,26 @@ def resolve_model_identity(
 
     The registry decides the identity. The slug as published is offered first,
     so a variant the registry considers a model of its own keeps that id. Only
-    when the registry has no canonical id for it is the effort-stripped form
-    tried, and only a canonical answer is adopted; otherwise the lexical
-    fallback in ``helpers.developer`` is used and the provenance says so.
+    when the registry definitively has no canonical id for it (``unresolved``)
+    is the effort-stripped form tried, and only a canonical answer is adopted;
+    otherwise the lexical fallback in ``helpers.developer`` is used and the
+    provenance says so. An outage on either lookup is kept as ``unreachable``,
+    so the caller can refuse to publish a guess.
     """
     tier, base, reasoning = _split_effort_tier(slug, display_name)
     model_id, provenance = registry.resolve_model_id(slug, enabled=use_registry)
-    if not registry.resolved_canonically(provenance) and base != slug:
+    if provenance.get("model_id_resolution") == "unresolved" and base != slug:
         stripped_id, stripped_provenance = registry.resolve_model_id(
             base, enabled=use_registry
         )
-        if registry.resolved_canonically(stripped_provenance):
-            model_id = stripped_id
+        stripped_resolution = stripped_provenance.get("model_id_resolution")
+        if stripped_resolution == "registry" or stripped_resolution in registry.UNANSWERED:
             provenance = {
                 **stripped_provenance,
                 "model_id_resolved_from": base,
             }
+            if stripped_resolution == "registry":
+                model_id = stripped_id
     if not registry.resolved_canonically(provenance):
         # No canonical id: the lexical developer/model form of the slug as
         # published, flagged for review. The tier stays in it, because nothing
@@ -429,9 +458,10 @@ def _benchmark_owner(benchmark: dict) -> Optional[str]:
     creating user's username is used.
     """
     organization = benchmark.get("organization")
-    if organization and organization.get("slug"):
-        return organization["slug"]
-    return (benchmark.get("ownerUser") or {}).get("userName")
+    if isinstance(organization, dict) and _text(organization, "slug"):
+        return _text(organization, "slug")
+    owner_user = benchmark.get("ownerUser")
+    return _text(owner_user, "userName") if isinstance(owner_user, dict) else None
 
 
 def make_benchmark(entry: dict) -> Benchmark:
@@ -442,7 +472,7 @@ def make_benchmark(entry: dict) -> Benchmark:
     absent or unrecognised one is a schema change to report rather than a
     benchmark to leave quietly out of the corpus.
     """
-    slug = entry.get("slug")
+    slug = _text(entry, "slug")
     if not slug:
         raise ValueError("index entry has no slug")
     owner = _benchmark_owner(entry)
@@ -458,7 +488,7 @@ def make_benchmark(entry: dict) -> Benchmark:
     return Benchmark(
         owner=owner,
         slug=slug,
-        name=(entry.get("name") or slug).strip(),
+        name=_text(entry, "name") or slug,
         sort_order=version.get("sortOrder"),
         benchmark_id=None if benchmark_id is None else str(benchmark_id),
         aggregation_type=version.get("aggregationType"),
@@ -545,9 +575,8 @@ class TaskIdentity:
     #: published the task, so a consumer
     #: can tell the aggregate from its parts instead of summing a file and
     #: double-counting. The owner is in the name because a Kaggle benchmark is
-    #: an ``owner/slug`` resource and 15 slugs are published by more than one
-    #: owner (``animalimagerecognition`` by six), so the slug alone would give
-    #: unrelated benchmarks one identity.
+    #: an ``owner/slug`` resource and one slug can be published by several
+    #: owners.
     evaluation_name: str
     #: The subset a sub-benchmark scored (``<task owner>/<sub>`` when another
     #: owner published it), or the benchmark for the overall.
@@ -556,10 +585,38 @@ class TaskIdentity:
     url: str
     #: The display title Kaggle gives the column, kept as provenance.
     title: Optional[str]
+    #: A slugless column named by its title (``Votes``, ``Avg. Cost/Turn``): it
+    #: measures what its title says, not the benchmark's aggregation metric.
+    named_column: bool = False
+
+
+#: Symbols that carry meaning in a column title, spelled out so that
+#: `Pass@4` and `Pass^4` (mercor/apex-agents-1-1) stay two names.
+_TITLE_SYMBOLS = {
+    "@": "at",
+    "^": "hat",
+    "%": "pct",
+    "+": "plus",
+    "&": "and",
+    "#": "num",
+    "$": "usd",
+    "<": "lt",
+    ">": "gt",
+    "=": "eq",
+    "*": "star",
+    "±": "pm",
+    "≥": "ge",
+    "≤": "le",
+}
 
 
 def _title_key(title: str) -> str:
-    return re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
+    spelled = "".join(
+        f"-{_TITLE_SYMBOLS[char]}-" if char in _TITLE_SYMBOLS else char
+        for char in title.lower()
+    )
+    # Word characters in any script, so `精度` and `Précision` keep their letters.
+    return re.sub(r"[\W_]+", "-", spelled).strip("-")
 
 
 #: Titles Kaggle gives a benchmark's own overall column.
@@ -578,9 +635,11 @@ def make_task_identity(
     A name in ``versioned`` appears at more than one ``taskVersion`` on this
     leaderboard, so it carries ``.v<N>``.
     """
-    title = (task.get("benchmarkTaskName") or "").strip() or None
-    raw_slug = (task.get("benchmarkTaskSlug") or "").strip()
+    title = _text(task, "benchmarkTaskName") or None
+    raw_slug = _text(task, "benchmarkTaskSlug")
+    version = _task_version(task)
     stem = f"{ID_NAMESPACE}.{benchmark.owner}.{benchmark.slug}"
+    named_column = False
     task_owner, key = _task_ref(raw_slug)
     url = f"{KAGGLE_BASE}{raw_slug}" if raw_slug.startswith("/") else benchmark.url
     if not key and (title or "") in AGGREGATE_TITLES:
@@ -590,6 +649,7 @@ def make_task_identity(
         if not column:
             raise ValueError(f"column has no slug and no usable title: {title!r}")
         evaluation_name, dataset_name = f"{stem}.{column}", benchmark.slug
+        named_column = True
     elif task_owner and task_owner != benchmark.owner:
         # One benchmark can include same-named tasks by different owners
         # (`alexandrepedrosai/what-is-kaggle`, `neshdev/what-is-kaggle`).
@@ -598,12 +658,18 @@ def make_task_identity(
     else:
         evaluation_name, dataset_name = f"{stem}.{key}", key
     if evaluation_name in versioned:
-        evaluation_name += f".v{task.get('taskVersion')}"
+        if version is None:
+            raise ValueError(
+                f"{evaluation_name} is published at several versions, but this "
+                "task names none"
+            )
+        evaluation_name += f".v{version}"
     return TaskIdentity(
         evaluation_name=evaluation_name,
         dataset_name=dataset_name,
         url=url,
         title=title,
+        named_column=named_column,
     )
 
 
@@ -619,7 +685,7 @@ def versioned_names(benchmark: Benchmark, rows: list) -> frozenset[str]:
                 name = make_task_identity(task, benchmark).evaluation_name
             except ValueError:
                 continue  # reported when the task itself is converted
-            versions.setdefault(name, set()).add(task.get("taskVersion"))
+            versions.setdefault(name, set()).add(_task_version(task))
     return frozenset(name for name, seen in versions.items() if len(seen) > 1)
 
 
@@ -630,23 +696,23 @@ def _confidence_interval(
 
     ``confidenceInterval`` is a symmetric half-width and
     ``unevenConfidenceInterval`` an asymmetric ``{plus, minus}`` pair; the two
-    are mutually exclusive. Both are author-supplied and occasionally
-    nonsensical (a negative half-width, or one equal to the score), so a
-    half-width that is not a non-negative finite number yields no uncertainty
-    rather than bounds that do not bracket the score.
+    are mutually exclusive, and each is published only when its ``has*`` flag
+    is set. Both are author-supplied and occasionally nonsensical (a negative
+    half-width, or one equal to the score), so a half-width that is not a
+    non-negative finite number yields no uncertainty rather than bounds that do
+    not bracket the score. A flagged zero half-width is published and is kept.
     """
     lower_offset: Optional[float] = None
     upper_offset: Optional[float] = None
     if numeric.get("hasUnevenConfidenceInterval"):
-        uneven = numeric.get("unevenConfidenceInterval") or {}
-        lower_offset = _non_negative(uneven.get("minus"))
-        upper_offset = _non_negative(uneven.get("plus"))
+        uneven = numeric.get("unevenConfidenceInterval")
+        if isinstance(uneven, dict):
+            lower_offset = _non_negative(uneven.get("minus"))
+            upper_offset = _non_negative(uneven.get("plus"))
     elif numeric.get("hasConfidenceInterval"):
         half_width = _non_negative(numeric.get("confidenceInterval"))
         lower_offset = upper_offset = half_width
     if lower_offset is None or upper_offset is None:
-        return None
-    if lower_offset == 0.0 and upper_offset == 0.0:
         return None
     return ConfidenceInterval(
         lower=score - lower_offset,
@@ -681,7 +747,10 @@ def _metric_details(task: dict, benchmark: Benchmark) -> dict[str, str]:
         details["kaggle_display_type"] = display_type
     if benchmark.display_type:
         details["kaggle_benchmark_display_type"] = benchmark.display_type
-    task_version = task.get("taskVersion")
+    # `lower_is_better` comes from the leaderboard's order; Kaggle publishes no
+    # direction per column, so a cost column inherits it. Kept to say so.
+    details["kaggle_sort_order"] = benchmark.sort_order
+    task_version = _task_version(task)
     if task_version is not None:
         details["kaggle_task_version"] = str(task_version)
     return details
@@ -753,9 +822,15 @@ def build_eval_result(
         raise ValueError("task result must be an object")
     result_case = result.get("resultCase")
     identity = make_task_identity(task, benchmark, versioned)
-    metric_slug, metric_name, metric_kind = AGGREGATION_METRICS.get(
-        benchmark.aggregation_type, UNKNOWN_METRIC
-    )
+    if identity.named_column:
+        # Its title says what it measures (`Votes`, or one item of a suite), so
+        # it is not the benchmark's aggregation metric; nor is it a metric
+        # name. The title is kept in `kaggle_task_title`.
+        metric_slug, metric_name, metric_kind = UNKNOWN_METRIC
+    else:
+        metric_slug, metric_name, metric_kind = AGGREGATION_METRICS.get(
+            benchmark.aggregation_type, UNKNOWN_METRIC
+        )
 
     score_type: Optional[ScoreType] = None
     min_score: Optional[float] = None
@@ -875,19 +950,22 @@ def convert_benchmark(
                 row.get("modelVersionSlug"), "model version slug"
             )
             candidate = make_candidate(row)
-            display_name = (row.get("modelVersionName") or "").strip()
+            display_name = _text(row, "modelVersionName")
             cache_key = (model_slug, display_name)
             model = identities.get(cache_key)
             if model is None:
                 model = resolve_model_identity(
                     model_slug, display_name, use_registry=use_registry
                 )
-                identities[cache_key] = model
-            if model.provenance.get("model_id_resolution") == "unreachable":
+                if model.provenance.get("model_id_resolution") not in registry.UNANSWERED:
+                    # An outage is not an answer: the next row asks again.
+                    identities[cache_key] = model
+            resolution = model.provenance.get("model_id_resolution")
+            if resolution in registry.UNANSWERED:
                 # A guessed id would be published beside the canonical one the
                 # next run resolves, and the datastore keeps both.
                 raise ValueError(
-                    f"model id registry unreachable for {model_slug!r}: "
+                    f"model id registry gave no answer ({resolution}) for {model_slug!r}: "
                     f"{model.provenance.get('model_id_resolution_error')}"
                 )
 
@@ -991,7 +1069,7 @@ def convert_benchmark(
             if candidate.variant:
                 evaluation_id += f"/{candidate.variant}"
             if dates:
-                evaluation_id += f"/{max(dates)}"
+                evaluation_id += f"/{max(dates, key=_chronological)}"
             if evaluation_id in evaluation_ids:
                 raise ValueError(
                     f"evaluation_id {evaluation_id!r} already used by row "
@@ -1106,8 +1184,6 @@ def resolve_targets(
                 )
                 continue
             index[(benchmark.owner, benchmark.slug)] = benchmark
-            if args.all and args.limit and len(index) >= args.limit:
-                break
     except FetchError as exc:
         reason = f"benchmark index truncated: {exc}"
         print(f"  ! {reason}")
@@ -1136,12 +1212,12 @@ def resolve_targets(
             )
         targets[key] = benchmark
     if args.all:
-        for key, benchmark in index.items():
-            if key in excluded:
-                print(f"  excluding {benchmark.ref}")
-                continue
-            targets.setdefault(key, benchmark)
-    if args.all and not args.limit and not failures:
+        discovered = [key for key in index if key not in excluded]
+        for key in sorted(excluded & index.keys()):
+            print(f"  excluding {index[key].ref}")
+        for key in discovered[: args.limit]:
+            targets.setdefault(key, index[key])
+    if args.all and not failures:
         # The catalog's exclusions keep another adapter's collection its own;
         # one that matches nothing means the excluded benchmark was renamed.
         for owner, slug in sorted(excluded - index.keys()):
@@ -1196,8 +1272,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         type=_positive_int,
         default=None,
         help=(
-            "With --all, read only this many benchmarks from the index "
-            "(smoke testing)."
+            "With --all, convert only the first N published benchmarks "
+            "(smoke testing). The whole index is still read."
         ),
     )
     parser.add_argument(

@@ -161,8 +161,9 @@ uv run python -m every_eval_ever.adapters.kaggle.adapter \
   --all --limit 10 --output-dir /tmp/eee-kaggle
 ```
 
-One record per (benchmark, model) in a single `data/kaggle/` collection, one
-result per task result within it. The source is Kaggle, the platform that
+One record per (benchmark, leaderboard row) in a single `data/kaggle/`
+collection — a row is a model, a configuration of it, or an agent driving it —
+and one result per task result within it. The source is Kaggle, the platform that
 published the leaderboard: `source_name` is `Kaggle Benchmarks` and
 `source_organization_name` is `Kaggle`, while the benchmark's uploader stays in
 `source_metadata.additional_details.benchmark_owner`.
@@ -186,12 +187,11 @@ A benchmark's overall score and its sub-benchmark scores are all
 | sub-benchmark another owner published | `kaggle.<owner>.<bench>.<task owner>.<sub>` | `<task owner>/<sub>` | `kaggle.<owner>.<bench>.<task owner>.<sub>.<metric>` |
 
 The owner is part of the name because a Kaggle benchmark is an `owner/slug`
-resource and 15 slugs are published by more than one owner —
-`animalimagerecognition` by six, `metacognition-benchmark` by five — so the slug
-alone would give unrelated benchmarks one `metric_id`. For the same reason a
-sub-benchmark published by someone other than the benchmark's owner carries its
-owner: 108 benchmarks include such tasks, and some include two same-named tasks
-by different owners (`alexandrepedrosai/what-is-kaggle` and
+resource and one slug can be published by several owners (17 slugs in November
+2026), so the slug alone would give unrelated benchmarks one `metric_id`. For
+the same reason a sub-benchmark published by someone other than the benchmark's
+owner carries its owner: some benchmarks include two same-named tasks by
+different owners (`alexandrepedrosai/what-is-kaggle` and
 `neshdev/what-is-kaggle`).
 
 `metric_name` and `metric_kind` name the *metric* — `aggregationType`
@@ -200,26 +200,31 @@ column is kept as `metric_config.additional_details.kaggle_task_title`. Kaggle
 titles the aggregate `(Overall)`. Arena leaderboards publish several columns
 without a slug (`Score`, `Avg. Tokens/Turn`, `Avg. Cost/Turn`); each is named by
 its title (`…score`, `…avg-tokens-turn`), and none is promoted to the aggregate.
+Such a column is not the benchmark's aggregation metric — it is a count, a cost
+or one item of a suite (`Votes`, `P032`) — so it gets the generic metric
+(`metric_name: score`, no `metric_kind`, `metric_id` ending `.score`), and its
+title stays in `kaggle_task_title`. Symbols that carry meaning are spelled out,
+so `Pass@4` and `Pass^4` are `…pass-at-4` and `…pass-hat-4`.
 A name that appears at more than one `taskVersion` on the leaderboard gets
 `.v<N>` (`…avalon-merlin-trust-analysis.v5`); a task at a single version keeps
 its plain name. Two results in one record never share a name: a row that would
 is a failure.
 
 A sub-benchmark may carry its parent's slug, giving
-`kaggle.<owner>.<bench>.<bench>` (1.4% of results, 58 benchmarks). That is not a
-duplicated aggregate: in 306 of those records the aggregate and a
+`kaggle.<owner>.<bench>.<bench>`. That is not a duplicated aggregate: the
+aggregate and a
 `…void-market.void-market` column are separate published columns, alongside
 `…void-market.void-market-hard-mode`. Promoting a self-named column to the
 aggregate would collide with the real one and drop a column, so the name follows
-what Kaggle published — a task with a slug is a part, a task without one is the
-whole.
+what Kaggle published — a task with a slug is a part, and only the `(Overall)`
+column is the whole.
 
 #### What the records do and do not claim
 
 Kaggle does **not** publish a metric's unit or scale, and its rendering hints do
-not imply one: across the published corpus, values under
-`displayType=PERCENTAGES` / `aggregationType=PERCENTAGE_PASSED` run from -180 to
-7.4e7, with only ~69% of them in `[0, 1]`. Numeric results therefore carry no
+not imply one: in November 2026, values under
+`displayType=PERCENTAGES` / `aggregationType=PERCENTAGE_PASSED` ran from -25 to
+7.4e5, with 79% of them in `[0, 1]`. Numeric results therefore carry no
 `metric_unit`, no `score_type` and no bounds, and Kaggle's raw
 `aggregationType`/`displayType` (per column and for the benchmark)/task version
 are kept in `metric_config.additional_details`, with `bounds_status: unknown`, so
@@ -227,7 +232,9 @@ a later pass can normalize what this adapter refuses to guess. A published
 `standardDeviation` is kept as `uncertainty.standard_deviation`.
 Boolean task results are genuinely pass/fail and are
 emitted as `binary` on `[0, 1]`. `sortOrder` *is* published, and is the only
-source of `lower_is_better`. Scores and interval bounds are written as
+source of `lower_is_better`. It orders the leaderboard, not each column: Kaggle
+publishes no direction per column, so a cost or token column inherits it, and
+`kaggle_sort_order` says so. Scores and interval bounds are written as
 published, unrounded: some are as small as `1e-10`.
 
 #### Model identity
@@ -251,8 +258,9 @@ adopted. That is why the last two rows keep their reasoning variant — the
 registry considers those models of their own — while the first two do not. When
 neither form resolves, the id is the lexical `developer/<slug as published>`,
 tier included, flagged for review. When the registry cannot be reached (after
-retries) the row is a failure rather than a guessed id, because the datastore
-would keep the guess beside the canonical id the next run resolves.
+retries), or answers with something that is not a resolver reply, the row is a
+failure rather than a guessed id, because the datastore would keep the guess
+beside the canonical id the next run resolves.
 
 A row is a bare model, a named configuration of it, or an agent driving it
 (`candidateClass` `modelVersion` / `modelVersionConfig` / `agent`). One slug can
@@ -264,7 +272,7 @@ harness (`Claude Code`, `Codex`) go in
 `generation_config.generation_args.agentic_eval_config.additional_details`.
 
 `evaluation_id` is
-`<owner>/<bench>/<raw slug>[/<config or agent slug>]/<latest evaluationDate>`
+`<owner>/<bench>/<raw slug>[/config/<config slug> | /agent/<agent slug>]/<latest evaluationDate>`
 (the date omitted when Kaggle publishes none): keyed by what the row ran,
 because two efforts, configurations or agents of one model are distinct
 evaluations, and by the evaluation date rather than the time of the read, so a
@@ -293,11 +301,10 @@ tiers got into ids in the first place — so `ls data/kaggle/` is where you see 
 
 #### Other notes
 
-- A task Kaggle reports as unscored (`resultCase: none`, ~13% of them) is an
-  exclusion, not a failure; a model row with no scored task at all is excluded
-  too. Both are listed in the failure report.
-- `evaluation_timestamp` carries Kaggle's `evaluationDate` where present (~85%
-  of results).
+- A task Kaggle reports as unscored (`resultCase: none`) is an exclusion, not a
+  failure; a model row with no scored task at all is excluded too. Both are
+  listed in the failure report.
+- `evaluation_timestamp` carries Kaggle's `evaluationDate` where present.
 - `eval_library.name` is `unknown`: Kaggle names no evaluation library.
 - `--all` means every published benchmark. The scheduled run excludes
   `cohere-labs/global-mmlu-lite` and its 18 per-language boards, whose numbers

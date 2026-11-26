@@ -360,6 +360,8 @@ def test_kaggle_scoring_config_travels_as_provenance():
         "kaggle_task_version": "3",
         "kaggle_task_title": "acc",
         "bounds_status": "unknown",
+        # The column inherits the leaderboard's direction; this says so.
+        "kaggle_sort_order": "DESCENDING",
     }
 
 
@@ -398,6 +400,18 @@ def test_arena_columns_without_slugs_are_named_by_title():
 def test_the_overall_column_is_the_aggregate():
     identity = adapter.make_task_identity(numeric_task("(Overall)", 1.0), BENCH)
     assert identity.evaluation_name == "kaggle.owner.my-bench"
+
+
+def test_titles_that_differ_only_in_a_symbol_stay_distinct():
+    # mercor/apex-agents-1-1 publishes both, with different scores.
+    names = [
+        adapter.make_task_identity(numeric_task(title, 1.0), BENCH).evaluation_name
+        for title in ("Pass@4", "Pass^4")
+    ]
+    assert names == [
+        "kaggle.owner.my-bench.pass-at-4",
+        "kaggle.owner.my-bench.pass-hat-4",
+    ]
 
 
 def test_a_task_at_several_versions_is_named_per_version(tmp_path):
@@ -488,7 +502,9 @@ def test_ascending_leaderboard_means_lower_is_better():
 # ---------------------------------------------------------------------------
 # sortOrder is the only source of direction, so it is validated, not assumed
 # ---------------------------------------------------------------------------
-@pytest.mark.parametrize("sort_order", ["", None, "UNSPECIFIED", "ascending"])
+@pytest.mark.parametrize(
+    "sort_order", ["", None, "UNSPECIFIED", "ascending", ["DESCENDING"]]
+)
 def test_an_unrecognised_sort_order_cannot_build_a_benchmark(sort_order):
     with pytest.raises(ValueError, match="sortOrder"):
         adapter.Benchmark(
@@ -522,10 +538,19 @@ def test_uneven_confidence_interval_uses_both_offsets():
     assert (interval.lower, interval.upper) == pytest.approx((1113.75, 1157.18))
 
 
-@pytest.mark.parametrize("ci", [-0.83, "wide", 0.0, None])
+@pytest.mark.parametrize("ci", [-0.83, "wide", None])
 def test_an_unusable_half_width_yields_no_uncertainty(ci):
     # A negative radius cannot bracket the score, and Kaggle does publish them.
     assert build(numeric_task("acc", 0.5, ci=ci)).score_details.uncertainty is None
+
+
+def test_a_flagged_zero_half_width_is_a_published_interval():
+    # 1,314 live results set hasConfidenceInterval with a 0.0 half-width.
+    interval = build(numeric_task("acc", 1.0, ci=0.0)).score_details.uncertainty
+    assert (interval.confidence_interval.lower, interval.confidence_interval.upper) == (
+        1.0,
+        1.0,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -962,6 +987,69 @@ def test_limit_caps_the_sweep(monkeypatch):
     assert len(targets) == 2
 
 
+def test_limit_does_not_hide_an_explicit_target(monkeypatch):
+    _stub_index(monkeypatch, [index_entry("o", "one"), index_entry("o", "two")])
+    targets, failures = adapter.resolve_targets(
+        object(), _args(all=True, limit=1, benchmark=["o/two"])
+    )
+    assert [target.ref for target in targets] == ["o/two", "o/one"]
+    assert failures == []
+
+
+def test_the_latest_evaluation_date_is_chronological(tmp_path):
+    tasks = [
+        numeric_task("", 0.5, date="2026-06-20T16:40:18Z"),
+        numeric_task("acc", 0.5, date="2026-06-20T16:40:18.1Z"),
+    ]
+    result = convert([row("gemma-3-27b-it", tasks)], tmp_path)
+    assert result.records[0].eval_log.evaluation_id.endswith("16:40:18.1Z")
+
+
+def test_a_named_column_is_not_given_the_benchmark_metric_or_its_title():
+    # On an arena `Votes` is a count, and on a suite a slugless column is one
+    # item (`P032`): neither is the benchmark's pass rate, nor a metric name.
+    metric = build(numeric_task("Votes", 523.0)).metric_config
+    assert metric.metric_name == "score"
+    assert metric.metric_kind is None
+    assert metric.metric_id == "kaggle.owner.my-bench.votes.score"
+    assert metric.additional_details["kaggle_task_title"] == "Votes"
+
+
+@pytest.mark.parametrize(
+    "title,name", [("精度", "精度"), ("Précision", "précision"), ("≥90", "ge-90")]
+)
+def test_a_title_keeps_its_letters_in_any_script(title, name):
+    identity = adapter.make_task_identity(numeric_task(title, 1.0), BENCH)
+    assert identity.evaluation_name == f"kaggle.owner.my-bench.{name}"
+
+
+def test_an_outage_is_not_cached_for_the_rest_of_the_sweep(tmp_path, monkeypatch):
+    answers = iter(
+        [
+            ("gemma-3-27b-it", {"model_id_resolution": "unreachable"}),
+            (
+                "google/gemma-3-27b-it",
+                {"model_id_resolution": "registry", "model_id_resolution_strategy": "exact"},
+            ),
+        ]
+    )
+    monkeypatch.setattr(
+        adapter.registry, "resolve_model_id", lambda raw, **kw: next(answers)
+    )
+    identities = {}
+    results = [
+        adapter.convert_benchmark(
+            BENCH,
+            [row("gemma-3-27b-it", [numeric_task("", 0.5)])],
+            "1",
+            tmp_path,
+            identities=identities,
+        )
+        for _ in range(2)
+    ]
+    assert [len(result.records) for result in results] == [0, 1]
+
+
 @pytest.mark.parametrize("limit", ["0", "-1"])
 def test_a_limit_below_one_is_a_usage_error(limit):
     with pytest.raises(SystemExit):
@@ -1118,6 +1206,33 @@ def test_taskresults_of_the_wrong_type_fails_only_that_row(tmp_path):
     ]
 
 
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("candidateClass", []),
+        ("modelVersionName", 5),
+        ("taskVersion", []),
+        ("benchmarkTaskName", 9),
+    ],
+)
+def test_a_wrongly_typed_field_fails_only_its_row(tmp_path, field, value):
+    bad = row("claude-opus-5", [numeric_task("acc", 0.5)])
+    if field in ("taskVersion", "benchmarkTaskName"):
+        bad["taskResults"][0][field] = value
+    else:
+        bad[field] = value
+    result = convert([bad] + sample_rows()[:1], tmp_path)
+    # The good row still converts; the bad one is accounted for, or converts if
+    # the field was only ever provenance.
+    assert "gemma-3-27b-it" in [
+        output.eval_log.model_info.additional_details["kaggle_model_version_slug"]
+        for output in result.records
+    ]
+    assert len(result.records) + len(
+        {f.source_ref.split(" task ")[0] for f in result.failures}
+    ) == 2
+
+
 def test_a_row_that_is_not_an_object_fails_only_that_row(tmp_path):
     result = convert(sample_rows()[:1] + [None], tmp_path / "kaggle")
     assert len(result.records) == 1
@@ -1181,9 +1296,9 @@ def test_a_model_its_configuration_and_its_agent_are_three_evaluations(tmp_path)
     logs = [output.eval_log for output in result.records]
     assert [log.evaluation_id for log in logs] == [
         "owner/my-bench/claude-opus-5-default",
-        "owner/my-bench/claude-opus-5-default/claude-opus-5-max-reasoning",
+        "owner/my-bench/claude-opus-5-default/config/claude-opus-5-max-reasoning",
         "owner/my-bench/claude-opus-5-default/"
-        "claude-code-2-1-claude-opus-5-max-reasoning",
+        "agent/claude-code-2-1-claude-opus-5-max-reasoning",
     ]
     plain, config, agent = (log.evaluation_results[0].generation_config for log in logs)
     assert plain.additional_details == {"reasoning_effort": "default"}
@@ -1232,19 +1347,50 @@ def test_two_rows_that_would_share_an_evaluation_id_fail(tmp_path):
     assert "already used by row 0" in result.failures[0].reason
 
 
-def test_an_unreachable_registry_fails_the_row_instead_of_guessing(
-    tmp_path, stub_registry, monkeypatch
+@pytest.mark.parametrize("resolution", ["unreachable", "invalid_reply"])
+def test_a_registry_that_gives_no_answer_fails_the_row_instead_of_guessing(
+    tmp_path, monkeypatch, resolution
 ):
-    def unreachable(raw_value, *, enabled=True, timeout=15.0):
+    def no_answer(raw_value, *, enabled=True, timeout=15.0):
         return raw_value, {
-            "model_id_resolution": "unreachable",
+            "model_id_resolution": resolution,
             "model_id_resolution_error": "timed out",
         }
 
-    monkeypatch.setattr(adapter.registry, "resolve_model_id", unreachable)
+    monkeypatch.setattr(adapter.registry, "resolve_model_id", no_answer)
     result = convert([row("gemma-3-27b-it", [numeric_task("", 0.5)])], tmp_path)
     assert result.records == []
-    assert "registry unreachable" in result.failures[0].reason
+    assert f"gave no answer ({resolution})" in result.failures[0].reason
+
+
+@pytest.mark.parametrize(
+    "outage,expected_calls",
+    [
+        # A definitive miss on the slug, then an outage on the stripped form.
+        ("claude-opus-5", ["claude-opus-5-default", "claude-opus-5"]),
+        # An outage on the slug: the stripped form is never tried, because the
+        # slug might have been a model of its own.
+        ("claude-opus-5-default", ["claude-opus-5-default"]),
+    ],
+)
+def test_an_outage_on_either_lookup_is_unreachable(
+    monkeypatch, outage, expected_calls
+):
+    calls = []
+
+    def resolve(raw_value, *, enabled=True, timeout=15.0):
+        calls.append(raw_value)
+        if raw_value == outage:
+            return raw_value, {"model_id_resolution": "unreachable"}
+        return raw_value, {
+            "model_id_resolution": "unresolved",
+            "model_id_resolution_strategy": "no_match",
+        }
+
+    monkeypatch.setattr(adapter.registry, "resolve_model_id", resolve)
+    model = adapter.resolve_model_identity("claude-opus-5-default", "Claude Opus 5")
+    assert calls == expected_calls
+    assert model.provenance["model_id_resolution"] == "unreachable"
 
 
 def test_a_parenthetical_size_is_not_an_effort_tier():
