@@ -131,6 +131,7 @@ def test_scheduled_cleanup_precedes_ingestion():
     assert "github.event_name == 'schedule'" in cleanup['if']
     assert "github.repository == 'evaleval/every_eval_ever'" in cleanup['if']
     assert 'retire-benchpress' in jobs['run']['needs']
+    assert '!cancelled()' in jobs['run']['if']
     assert 'retire-benchpress' in jobs['summary']['needs']
     assert any('every_eval_ever.cron.retire_benchpress' in step.get('run', '')
                for step in cleanup['steps'])

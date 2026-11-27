@@ -118,7 +118,7 @@ jobs:
     name: ${{ matrix.adapter }}
     needs: [plan, retire-benchpress]
     if: >-
-      always() && needs.plan.result == 'success'
+      !cancelled() && needs.plan.result == 'success'
       && (needs.retire-benchpress.result == 'success' || needs.retire-benchpress.result == 'skipped')
       && needs.plan.outputs.count != '0'
     runs-on: ubuntu-latest
