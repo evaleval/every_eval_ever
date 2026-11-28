@@ -269,6 +269,10 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         module='every_eval_ever.adapters.artificial_analysis.adapter',
         collections=('artificial-analysis-llms',),
         required_env=('ARTIFICIAL_ANALYSIS_API_KEY',),
+        notes=(
+            'Free-tier API key plus the public leaderboard and CritPt v2 '
+            'pages, scraped with Artificial Analysis permission.'
+        ),
     ),
     AdapterSpec(
         key='benchpress',

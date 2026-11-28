@@ -75,7 +75,7 @@ re-hosting bytes that are already durably stored.
 |---------|-------------|-------------|
 | `arc_agi` | ARC Prize leaderboard JSON | Fetches the JSON files behind arcprize.org/leaderboard, maps models to developers via the provider table, and merges canonical model aliases. |
 | `aider_polyglot` | Aider Polyglot leaderboard YAML | Converts Aider's published Polyglot runs (pass rates, edit format, run metadata) into `data/aider-polyglot/`. |
-| `artificial_analysis` | Artificial Analysis LLM API | Converts Artificial Analysis LLM benchmark, pricing, and performance results into `data/artificial-analysis-llms/`. |
+| `artificial_analysis` | Artificial Analysis free-tier API + website | Reads model identity, indexes, pricing and speed from the free-tier language model API, adds per-benchmark scores scraped from the public leaderboard and CritPt v2 pages, and writes `data/artificial-analysis-llms/`. |
 | `vals_ai` | Vals.ai benchmark leaderboards | Scrapes Vals.ai benchmark pages and converts their embedded leaderboard results into `data/vals-ai/`. |
 | `bfcl` | BFCL leaderboard CSV | Converts BFCL leaderboard data with per-metric evaluation names and bounded continuous scores. |
 | `critpt` | CritPt GitHub README leaderboards | Converts the pinned historical v1 and live v2 challenge-accuracy tables separately. |
@@ -107,10 +107,14 @@ re-hosting bytes that are already durably stored.
 
 ### Artificial Analysis
 
-The LLM API adapter maps `gpqa`, `scicode`, `lcr`, and `terminalbench_hard`
-when present. It does not label `gpqa` as Diamond or include CritPt v2 full,
-CritPt v2 hard subset, or GDPval. Verify the current API fields, scales, and
-evaluation settings before adding these metrics or equating CritPt regimes.
+EEE uses a free API key, and the free tier carries no per-benchmark scores, so
+those come from the website, which Artificial Analysis permitted. Website
+models join API models on Artificial Analysis's model id; a website model with
+no API match is reported as an exclusion, since it has no model identity.
+CritPt v2 (full set) is the CritPt v2 page's `critptAgentic` field; the hard
+subset and the plain `critpt` score come from the leaderboard. GDPval is not
+mapped: the leaderboard's `gdpval-aa-normalized` values are ratings, negative
+and above 1, not a 0-1 score.
 
 ### CritPt
 
