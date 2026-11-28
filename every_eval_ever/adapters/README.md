@@ -85,7 +85,7 @@ re-hosting bytes that are already durably stored.
 | `mercor_eval` | Mercor Evaluation Exports API | Fetches authenticated Mercor benchmark leaderboards and writes aggregate EEE records. |
 | `mt_bench` | LMSYS / FastChat | Converts MT-Bench GPT-4 single-answer judgments into `data/mt-bench/`. Emits overall, turn-1, and turn-2 means per model. |
 | `open_medical_llm` | HuggingFace (`openlifescienceai/results`) | Converts the Open Medical-LLM Leaderboard's lm-evaluation-harness results into `data/open-medical-llm/`. One record per model, one result per medical benchmark (9). See [`open_medical_llm/README.md`](open_medical_llm/README.md). |
-| `openeval` | HuggingFace | Converts OpenEval response scores from `human-centered-eval/OpenEval` into `data/openeval/`; pass `--include-instances` to also write `*_samples.jsonl` sidecars. |
+| `openeval` | HuggingFace | Converts OpenEval response scores from `Open-Eval-Commons/OpenEval` into `data/openeval/`; pass `--include-instances` to also write `*_samples.jsonl` sidecars. |
 | `rewardbench` | HuggingFace | Fetches RewardBench v1 (CSV) and RewardBench v2 (JSON) leaderboard data. |
 | `tau_bench` | tau2-bench leaderboard submissions (GitHub) | Converts the public tau2-bench submissions into `data/tau-bench/`: one record per model, with a Pass^k result per domain and per k, plus cost per trajectory where reported. The raw base URL is pinned to a commit and each submission's payload hash is recorded, so a record names the exact input it was built from. |
 | `terminal_bench` | tbench.ai | Fetches every Terminal-Bench leaderboard version (2.0, 2.1, 3.0, 4.0), one collection each. |
