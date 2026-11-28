@@ -157,6 +157,7 @@ def convert_result(result: dict, retrieved_timestamp: str) -> EvaluationLog:
             round(float(result['percent_finished']), 4)
         )
 
+    source_eval_ts = result.get('evaluation_timestamp')
     eval_result = EvaluationResult(
         evaluation_name=eval_name,
         source_data=SourceDataUrl(
@@ -164,7 +165,9 @@ def convert_result(result: dict, retrieved_timestamp: str) -> EvaluationLog:
             source_type='url',
             url=['https://github.com/Exgentic/exgentic'],
         ),
-        evaluation_timestamp=retrieved_timestamp,
+        evaluation_timestamp=(
+            str(source_eval_ts) if source_eval_ts not in (None, '') else None
+        ),
         metric_config=MetricConfig(
             evaluation_description=f'{benchmark} benchmark evaluation'
             + (f' ({subset} subset)' if subset else ''),
@@ -354,15 +357,35 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=OUTPUT_DIR,
         help=f'Output directory for EEE JSON files (default: {OUTPUT_DIR})',
     )
+    parser.add_argument(
+        '--emit-source-version',
+        action='store_true',
+        help='Print the upstream Exgentic/results commit SHA and exit.',
+    )
     args = parser.parse_args(argv)
 
-    if not args.results_dir and not args.from_hf:
+    if (
+        not args.emit_source_version
+        and not args.results_dir
+        and not args.from_hf
+    ):
         parser.error('Specify either --results-dir or --from-hf')
     return args
 
 
 def main(argv: list[str] | None = None):
     args = parse_args(argv)
+
+    if args.emit_source_version:
+        if args.results_dir:
+            raise SystemExit(1)
+        from huggingface_hub import HfApi
+
+        sha = HfApi().dataset_info(HF_DATASET).sha
+        if not sha:
+            raise SystemExit(1)
+        print(sha)
+        return
 
     if args.results_dir:
         loaded = collect_results_from_dir(args.results_dir)

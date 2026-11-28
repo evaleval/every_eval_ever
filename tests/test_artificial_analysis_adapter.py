@@ -4,7 +4,6 @@ import pytest
 
 from every_eval_ever.adapters.artificial_analysis import adapter
 from every_eval_ever.adapters.artificial_analysis.adapter import (
-    compute_observed_max_scores,
     convert_models,
     merge_site_scores,
 )
@@ -35,7 +34,6 @@ def _convert(models, tmp_path):
         models,
         {},
         tmp_path / 'data' / 'artificial-analysis-llms',
-        compute_observed_max_scores(models),
         '1234',
     )
 

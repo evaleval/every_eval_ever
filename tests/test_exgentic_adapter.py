@@ -104,3 +104,49 @@ def test_every_model_family_on_the_live_board_resolves_a_developer():
         'moonshot',
         'Kimi-K2.5',
     )
+
+
+def test_exgentic_does_not_fabricate_eval_timestamp(
+    tmp_path,
+):
+    from every_eval_ever.validator.check_duplicate_entries import (
+        normalized_hash,
+    )
+
+    row = _result()
+    first = (
+        convert_results(
+            [row],
+            retrieved_timestamp='1700000001.0',
+            output_dir=str(tmp_path / 'run1'),
+        )
+        .records[0]
+        .eval_log
+    )
+    second = (
+        convert_results(
+            [row],
+            retrieved_timestamp='1700000999.0',
+            output_dir=str(tmp_path / 'run2'),
+        )
+        .records[0]
+        .eval_log
+    )
+
+    assert first.evaluation_results[0].evaluation_timestamp is None
+    assert normalized_hash(
+        first.model_dump(mode='json', exclude_none=True)
+    ) == normalized_hash(second.model_dump(mode='json', exclude_none=True))
+
+
+def test_exgentic_emit_source_version(monkeypatch, capsys):
+    from every_eval_ever.adapters.exgentic import adapter
+
+    class FakeApi:
+        def dataset_info(self, repo_id):
+            assert repo_id == adapter.HF_DATASET
+            return type('Info', (), {'sha': 'deadbeef' * 5})()
+
+    monkeypatch.setattr('huggingface_hub.HfApi', FakeApi)
+    adapter.main(['--emit-source-version'])
+    assert capsys.readouterr().out.strip() == 'deadbeef' * 5
