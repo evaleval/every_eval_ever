@@ -82,7 +82,7 @@ def test_epoch_run_row(result):
         'closed_weights'
     )
     assert log.evaluation_id == (
-        'epoch-ai/gpqa-diamond/grok-3-beta/FQ8Ykq4JWRSXnyF9rbmLc7/2026-11-13'
+        'epoch-ai/gpqa-diamond/grok-3-beta/FQ8Ykq4JWRSXnyF9rbmLc7'
     )
 
 
@@ -149,7 +149,14 @@ def test_publish_and_validate(zip_bytes, tmp_path):
     assert len(files) == 8
     for path in files:
         EvaluationLog.model_validate(json.loads(path.read_text()))
-        assert validate_file(path).valid
+        report = validate_file(
+            path,
+            repo_path=str(path.relative_to(tmp_path)),
+            available_files=frozenset(),
+            run_semantic_checks=True,
+        )
+        assert report.valid, report.errors
+        assert not report.warnings, report.warnings
     report = json.loads(
         (tmp_path / 'adapter_reports' / f'{adapter.COLLECTION}_failures.json')
         .read_text()
@@ -231,6 +238,30 @@ def test_unrelated_archive_changes_do_not_make_records_new(tmp_path):
     assert one_score != _fixture_zip()
     changed = _published_fingerprints(one_score, tmp_path, 'score')
     assert len(changed - base) == 1 and len(base - changed) == 1
+
+
+def test_evaluation_id_does_not_change_with_the_archive_date():
+    def ids(content):
+        dataset = adapter.load_zip(content, 'fixture')
+        return {log.evaluation_id
+                for log in adapter.convert(dataset, '1.0').records}
+    assert ids(_fixture_zip(date=(2026, 11, 14, 0, 0, 0))) == ids(
+        _fixture_zip())
+
+
+def test_score_outside_the_declared_scale_fails_the_row():
+    dataset = _dataset_with(
+        {'aider_polyglot_external.csv': [
+            {'Model version': 'gpt-oss-120b_low', 'Percent correct': '418',
+             'Organization': 'OpenAI', 'id': 'recOutOfRange'},
+        ]},
+        [],
+    )
+    result = adapter.convert(dataset, '1.0', adapter.Registry())
+    assert 'gpt-oss-120b_low' not in _by_version(result, 'aider-polyglot')
+    failure = next(f for f in result.failures
+                   if f.source_record.get('id') == 'recOutOfRange')
+    assert 'outside [0, 100]' in failure.reason
 
 
 def _dataset_with(rows_by_table: dict[str, list[dict]], models: list[dict]):
@@ -331,7 +362,8 @@ def test_global_metric_ids_where_the_column_is_one():
     log = _by_version(
         adapter.convert(adapter.load_zip(_fixture_zip(), 'fixture'), '1.0'),
         'mmlu')['Baichuan-7B']
-    assert log.evaluation_results[0].metric_config.metric_id == 'exact_match'
+    assert log.evaluation_results[0].metric_config.metric_id == 'exact-match'
+    assert adapter.GLOBAL_METRICS['Pass@1 score'][0] == 'pass-at-1'
     log = _by_version(
         adapter.convert(adapter.load_zip(_fixture_zip(), 'fixture'), '1.0'),
         'gpqa-diamond')['grok-3-beta']

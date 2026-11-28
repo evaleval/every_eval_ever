@@ -30,7 +30,7 @@ unrelated archive content changes.
 
 Run
 ---
-    uv run python -m every_eval_ever.adapters.epoch_ai.adapter --output-dir /tmp/epoch-ai/data
+    uv run python -m every_eval_ever.adapters.epoch_ai.adapter --output-dir /tmp/epoch-ai/data/epoch-ai-benchmarking
     uv run python -m every_eval_ever validate '/tmp/epoch-ai/data/epoch-ai-benchmarking/*/*/*.json'
 """
 from __future__ import annotations
@@ -144,14 +144,14 @@ MODEL_ID_OVERRIDES = {
     'gemini-2.5-deep-think-2025-08-01-webapp': (None, 'Google DeepMind'),
 }
 
-# Score columns whose meaning is a global metric (schema: "use a canonical
-# global id when applicable"). column -> (metric_id, metric_kind, parameters).
+# Score columns whose meaning is a global metric, keyed to the eval-card-registry
+# canonical metric id. column -> (metric_id, metric_kind, parameters).
 # Every other column keeps a benchmark-namespaced id.
 GLOBAL_METRICS = {
     'Accuracy': ('accuracy', 'accuracy', None),
     'Overall accuracy': ('accuracy', 'accuracy', None),
-    'EM': ('exact_match', 'exact_match', None),
-    'Pass@1 score': ('pass_at_k', 'pass_rate', {'k': 1}),
+    'EM': ('exact-match', 'exact_match', None),
+    'Pass@1 score': ('pass-at-1', 'pass_rate', {'k': 1}),
 }
 
 # Suffixes Epoch appends to a model version for the reasoning setting. They
@@ -447,6 +447,11 @@ def make_log(
     if scale not in (1.0, 0.01):
         raise ValueError(f'unrecognised scale {spec["scale"]!r}')
     lo, hi = (0.0, 100.0) if percent else (0.0, 1.0)
+    if not lo <= score <= hi:
+        raise ValueError(
+            f'{column} score {score} is outside [{lo:g}, {hi:g}] for '
+            f'scale {spec["scale"]}'
+        )
     external = spec['source_file'].endswith('_external.csv')
     origin = 'external' if external else 'epoch_run'
 
@@ -539,11 +544,9 @@ def make_log(
     version = re.sub(r'[^A-Za-z0-9._-]+', '-', _clean(row['Model version']))
     log = EvaluationLog(
         schema_version=SCHEMA_VERSION,
-        # Raw Epoch identity, never the resolved ids. The snapshot is in the
-        # key because Epoch edits rows in place.
-        evaluation_id=(
-            f'{SRC}/{bslug}/{version}/{row_key}/{dataset.snapshot}'
-        ),
+        # Raw Epoch identity, never the resolved ids, and nothing archive-wide,
+        # so an unchanged row keeps its id across snapshots.
+        evaluation_id=f'{SRC}/{bslug}/{version}/{row_key}',
         retrieved_timestamp=retrieved,
         source_metadata=source,
         eval_library=EvalLibrary(
@@ -643,7 +646,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         help='Local benchmark_data.zip (default: fetch --url).')
     parser.add_argument('--url', default=DATA_URL,
                         help='Where to fetch benchmark_data.zip from.')
-    # Outside the checkout by default; the path must end in `data`.
+    # Outside the checkout by default; the path must end in `data/<collection>`.
     parser.add_argument('--output-dir', type=Path,
                         default=Path(f'/tmp/{SRC}-smoke/data/{COLLECTION}'),
                         help='The data/<collection> directory.')

@@ -24,7 +24,7 @@ is fetched. `--no-registry-resolve` skips organization resolution.
   as `epoch_*`, so every source column is kept somewhere and an excluded duplicate differs
   from the kept row in its Epoch row id only.
 - Metric ids: the columns `Accuracy` and `Overall accuracy` map to `accuracy`, `EM` to
-  `exact_match` and `Pass@1 score` to `pass_at_k` (k = 1); every other column keeps a
+  `exact-match` and `Pass@1 score` to `pass-at-1` (the eval-card-registry canonical ids); every other column keeps a
   benchmark-namespaced `epoch-ai.<benchmark>.score`.
 - `eval_library` is `inspect_ai` (version unknown) for Epoch's own runs, which Epoch states run
   on Inspect, and `unknown` for external scores.
@@ -45,7 +45,8 @@ is fetched. `--no-registry-resolve` skips organization resolution.
   snapshot (open-weights models use the registry's HF namespace); unresolved names fall back to a
   slug and say so in `org_registry_strategy`. Deployment axes come from `model_metadata.csv`
   `accessibility`.
-- `evaluation_id` = `epoch-ai/<benchmark>/<model version>/<Epoch row id or row hash>/<snapshot date>`.
+- `evaluation_id` = `epoch-ai/<benchmark>/<model version>/<Epoch row id or row hash>`; it carries
+  nothing archive-wide, so an unchanged row keeps its id across snapshots.
 - Archive-level facts (the zip's sha256 and snapshot date) are not written into the records:
   they would change every record's fingerprint whenever any byte of the archive changes, and
   the cron's raw capture already keeps the zip with its sha256. `retrieved_from` records the
