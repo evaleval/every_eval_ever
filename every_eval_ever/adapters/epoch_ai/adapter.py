@@ -32,15 +32,19 @@ Run
 ---
     uv run python -m every_eval_ever.adapters.epoch_ai.adapter --output-dir /tmp/epoch-ai/data/epoch-ai-benchmarking
     uv run python -m every_eval_ever validate '/tmp/epoch-ai/data/epoch-ai-benchmarking/*/*/*.json'
+    # with Inspect-log companions (needs the inspect extra):
+    uv run python -m every_eval_ever.adapters.epoch_ai.adapter --output-dir /tmp/epoch-ai/data/epoch-ai-benchmarking --instance-level
 """
 from __future__ import annotations
 
 import argparse
 import csv
+import dataclasses
 import hashlib
 import io
 import json
 import re
+import tempfile
 import time
 import uuid
 import zipfile
@@ -49,6 +53,10 @@ from typing import Any
 
 import requests
 
+from every_eval_ever.adapters.epoch_ai.instance_level import (
+    DEFAULT_MAX_LOG_MB,
+    attach_instance_level,
+)
 from every_eval_ever.converters.common.publication import (
     publish_evaluation_logs,
 )
@@ -653,6 +661,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument('--failure-report', type=Path, default=None)
     parser.add_argument('--no-registry-resolve', action='store_true',
                         help='Skip organization resolution (ids unverified).')
+    parser.add_argument(
+        '--instance-level', action='store_true',
+        help="Download each Epoch run's Inspect log and attach its samples "
+             '(needs the inspect extra).')
+    parser.add_argument(
+        '--max-log-mb', type=int, default=DEFAULT_MAX_LOG_MB,
+        help='With --instance-level, skip logs larger than this; 0 = no limit.')
     return parser.parse_args(argv)
 
 
@@ -664,19 +679,37 @@ def run(args: argparse.Namespace) -> int:
     dataset = load_zip(content, origin)
     registry = Registry(enabled=not args.no_registry_resolve)
     result = convert(dataset, str(time.time()), registry)
-    report = save_failure_report(
-        result,
-        args.failure_report or default_failure_report_path(args.output_dir),
-    )
-    paths = publish_evaluation_logs(
-        result.records,
-        base_output_dir=args.output_dir.parent,
-        file_uuids=[str(uuid.uuid4()) for _ in result.records],
-        collection_override=args.output_dir.name,
-    )
+    file_uuids = [str(uuid.uuid4()) for _ in result.records]
+    with tempfile.TemporaryDirectory() as staged:
+        if args.instance_level:
+            records, skipped = attach_instance_level(
+                result.records, file_uuids, Path(staged),
+                args.output_dir.name,
+                max_bytes=args.max_log_mb * 1_000_000 or None,
+                user_agent=USER_AGENT, split_variant=split_variant,
+            )
+            attached = sum(
+                r.detailed_evaluation_results is not None for r in records)
+            print(f'instance level: {attached} companions attached, '
+                  f'{len(skipped)} logs skipped')
+            result = dataclasses.replace(
+                result, records=records,
+                exclusions=[*result.exclusions, *skipped])
+        report = save_failure_report(
+            result,
+            args.failure_report or default_failure_report_path(
+                args.output_dir),
+        )
+        paths = publish_evaluation_logs(
+            result.records,
+            base_output_dir=args.output_dir.parent,
+            file_uuids=file_uuids,
+            staged_output_dir=staged if args.instance_level else None,
+            collection_override=args.output_dir.name,
+        )
     print(f'{result.total_records} source rows -> {len(paths)} logs, '
           f'{len(result.failures)} failed, {len(result.exclusions)} '
-          f'files/benchmarks excluded -> {args.output_dir}')
+          f'excluded -> {args.output_dir}')
     print(f'failure report: {report}')
     result.raise_if_incomplete()
     return len(paths)

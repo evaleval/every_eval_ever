@@ -58,6 +58,20 @@ is fetched. `--no-registry-resolve` skips organization resolution.
   score, go to the failure report and make the command exit non-zero.
 - CSVs that `benchmark_metadata.csv` gives no score column for are reported as exclusions.
 
+## Instance level (`--instance-level`, needs `uv sync --extra inspect`)
+Epoch-run rows name their Inspect log in `Logs`. With `--instance-level` the adapter downloads
+that URL (only that URL; nothing else is tried), converts the samples with the in-tree Inspect
+instance-level converter, and attaches them as the record's `detailed_evaluation_results`.
+A companion is attached only when the log completed, its model is the row's model, and exactly
+one scorer reports the record's headline score, exactly or at the published precision when
+that keeps three or more decimals. Otherwise the record is published without one and the reason
+is an exclusion (`<evaluation_id>#inspect-log`) in the failure report; that never changes the
+exit code. Logs over `--max-log-mb` (default 1024; 0 = no limit) are skipped. Each log's URL
+and sha256 go to the raw-capture manifest as a pointer, not the bytes.
+
+Most logs are not publicly downloadable: Epoch's production buckets answer 403, and
+`logs.epoch.ai` sits behind a CAPTCHA. The cron does not pass the flag.
+
 ## Licensing
 Epoch's terms (https://epoch.ai/benchmarks/use-this-data#licensing): Epoch AI's own data is CC BY
 4.0, and data "sourced from external projects ... retains its original licensing". Epoch-run
