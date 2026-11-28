@@ -42,6 +42,10 @@ SOURCE_ORG = 'evaleval'
 MANIFEST_VERSION = 1
 DEFAULT_DATASTORE_REVISION = 'main'
 DEFAULT_DATASTORE_REPO = 'evaleval/EEE_datastore'
+# Lowercased; records published before the dataset moved carry the old name.
+OPENEVAL_HF_REPOS = frozenset(
+    {'human-centered-eval/openeval', 'open-eval-commons/openeval'}
+)
 DEFAULT_BENCHMARKS = ('gpqa', 'hle', 'mmlu_pro', 'gsm8k', 'ifbench', 'lexam')
 DEFAULT_PR_COMMIT_DESCRIPTION = (
     'Adds EvalEval Community Evals YAML entries with source backlinks to EEE '
@@ -568,7 +572,7 @@ def _gpqa_variant_notes(result: EvaluationResult) -> str | None:
         return 'GPQA Diamond'
 
     if (
-        hf_repo == 'human-centered-eval/openeval'
+        hf_repo in OPENEVAL_HF_REPOS
         and dataset_name == 'gpqa'
         and (
             result_id == 'gpqa::chain-of-thought-correctness'
