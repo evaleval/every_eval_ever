@@ -1889,3 +1889,36 @@ def test_build_index_manifest_skips_rows_from_excluded_collection(
     assert [item['reason'] for item in manifest['skipped']] == [
         'excluded_collection:hfopenllm_v2'
     ]
+
+
+@pytest.mark.parametrize(
+    'hf_repo', ['human-centered-eval/OpenEval', 'Open-Eval-Commons/OpenEval']
+)
+def test_openeval_gpqa_chain_of_thought_note_for_old_and_new_repo(
+    hf_repo: str,
+) -> None:
+    from every_eval_ever.eval_types import EvaluationResult
+
+    result = EvaluationResult.model_validate(
+        {
+            'evaluation_result_id': 'gpqa::chain-of-thought-correctness',
+            'evaluation_name': 'gpqa',
+            'source_data': {
+                'dataset_name': 'gpqa',
+                'source_type': 'hf_dataset',
+                'hf_repo': hf_repo,
+            },
+            'metric_config': {
+                'lower_is_better': False,
+                'score_type': 'continuous',
+                'min_score': 0.0,
+                'max_score': 1.0,
+            },
+            'score_details': {'score': 0.5},
+        }
+    )
+
+    assert (
+        community_evals_converter._gpqa_variant_notes(result)
+        == 'GPQA chain-of-thought'
+    )
