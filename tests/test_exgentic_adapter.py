@@ -114,16 +114,24 @@ def test_exgentic_does_not_fabricate_eval_timestamp(
     )
 
     row = _result()
-    first = convert_results(
-        [row],
-        retrieved_timestamp='1700000001.0',
-        output_dir=str(tmp_path / 'run1'),
-    ).records[0].eval_log
-    second = convert_results(
-        [row],
-        retrieved_timestamp='1700000999.0',
-        output_dir=str(tmp_path / 'run2'),
-    ).records[0].eval_log
+    first = (
+        convert_results(
+            [row],
+            retrieved_timestamp='1700000001.0',
+            output_dir=str(tmp_path / 'run1'),
+        )
+        .records[0]
+        .eval_log
+    )
+    second = (
+        convert_results(
+            [row],
+            retrieved_timestamp='1700000999.0',
+            output_dir=str(tmp_path / 'run2'),
+        )
+        .records[0]
+        .eval_log
+    )
 
     assert first.evaluation_results[0].evaluation_timestamp is None
     assert normalized_hash(
