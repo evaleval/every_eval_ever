@@ -12,6 +12,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
 from urllib.error import URLError
+from urllib.parse import quote, urljoin
 from urllib.request import Request, urlopen
 
 from every_eval_ever.eval_types import (
@@ -37,6 +38,7 @@ from every_eval_ever.helpers import (
     SCHEMA_VERSION,
     EvaluationLogOutput,
     SourceConversionResult,
+    SourceRecordExclusion,
     SourceRecordFailure,
     default_failure_report_path,
     get_developer,
@@ -51,6 +53,7 @@ from every_eval_ever.helpers.io import require_identity
 SOURCE_NAME = 'Vals.ai'
 SOURCE_ORGANIZATION_URL = 'https://www.vals.ai'
 BENCHMARKS_URL = f'{SOURCE_ORGANIZATION_URL}/benchmarks'
+API_URL = 'https://benchmcp.vals.ai'
 OUTPUT_DIR = 'data/vals-ai'
 USER_AGENT = 'every-eval-ever vals-ai adapter'
 ASTRO_UNDEFINED = object()
@@ -61,6 +64,10 @@ NAMESPACE_DEVELOPER_ALIASES = {
     'qwen': 'alibaba',
     'togethercomputer': 'together',
 }
+# Leading route segments naming the serving platform, not the developer.
+ROUTE_PREFIXES = frozenset({'baseten', 'openrouter', 'together'})
+# Hosts whose two-segment routes (`fireworks/kimi-k3`) omit the developer.
+HOSTED_ROUTE_PREFIXES = ROUTE_PREFIXES | {'fireworks', 'groq'}
 
 
 @dataclass(frozen=True)
@@ -103,6 +110,11 @@ class ValsModelIdentity:
     inference_platform: str | None
     inference_engine: str | None = None
     route: str | None = None
+    baseline_model: str | None = None
+
+
+class NoBenchmarkViewError(ValueError):
+    """A source (API artifact listing or page) carries no leaderboard view."""
 
 
 class AstroIslandParser(HTMLParser):
@@ -117,12 +129,10 @@ class AstroIslandParser(HTMLParser):
             return
 
         attr_map = {name: value for name, value in attrs}
-        component_url = attr_map.get('component-url') or ''
-        if 'BenchmarkView' not in component_url:
-            return
-
         props = attr_map.get('props')
-        if props:
+        # Matches both the inline `benchmarkView` and the loader's
+        # `benchmarkViewUrl`, in whichever island component carries them.
+        if props and 'benchmarkView' in props:
             self.props.append(props)
 
 
@@ -136,6 +146,78 @@ def fetch_text(url: str) -> str:
         raise RuntimeError(f'Failed to fetch {url}: {exc}') from exc
     raw_capture.record(url=url, content=body, content_type=content_type)
     return body.decode('utf-8')
+
+
+def fetch_json(url: str) -> Any:
+    return json.loads(fetch_text(url))
+
+
+def list_benchmark_slugs(api_url: str = API_URL) -> list[str]:
+    """Return every benchmark slug the Vals.ai API lists."""
+    listing = fetch_json(f'{api_url.rstrip("/")}/benchmarks')
+    slugs = listing.get('benchmarks') if isinstance(listing, dict) else None
+    if (
+        not isinstance(slugs, list)
+        or not slugs
+        or not all(isinstance(slug, str) and slug for slug in slugs)
+    ):
+        raise ValueError(
+            'Vals.ai API /benchmarks did not return a list of benchmark slugs'
+        )
+    return sorted(set(slugs))
+
+
+def benchmark_view_url(slug: str, api_url: str = API_URL) -> str:
+    """Return the API URL of a benchmark's single ``benchmark_view`` artifact.
+
+    Raises ``NoBenchmarkViewError`` when the artifact listing is well formed
+    but has no ``benchmark_view`` entry: the benchmark has no leaderboard.
+    """
+    benchmark_url = f'{api_url.rstrip("/")}/benchmarks/{quote(slug, safe="")}'
+    listing = fetch_json(f'{benchmark_url}/artifacts')
+    artifacts = listing.get('artifacts') if isinstance(listing, dict) else None
+    if not isinstance(artifacts, list) or not all(
+        isinstance(artifact, dict) for artifact in artifacts
+    ):
+        raise ValueError('artifact listing has no "artifacts" list')
+    paths = [
+        artifact.get('path')
+        for artifact in artifacts
+        if artifact.get('type') == 'benchmark_view'
+    ]
+    if not paths:
+        types = sorted({str(artifact.get('type')) for artifact in artifacts})
+        raise NoBenchmarkViewError(
+            'API lists no benchmark_view artifact '
+            f'(artifact types: {", ".join(types) or "none"})'
+        )
+    if len(paths) != 1 or not isinstance(paths[0], str) or not paths[0]:
+        raise ValueError(
+            f'expected one benchmark_view artifact, found {len(paths)}'
+        )
+    return f'{benchmark_url}/artifacts/{quote(paths[0])}'
+
+
+def normalize_benchmark_view(
+    view: Any,
+    source_url: str,
+    benchmark_view_url: str | None = None,
+) -> dict[str, Any]:
+    if not isinstance(view, dict):
+        raise ValueError('BenchmarkView payload must be an object')
+    metadata = view.get('metadata') or {}
+    tasks = view.get('tasks') or {}
+    if not isinstance(metadata, dict) or not isinstance(tasks, dict):
+        raise ValueError('BenchmarkView payload has invalid metadata/tasks')
+
+    normalized = {
+        'metadata': metadata,
+        'tasks': tasks,
+        'source_url': source_url,
+    }
+    if benchmark_view_url is not None:
+        normalized['benchmark_view_url'] = benchmark_view_url
+    return normalized
 
 
 def extract_benchmark_slugs(index_html: str) -> list[str]:
@@ -176,13 +258,26 @@ def decode_astro_value(value: Any) -> Any:
     return value
 
 
-def extract_benchmark_view(page_html: str) -> dict[str, Any]:
+def _benchmark_view_props(page_html: str) -> list[dict[str, Any]]:
     parser = AstroIslandParser()
     parser.feed(page_html)
+    return [
+        decode_astro_value(parse_astro_props(raw_props))
+        for raw_props in parser.props
+    ]
 
-    for raw_props in parser.props:
-        props = parse_astro_props(raw_props)
-        decoded = decode_astro_value(props)
+
+def extract_benchmark_view_url(page_html: str) -> str | None:
+    """Return the JSON URL a ``BenchmarkViewLoader`` island fetches, if any."""
+    for decoded in _benchmark_view_props(page_html):
+        view_url = decoded.get('benchmarkViewUrl')
+        if isinstance(view_url, str) and view_url:
+            return view_url
+    return None
+
+
+def extract_benchmark_view(page_html: str) -> dict[str, Any]:
+    for decoded in _benchmark_view_props(page_html):
         benchmark_view = decoded.get('benchmarkView')
         if not isinstance(benchmark_view, dict):
             continue
@@ -194,7 +289,9 @@ def extract_benchmark_view(page_html: str) -> dict[str, Any]:
         }.issubset(candidate):
             return candidate
 
-    raise ValueError('Could not find BenchmarkView data in Vals.ai page')
+    raise NoBenchmarkViewError(
+        'Could not find BenchmarkView data in Vals.ai page'
+    )
 
 
 def parse_astro_props(raw_props: str) -> dict[str, Any]:
@@ -205,17 +302,87 @@ def parse_astro_props(raw_props: str) -> dict[str, Any]:
 
 
 def normalize_benchmark_page(page_html: str, source_url: str) -> dict[str, Any]:
-    view = extract_benchmark_view(page_html)
-    metadata = view.get('metadata') or {}
-    tasks = view.get('tasks') or {}
-    if not isinstance(metadata, dict) or not isinstance(tasks, dict):
-        raise ValueError('BenchmarkView payload has invalid metadata/tasks')
+    return normalize_benchmark_view(
+        extract_benchmark_view(page_html), source_url
+    )
 
-    return {
-        'metadata': metadata,
-        'tasks': tasks,
-        'source_url': source_url,
-    }
+
+def load_benchmark_page(page_html: str, source_url: str) -> dict[str, Any]:
+    """Read a benchmark's leaderboard from the JSON its page loads, or inline."""
+    view_url = extract_benchmark_view_url(page_html)
+    if view_url is None:
+        return normalize_benchmark_page(page_html, source_url)
+
+    view_url = urljoin(source_url, view_url)
+    return normalize_benchmark_view(
+        json.loads(fetch_text(view_url)), source_url, view_url
+    )
+
+
+def load_api_benchmark(
+    slug: str,
+    *,
+    api_url: str = API_URL,
+    base_url: str = SOURCE_ORGANIZATION_URL,
+) -> dict[str, Any]:
+    """Fetch one benchmark's leaderboard view from the Vals.ai API."""
+    view_url = benchmark_view_url(slug, api_url)
+    response = fetch_json(view_url)
+    view = response.get('data') if isinstance(response, dict) else None
+    metadata = view.get('metadata') if isinstance(view, dict) else None
+    # The site page lives at the view's own slug, which can differ from the
+    # API slug (API `web_search` -> page `web_search_backends`).
+    page_slug = (
+        metadata.get('slug')
+        if isinstance(metadata, dict) and isinstance(metadata.get('slug'), str)
+        else slug
+    )
+    return normalize_benchmark_view(
+        view, f'{base_url.rstrip("/")}/benchmarks/{page_slug}', view_url
+    )
+
+
+def load_benchmark(
+    slug: str,
+    *,
+    api_url: str = API_URL,
+    base_url: str = SOURCE_ORGANIZATION_URL,
+) -> dict[str, Any]:
+    """Fetch a benchmark from the API, falling back to scraping its page.
+
+    Raises ``NoBenchmarkViewError`` only when both sources agree there is no
+    leaderboard: the API lists no ``benchmark_view`` artifact and the page
+    loads but carries no BenchmarkView data. Any other error is a failure.
+    """
+    try:
+        return load_api_benchmark(slug, api_url=api_url, base_url=base_url)
+    except Exception as api_exc:
+        page_url = f'{base_url.rstrip("/")}/benchmarks/{slug}'
+        try:
+            page_html = fetch_text(page_url)
+            benchmark = load_benchmark_page(page_html, page_url)
+        except Exception as page_exc:
+            if isinstance(api_exc, NoBenchmarkViewError) and isinstance(
+                page_exc, NoBenchmarkViewError
+            ):
+                raise NoBenchmarkViewError(
+                    f'API: {api_exc}; page: {page_exc}'
+                ) from page_exc
+            raise ValueError(
+                f'API: {api_exc}; page fallback: {page_exc}'
+            ) from page_exc
+        benchmark['api_fallback_reason'] = str(api_exc)
+        return benchmark
+
+
+def _benchmark_failure(
+    source_ref: str, slug: str, exc: Exception
+) -> SourceRecordFailure:
+    return SourceRecordFailure(
+        source_ref=source_ref,
+        reason=f'Failed to fetch or parse Vals.ai benchmark {slug!r}: {exc}',
+        source_record={'benchmark_slug': slug},
+    )
 
 
 def extract_collection(
@@ -223,41 +390,108 @@ def extract_collection(
     input_json: Path | None = None,
     benchmark_slugs: list[str] | None = None,
     base_url: str = SOURCE_ORGANIZATION_URL,
+    api_url: str = API_URL,
 ) -> dict[str, Any]:
+    """Fetch the Vals.ai leaderboards, or replay a saved payload.
+
+    Without explicit ``benchmark_slugs``, every benchmark the API lists is
+    fetched first; benchmarks the site index lists that the API did not cover
+    are then scraped from their pages. Benchmarks are deduplicated on the
+    view's own slug, keeping the first (API) copy.
+    """
     if input_json is not None:
         return json.loads(input_json.read_text(encoding='utf-8'))
 
-    index_html = fetch_text(f'{base_url.rstrip("/")}/benchmarks')
-    slugs = benchmark_slugs or extract_benchmark_slugs(index_html)
-    benchmarks = []
+    api_url = api_url.rstrip('/')
+    base_url = base_url.rstrip('/')
     source_failures: list[SourceRecordFailure] = []
-    for slug in slugs:
-        source_url = f'{base_url.rstrip("/")}/benchmarks/{slug}'
+    source_exclusions: list[SourceRecordExclusion] = []
+    discovery_errors: dict[str, str] = {}
+
+    if benchmark_slugs:
+        api_slugs, site_slugs = benchmark_slugs, []
+    else:
+        api_slugs, site_slugs = [], []
         try:
-            page_html = fetch_text(source_url)
-            benchmarks.append(normalize_benchmark_page(page_html, source_url))
+            api_slugs = list_benchmark_slugs(api_url)
         except Exception as exc:
-            source_failures.append(
-                SourceRecordFailure(
-                    source_ref=source_url,
-                    reason=(
-                        f'Failed to fetch or parse Vals.ai benchmark page '
-                        f'{slug!r}: {exc}'
-                    ),
-                    source_record={
-                        'benchmark_slug': slug,
-                        'source_url': source_url,
-                    },
-                )
+            discovery_errors['api'] = str(exc)
+        try:
+            site_slugs = extract_benchmark_slugs(
+                fetch_text(f'{base_url}/benchmarks')
+            )
+        except Exception as exc:
+            discovery_errors['site'] = str(exc)
+        if not api_slugs and not site_slugs:
+            raise ValueError(
+                f'Could not list Vals.ai benchmarks: {discovery_errors}'
             )
 
-    return {
-        'source_url': f'{base_url.rstrip("/")}/benchmarks',
+    by_key: dict[str, dict[str, Any]] = {}
+    duplicates: list[dict[str, str]] = []
+
+    def add(benchmark: dict[str, Any], slug: str) -> None:
+        metadata = benchmark['metadata']
+        key = str(metadata.get('slug') or metadata.get('benchmark_id') or slug)
+        kept = by_key.get(key)
+        if kept is None:
+            by_key[key] = benchmark
+            return
+        # API views are added first, so the API copy wins over a scraped one.
+        duplicates.append(
+            {
+                'benchmark_slug': key,
+                'kept': kept.get('benchmark_view_url') or kept['source_url'],
+                'dropped': benchmark.get('benchmark_view_url')
+                or benchmark['source_url'],
+            }
+        )
+
+    for slug in api_slugs:
+        try:
+            add(load_benchmark(slug, api_url=api_url, base_url=base_url), slug)
+        except NoBenchmarkViewError as exc:
+            source_exclusions.append(
+                SourceRecordExclusion(
+                    source_ref=f'{api_url}/benchmarks/{slug}/artifacts',
+                    reason=(
+                        f'Vals.ai benchmark {slug!r} has no leaderboard: {exc}'
+                    ),
+                    source_record={'benchmark_slug': slug},
+                )
+            )
+        except Exception as exc:
+            source_failures.append(
+                _benchmark_failure(f'{api_url}/benchmarks/{slug}', slug, exc)
+            )
+
+    covered = set(api_slugs) | set(by_key)
+    for slug in site_slugs:
+        if slug in covered:
+            continue
+        page_url = f'{base_url}/benchmarks/{slug}'
+        try:
+            add(load_benchmark_page(fetch_text(page_url), page_url), slug)
+        except Exception as exc:
+            source_failures.append(_benchmark_failure(page_url, slug, exc))
+
+    benchmarks = list(by_key.values())
+    payload: dict[str, Any] = {
+        'source_url': f'{api_url}/benchmarks',
         'benchmarks': benchmarks,
         'source_failures': [
             failure.model_dump() for failure in source_failures
         ],
     }
+    if source_exclusions:
+        payload['source_exclusions'] = [
+            exclusion.model_dump() for exclusion in source_exclusions
+        ]
+    if discovery_errors:
+        payload['discovery_errors'] = discovery_errors
+    if duplicates:
+        payload['duplicate_benchmarks'] = duplicates
+    return payload
 
 
 def iter_vals_metrics(payload: dict[str, Any]) -> list[ValsMetric]:
@@ -419,9 +653,8 @@ def _group_metrics(
     canonical_to_raw: dict[tuple[str, str], str] = {}
     failures: list[SourceRecordFailure] = []
     for (benchmark_slug, raw_id), rows in sorted(raw_groups.items()):
-        provider = _optional_str(rows[0].metrics.get('provider'))
         try:
-            identity = resolve_model_identity(raw_id, provider)
+            identity = _rows_identity(raw_id, rows)
         except (TypeError, ValueError) as exc:
             failures.append(
                 SourceRecordFailure(
@@ -505,7 +738,7 @@ def _make_bundle(
 ) -> EvaluationBundle:
     first = rows[0]
     provider = _optional_str(first.metrics.get('provider'))
-    identity = resolve_model_identity(vals_model_id, provider)
+    identity = _rows_identity(vals_model_id, rows)
     results = [
         make_result(row, score_scale=score_scale)
         for row in sorted(rows, key=lambda row: row.task_key)
@@ -552,6 +785,7 @@ def _make_bundle(
                     'vals_model_id': vals_model_id,
                     'vals_provider': provider,
                     'vals_route': identity.route,
+                    'vals_baseline_model': identity.baseline_model,
                 }
             ),
         ),
@@ -579,6 +813,15 @@ def convert_logs(
         )
         for failure in payload.get('source_failures', [])
         if isinstance(failure, dict)
+    ]
+    source_exclusions = [
+        SourceRecordExclusion(
+            source_ref=str(exclusion.get('source_ref') or 'unknown source'),
+            reason=str(exclusion.get('reason') or 'unknown exclusion'),
+            source_record=exclusion.get('source_record'),
+        )
+        for exclusion in payload.get('source_exclusions', [])
+        if isinstance(exclusion, dict)
     ]
     metric_result = iter_vals_metrics_result(payload)
     if (
@@ -632,9 +875,14 @@ def convert_logs(
         )
     return SourceConversionResult(
         source_name='Vals.ai',
-        total_records=metric_result.total_records + len(source_failures),
+        total_records=(
+            metric_result.total_records
+            + len(source_failures)
+            + len(source_exclusions)
+        ),
         records=bundles,
         failures=failures,
+        exclusions=source_exclusions,
     )
 
 
@@ -678,6 +926,9 @@ def make_result(
             'reasoning_effort': row.metrics.get('reasoning_effort'),
             'verbosity': row.metrics.get('verbosity'),
             'compute_effort': row.metrics.get('compute_effort'),
+            'harness': row.metrics.get('harness'),
+            'harness_config': row.metrics.get('harness_config'),
+            'paired_accuracy': row.metrics.get('paired_accuracy'),
             'provider': row.metrics.get('provider'),
         }
     )
@@ -758,6 +1009,8 @@ def make_generation_config(metrics: dict[str, Any]) -> GenerationConfig | None:
             'reasoning_effort': metrics.get('reasoning_effort'),
             'verbosity': metrics.get('verbosity'),
             'compute_effort': metrics.get('compute_effort'),
+            'harness': metrics.get('harness'),
+            'harness_config': metrics.get('harness_config'),
         }
     )
     if generation_args is not None or additional_details:
@@ -826,16 +1079,53 @@ def _canonical_developer(namespace: str) -> str:
     return NAMESPACE_DEVELOPER_ALIASES.get(slug, slug)
 
 
+def _rows_identity(raw_id: str, rows: list[ValsMetric]) -> ValsModelIdentity:
+    provider = _optional_str(rows[0].metrics.get('provider'))
+    baseline_model = next(
+        (
+            str(paired['baseline_model'])
+            for row in rows
+            if isinstance(paired := row.metrics.get('paired_accuracy'), dict)
+            and paired.get('baseline_model')
+        ),
+        None,
+    )
+    return resolve_model_identity(raw_id, provider, baseline_model)
+
+
 def resolve_model_identity(
     vals_model_id: str,
     provider: str | None,
+    baseline_model: str | None = None,
 ) -> ValsModelIdentity:
-    """Assign Vals route components to explicit model schema fields."""
+    """Assign Vals route components to explicit model schema fields.
+
+    A host route that Vals pairs with a ``baseline_model`` (the developer's
+    own route for the same model) takes its developer and model from that
+    baseline, and its inference platform from ``provider``.
+    """
     raw_id = require_identity(vals_model_id, 'Vals.ai model id')
     parts = raw_id.split('/')
     if any(not part for part in parts):
         raise ValueError(
             f'Vals.ai model id contains an empty route: {raw_id!r}'
+        )
+
+    if (
+        baseline_model is not None
+        and baseline_model != raw_id
+        and len(parts) > 1
+        and _slug(parts[0]) in HOSTED_ROUTE_PREFIXES
+    ):
+        baseline = resolve_model_identity(baseline_model, None)
+        return ValsModelIdentity(
+            raw_id=raw_id,
+            developer=baseline.developer,
+            model_name=baseline.model_name,
+            model_id=baseline.model_id,
+            inference_platform=provider,
+            route=parts[0],
+            baseline_model=baseline_model,
         )
 
     inference_platform = provider
@@ -854,7 +1144,7 @@ def resolve_model_identity(
         model_name = parts[4]
         inference_engine = 'NIM'
         route = '/'.join(parts[:3])
-    elif len(parts) == 3 and _slug(parts[0]) == 'together':
+    elif len(parts) == 3 and _slug(parts[0]) in ROUTE_PREFIXES:
         developer = _canonical_developer(parts[1])
         model_name = parts[2]
         route = parts[0]
@@ -992,7 +1282,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         '--base-url',
         default=SOURCE_ORGANIZATION_URL,
-        help=f'Vals.ai base URL (default: {SOURCE_ORGANIZATION_URL})',
+        help=(
+            'Vals.ai site URL used for leaderboard page links '
+            f'(default: {SOURCE_ORGANIZATION_URL})'
+        ),
+    )
+    parser.add_argument(
+        '--api-url',
+        default=API_URL,
+        help=f'Vals.ai benchmark data API URL (default: {API_URL})',
     )
     parser.add_argument(
         '--failure-report',
@@ -1011,6 +1309,7 @@ def main() -> None:
         input_json=args.input_json,
         benchmark_slugs=args.benchmarks,
         base_url=args.base_url,
+        api_url=args.api_url,
     )
     if args.save_raw_json is not None:
         save_raw_payload(payload, args.save_raw_json)
