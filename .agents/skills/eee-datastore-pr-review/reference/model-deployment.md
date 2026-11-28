@@ -4,6 +4,19 @@ Use this reference to decide the two model axes for the exact evaluated model an
 The live schema and validator define the allowed strings; this reference defines the
 evidence standard.
 
+Read `metadata-missingness.md` first. `unknown` is a schema value;
+`unavailable_after_search` is the research status that can justify proposing it.
+
+## Contents
+
+- Classify what is missing
+- Keep the axes independent
+- Handle aggregators and repeated model ids
+- Evidence priority and confidence threshold
+- Decision signals
+- Research procedure
+- Batch-edit guardrails
+
 ## Classify what is missing
 
 Inspect the raw JSON, not only a parsed `EvaluationLog`. The library can materialize
@@ -19,6 +32,8 @@ compatibility placeholders and make an omitted key look like an explicit `unknow
 - If the relevant primary sources genuinely omit the fact, keep `unknown` and list the
   sources checked. Missing source evidence is a valid result; missing record metadata
   is not evidence.
+- If the required search is unfinished, classify the axis as `research_incomplete`.
+  Do not convert incomplete research into `unknown`.
 
 ## Keep the axes independent
 
@@ -34,6 +49,32 @@ Common valid combinations include hosted open-weight models and self-deployed
 open-weight models. Weight availability alone never proves how this evaluation served
 the model.
 
+## Handle aggregators and repeated model ids
+
+First decide whether the submitted source ran inference or aggregates scores reported
+elsewhere. A score matrix, leaderboard, or adapter marked as an aggregator does not
+inherit a deployment type: its repository can establish where citations came from but
+not who hosted each cited evaluation. Follow each result's `reference_url`, source
+notes, or equivalent citation to the evaluator's run artifacts and methods.
+
+Keep these tests separate:
+
+- Same model id and different generation parameters do not imply different deployment.
+- Different citations, benchmarks, harness labels, or evaluator relationships do not
+  alone prove different deployment.
+- The same model id can still be self-deployed in one run and accessed through a hosted
+  API in another. Require run evidence before grouping them.
+- `model_availability` remains an exact-model property and can be shared across runs
+  when the identity and dated evidence match; do not derive deployment from it.
+
+Before assigning the log-level `deployment_type`, inventory the run evidence for every
+result in that log. Assign one categorical value only when all results are
+evidence-equivalent. If results have proven conflicting serving methods, do not flatten
+them to a model-wide value: ask the operator whether to split the log by provenance or,
+after the missingness stop rule, retain an approval-gated `unknown`. Splitting records
+is structural and requires agreement. A multi-reference log with no contradiction is
+not itself a reason to split.
+
 ## Evidence priority
 
 Prefer evidence closest to the submitted run:
@@ -47,6 +88,20 @@ Prefer evidence closest to the submitted run:
 A model card usually establishes availability, not deployment. A leaderboard row or
 developer folder usually establishes neither. When sources conflict, prefer the
 run-level source, preserve the conflict in the decision log, and lower confidence.
+
+## Confidence threshold
+
+Rate the best candidate for each axis before writing the proposal:
+
+| Confidence | Evidence standard | Proposal action |
+|---|---|---|
+| High | Direct first-party evidence for the exact run or exact model artifact | Propose the supported categorical value |
+| Medium | Two aligned first-party sources for the exact variant, with no contrary run-level evidence | Propose the supported categorical value |
+| Low | Family/provider inference, alias uncertainty, one indirect source, secondary reporting, or unresolved conflict | Never propose the categorical guess |
+
+For a low-confidence candidate, continue research. If the missingness stop rule is
+complete, propose `unknown` and document the reason; otherwise keep
+`research_incomplete` and do not finalize the approval artifact.
 
 ## Decision signals
 
@@ -63,6 +118,16 @@ Use these as evidence tests, not name-based mappings:
 Do not mechanically translate stale vocabulary until checking the old validator's
 meaning and the submitted run. Lexical similarity is not source evidence.
 
+For `deployment_type`, require run/evaluator evidence: raw generation metadata, a
+client/backend in the pinned adapter or config, or an explicit methodology statement.
+A model card cannot establish who operated inference for this evaluation.
+
+For `model_availability`, inspect the exact artifact, not only a family README. A
+downloadable gated or restrictively licensed checkpoint is `open_weights` under the
+current schema. API access alone is `closed_weights`. Treat delta-only releases,
+missing base weights, removed repositories, renamed checkpoints, and availability that
+changed after the evaluation date as ambiguity requiring dated evidence.
+
 ## Research procedure
 
 1. Extract `model_info.id`, `name`, `developer`, `inference_platform`,
@@ -75,14 +140,18 @@ meaning and the submitted run. Lexical similarity is not source evidence.
    quantization. Do not substitute a nearby family member.
 4. Pin web evidence to a revision, release date, or retrieval date. Prefer official
    model cards, repositories, papers, and provider docs over aggregators.
-5. Record one row per evidence-equivalent model group:
+5. Record one row per evidence-equivalent model/run group. Repeat a model id when its
+   submitted files have distinct run evidence; keep a scope manifest so approved values
+   map deterministically back to files:
 
 | Raw label | Canonical id | Deployment | Availability | Evidence and revision | Confidence |
 |---|---|---|---|---|---|
 | ... | ... | ... | ... | ... | high/medium/low |
 
-6. Use `unknown` only after listing the relevant surfaces checked and why they did not
-   establish the axis. Do not turn lack of quick evidence into a provider-wide guess.
+6. Complete the search ledger and stop rule in `metadata-missingness.md`. Use
+   `unknown` only for `conflicting_sources` or `unavailable_after_search`, with a reason
+   code and the evidence needed to resolve it. Do not turn lack of quick evidence into
+   a provider-wide guess.
 
 ## Batch-edit guardrails
 

@@ -5,8 +5,9 @@ description: >-
   dataset. Use when given an EEE_datastore discussion or PR URL, asked to run
   or reproduce `/eee validate changed`, resolve EEE validator errors or
   warnings, research model deployment_type or model_availability, edit the
-  changed datastore records, rerun the bot, or prepare canonical-registry
-  follow-ups.
+  changed datastore records, prepare human-approved deployment metadata
+  proposals, distinguish record omissions from genuinely unavailable metadata,
+  rerun the bot, or prepare canonical-registry follow-ups.
 ---
 
 # Review and repair an EEE datastore PR
@@ -23,14 +24,23 @@ not sufficient.
   declared bounds, or change a value merely to silence the validator.
 - Make `unknown` a researched conclusion, not a default. Record which relevant
   surfaces were checked before retaining it.
-- Distinguish absent record metadata from unavailable source evidence. A missing or
-  null `model_info.additional_details` object means the record needs investigation;
-  it does not establish either axis as `unknown`.
+- Distinguish absent record metadata from unavailable source evidence for every field.
+  Describe an unchecked absence as "not surfaced in the submitted record," not as
+  missing from the underlying evaluation. A missing or null
+  `model_info.additional_details` object means the record needs investigation; it does
+  not establish either axis as `unknown`.
 - Keep work on the supplied `refs/pr/<number>` ref. Do not open a replacement PR for
   another repair round.
 - If asked only to review, prepare a patch and findings without uploading or
   commenting. If asked to fix, update the supplied PR, trigger its validator, and
   iterate on that same ref.
+- Before changing `deployment_type` or `model_availability` on the live PR, obtain
+  explicit human approval of a proposal bound to the current PR head. Authorization
+  to fix the PR is not approval of research-derived field values.
+- Preserve approved decisions with the data. After approval, copy the byte-identical
+  proposal into each affected collection root and append its receipt to that
+  collection's `REVIEW_DECISIONS.md`; do not leave provenance only in temporary run
+  notes or discussion history.
 - Ask the operator before a policy decision: minting a new canonical id, changing a
   schema/validator rule, dropping non-trivial data, choosing an ambiguous metric or
   bound, or making another structural change. Do not hide such a choice in a data
@@ -45,6 +55,10 @@ Before editing, read these sibling references:
 - `../eee-dataset-conversion/reference/datastore-submission.md`
 - `../eee-dataset-conversion/reference/verification.md`
 
+Read `reference/metadata-missingness.md` whenever a field is absent, null, defaulted,
+or claimed to be unavailable. Apply it to deployment metadata and reproducibility
+fields such as temperature and maximum output tokens.
+
 Read `reference/model-deployment.md` whenever either model deployment axis is
 missing, stale, invalid, or suspicious. Read
 `../eee-dataset-conversion/reference/registry.md` when an id is unresolved or a
@@ -54,6 +68,36 @@ repair also changes an adapter or regenerated output.
 Re-read the allowed deployment values from
 `every_eval_ever/validator/validation_core.py` and the live schema. Existing records
 and old bot comments may use obsolete vocabularies.
+
+## Progress checkpoints
+
+Emit an incremental checkpoint to the caller at every boundary below. Checkpoints are
+run receipts, not Hugging Face discussion comments: do not post them to the PR unless
+the operator explicitly asks. Each checkpoint must include the phase, current PR head
+SHA, facts established since the prior checkpoint, affected file/model counts, command
+exit statuses or evidence URLs when applicable, blockers, and the next action.
+When a progress or parent-message channel is available, send the checkpoint through it
+and continue in the same run. Do not end a turn merely to deliver a checkpoint.
+
+Required checkpoints:
+
+1. **Snapshot:** after selecting the PR head and matching bot run.
+2. **Diagnosis:** after reproducing the gate and grouping its findings.
+3. **Research proposal:** after resolving model-specific evidence. Render
+   `assets/deployment-metadata-proposal.md`, report its SHA-256, and pause for explicit
+   human approval before editing deployment fields or mutating the live PR.
+4. **Local repair:** after the repaired diff passes local validation and content review.
+5. **Remote receipt:** immediately after each uploaded commit or validator-trigger
+   comment, including the returned commit SHA or discussion event id.
+6. **Bot result:** after each completed bot run, tied to its head/fingerprint; repeat
+   diagnosis and repair checkpoints for another iteration.
+
+For a phase lasting more than 60 seconds, emit a heartbeat at least once per minute
+with the current evidence surface or bounded poll, completed/remaining counts, and
+whether local or remote state changed. Use bounded polling calls of at most 45 seconds
+so progress messages can be delivered. Continue after ordinary checkpoints. The
+research proposal is an approval gate; do not continue past it without an explicit
+approval matching both its digest and PR head.
 
 ## Workflow
 
@@ -103,11 +147,21 @@ Group findings by root cause rather than by file. For each group, record:
 - the source evidence needed for a correct fix;
 - proposed change and confidence.
 
+Classify every apparent omission with `reference/metadata-missingness.md`. Do not call
+an absent field genuinely missing while its status is `record_absent` or
+`research_incomplete`. If a README, eval card, methodology page, leaderboard, paper,
+repository, or API exposes it, classify it as `available_not_surfaced` and identify
+the adapter/submission gap.
+
 Inspect content even when the validator omits it. At minimum check suspicious zeroes,
 score scale and bounds, metric identity, `source_data`, duplicate overall/subtask
 aggregates, stable `evaluation_id`, model identity, answer leakage, and companion
 pairing. An out-of-range score requires finding the source scale or source value; do
-not cap, clamp, or round it into validity.
+not cap, clamp, round it into validity, or widen the bounds around it. When a source
+publishes a normalized value, convert it to the metric's declared scale and preserve
+the raw value plus explicit conversion in `score_details.details` or the decision log.
+Serialize unbounded limits as the schema-supported JSON strings `"Infinity"` and
+`"-Infinity"`; replacing a bare non-finite token must not change its meaning.
 
 Inspect the raw JSON before constructing an `EvaluationLog`. The model layer may
 auto-fill absent deployment keys with `unknown`, hiding whether the contributor
@@ -115,9 +169,10 @@ actually supplied `additional_details`, supplied only one axis, or supplied neit
 
 ### 4. Research ambiguous metadata
 
-For deployment warnings, apply `reference/model-deployment.md` to each exact model
-variant and evaluation run. Determine the two axes independently. Do not infer one
-from the other, from the developer folder, or from a provider-wide rule.
+Apply `reference/metadata-missingness.md` before deciding any absent field is truly
+unavailable. For deployment warnings, then apply `reference/model-deployment.md` to
+each exact model variant and evaluation run. Determine the two axes independently. Do
+not infer one from the other, from the developer folder, or from a provider-wide rule.
 
 Search all relevant primary surfaces before choosing `unknown`: record payload and
 run config, generating adapter, pinned model card, evaluator methodology, paper and
@@ -125,12 +180,48 @@ appendix, source repository, and official API/release documentation. Use current
 research where facts may have changed, but pin the evidence revision or date relevant
 to the submitted evaluation.
 
-Batch models only after proving that they share the same evidence. Keep an evidence
-table with raw model label, canonical model id, both decisions, source URL/revision,
-and confidence.
+Batch models only after proving that they share the same evidence.
+
+For an aggregate or leaderboard source, determine whether it ran inference or merely
+collected cited results. An aggregator's adapter and repository establish aggregation
+provenance, not the deployment used by every cited evaluation. Follow per-result
+citations to run evidence. Multiple citations, harness labels, or generation settings
+do not by themselves prove different deployments. Conversely, the same model id does
+not make separate runs deployment-equivalent. Use one proposal row only when every
+affected file in that row shares the evidence; otherwise use scoped repeated rows as
+defined in the proposal template. Ask before splitting records when one log contains
+proven conflicting deployments because that changes the contribution's structure.
+
+Before editing either deployment axis:
+
+1. Copy `assets/deployment-metadata-proposal.md` to run notes outside the datastore
+   repository. Fill one row per exact submitted `model_info.id` when its affected files
+   are evidence-equivalent. If the same id has distinct run evidence, repeat the exact
+   id with scope tags and define those tags below the table. Do not substitute a folder
+   slug or an unapproved canonical id.
+2. Use only the five table columns in the template. Reference sources as `S1`, `S2`,
+   and so on; list each full URL and pinned revision/date once below the table. Record
+   deployment (`D`) and availability (`A`) confidence and sources separately inside
+   their shared cells.
+3. Include every model whose deployment fields would change, including mechanical
+   vocabulary migrations. Propose `unknown` only for `conflicting_sources` or
+   `unavailable_after_search`, and complete the template's unknown-rationale table.
+   If any axis is `research_incomplete`, do not finalize the proposal.
+4. Compute the completed file's SHA-256. Return the rendered Markdown (or a clickable
+   path in a shared workspace), digest, PR head, model count, and affected-file count.
+5. Stop and request explicit human approval of that digest at that PR head. Do not edit
+   the records, upload a commit, or comment on the Hugging Face discussion while
+   approval is pending.
+
+Approval covers only the exact table and head named by the human. Before applying it,
+re-fetch `refs/pr/<number>`. If the head changed, evidence changed, a proposed value
+changed, or a new model entered scope, regenerate the artifact and obtain approval
+again. Record the approver and approval time in the decision log.
 
 ### 5. Make the repair
 
+- For deployment metadata, begin only after the research proposal is explicitly
+  approved and the remote head still matches it. Apply only its approved rows.
 - Edit only files implicated by a finding. Avoid mass reformatting unrelated data.
 - Preserve UUID filenames and stable evaluation identities unless identity itself is
   the defect.
@@ -142,6 +233,20 @@ and confidence.
 - If generated records are wrong, fix or prepare the generating adapter in the code
   repo as well; otherwise the next refresh will restore the defect. Keep adapter code
   out of the datastore PR and cross-link its separate PR.
+- Treat `available_not_surfaced` as an extraction defect: backfill the approved value
+  in the data repair and prepare an adapter/submission follow-up so regeneration does
+  not erase it.
+- After approval, copy the proposal's exact bytes to every affected collection as
+  `data/<collection>/deployment-metadata-proposal-<first-12-SHA256>.md`. Never alter
+  that copy: its full digest must still equal the approved digest.
+- Create or append `data/<collection>/REVIEW_DECISIONS.md` using
+  `assets/collection-review-decision.md`. Record the PR and pre-edit head, full proposal
+  digest and relative path, approver/time, affected records, source-backed decisions,
+  validation receipt, and unresolved adapter/registry work. Append an entry for other
+  substantive content corrections such as score-scale, metric-identity, model-identity,
+  or data-drop decisions even when no deployment proposal exists. Do not require an
+  entry for formatting-only or byte-serialization-only repairs. Preserve existing
+  entries and never store private research notes, credentials, or inaccessible URLs.
 - Review the resulting diff for accidental deletion, unrelated churn, and a mechanical
   replacement applied to semantically different models.
 
@@ -153,6 +258,9 @@ or bot says “Ready to Merge.”
 
 Compare the final changed-path inventory with the initial inventory. Explain every
 new path, deletion, identity change, or source-value change in the decision log.
+Collection-root proposal and `REVIEW_DECISIONS.md` files are intentional new paths;
+verify their links, proposal digest, and append-only history even though the JSON
+validator ignores Markdown.
 
 ### 7. Update and monitor the existing PR
 
@@ -160,6 +268,9 @@ When the task authorizes a fix, upload exact add/delete operations to the existi
 `refs/pr/<number>` with `huggingface_hub.HfApi.create_commit`; set the current PR head
 as `parent_commit` so concurrent updates fail instead of being overwritten. Never set
 `create_pr=True` for a repair round.
+
+If the commit changes either deployment axis, require the approved proposal digest and
+head in the decision log before uploading. General authorization to fix is insufficient.
 
 After the commit lands:
 
@@ -200,7 +311,13 @@ Return:
 - files changed, grouped by root cause;
 - local validation and duplicate-check results;
 - content spot-checks performed;
+- missingness classification for each absent field, including source-available
+  extraction gaps and the surfaces checked before any unavailable claim;
 - deployment/availability evidence table, including researched `unknown` values;
+- research proposal path or rendered table, SHA-256, approved head, approver, and
+  approval time;
+- collection-root proposal copies and `REVIEW_DECISIONS.md` entries, including a digest
+  check proving each proposal copy is byte-identical to the approved artifact;
 - registry and adapter follow-ups with cross-links or candidate tables;
 - decision log and any unresolved blocker.
 
