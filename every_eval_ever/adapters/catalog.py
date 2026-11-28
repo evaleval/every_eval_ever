@@ -255,6 +255,16 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         ),
     ),
     AdapterSpec(
+        key='aider_polyglot',
+        module='every_eval_ever.adapters.aider_polyglot.adapter',
+        collections=('aider-polyglot',),
+        runnable=False,
+        unrunnable_reason=(
+            'model canonicalization and developer attribution need review '
+            'before automatic publication'
+        ),
+    ),
+    AdapterSpec(
         key='artificial_analysis',
         module='every_eval_ever.adapters.artificial_analysis.adapter',
         collections=('artificial-analysis-llms',),

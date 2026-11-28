@@ -1,0 +1,1 @@
+"""Aider Polyglot leaderboard adapter."""

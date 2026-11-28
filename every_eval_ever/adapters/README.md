@@ -73,6 +73,7 @@ re-hosting bytes that are already durably stored.
 | Adapter | Data Source | Description |
 |---------|-------------|-------------|
 | `arc_agi` | ARC Prize leaderboard JSON | Fetches the JSON files behind arcprize.org/leaderboard, maps models to developers via the provider table, and merges canonical model aliases. |
+| `aider_polyglot` | Aider Polyglot leaderboard YAML | Converts Aider's published Polyglot runs (pass rates, edit format, run metadata) into `data/aider-polyglot/`. |
 | `artificial_analysis` | Artificial Analysis LLM API | Converts Artificial Analysis LLM benchmark, pricing, and performance results into `data/artificial-analysis-llms/`. |
 | `vals_ai` | Vals.ai benchmark leaderboards | Scrapes Vals.ai benchmark pages and converts their embedded leaderboard results into `data/vals-ai/`. |
 | `bfcl` | BFCL leaderboard CSV | Converts BFCL leaderboard data with per-metric evaluation names and bounded continuous scores. |
