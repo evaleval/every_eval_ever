@@ -45,8 +45,8 @@ SAMPLES_PER_CHUNK = 100
 DEFAULT_MAX_LOG_MB = 1024
 
 # Characters JSON leaves raw inside strings but str.splitlines() breaks on;
-# the validator's companion check splits that way. Escaping them keeps every
-# string identical once decoded.
+# validators up to 0.3.0 split companion rows that way. Escaping them keeps
+# every string identical once decoded.
 _LINE_BREAKS = (
     ('\u2028'.encode(), b'\\u2028'),
     ('\u2029'.encode(), b'\\u2029'),
