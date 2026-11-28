@@ -275,15 +275,6 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         ),
     ),
     AdapterSpec(
-        key='benchpress',
-        module='every_eval_ever.adapters.benchpress.adapter',
-        collections=('benchpress',),
-        notes=(
-            'Reads microsoft/benchpress-score-matrix over plain HTTPS at one '
-            'resolved commit; --revision reproduces an earlier snapshot.'
-        ),
-    ),
-    AdapterSpec(
         key='critpt_v1',
         module='every_eval_ever.adapters.critpt.adapter',
         collections=('critpt-v1',),

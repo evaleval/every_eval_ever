@@ -89,10 +89,38 @@ jobs:
               printf '%s' "${matrix}" | jq -r '.include[] | "- `\(.adapter)` (\(.timeout_minutes)m adapter, \(.job_timeout_minutes)m job)"'
           } >> "${GITHUB_STEP_SUMMARY}"
 
+  retire-benchpress:
+    name: Remove retired BenchPress collection
+    if: github.event_name == 'schedule' && github.repository == 'evaleval/every_eval_ever'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: cron
+    concurrency:
+      group: retire-benchpress
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - uses: astral-sh/setup-uv@v7.6.0
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        env:
+          UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/eee-venv
+        run: uv sync --locked
+      - name: Remove collection
+        env:
+          UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/eee-venv
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          EEE_DATASTORE_REPO_ID: ${{ vars.EEE_DATASTORE_REPO_ID }}
+        run: '"${UV_PROJECT_ENVIRONMENT}/bin/python" -m every_eval_ever.cron.retire_benchpress'
+
   run:
     name: ${{ matrix.adapter }}
-    needs: plan
-    if: needs.plan.outputs.count != '0'
+    needs: [plan, retire-benchpress]
+    if: >-
+      !cancelled() && needs.plan.result == 'success'
+      && (needs.retire-benchpress.result == 'success' || needs.retire-benchpress.result == 'skipped')
+      && needs.plan.outputs.count != '0'
     runs-on: ubuntu-latest
     # The adapter's own budget plus a buffer for checkout, `uv sync` and the
     # uploads, computed by `cron plan`. Giving the job the adapter's figure
@@ -159,7 +187,7 @@ jobs:
 
   summary:
     name: Summary
-    needs: [plan, run]
+    needs: [plan, retire-benchpress, run]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -169,12 +197,17 @@ jobs:
       - name: Fail if any adapter run failed
         env:
           PLAN_RESULT: ${{ needs.plan.result }}
+          RETIRE_RESULT: ${{ needs.retire-benchpress.result }}
           RUN_RESULT: ${{ needs.run.result }}
         run: |
           set -euo pipefail
-          echo "plan: ${PLAN_RESULT}, run: ${RUN_RESULT}"
+          echo "plan: ${PLAN_RESULT}, retirement: ${RETIRE_RESULT}, run: ${RUN_RESULT}"
           if [ "${PLAN_RESULT}" != "success" ] && [ "${PLAN_RESULT}" != "skipped" ]; then
               echo "::error::could not plan today's ingestion"
+              exit 1
+          fi
+          if [ "${RETIRE_RESULT}" != "success" ] && [ "${RETIRE_RESULT}" != "skipped" ]; then
+              echo "::error::could not remove the retired BenchPress collection"
               exit 1
           fi
           if [ "${RUN_RESULT}" = "failure" ] || [ "${RUN_RESULT}" = "cancelled" ]; then

@@ -1,1 +1,0 @@
-"""BenchPress adapter package."""

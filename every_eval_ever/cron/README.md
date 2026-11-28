@@ -31,6 +31,12 @@ Nothing is shared between adapters. Each run stages into its own temporary
 directory and uploads only what it validated, so one adapter's failure cannot
 reach another adapter's records.
 
+The scheduled workflow also removes the retired `data/benchpress/` collection
+from the datastore, if present, before ingestion. A successful ingestion triggers
+a flat rebuild of the current view; after a failed ingestion the scheduled
+catch-up rebuild does so instead. Historical snapshots and raw captures are
+retained. Manual and dry-run workflows do not perform this cleanup.
+
 ## Outcomes
 
 | Status | Meaning | Job |
