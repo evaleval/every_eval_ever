@@ -62,6 +62,9 @@ def test_v2_no_invented_metadata(tmp_path: Path):
     assert score.source_data.samples_number is None
     assert score.generation_config is None
     assert log.source_metadata.evaluator_relationship.value == 'other'
+    assert log.source_metadata.additional_details['reported_by'] == (
+        'CritPt maintainers (GitHub README)'
+    )
     assert log.model_info.additional_details['deployment_type'] == 'unknown'
 
 

@@ -161,6 +161,7 @@ def convert_rows(
             independent = version == 'v1' and model == 'Gemini-3 Pro' and footnote == FOOTNOTE
             details = {
                 'leaderboard_url': URLS[version], 'source_model_label': label,
+                'reported_by': 'CritPt maintainers (GitHub README)',
                 'benchmark_version': version,
                 'metric_definition': 'Average accuracy over 5 runs × 70 test challenges',
                 'benchmark_registry_strategy': benchmark.strategy,

@@ -804,7 +804,7 @@ def make_log(
         ),
         retrieved_timestamp=retrieved_timestamp,
         source_metadata={
-            'source_name': 'Artificial Analysis LLM API',
+            'source_name': 'Artificial Analysis LLM API and website',
             'source_type': 'documentation',
             'source_organization_name': 'Artificial Analysis',
             'source_organization_url': ATTRIBUTION_URL,
@@ -831,6 +831,22 @@ def make_log(
     return log, developer, model_path_name
 
 
+def has_metric_values(model: dict[str, Any]) -> bool:
+    """Return whether any mapped metric field holds a value."""
+    for spec in METRIC_SPECS:
+        container = (
+            model
+            if spec.source_section == 'model'
+            else model.get(spec.source_section)
+        )
+        if (
+            isinstance(container, dict)
+            and container.get(spec.source_key) is not None
+        ):
+            return True
+    return False
+
+
 def convert_models(
     models: list[dict[str, Any]],
     payload: dict[str, Any],
@@ -841,8 +857,21 @@ def convert_models(
     """Convert usable models while retaining model and metric failures."""
     outputs = []
     failures = []
+    exclusions = []
     for index, model in enumerate(models):
         source_ref = f'Artificial Analysis model row {index}'
+        if not has_metric_values(model):
+            exclusions.append(
+                SourceRecordExclusion(
+                    source_ref=source_ref,
+                    reason='no value for any mapped metric in this snapshot',
+                    source_record={
+                        'id': model.get('id'),
+                        'name': model.get('name'),
+                    },
+                )
+            )
+            continue
         failure_count_before = len(failures)
         try:
             log, developer, model_path_name = make_log(
@@ -878,6 +907,7 @@ def convert_models(
         total_records=len(models),
         records=outputs,
         failures=failures,
+        exclusions=exclusions,
     )
 
 

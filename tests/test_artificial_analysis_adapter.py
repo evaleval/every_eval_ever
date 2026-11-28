@@ -58,6 +58,30 @@ def test_bad_metric_keeps_model_with_other_valid_metrics(tmp_path):
     ] == ['artificial_analysis.artificial_analysis_intelligence_index']
 
 
+def test_model_without_any_values_is_excluded_not_failed(tmp_path):
+    empty = _model(
+        'old-model',
+        'Creator',
+        {'artificial_analysis_intelligence_index': None},
+        pricing={'price_1m_input_tokens': None},
+    )
+    scored = _model(
+        'model-a', 'Creator', {'artificial_analysis_intelligence_index': 50}
+    )
+
+    result = _convert([empty, scored], tmp_path)
+
+    assert not result.failures
+    assert len(result.records) == 1
+    assert [e.source_record for e in result.exclusions] == [
+        {'id': 'old-model', 'name': 'old-model'}
+    ]
+    log = result.records[0].eval_log
+    assert log.source_metadata.source_name == (
+        'Artificial Analysis LLM API and website'
+    )
+
+
 def test_bad_identity_does_not_discard_other_models(tmp_path):
     good = _model(
         'model-a', 'Creator', {'artificial_analysis_intelligence_index': 50}

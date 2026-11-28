@@ -135,6 +135,9 @@ not explicitly state the scale. The bundled snapshot is used for benchmark and
 metric lookups; model lookup uses side-effect-free exact registry resolution.
 Unresolved model names are kept as unverified IDs and routed under the
 `unattributed` developer placeholder. No canonical entries are created.
+Artificial Analysis also publishes CritPt v2 scores (`artificial_analysis.critpt_v2`
+in `artificial-analysis-llms`); they differ from this README's v2 table, so both
+are kept, each labelled with its own source and `reported_by`.
 V2 automation is paused pending identity and score-scale review; the frozen v1
 snapshot is not scheduled. Malformed rows are reported and make the run fail
 after valid rows are published.
