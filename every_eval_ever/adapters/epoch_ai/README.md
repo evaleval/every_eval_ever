@@ -52,11 +52,19 @@ is fetched. `--no-registry-resolve` skips organization resolution.
   the cron's raw capture already keeps the zip with its sha256. `retrieved_from` records the
   URL a `--url` run fetched.
 
+- An Epoch-run CSV (not `*_external.csv`) that `benchmark_metadata.csv` lists by name (matched on
+  letters and digits, e.g. `SWE-Bench verified` / `swe_bench_verified.csv`) but names no file or
+  column for takes the column Epoch declares for its other Epoch-run CSVs with exactly the same
+  columns, when those all agree (today `Best score (across scorers)`), on the entry's `scale`.
+  Those records carry `epoch_score_column_declared: false` in `metric_config.additional_details`.
+  On the 2026-11-28 zip this adds SWE-Bench verified (35 rows) and FrontierMath-Erdos (18).
+
 ## What is not
 - ECI and EDI values are not converted.
 - Rows with no `Model version`, or no organization anywhere in the archive, or a blank headline
   score, go to the failure report and make the command exit non-zero.
-- CSVs that `benchmark_metadata.csv` gives no score column for are reported as exclusions.
+- CSVs that `benchmark_metadata.csv` gives no score column for are reported as exclusions, except
+  the case below.
 
 ## Instance level (`--instance-level`, needs `uv sync --extra inspect`)
 Epoch-run rows name their Inspect log in `Logs`. With `--instance-level` the adapter downloads

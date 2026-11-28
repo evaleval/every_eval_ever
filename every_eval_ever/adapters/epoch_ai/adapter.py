@@ -419,11 +419,43 @@ def build_model_info(
     return info, prefix, base, variant
 
 
+def _name_key(text: str) -> str:
+    return re.sub(r'[^a-z0-9]', '', text.lower())
+
+
 def _benchmark_specs(dataset: Dataset) -> list[dict[str, str]]:
-    return [
-        row for row in dataset.tables['benchmark_metadata.csv']
-        if _clean(row.get('source_file'))
-    ]
+    """Benchmarks with a headline column: declared, then undeclared ones.
+
+    An Epoch-run CSV that ``benchmark_metadata.csv`` lists by name but names
+    no file or column for takes the column Epoch declares for its other
+    Epoch-run CSVs with exactly the same columns, when those all agree. Such
+    specs carry ``score_column_declared='false'``.
+    """
+    meta = dataset.tables['benchmark_metadata.csv']
+    declared = [row for row in meta if _clean(row.get('source_file'))]
+    by_columns: dict[frozenset[str], set[str]] = {}
+    for spec in declared:
+        rows = dataset.tables.get(spec['source_file'])
+        if rows and not spec['source_file'].endswith('_external.csv'):
+            by_columns.setdefault(frozenset(rows[0]), set()).add(
+                spec['score_column'])
+    named = {spec['source_file'] for spec in declared}
+    unnamed: dict[str, list[dict[str, str]]] = {}
+    for row in meta:
+        if not _clean(row.get('source_file')):
+            unnamed.setdefault(_name_key(row['benchmark']), []).append(row)
+    inferred = []
+    for name, rows in sorted(dataset.tables.items()):
+        if (name in named or name in NON_BENCHMARK_TABLES or '/' in name
+                or name.endswith('_external.csv') or not rows):
+            continue
+        entries = unnamed.get(_name_key(name.removesuffix('.csv')), [])
+        columns = by_columns.get(frozenset(rows[0]), set())
+        if len(entries) == 1 and len(columns) == 1:
+            inferred.append({**entries[0], 'source_file': name,
+                             'score_column': next(iter(columns)),
+                             'score_column_declared': 'false'})
+    return declared + inferred
 
 
 def _row_key(row: dict[str, str], has_id: bool) -> str:
@@ -441,6 +473,7 @@ def make_log(
     benchmark = spec['benchmark']
     bslug = _slug(benchmark)
     column = spec['score_column']
+    undeclared = spec.get('score_column_declared') == 'false'
     raw_score = _clean(row.get(column))
     if raw_score is None:
         raise ValueError(f'blank {column!r} (the headline score column)')
@@ -494,7 +527,10 @@ def make_log(
         metric_config=MetricConfig(
             evaluation_description=(
                 f'{benchmark}: Epoch AI headline score, column {column!r} of '
-                f'{spec["source_file"]}.'
+                f'{spec["source_file"]}.' + (
+                    ' benchmark_metadata.csv names no file or column for this '
+                    'benchmark; the column is the one Epoch declares for its '
+                    'other runs with the same columns.' if undeclared else '')
             ),
             metric_id=metric_id,
             metric_name=column,
@@ -508,6 +544,8 @@ def make_log(
             additional_details={
                 'epoch_scale': spec['scale'],
                 'epoch_source_file': spec['source_file'],
+                **({'epoch_score_column_declared': 'false'}
+                   if undeclared else {}),
             },
         ),
         score_details=ScoreDetails(score=score, details=details or None),
@@ -578,9 +616,14 @@ def convert(dataset: Dataset, retrieved: str,
     logs: list[EvaluationLog] = []
     total = 0
     seen: dict[str, str] = {}
-    named = {spec['source_file'] for spec in _benchmark_specs(dataset)}
+    specs = _benchmark_specs(dataset)
+    named = {spec['source_file'] for spec in specs}
+    inferred = {spec['benchmark'] for spec in specs
+                if spec.get('score_column_declared') == 'false'}
     for row in dataset.tables['benchmark_metadata.csv']:
-        if not _clean(row.get('source_file')):
+        if not _clean(row.get('source_file')) and (
+            row['benchmark'] not in inferred
+        ):
             exclusions.append(SourceRecordExclusion(
                 source_ref=f'benchmark_metadata.csv:{row["benchmark"]}',
                 reason='Epoch names no source file for this benchmark',
@@ -594,7 +637,7 @@ def convert(dataset: Dataset, retrieved: str,
                        'this file, so no headline score is declared',
                 source_record={'rows': len(rows)},
             ))
-    for spec in _benchmark_specs(dataset):
+    for spec in specs:
         rows = dataset.tables.get(spec['source_file'])
         if rows is None:
             failures.append(SourceRecordFailure(

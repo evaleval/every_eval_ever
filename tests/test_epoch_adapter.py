@@ -406,3 +406,57 @@ def test_fetch_records_the_zip_in_raw_capture(monkeypatch, tmp_path):
     log = json.loads(next(out.glob('*/*/*.json')).read_text())
     assert log['source_metadata']['additional_details']['retrieved_from'] == (
         adapter.DATA_URL)
+
+
+_RUN_HEADER = (FIXTURES / 'gpqa_diamond.csv').read_bytes().split(b'\n', 1)[0]
+_RUN_ROW = (b'Qwen3-32B_none,0.62,0.62,2025-04-29,Alibaba,China,,,0.02,,,'
+            b'2026-08-30T22:45:08.000Z,SweRun1')
+_META_HEADER = (b'benchmark,in_eci,source_file,score_column,scale,'
+                b'random_baseline,score_ceiling,release_date,superseded_by\n')
+
+
+def _with_undeclared(name: str, body: bytes, entry: str | None):
+    """The fixture plus one CSV and, optionally, a metadata entry that names
+    neither its file nor its column."""
+    edit = None if entry is None else (
+        'benchmark_metadata.csv', _META_HEADER,
+        _META_HEADER + f'{entry},False,,,1.0,0.0,1.0,2024-08-13,\n'.encode())
+    dataset = adapter.load_zip(
+        _fixture_zip(extra={name: body}, edit=edit), 'fixture')
+    return adapter.convert(dataset, '1.0', adapter.Registry())
+
+
+def test_undeclared_epoch_run_file_takes_the_declared_runs_column():
+    result = _with_undeclared(
+        'swe_bench_verified.csv', _RUN_HEADER + b'\n' + _RUN_ROW + b'\n',
+        'SWE-Bench verified')
+    log = _by_version(result, 'swe-bench-verified')['Qwen3-32B_none']
+    config = log.evaluation_results[0].metric_config
+    assert log.evaluation_results[0].score_details.score == 0.62
+    assert config.metric_name == 'Best score (across scorers)'
+    assert config.additional_details['epoch_score_column_declared'] == 'false'
+    assert 'names no file or column' in config.evaluation_description
+    assert not [e for e in result.exclusions
+                if 'swe' in e.source_ref.lower()]
+    # declared benchmarks carry no marker
+    declared = _by_version(result, 'gpqa-diamond')['grok-3-beta']
+    assert 'epoch_score_column_declared' not in (
+        declared.evaluation_results[0].metric_config.additional_details)
+
+
+@pytest.mark.parametrize(('name', 'body', 'entry'), [
+    # no metadata entry names it
+    ('spireclimb_sts2_a10.csv', _RUN_HEADER + b'\n' + _RUN_ROW + b'\n', None),
+    # columns differ from every declared Epoch-run file
+    ('swe_bench_verified.csv',
+     _RUN_HEADER + b',extra\n' + _RUN_ROW + b',x\n', 'SWE-Bench verified'),
+    # external compilations have no declared pattern to follow
+    ('swe_bench_verified_external.csv',
+     _RUN_HEADER + b'\n' + _RUN_ROW + b'\n', 'SWE-Bench verified external'),
+])
+def test_undeclared_file_without_evidence_stays_excluded(name, body, entry):
+    result = _with_undeclared(name, body, entry)
+    assert not any(
+        log.evaluation_results[0].metric_config.additional_details[
+            'epoch_source_file'] == name for log in result.records)
+    assert any(e.source_ref == name for e in result.exclusions)
