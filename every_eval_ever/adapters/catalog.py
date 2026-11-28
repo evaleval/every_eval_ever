@@ -261,25 +261,6 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         required_env=('ARTIFICIAL_ANALYSIS_API_KEY',),
     ),
     AdapterSpec(
-        key='critpt_v1',
-        module='every_eval_ever.adapters.critpt.adapter',
-        collections=('critpt-v1',),
-        extra_args=('--version', 'v1'),
-        runnable=False,
-        unrunnable_reason='the v1 leaderboard is pinned to an immutable commit',
-    ),
-    AdapterSpec(
-        key='critpt_v2',
-        module='every_eval_ever.adapters.critpt.adapter',
-        collections=('critpt-v2',),
-        extra_args=('--version', 'v2'),
-        runnable=False,
-        unrunnable_reason=(
-            'benchmark and model canonicalization and the leaderboard score '
-            'scale need review before automatic publication'
-        ),
-    ),
-    AdapterSpec(
         key='exgentic',
         module='every_eval_ever.adapters.exgentic.adapter',
         collections=('exgentic',),

@@ -1,1 +1,0 @@
-"""CritPt leaderboard adapter."""

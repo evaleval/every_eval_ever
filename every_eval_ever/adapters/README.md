@@ -36,7 +36,6 @@ An adapter that automation runs must therefore:
 
 `bfcl`, `cocoabench`, `paperswithcode_drugbank`, and `sciarena` are registered as
 `runnable=False`: they need local inputs and have no live fetch path.
-`critpt_v1` is frozen and `critpt_v2` is paused pending identity and score-scale review.
 
 ### Skipping a run whose source has not changed
 
@@ -77,7 +76,6 @@ re-hosting bytes that are already durably stored.
 | `artificial_analysis` | Artificial Analysis LLM API | Converts Artificial Analysis LLM benchmark, pricing, and performance results into `data/artificial-analysis-llms/`. |
 | `vals_ai` | Vals.ai benchmark leaderboards | Scrapes Vals.ai benchmark pages and converts their embedded leaderboard results into `data/vals-ai/`. |
 | `bfcl` | BFCL leaderboard CSV | Converts BFCL leaderboard data with per-metric evaluation names and bounded continuous scores. |
-| `critpt` | CritPt GitHub README leaderboards | Converts the pinned historical v1 and live v2 challenge-accuracy tables separately. |
 | `sciarena` | SciArena leaderboard API | Converts SciArena leaderboard results. |
 | `global_mmlu_lite` | Kaggle API | Fetches Global MMLU Lite leaderboard results from Kaggle. |
 | `hfopenllm_v2` | HuggingFace Spaces API | Fetches the Open LLM Leaderboard v2 (4576+ models). The leaderboard is no longer maintained upstream, so this converts a frozen archive and is not scheduled. |
@@ -102,36 +100,6 @@ re-hosting bytes that are already durably stored.
 | `typed_decisions` | Local run rows + predictions JSONL (typed-decisions) | Converts one typed-decisions run (two local JSONL files) into `data/typed-decisions/`: one aggregate accuracy over all typed decisions (choice/noul/score) plus a per-decision `*_samples.jsonl` sidecar. Local inputs only — not scheduled. |
 | `paperswithcode` | Papers with Code PostgreSQL dumps | Converts PwC leaderboard entries into `data/paperswithcode/`. Metric bounds and direction are resolved against a vendored eval-card-registry snapshot; unknown metrics fail the run rather than getting invented bounds. Needs the `paperswithcode` extra. |
 | `wild` | HuggingFace (`kensho/WILD-raw`) | Converts the WILD-raw item-level eval responses (65 models × 27 benchmarks, run with Inspect AI) into `data/wild/`: aggregate accuracy per model×benchmark and per subtask, with optional per-item `_samples.jsonl` sidecars (`--include-instances`). See [`wild/README.md`](wild/README.md). |
-
-### Artificial Analysis
-
-The LLM API adapter maps `gpqa`, `scicode`, `lcr`, and `terminalbench_hard`
-when present. It does not label `gpqa` as Diamond or include CritPt v2 full,
-CritPt v2 hard subset, or GDPval. Verify the current API fields, scales, and
-evaluation settings before adding these metrics or equating CritPt regimes.
-
-### CritPt
-
-Use `uv run python -m every_eval_ever.adapters.critpt.adapter --version v1 --output-dir data/critpt-v1`
-or `--version v2 --output-dir data/critpt-v2`. `--input-markdown` replays a saved
-README; `--no-registry-resolve` disables lookups. The [v1 README](https://raw.githubusercontent.com/CritPt-Benchmark/CritPt/17c2545c302762d2f2d644d923ea4c301605cb08/README.md)
-is a historical snapshot, not the current v1 leaderboard requested in #354;
-the [current README](https://raw.githubusercontent.com/CritPt-Benchmark/CritPt/main/README.md)
-only presents v2. Both state average challenge accuracy over five runs of 70
-test challenges, while also describing 71 challenges overall. The v1 Gemini-3
-Pro row is explicitly attributed to Artificial Analysis without tools. The
-v2 README does not identify a full or hard subset or a harness for its rows;
-the adapter does not ingest the AA hard subset or infer those details. The
-linked HF dataset is mutable and not verified to match either leaderboard version.
-
-Scores are preserved as printed with unknown bounds and unit: the README does
-not explicitly state the scale. The bundled snapshot is used for benchmark and
-metric lookups; model lookup uses side-effect-free exact registry resolution.
-Unresolved model names are kept as unverified IDs and routed under the
-`unattributed` developer placeholder. No canonical entries are created.
-V2 automation is paused pending identity and score-scale review; the frozen v1
-snapshot is not scheduled. Malformed rows are reported and make the run fail
-after valid rows are published.
 
 ### Papers with Code DrugBank
 
