@@ -455,6 +455,9 @@ class TestWarningVisibility:
             width=100,
             no_color=not color,
             force_terminal=color,
+            # force_terminal alone still drops color when TERM=dumb, which made every
+            # color assertion depend on the terminal the suite happened to run in.
+            color_system='standard' if color else None,
             legacy_windows=False,
         )
         render_report_rich(report, console)

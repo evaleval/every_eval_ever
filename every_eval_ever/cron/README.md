@@ -31,6 +31,12 @@ Nothing is shared between adapters. Each run stages into its own temporary
 directory and uploads only what it validated, so one adapter's failure cannot
 reach another adapter's records.
 
+The scheduled workflow also removes the retired `data/benchpress/` collection
+from the datastore, if present, before ingestion. A successful ingestion triggers
+a flat rebuild of the current view; after a failed ingestion the scheduled
+catch-up rebuild does so instead. Historical snapshots and raw captures are
+retained. Manual and dry-run workflows do not perform this cleanup.
+
 ## Outcomes
 
 | Status | Meaning | Job |
@@ -45,9 +51,12 @@ A missing credential is red because the adapter is in today's matrix only
 because the catalog says it should run. Green, it is indistinguishable from an
 unchanged leaderboard, which is how an adapter goes missing for a month. An
 adapter that should not run at all is `runnable=False` in the catalog instead,
-and never reaches a job. A missing *package* stays green: `with_packages` is
-installed by the workflow from the matrix, so an absent one is a packaging
-problem rather than a secret nobody added.
+and never reaches a job. A missing *package* stays green: every `with_packages`
+dependency used by scheduled adapters belongs to the locked `cron` dependency
+group and is installed before the workflow exposes credentials. The ingest
+step executes that prepared interpreter directly, so package resolution,
+downloads, and build hooks never run with adapter or publication secrets in
+their environment.
 
 An empty refresh is deliberately a failure. "0 valid, 0 invalid" is what a
 broken output directory looks like, not an up-to-date leaderboard.

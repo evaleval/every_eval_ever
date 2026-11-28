@@ -255,18 +255,42 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         ),
     ),
     AdapterSpec(
+        key='aider_polyglot',
+        module='every_eval_ever.adapters.aider_polyglot.adapter',
+        collections=('aider-polyglot',),
+        runnable=False,
+        unrunnable_reason=(
+            'model canonicalization and developer attribution need review '
+            'before automatic publication'
+        ),
+    ),
+    AdapterSpec(
         key='artificial_analysis',
         module='every_eval_ever.adapters.artificial_analysis.adapter',
         collections=('artificial-analysis-llms',),
         required_env=('ARTIFICIAL_ANALYSIS_API_KEY',),
+        notes=(
+            'Free-tier API key plus the public leaderboard and CritPt v2 '
+            'pages, scraped with Artificial Analysis permission.'
+        ),
     ),
     AdapterSpec(
-        key='benchpress',
-        module='every_eval_ever.adapters.benchpress.adapter',
-        collections=('benchpress',),
-        notes=(
-            'Reads microsoft/benchpress-score-matrix over plain HTTPS at one '
-            'resolved commit; --revision reproduces an earlier snapshot.'
+        key='critpt_v1',
+        module='every_eval_ever.adapters.critpt.adapter',
+        collections=('critpt-v1',),
+        extra_args=('--version', 'v1'),
+        runnable=False,
+        unrunnable_reason='the v1 leaderboard is pinned to an immutable commit',
+    ),
+    AdapterSpec(
+        key='critpt_v2',
+        module='every_eval_ever.adapters.critpt.adapter',
+        collections=('critpt-v2',),
+        extra_args=('--version', 'v2'),
+        runnable=False,
+        unrunnable_reason=(
+            'benchmark and model canonicalization and the leaderboard score '
+            'scale need review before automatic publication'
         ),
     ),
     AdapterSpec(
@@ -589,6 +613,22 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         runnable=False,
         unrunnable_reason='requires --input-json; no live fetch path',
         captures_raw=False,
+    ),
+    AdapterSpec(
+        key='smb_bench',
+        module='every_eval_ever.adapters.smb_bench.adapter',
+        collections=('smb-bench',),
+        runnable=False,
+        unrunnable_reason=(
+            'converts one pinned revision of a frozen dataset release whose '
+            'records were submitted by hand; a scheduled run would publish '
+            'the same records a second time'
+        ),
+        notes=(
+            'A manual run needs no credentials and no extras. A dataset '
+            'revision that adds models is a bump of DEFAULT_REVISION and a '
+            'refresh of registry_snapshot.json.'
+        ),
     ),
 )
 

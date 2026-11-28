@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 import os
+import re
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -25,8 +25,8 @@ from every_eval_ever.eval_types import (
 from every_eval_ever.helpers import (
     SCHEMA_VERSION,
     EvaluationLogOutput,
-    FetchError,
     SourceConversionResult,
+    SourceRecordExclusion,
     SourceRecordFailure,
     default_failure_report_path,
     fetch_json,
@@ -35,11 +35,19 @@ from every_eval_ever.helpers import (
     save_evaluation_logs,
     save_failure_report,
 )
+from every_eval_ever.helpers.fetch import fetch_text
 from every_eval_ever.helpers.io import require_identity
 
-SOURCE_URL = 'https://artificialanalysis.ai/api/v2/language/models'
-FREE_SOURCE_URL = 'https://artificialanalysis.ai/api/v2/language/models/free'
-API_REFERENCE_URL = 'https://artificialanalysis.ai/data-api/docs'
+SOURCE_URL = 'https://artificialanalysis.ai/api/v2/language/models/free'
+LEADERBOARD_URL = 'https://artificialanalysis.ai/leaderboards/models'
+CRITPT_V2_URL = 'https://artificialanalysis.ai/evaluations/critpt-v2'
+# Model fields merged in from the website, keyed by the page they come from.
+SITE_SECTIONS = {
+    'site_scores': LEADERBOARD_URL,
+    'site_critpt_v2': CRITPT_V2_URL,
+}
+MAX_API_PAGES = 100
+API_REFERENCE_URL = 'https://artificialanalysis.ai/api-reference'
 METHODOLOGY_URL = 'https://artificialanalysis.ai/methodology'
 ATTRIBUTION_URL = 'https://artificialanalysis.ai/'
 BENCHMARK_NAME = 'artificial-analysis-llms'
@@ -57,301 +65,167 @@ class MetricSpec:
     metric_unit: str
     lower_is_better: bool
     min_score: float
-    max_score: float
+    max_score: float | None = None
+    use_observed_max: bool = False
     include_prompt_options: bool = False
-    fallback_keys: tuple[str, ...] = ()
+
+
+def _index_spec(key: str, label: str) -> MetricSpec:
+    return MetricSpec(
+        evaluation_name=f'artificial_analysis.{key}',
+        source_section='evaluations',
+        source_key=key,
+        metric_name=f'Artificial Analysis {label}',
+        evaluation_description=f'Artificial Analysis {label}.',
+        metric_kind='index',
+        metric_unit='points',
+        lower_is_better=False,
+        min_score=0.0,
+        use_observed_max=True,
+    )
+
+
+def _site_score_spec(
+    name: str, section: str, key: str, metric_name: str, description: str
+) -> MetricSpec:
+    return MetricSpec(
+        evaluation_name=f'artificial_analysis.{name}',
+        source_section=section,
+        source_key=key,
+        metric_name=metric_name,
+        evaluation_description=description,
+        metric_kind='benchmark_score',
+        metric_unit='proportion',
+        lower_is_better=False,
+        min_score=0.0,
+        max_score=1.0,
+    )
+
+
+def _speed_spec(
+    name: str,
+    section: str,
+    key: str,
+    metric_name: str,
+    description: str,
+    *,
+    latency: bool,
+) -> MetricSpec:
+    return MetricSpec(
+        evaluation_name=f'artificial_analysis.{name}',
+        source_section=section,
+        source_key=key,
+        metric_name=metric_name,
+        evaluation_description=description,
+        metric_kind='latency' if latency else 'throughput',
+        metric_unit='seconds' if latency else 'tokens_per_second',
+        lower_is_better=latency,
+        min_score=0.0,
+        use_observed_max=True,
+        include_prompt_options=True,
+    )
 
 
 METRIC_SPECS = [
-    MetricSpec(
-        evaluation_name='artificial_analysis.artificial_analysis_intelligence_index',
-        source_section='evaluations',
-        source_key='artificial_analysis_intelligence_index',
-        metric_name='Artificial Analysis Intelligence Index',
-        evaluation_description='Artificial Analysis composite intelligence index.',
-        metric_kind='index',
-        metric_unit='points',
-        lower_is_better=False,
-        min_score=0.0,
-        max_score=float('inf'),
+    _index_spec('artificial_analysis_intelligence_index', 'Intelligence Index'),
+    _index_spec(
+        'artificial_analysis_finance_and_accounting_index',
+        'Finance & Accounting Index',
     ),
-    MetricSpec(
-        evaluation_name='artificial_analysis.artificial_analysis_coding_index',
-        source_section='evaluations',
-        source_key='artificial_analysis_coding_index',
-        metric_name='Artificial Analysis Coding Index',
-        evaluation_description='Artificial Analysis composite coding index.',
-        metric_kind='index',
-        metric_unit='points',
-        lower_is_better=False,
-        min_score=0.0,
-        max_score=float('inf'),
+    _index_spec(
+        'artificial_analysis_strategy_and_ops_index', 'Strategy & Ops Index'
     ),
-    MetricSpec(
-        evaluation_name='artificial_analysis.artificial_analysis_math_index',
-        source_section='evaluations',
-        source_key='artificial_analysis_math_index',
-        metric_name='Artificial Analysis Math Index',
-        evaluation_description='Artificial Analysis composite math index.',
-        metric_kind='index',
-        metric_unit='points',
-        lower_is_better=False,
-        min_score=0.0,
-        max_score=float('inf'),
+    _index_spec('artificial_analysis_legal_index', 'Legal Index'),
+    _index_spec(
+        'artificial_analysis_healthcare_and_medical_index',
+        'Healthcare & Medical Index',
     ),
-    MetricSpec(
-        evaluation_name='artificial_analysis.artificial_analysis_agentic_index',
-        source_section='evaluations',
-        source_key='artificial_analysis_agentic_index',
-        metric_name='Artificial Analysis Agentic Index',
-        evaluation_description='Artificial Analysis composite agentic index.',
-        metric_kind='index',
-        metric_unit='points',
-        lower_is_better=False,
-        min_score=0.0,
-        max_score=float('inf'),
+    _index_spec('artificial_analysis_engineering_index', 'Engineering Index'),
+    _index_spec('artificial_analysis_economics_index', 'Economics Index'),
+    _site_score_spec(
+        'gpqa',
+        'site_scores',
+        'gpqa-diamond',
+        'GPQA Diamond',
+        'Benchmark score on GPQA Diamond.',
     ),
-    MetricSpec(
-        evaluation_name='artificial_analysis.artificial_analysis_finance_and_accounting_index',
-        source_section='evaluations',
-        source_key='artificial_analysis_finance_and_accounting_index',
-        metric_name='Artificial Analysis Finance & Accounting Index',
-        evaluation_description='Artificial Analysis Finance & Accounting capability index.',
-        metric_kind='index',
-        metric_unit='points',
-        lower_is_better=False,
-        min_score=0.0,
-        max_score=float('inf'),
+    _site_score_spec(
+        'hle',
+        'site_scores',
+        'humanitys-last-exam',
+        "Humanity's Last Exam",
+        "Benchmark score on Humanity's Last Exam.",
     ),
-    MetricSpec(
-        evaluation_name='artificial_analysis.artificial_analysis_strategy_and_ops_index',
-        source_section='evaluations',
-        source_key='artificial_analysis_strategy_and_ops_index',
-        metric_name='Artificial Analysis Strategy & Ops Index',
-        evaluation_description='Artificial Analysis Strategy & Ops capability index.',
-        metric_kind='index',
-        metric_unit='points',
-        lower_is_better=False,
-        min_score=0.0,
-        max_score=float('inf'),
+    _site_score_spec(
+        'livecodebench',
+        'site_scores',
+        'livecodebench',
+        'LiveCodeBench',
+        'Benchmark score on LiveCodeBench.',
     ),
-    MetricSpec(
-        evaluation_name='artificial_analysis.artificial_analysis_legal_index',
-        source_section='evaluations',
-        source_key='artificial_analysis_legal_index',
-        metric_name='Artificial Analysis Legal Index',
-        evaluation_description='Artificial Analysis Legal capability index.',
-        metric_kind='index',
-        metric_unit='points',
-        lower_is_better=False,
-        min_score=0.0,
-        max_score=float('inf'),
+    _site_score_spec(
+        'scicode',
+        'site_scores',
+        'scicode',
+        'SciCode',
+        'Benchmark score on SciCode.',
     ),
-    MetricSpec(
-        evaluation_name='artificial_analysis.artificial_analysis_healthcare_and_medical_index',
-        source_section='evaluations',
-        source_key='artificial_analysis_healthcare_and_medical_index',
-        metric_name='Artificial Analysis Healthcare & Medical Index',
-        evaluation_description='Artificial Analysis Healthcare & Medical capability index.',
-        metric_kind='index',
-        metric_unit='points',
-        lower_is_better=False,
-        min_score=0.0,
-        max_score=float('inf'),
+    _site_score_spec(
+        'aime_25',
+        'site_scores',
+        'aime-2025',
+        'AIME 2025',
+        'Benchmark score on AIME 2025.',
     ),
-    MetricSpec(
-        evaluation_name='artificial_analysis.artificial_analysis_engineering_index',
-        source_section='evaluations',
-        source_key='artificial_analysis_engineering_index',
-        metric_name='Artificial Analysis Engineering Index',
-        evaluation_description='Artificial Analysis Engineering capability index.',
-        metric_kind='index',
-        metric_unit='points',
-        lower_is_better=False,
-        min_score=0.0,
-        max_score=float('inf'),
+    _site_score_spec(
+        'ifbench',
+        'site_scores',
+        'ifbench',
+        'IFBench',
+        'Benchmark score on IFBench.',
     ),
-    MetricSpec(
-        evaluation_name='artificial_analysis.artificial_analysis_economics_index',
-        source_section='evaluations',
-        source_key='artificial_analysis_economics_index',
-        metric_name='Artificial Analysis Economics Index',
-        evaluation_description='Artificial Analysis Economics capability index.',
-        metric_kind='index',
-        metric_unit='points',
-        lower_is_better=False,
-        min_score=0.0,
-        max_score=float('inf'),
+    _site_score_spec(
+        'lcr',
+        'site_scores',
+        'artificial-analysis-long-context-reasoning',
+        'AA-LCR',
+        'Benchmark score on AA-LCR.',
     ),
-    MetricSpec(
-        evaluation_name='artificial_analysis.mmlu_pro',
-        source_section='evaluations',
-        source_key='mmlu_pro',
-        metric_name='MMLU-Pro',
-        evaluation_description='Benchmark score on MMLU-Pro.',
-        metric_kind='benchmark_score',
-        metric_unit='proportion',
-        lower_is_better=False,
-        min_score=0.0,
-        max_score=1.0,
+    _site_score_spec(
+        'terminalbench_hard',
+        'site_scores',
+        'terminalbench-hard',
+        'Terminal-Bench Hard',
+        'Benchmark score on Terminal-Bench Hard.',
     ),
-    MetricSpec(
-        evaluation_name='artificial_analysis.gpqa',
-        source_section='evaluations',
-        source_key='gpqa',
-        metric_name='GPQA',
-        evaluation_description='Benchmark score on GPQA.',
-        metric_kind='benchmark_score',
-        metric_unit='proportion',
-        lower_is_better=False,
-        min_score=0.0,
-        max_score=1.0,
-        fallback_keys=('gpqa_diamond',),
+    _site_score_spec(
+        'tau2',
+        'site_scores',
+        'tau2-bench',
+        'tau2-bench',
+        'Benchmark score on tau2-bench.',
     ),
-    MetricSpec(
-        evaluation_name='artificial_analysis.hle',
-        source_section='evaluations',
-        source_key='hle',
-        metric_name="Humanity's Last Exam",
-        evaluation_description="Benchmark score on Humanity's Last Exam.",
-        metric_kind='benchmark_score',
-        metric_unit='proportion',
-        lower_is_better=False,
-        min_score=0.0,
-        max_score=1.0,
+    _site_score_spec(
+        'critpt',
+        'site_scores',
+        'critpt',
+        'CritPt',
+        "Artificial Analysis leaderboard 'critpt' score.",
     ),
-    MetricSpec(
-        evaluation_name='artificial_analysis.livecodebench',
-        source_section='evaluations',
-        source_key='livecodebench',
-        metric_name='LiveCodeBench',
-        evaluation_description='Benchmark score on LiveCodeBench.',
-        metric_kind='benchmark_score',
-        metric_unit='proportion',
-        lower_is_better=False,
-        min_score=0.0,
-        max_score=1.0,
+    _site_score_spec(
+        'critpt_v2',
+        'site_critpt_v2',
+        'critptAgentic',
+        'CritPt v2',
+        "CritPt v2 score: the 'critptAgentic' field of the Artificial "
+        'Analysis CritPt v2 evaluation page.',
     ),
-    MetricSpec(
-        evaluation_name='artificial_analysis.scicode',
-        source_section='evaluations',
-        source_key='scicode',
-        metric_name='SciCode',
-        evaluation_description='Benchmark score on SciCode.',
-        metric_kind='benchmark_score',
-        metric_unit='proportion',
-        lower_is_better=False,
-        min_score=0.0,
-        max_score=1.0,
-    ),
-    MetricSpec(
-        evaluation_name='artificial_analysis.math_500',
-        source_section='evaluations',
-        source_key='math_500',
-        metric_name='MATH-500',
-        evaluation_description='Benchmark score on MATH-500.',
-        metric_kind='benchmark_score',
-        metric_unit='proportion',
-        lower_is_better=False,
-        min_score=0.0,
-        max_score=1.0,
-    ),
-    MetricSpec(
-        evaluation_name='artificial_analysis.aime',
-        source_section='evaluations',
-        source_key='aime',
-        metric_name='AIME',
-        evaluation_description='Benchmark score on AIME.',
-        metric_kind='benchmark_score',
-        metric_unit='proportion',
-        lower_is_better=False,
-        min_score=0.0,
-        max_score=1.0,
-    ),
-    MetricSpec(
-        evaluation_name='artificial_analysis.aime_25',
-        source_section='evaluations',
-        source_key='aime_25',
-        metric_name='AIME 2025',
-        evaluation_description='Benchmark score on AIME 2025.',
-        metric_kind='benchmark_score',
-        metric_unit='proportion',
-        lower_is_better=False,
-        min_score=0.0,
-        max_score=1.0,
-    ),
-    MetricSpec(
-        evaluation_name='artificial_analysis.ifbench',
-        source_section='evaluations',
-        source_key='ifbench',
-        metric_name='IFBench',
-        evaluation_description='Benchmark score on IFBench.',
-        metric_kind='benchmark_score',
-        metric_unit='proportion',
-        lower_is_better=False,
-        min_score=0.0,
-        max_score=1.0,
-    ),
-    MetricSpec(
-        evaluation_name='artificial_analysis.lcr',
-        source_section='evaluations',
-        source_key='lcr',
-        metric_name='AA-LCR',
-        evaluation_description='Benchmark score on AA-LCR.',
-        metric_kind='benchmark_score',
-        metric_unit='proportion',
-        lower_is_better=False,
-        min_score=0.0,
-        max_score=1.0,
-        fallback_keys=('aa_lcr',),
-    ),
-    MetricSpec(
-        evaluation_name='artificial_analysis.terminalbench_hard',
-        source_section='evaluations',
-        source_key='terminalbench_hard',
-        metric_name='Terminal-Bench Hard',
-        evaluation_description='Benchmark score on Terminal-Bench Hard.',
-        metric_kind='benchmark_score',
-        metric_unit='proportion',
-        lower_is_better=False,
-        min_score=0.0,
-        max_score=1.0,
-    ),
-    MetricSpec(
-        evaluation_name='artificial_analysis.tau2',
-        source_section='evaluations',
-        source_key='tau2',
-        metric_name='tau2',
-        evaluation_description='Benchmark score on tau2.',
-        metric_kind='benchmark_score',
-        metric_unit='proportion',
-        lower_is_better=False,
-        min_score=0.0,
-        max_score=1.0,
-    ),
-    MetricSpec(
-        evaluation_name='artificial_analysis.tau2_telecom',
-        source_section='evaluations',
-        source_key='tau2_telecom',
-        metric_name='tau2-bench Telecom',
-        evaluation_description='Benchmark score on tau2-bench Telecom.',
-        metric_kind='benchmark_score',
-        metric_unit='proportion',
-        lower_is_better=False,
-        min_score=0.0,
-        max_score=1.0,
-    ),
-    MetricSpec(
-        evaluation_name='artificial_analysis.price_1m_blended_3_to_1',
-        source_section='pricing',
-        source_key='price_1m_blended_3_to_1',
-        metric_name='Price per 1M tokens (blended 3:1)',
-        evaluation_description='Blended price per 1M tokens using a 3:1 input-to-output ratio.',
-        metric_kind='cost',
-        metric_unit='usd_per_1m_tokens',
-        lower_is_better=True,
-        min_score=0.0,
-        max_score=float('inf'),
+    _site_score_spec(
+        'critpt_v2_hard',
+        'site_scores',
+        'critpt-v2-hard',
+        'CritPt v2 (hard subset)',
+        'CritPt v2 score on its hard subset.',
     ),
     MetricSpec(
         evaluation_name='artificial_analysis.price_1m_input_tokens',
@@ -363,7 +237,7 @@ METRIC_SPECS = [
         metric_unit='usd_per_1m_tokens',
         lower_is_better=True,
         min_score=0.0,
-        max_score=float('inf'),
+        use_observed_max=True,
     ),
     MetricSpec(
         evaluation_name='artificial_analysis.price_1m_output_tokens',
@@ -375,82 +249,55 @@ METRIC_SPECS = [
         metric_unit='usd_per_1m_tokens',
         lower_is_better=True,
         min_score=0.0,
-        max_score=float('inf'),
+        use_observed_max=True,
     ),
-    MetricSpec(
-        evaluation_name='artificial_analysis.median_output_tokens_per_second',
-        source_section='model',
-        source_key='median_output_tokens_per_second',
-        metric_name='Median output tokens per second',
-        evaluation_description='Median output generation speed reported by Artificial Analysis.',
-        metric_kind='throughput',
-        metric_unit='tokens_per_second',
-        lower_is_better=False,
-        min_score=0.0,
-        max_score=float('inf'),
-        include_prompt_options=True,
+    _speed_spec(
+        'median_output_tokens_per_second',
+        'performance',
+        'median_output_tokens_per_second',
+        'Median output tokens per second',
+        'Median output generation speed reported by Artificial Analysis.',
+        latency=False,
     ),
-    MetricSpec(
-        evaluation_name='artificial_analysis.median_time_to_first_token_seconds',
-        source_section='model',
-        source_key='median_time_to_first_token_seconds',
-        metric_name='Median time to first token',
-        evaluation_description='Median time to first token reported by Artificial Analysis.',
-        metric_kind='latency',
-        metric_unit='seconds',
-        lower_is_better=True,
-        min_score=0.0,
-        max_score=float('inf'),
-        include_prompt_options=True,
+    _speed_spec(
+        'median_time_to_first_token_seconds',
+        'performance',
+        'median_time_to_first_token_seconds',
+        'Median time to first token',
+        'Median time to first token reported by Artificial Analysis.',
+        latency=True,
     ),
-    MetricSpec(
-        evaluation_name='artificial_analysis.median_time_to_first_answer_token',
-        source_section='model',
-        source_key='median_time_to_first_answer_token',
-        metric_name='Median time to first answer token',
-        evaluation_description='Median time to first answer token reported by Artificial Analysis.',
-        metric_kind='latency',
-        metric_unit='seconds',
-        lower_is_better=True,
-        min_score=0.0,
-        max_score=float('inf'),
-        include_prompt_options=True,
+    _speed_spec(
+        'median_time_to_first_answer_token',
+        'performance',
+        'median_time_to_first_answer_token_seconds',
+        'Median time to first answer token',
+        'Median time to first answer token reported by Artificial Analysis.',
+        latency=True,
     ),
-    MetricSpec(
-        evaluation_name='artificial_analysis.mean_output_tokens_per_second',
-        source_section='performance_v3',
-        source_key='mean_output_tokens_per_second',
-        metric_name='Mean output tokens per second (Performance v3)',
-        evaluation_description='Headline end-to-end output speed reported by Artificial Analysis Performance v3.',
-        metric_kind='throughput',
-        metric_unit='tokens_per_second',
-        lower_is_better=False,
-        min_score=0.0,
-        max_score=float('inf'),
+    _speed_spec(
+        'mean_output_tokens_per_second',
+        'performance_v3',
+        'mean_output_tokens_per_second',
+        'Mean output tokens per second',
+        'Performance v3 mean output generation speed.',
+        latency=False,
     ),
-    MetricSpec(
-        evaluation_name='artificial_analysis.mean_time_to_first_token_seconds',
-        source_section='performance_v3',
-        source_key='mean_time_to_first_token_seconds',
-        metric_name='Mean time to first token (Performance v3)',
-        evaluation_description='Mean time to first token reported by Artificial Analysis Performance v3.',
-        metric_kind='latency',
-        metric_unit='seconds',
-        lower_is_better=True,
-        min_score=0.0,
-        max_score=float('inf'),
+    _speed_spec(
+        'mean_time_to_first_token_seconds',
+        'performance_v3',
+        'mean_time_to_first_token_seconds',
+        'Mean time to first token',
+        'Performance v3 mean time to first token.',
+        latency=True,
     ),
-    MetricSpec(
-        evaluation_name='artificial_analysis.mean_time_to_first_answer_token_seconds',
-        source_section='performance_v3',
-        source_key='mean_time_to_first_answer_token_seconds',
-        metric_name='Mean time to first answer token (Performance v3)',
-        evaluation_description='Mean time to first answer token reported by Artificial Analysis Performance v3.',
-        metric_kind='latency',
-        metric_unit='seconds',
-        lower_is_better=True,
-        min_score=0.0,
-        max_score=float('inf'),
+    _speed_spec(
+        'mean_time_to_first_answer_token_seconds',
+        'performance_v3',
+        'mean_time_to_first_answer_token_seconds',
+        'Mean time to first answer token',
+        'Performance v3 mean time to first answer token.',
+        latency=True,
     ),
 ]
 
@@ -516,71 +363,131 @@ def load_payload(input_json: Path) -> dict[str, Any]:
     return json.loads(input_json.read_text(encoding='utf-8'))
 
 
-MAX_PAGINATION_PAGES = 50
-
-
-def _is_tier_forbidden(exc: FetchError) -> bool:
-    response = getattr(exc.__cause__, 'response', None)
-    if getattr(response, 'status_code', None) != 403:
-        return False
-    headers = getattr(response, 'headers', None) or {}
-    content_type = str(headers.get('Content-Type') or headers.get('content-type') or '')
-    return 'text/html' not in content_type.lower()
-
-
 def fetch_payload(api_key: str) -> dict[str, Any]:
-    headers = {'x-api-key': api_key}
-    endpoint = SOURCE_URL
-    try:
-        first_page = fetch_json(endpoint, headers=headers)
-    except FetchError as exc:
-        if not _is_tier_forbidden(exc):
-            raise
-        endpoint = FREE_SOURCE_URL
-        first_page = fetch_json(endpoint, headers=headers)
-
-    if not isinstance(first_page, dict):
-        raise ValueError('Artificial Analysis API response must be a JSON object.')
-    all_models: list[dict[str, Any]] = []
-    seen_ids: set[str] = set()
-
-    def _append_unique(rows: list[dict[str, Any]]) -> None:
-        for item in rows:
-            raw_id = item.get('id') if isinstance(item, dict) else None
-            key = str(raw_id) if raw_id is not None else None
-            if key is not None:
-                if key in seen_ids:
-                    continue
-                seen_ids.add(key)
-            all_models.append(item)
-
-    _append_unique(validate_payload(first_page))
-    pagination = first_page.get('pagination')
-    page = 1
-    while (
-        isinstance(pagination, dict)
-        and pagination.get('has_more') is True
-        and page < MAX_PAGINATION_PAGES
-    ):
-        page += 1
-        sep = '&' if '?' in endpoint else '?'
-        next_payload = fetch_json(f'{endpoint}{sep}page={page}', headers=headers)
-        if not isinstance(next_payload, dict):
-            raise ValueError(
-                f'Artificial Analysis page {page} response must be a JSON object.'
-            )
-        _append_unique(validate_payload(next_payload))
-        pagination = next_payload.get('pagination')
-
-    if isinstance(pagination, dict) and pagination.get('has_more') is True:
-        raise ValueError(
-            f'Artificial Analysis pagination exceeded {MAX_PAGINATION_PAGES} pages.'
+    """Fetch every page of the free-tier language model list."""
+    data: list[dict[str, Any]] = []
+    first: dict[str, Any] | None = None
+    for page in range(1, MAX_API_PAGES + 1):
+        body = fetch_json(
+            f'{SOURCE_URL}?page={page}',
+            headers={'x-api-key': api_key},
         )
+        if not isinstance(body, dict):
+            raise ValueError('Artificial Analysis API page must be an object')
+        first = first or body
+        data.extend(validate_payload(body))
+        pagination = body.get('pagination') or {}
+        if not pagination.get('has_more'):
+            break
+    else:
+        raise ValueError(
+            f'Artificial Analysis API returned more than {MAX_API_PAGES} pages'
+        )
+    return {
+        'tier': first.get('tier'),
+        'intelligence_index_version': first.get('intelligence_index_version'),
+        'pages_fetched': page,
+        'data': data,
+    }
 
-    merged = dict(first_page)
-    merged['data'] = all_models
-    merged['api_endpoint'] = endpoint
-    return merged
+
+def flight_text(page_html: str) -> str:
+    """Return the concatenated Next.js flight data embedded in a page."""
+    chunks = re.findall(
+        r'self\.__next_f\.push\(\[1,"((?:[^"\\]|\\.)*)"\]\)', page_html
+    )
+    if not chunks:
+        raise ValueError('page has no embedded Next.js flight data')
+    return ''.join(json.loads(f'"{chunk}"') for chunk in chunks)
+
+
+def parse_leaderboard_models(page_html: str) -> list[dict[str, Any]]:
+    """Return the ``initialModels`` rows of the models leaderboard page."""
+    text = flight_text(page_html)
+    marker = '"initialModels":'
+    start = text.find(marker)
+    if start < 0:
+        raise ValueError('leaderboard page has no initialModels list')
+    rows, _ = json.JSONDecoder().raw_decode(text, start + len(marker))
+    if not isinstance(rows, list) or not rows:
+        raise ValueError('leaderboard initialModels list is empty')
+    for row in rows:
+        if (
+            not isinstance(row, dict)
+            or not isinstance(row.get('id'), str)
+            or not isinstance(row.get('scores'), dict)
+        ):
+            raise ValueError('leaderboard model row lacks an id or scores')
+    return rows
+
+
+def parse_critpt_v2_models(page_html: str) -> dict[str, dict[str, Any]]:
+    """Return ``{model id: {'critptAgentic': value}}`` from the CritPt v2 page."""
+    text = flight_text(page_html)
+    decoder = json.JSONDecoder()
+    found: dict[str, dict[str, Any]] = {}
+    for match in re.finditer(r'\{"id":"[0-9a-f-]{36}","slug":"', text):
+        try:
+            row, _ = decoder.raw_decode(text, match.start())
+        except ValueError:
+            continue
+        if isinstance(row, dict) and 'critptAgentic' in row:
+            found.setdefault(row['id'], {'critptAgentic': row['critptAgentic']})
+    if not found:
+        raise ValueError('CritPt v2 page has no model rows with critptAgentic')
+    return found
+
+
+def fetch_site() -> dict[str, Any]:
+    """Scrape the website's per-benchmark scores; page errors are returned."""
+    site: dict[str, Any] = {'errors': []}
+    for key, url, parse in (
+        ('leaderboard_models', LEADERBOARD_URL, parse_leaderboard_models),
+        ('critpt_v2', CRITPT_V2_URL, parse_critpt_v2_models),
+    ):
+        try:
+            site[key] = parse(fetch_text(url))
+        except Exception as exc:
+            site['errors'].append({'url': url, 'reason': str(exc)})
+    return site
+
+
+def merge_site_scores(
+    models: list[dict[str, Any]], site: dict[str, Any]
+) -> tuple[list[dict[str, Any]], list[SourceRecordExclusion]]:
+    """Attach website scores to API models with the same model id."""
+    leaderboard = {
+        row['id']: row for row in site.get('leaderboard_models') or []
+    }
+    critpt_v2 = site.get('critpt_v2') or {}
+    merged = []
+    for model in models:
+        extra: dict[str, Any] = {}
+        row = leaderboard.get(model.get('id'))
+        if row is not None:
+            extra['site_scores'] = row['scores']
+        if model.get('id') in critpt_v2:
+            extra['site_critpt_v2'] = critpt_v2[model['id']]
+        merged.append({**model, **extra})
+
+    api_ids = {model.get('id') for model in models}
+    exclusions = [
+        SourceRecordExclusion(
+            source_ref=f'{url} model {model_id}',
+            reason='no API model has this id, so it has no model identity',
+            source_record={'id': model_id, 'name': name},
+        )
+        for url, rows in (
+            (
+                LEADERBOARD_URL,
+                {k: v.get('name') for k, v in leaderboard.items()},
+            ),
+            (CRITPT_V2_URL, {k: None for k in critpt_v2}),
+        )
+        for model_id, name in rows.items()
+        if model_id not in api_ids
+    ]
+    return merged, exclusions
 
 
 def validate_payload(payload: dict[str, Any]) -> list[dict[str, Any]]:
@@ -615,52 +522,64 @@ def is_subpath(path: Path, parent: Path) -> bool:
         return False
 
 
-def get_metric_value(
-    model: dict[str, Any], spec: MetricSpec
-) -> tuple[float, str, str] | None:
-    raw_metric_field = spec.source_key
+def get_metric_value(model: dict[str, Any], spec: MetricSpec) -> float | None:
     if spec.source_section == 'model':
         value = model.get(spec.source_key)
-        raw_value_field = spec.source_key
-        if value is None:
-            perf = model.get('performance')
-            if isinstance(perf, dict):
-                value = perf.get(spec.source_key)
-                if value is not None:
-                    raw_value_field = f'performance.{spec.source_key}'
-                elif spec.source_key == 'median_time_to_first_answer_token':
-                    alt = 'median_time_to_first_answer_token_seconds'
-                    value = perf.get(alt)
-                    if value is not None:
-                        raw_metric_field = alt
-                        raw_value_field = f'performance.{alt}'
     else:
         container = model.get(spec.source_section, {})
         if not isinstance(container, dict):
             return None
         value = container.get(spec.source_key)
-        raw_value_field = f'{spec.source_section}.{spec.source_key}'
-        if value is None:
-            for alt in spec.fallback_keys:
-                value = container.get(alt)
-                if value is not None:
-                    raw_metric_field = alt
-                    raw_value_field = f'{spec.source_section}.{alt}'
-                    break
 
     if value is None:
         return None
-    score = require_finite_number(
-        value, f'Artificial Analysis metric {raw_value_field}'
+    return require_finite_number(
+        value, f'Artificial Analysis metric {spec.source_key}'
     )
-    return score, raw_metric_field, raw_value_field
 
 
-def make_source_data(endpoint: str = SOURCE_URL) -> SourceDataUrl:
+def compute_observed_max_scores(
+    models: list[dict[str, Any]],
+) -> dict[str, float]:
+    observed_max_scores: dict[str, float] = {}
+
+    for spec in METRIC_SPECS:
+        if not spec.use_observed_max:
+            continue
+
+        values = [
+            value
+            for model in models
+            if (value := _valid_metric_value(model, spec)) is not None
+        ]
+        if values:
+            observed_max_scores[spec.evaluation_name] = max(values)
+
+    return observed_max_scores
+
+
+def _valid_metric_value(
+    model: dict[str, Any], spec: MetricSpec
+) -> float | None:
+    """Return a numeric value for aggregate bounds; row conversion reports errors."""
+    try:
+        return get_metric_value(model, spec)
+    except (TypeError, ValueError):
+        return None
+
+
+def make_source_data(spec: MetricSpec) -> SourceDataUrl:
+    page = SITE_SECTIONS.get(spec.source_section)
+    if page is not None:
+        return SourceDataUrl(
+            dataset_name='Artificial Analysis website',
+            source_type='url',
+            url=[page],
+        )
     return SourceDataUrl(
         dataset_name='Artificial Analysis LLM API',
         source_type='url',
-        url=[endpoint],
+        url=[SOURCE_URL],
     )
 
 
@@ -668,17 +587,19 @@ def make_source_metadata_details(
     payload: dict[str, Any],
 ) -> dict[str, str]:
     prompt_options = payload.get('prompt_options', {})
-    endpoint = str(payload.get('api_endpoint') or SOURCE_URL)
     details = {
-        'api_endpoint': endpoint,
+        'api_endpoint': SOURCE_URL,
         'api_reference_url': API_REFERENCE_URL,
         'methodology_url': METHODOLOGY_URL,
         'attribution_url': ATTRIBUTION_URL,
         'attribution_required': 'true',
         'endpoint_scope': 'llms',
+        'leaderboard_url': LEADERBOARD_URL,
+        'critpt_v2_url': CRITPT_V2_URL,
     }
-    if payload.get('tier') is not None:
-        details['api_tier'] = stringify(payload['tier'])
+    for key in ('tier', 'intelligence_index_version'):
+        if payload.get(key) is not None:
+            details[f'api_{key}'] = stringify(payload[key])
 
     if isinstance(prompt_options, dict):
         for key in ('prompt_length', 'parallel_queries'):
@@ -704,9 +625,8 @@ def make_model_info(model: dict[str, Any]) -> tuple[ModelInfo, str, str]:
         'raw_model_slug': stringify(model.get('slug')),
         'raw_creator_id': stringify(creator.get('id')),
         'raw_creator_name': stringify(creator.get('name')),
+        'raw_creator_slug': stringify(creator.get('slug')),
     }
-    if creator.get('slug') is not None:
-        additional_details['raw_creator_slug'] = stringify(creator['slug'])
     if model.get('release_date') is not None:
         additional_details['release_date'] = stringify(model['release_date'])
 
@@ -725,15 +645,22 @@ def make_model_info(model: dict[str, Any]) -> tuple[ModelInfo, str, str]:
 
 def make_metric_config(
     spec: MetricSpec,
+    observed_max_scores: dict[str, float],
     prompt_options: dict[str, Any],
-    *,
-    raw_metric_field: str | None = None,
 ) -> MetricConfig:
     max_score = spec.max_score
-    bound_strategy = 'unbounded' if math.isinf(max_score) else 'fixed'
+    if max_score is None:
+        max_score = observed_max_scores.get(spec.evaluation_name)
+    if max_score is None:
+        raise ValueError(
+            f'No max_score available for metric {spec.evaluation_name!r}.'
+        )
+
     additional_details = {
-        'raw_metric_field': raw_metric_field or spec.source_key,
-        'bound_strategy': bound_strategy,
+        'raw_metric_field': spec.source_key,
+        'bound_strategy': (
+            'observed_max_from_snapshot' if spec.use_observed_max else 'fixed'
+        ),
     }
 
     metric_parameters: dict[str, str | float | bool | None] | None = None
@@ -766,14 +693,8 @@ def maybe_make_uncertainty(
     if spec.source_key != 'median_output_tokens_per_second':
         return None
 
-    perf = model.get('performance')
-    perf_dict = perf if isinstance(perf, dict) else {}
     lower = model.get('tokens_per_second_q025')
-    if lower is None:
-        lower = perf_dict.get('tokens_per_second_q025')
     upper = model.get('tokens_per_second_q975')
-    if upper is None:
-        upper = perf_dict.get('tokens_per_second_q975')
     if lower is None or upper is None:
         return None
 
@@ -795,18 +716,15 @@ def make_score_details(
     model: dict[str, Any],
     spec: MetricSpec,
     score: float,
-    *,
-    raw_value_field: str | None = None,
 ) -> ScoreDetails:
     details: dict[str, str] = {
         'raw_model_id': stringify(model['id']),
-        'raw_value_field': raw_value_field
-        or (
-            spec.source_key
-            if spec.source_section == 'model'
-            else f'{spec.source_section}.{spec.source_key}'
-        ),
     }
+
+    if spec.source_section == 'model':
+        details['raw_value_field'] = spec.source_key
+    else:
+        details['raw_value_field'] = f'{spec.source_section}.{spec.source_key}'
 
     uncertainty = maybe_make_uncertainty(model, spec)
 
@@ -820,37 +738,28 @@ def make_score_details(
 def make_evaluation_results(
     model: dict[str, Any],
     payload: dict[str, Any],
+    observed_max_scores: dict[str, float],
     *,
     failures: list[SourceRecordFailure] | None = None,
     source_ref: str | None = None,
 ) -> list[EvaluationResult]:
     prompt_options = payload.get('prompt_options', {})
-    endpoint = str(payload.get('api_endpoint') or SOURCE_URL)
-    source_data = make_source_data(endpoint)
     results: list[EvaluationResult] = []
 
     for spec in METRIC_SPECS:
         try:
-            extracted = get_metric_value(model, spec)
-            if extracted is None:
+            score = get_metric_value(model, spec)
+            if score is None:
                 continue
-            score, raw_metric_field, raw_value_field = extracted
             results.append(
                 EvaluationResult(
                     evaluation_result_id=spec.evaluation_name,
                     evaluation_name=spec.evaluation_name,
-                    source_data=source_data,
+                    source_data=make_source_data(spec),
                     metric_config=make_metric_config(
-                        spec,
-                        prompt_options,
-                        raw_metric_field=raw_metric_field,
+                        spec, observed_max_scores, prompt_options
                     ),
-                    score_details=make_score_details(
-                        model,
-                        spec,
-                        score,
-                        raw_value_field=raw_value_field,
-                    ),
+                    score_details=make_score_details(model, spec, score),
                 )
             )
         except Exception as exc:
@@ -880,6 +789,7 @@ def make_evaluation_results(
 def make_log(
     model: dict[str, Any],
     payload: dict[str, Any],
+    observed_max_scores: dict[str, float],
     retrieved_timestamp: str,
     *,
     failures: list[SourceRecordFailure] | None = None,
@@ -890,12 +800,11 @@ def make_log(
     log = EvaluationLog(
         schema_version=SCHEMA_VERSION,
         evaluation_id=(
-            f'{BENCHMARK_NAME}/{developer}/{model_path_name}/'
-            f'{retrieved_timestamp}'
+            f'{BENCHMARK_NAME}/{developer}/{model_path_name}/{retrieved_timestamp}'
         ),
         retrieved_timestamp=retrieved_timestamp,
         source_metadata={
-            'source_name': 'Artificial Analysis LLM API',
+            'source_name': 'Artificial Analysis LLM API and website',
             'source_type': 'documentation',
             'source_organization_name': 'Artificial Analysis',
             'source_organization_url': ATTRIBUTION_URL,
@@ -913,6 +822,7 @@ def make_log(
         evaluation_results=make_evaluation_results(
             model,
             payload,
+            observed_max_scores,
             failures=failures,
             source_ref=source_ref,
         ),
@@ -921,22 +831,53 @@ def make_log(
     return log, developer, model_path_name
 
 
+def has_metric_values(model: dict[str, Any]) -> bool:
+    """Return whether any mapped metric field holds a value."""
+    for spec in METRIC_SPECS:
+        container = (
+            model
+            if spec.source_section == 'model'
+            else model.get(spec.source_section)
+        )
+        if (
+            isinstance(container, dict)
+            and container.get(spec.source_key) is not None
+        ):
+            return True
+    return False
+
+
 def convert_models(
     models: list[dict[str, Any]],
     payload: dict[str, Any],
     output_dir: Path,
+    observed_max_scores: dict[str, float],
     retrieved_timestamp: str,
 ) -> SourceConversionResult[EvaluationLogOutput]:
     """Convert usable models while retaining model and metric failures."""
     outputs = []
     failures = []
+    exclusions = []
     for index, model in enumerate(models):
         source_ref = f'Artificial Analysis model row {index}'
+        if not has_metric_values(model):
+            exclusions.append(
+                SourceRecordExclusion(
+                    source_ref=source_ref,
+                    reason='no value for any mapped metric in this snapshot',
+                    source_record={
+                        'id': model.get('id'),
+                        'name': model.get('name'),
+                    },
+                )
+            )
+            continue
         failure_count_before = len(failures)
         try:
             log, developer, model_path_name = make_log(
                 model,
                 payload,
+                observed_max_scores,
                 retrieved_timestamp,
                 failures=failures,
                 source_ref=source_ref,
@@ -966,6 +907,7 @@ def convert_models(
         total_records=len(models),
         records=outputs,
         failures=failures,
+        exclusions=exclusions,
     )
 
 
@@ -988,27 +930,39 @@ def run(args: argparse.Namespace) -> int:
                 'Missing API key. Set ARTIFICIAL_ANALYSIS_API_KEY or pass --api-key.'
             )
         payload = fetch_payload(api_key)
+        payload['site'] = fetch_site()
 
     maybe_save_raw_json(payload, args.save_raw_json)
-    models = validate_payload(payload)
+    site = payload.get('site') or {}
+    models, exclusions = merge_site_scores(validate_payload(payload), site)
+    observed_max_scores = compute_observed_max_scores(models)
     retrieved_timestamp = str(time.time())
 
     result = convert_models(
         models,
         payload,
         args.output_dir,
+        observed_max_scores,
         retrieved_timestamp,
+    )
+    result.exclusions.extend(exclusions)
+    result.failures.extend(
+        SourceRecordFailure(
+            source_ref=error['url'],
+            reason=f'website scores not read: {error["reason"]}',
+        )
+        for error in site.get('errors', [])
     )
     paths = save_evaluation_logs(result.records)
     for output_path in paths:
         print(output_path)
-    if result.failures:
+    if result.failures or result.exclusions:
         report_path = save_failure_report(
             result,
             default_failure_report_path(args.output_dir),
         )
         print(f'Failure report: {report_path}')
-        result.raise_if_incomplete()
+    result.raise_if_incomplete()
     return len(paths)
 
 

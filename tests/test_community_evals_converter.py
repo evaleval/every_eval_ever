@@ -643,6 +643,8 @@ def test_build_index_manifest_downloads_online_record_and_links_source(
     assert manifest['entries'][0]['yaml_entry']['source']['url'].startswith(
         'https://huggingface.co/datasets/evaleval/EEE_datastore/blob/abc123/flat/objects/'
     )
+    assert manifest['entries'][0]['yaml_entry']['source']['name'] == 'EvalEval'
+    assert manifest['entries'][0]['yaml_entry']['source']['org'] == 'evaleval'
 
 
 def test_build_index_manifest_accepts_index_directory(tmp_path: Path) -> None:
@@ -1591,3 +1593,332 @@ def test_every_eval_ever_cli_no_longer_exposes_hf_evals() -> None:
 
     with pytest.raises(SystemExit):
         parser.parse_args(['hf-evals'])
+
+
+def _result(
+    *,
+    hf_repo: str,
+    metric_id: str,
+    score: float,
+    result_id: str | None = None,
+    metric_unit: str | None = 'proportion',
+    source_details: dict | None = None,
+    metric_parameters: dict | None = None,
+) -> dict:
+    metric_config: dict = {'lower_is_better': False, 'metric_id': metric_id}
+    if metric_unit is not None:
+        metric_config.update(
+            metric_unit=metric_unit, min_score=0.0, max_score=1.0
+        )
+    if metric_parameters is not None:
+        metric_config['metric_parameters'] = metric_parameters
+    source_data: dict = {
+        'dataset_name': hf_repo,
+        'source_type': 'hf_dataset',
+        'hf_repo': hf_repo,
+    }
+    if source_details is not None:
+        source_data['additional_details'] = source_details
+    result = {
+        'evaluation_name': metric_id,
+        'source_data': source_data,
+        'metric_config': metric_config,
+        'score_details': {'score': score},
+    }
+    if result_id is not None:
+        result['evaluation_result_id'] = result_id
+    return result
+
+
+def _log_with(results: list[dict]):
+    record = _aggregate(model_id='swiss-ai/Apertus-v1.5-70B')
+    record['evaluation_results'] = results
+    return community_evals_converter.EvaluationLog.model_validate(record)
+
+
+def _selected(results: list[dict]) -> dict[tuple[str, str], tuple]:
+    selected = {}
+    for benchmark, config, result in (
+        community_evals_converter._results_for_supported_datasets(
+            _log_with(results)
+        )
+    ):
+        notes = community_evals_converter._community_eval_notes(
+            benchmark, result
+        )
+        task_id = community_evals_converter._community_eval_task_id(
+            benchmark, config, result, notes
+        )
+        selected[(config.dataset_id, task_id)] = (
+            result.metric_config.metric_id,
+            notes,
+        )
+    return selected
+
+
+def test_gpqa_prefers_extractive_metric_and_reads_main_config() -> None:
+    main = {'hf_dataset_config': 'gpqa_main'}
+    selected = _selected(
+        [
+            _result(
+                hf_repo='Idavidrein/gpqa',
+                metric_id=f'gpqa.accuracy.{variant}',
+                score=score,
+                source_details=main,
+            )
+            for variant, score in (
+                ('strict', 0.2277),
+                ('multiple_choice', 0.3214),
+                ('extractive', 0.3594),
+            )
+        ]
+    )
+
+    assert selected == {
+        ('Idavidrein/gpqa', 'main'): ('gpqa.accuracy.extractive', 'GPQA Main')
+    }
+
+
+def test_mmlu_pro_takes_overall_metric_over_subcategories() -> None:
+    selected = _selected(
+        [
+            _result(
+                hf_repo='TIGER-Lab/MMLU-Pro',
+                metric_id=f'mmlu_pro.{category}',
+                score=0.5,
+            )
+            for category in ('overall', 'biology', 'law')
+        ]
+    )
+
+    assert selected == {
+        ('TIGER-Lab/MMLU-Pro', 'mmlu_pro'): ('mmlu_pro.overall', None)
+    }
+
+
+def test_mmlu_pro_falls_back_to_overall_aggregation_level() -> None:
+    selected = _selected(
+        [
+            _result(
+                hf_repo='TIGER-Lab/MMLU-Pro',
+                metric_id='accuracy',
+                result_id=result_id,
+                score=0.5,
+                metric_parameters={'aggregation_level': level},
+            )
+            for result_id, level in (
+                ('mmlu_pro', 'overall'),
+                ('mmlu_pro::biology', 'subtask'),
+            )
+        ]
+    )
+
+    assert selected == {('TIGER-Lab/MMLU-Pro', 'mmlu_pro'): ('accuracy', None)}
+
+
+def test_mmlu_pro_falls_back_to_only_matching_result() -> None:
+    selected = _selected(
+        [
+            _result(
+                hf_repo='TIGER-Lab/MMLU-Pro',
+                metric_id='accuracy',
+                result_id='hfopenllm_v2/model/1#mmlu_pro#accuracy',
+                score=0.5,
+            )
+        ]
+    )
+
+    assert selected == {('TIGER-Lab/MMLU-Pro', 'mmlu_pro'): ('accuracy', None)}
+
+
+def test_mmlu_pro_refuses_to_pick_between_unlabelled_results() -> None:
+    with pytest.raises(
+        community_evals_converter.HFEvalsError, match='2 matching'
+    ):
+        _selected(
+            [
+                _result(
+                    hf_repo='TIGER-Lab/MMLU-Pro',
+                    metric_id=f'mmlu_pro.{category}',
+                    score=0.5,
+                )
+                for category in ('biology', 'law')
+            ]
+        )
+
+
+def test_hle_still_requires_its_preferred_metric() -> None:
+    assert (
+        _selected(
+            [_result(hf_repo='cais/hle', metric_id='accuracy', score=0.3)]
+        )
+        == {}
+    )
+
+
+def test_ifbench_selects_prompt_level_loose_accuracy() -> None:
+    selected = _selected(
+        [
+            _result(
+                hf_repo='allenai/IFBench_test',
+                metric_id=f'ifbench.{metric}',
+                score=0.3,
+            )
+            for metric in (
+                'prompt_level_strict_acc',
+                'prompt_level_loose_acc',
+                'inst_level_loose_acc',
+            )
+        ]
+    )
+
+    assert selected == {
+        ('allenai/IFBench_test', 'prompt_level_loose'): (
+            'ifbench.prompt_level_loose_acc',
+            None,
+        )
+    }
+
+
+def test_ifbench_without_metric_unit_is_not_converted() -> None:
+    log = _log_with(
+        [
+            _result(
+                hf_repo='allenai/IFBench_test',
+                metric_id='ifbench.prompt_level_loose_acc',
+                score=0.3,
+                metric_unit=None,
+            )
+        ]
+    )
+    [(_benchmark, _config, result)] = (
+        community_evals_converter._results_for_supported_datasets(log)
+    )
+
+    with pytest.raises(
+        community_evals_converter.HFEvalsError, match='Cannot convert'
+    ):
+        community_evals_converter._community_eval_value(result)
+
+
+def test_lexam_routes_each_result_to_its_config_task(tmp_path: Path) -> None:
+    record = _aggregate(model_id='Qwen/QwQ-32B')
+    record['evaluation_results'] = [
+        _result(
+            hf_repo='LEXam-Benchmark/LEXam',
+            metric_id='accuracy',
+            score=0.4783,
+            source_details={'config': 'mcq_4_choices'},
+        ),
+        _result(
+            hf_repo='LEXam-Benchmark/LEXam',
+            metric_id='lexam-open-question-judge-score',
+            score=44.36,
+            metric_unit='percent',
+            source_details={'config': 'open_question'},
+        ),
+        _result(
+            hf_repo='LEXam-Benchmark/LEXam',
+            metric_id='accuracy',
+            score=0.9,
+            source_details={'config': 'unregistered_task'},
+        ),
+    ]
+    record['evaluation_results'][1]['metric_config']['max_score'] = 100.0
+    datastore, _ = _write_collection_rows(
+        tmp_path, [record], collection_name='lexam'
+    )
+
+    manifest = community_evals_converter.build_collection_manifest(
+        collection_name='lexam',
+        datastore='evaleval/EEE_datastore',
+        api=FakeHfApi(datastore_sha='abc123'),
+        download_file=_fake_download(datastore),
+    )
+
+    assert manifest['errors'] == []
+    assert {
+        (
+            entry['target_path'],
+            entry['yaml_entry']['dataset']['task_id'],
+            entry['yaml_entry']['value'],
+        )
+        for entry in manifest['entries']
+    } == {
+        ('.eval_results/lexam.yaml', 'mcq_4_choices', 47.83),
+        ('.eval_results/lexam.yaml', 'open_question', 44.36),
+    }
+
+
+def test_build_collection_manifest_rejects_excluded_collection() -> None:
+    with pytest.raises(
+        community_evals_converter.HFEvalsError,
+        match='hfopenllm_v2 is excluded',
+    ):
+        community_evals_converter.build_collection_manifest(
+            collection_name='hfopenllm_v2',
+            datastore='evaleval/EEE_datastore',
+            api=FakeHfApi(datastore_sha='abc123'),
+        )
+
+
+def test_build_index_manifest_skips_rows_from_excluded_collection(
+    tmp_path: Path,
+) -> None:
+    object_uuid = '676f4465-ce78-411a-9f5a-c97b3d2eac4f'
+    datastore, index_jsonl = _write_index_row(
+        tmp_path,
+        _aggregate(),
+        object_uuid=object_uuid,
+        row_overrides={
+            'legacy_path': (
+                f'data/hfopenllm_v2/google/gemma-2b-it/{object_uuid}.json'
+            )
+        },
+    )
+
+    manifest = community_evals_converter.build_index_manifest(
+        index_jsonl=index_jsonl,
+        datastore='evaleval/EEE_datastore@abc123',
+        benchmarks=['mmlu_pro'],
+        api=FakeHfApi(),
+        download_file=_fake_download(datastore),
+    )
+
+    assert manifest['entries'] == []
+    assert [item['reason'] for item in manifest['skipped']] == [
+        'excluded_collection:hfopenllm_v2'
+    ]
+
+
+@pytest.mark.parametrize(
+    'hf_repo', ['human-centered-eval/OpenEval', 'Open-Eval-Commons/OpenEval']
+)
+def test_openeval_gpqa_chain_of_thought_note_for_old_and_new_repo(
+    hf_repo: str,
+) -> None:
+    from every_eval_ever.eval_types import EvaluationResult
+
+    result = EvaluationResult.model_validate(
+        {
+            'evaluation_result_id': 'gpqa::chain-of-thought-correctness',
+            'evaluation_name': 'gpqa',
+            'source_data': {
+                'dataset_name': 'gpqa',
+                'source_type': 'hf_dataset',
+                'hf_repo': hf_repo,
+            },
+            'metric_config': {
+                'lower_is_better': False,
+                'score_type': 'continuous',
+                'min_score': 0.0,
+                'max_score': 1.0,
+            },
+            'score_details': {'score': 0.5},
+        }
+    )
+
+    assert (
+        community_evals_converter._gpqa_variant_notes(result)
+        == 'GPQA chain-of-thought'
+    )

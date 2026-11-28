@@ -897,7 +897,7 @@ def test_a_failed_run_records_evidence_and_exits_non_zero(tmp_path) -> None:
 
 
 def test_a_missing_package_is_healthy(tmp_path) -> None:
-    """with_packages is installed from the matrix, so this is a build gap."""
+    """with_packages comes from the locked cron group, so this is a build gap."""
     hub = FakeHub()
     outcome = make_outcome(
         tmp_path, status='skipped_missing_dependency', uploaded=0

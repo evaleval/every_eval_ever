@@ -65,6 +65,14 @@ def test_legacy_adapters_are_not_also_registered() -> None:
     )
 
 
+def test_benchpress_is_not_an_ingestion_source() -> None:
+    assert 'benchpress' not in adapter_packages()
+    assert all(
+        spec.key != 'benchpress' and 'benchpress' not in spec.collections
+        for spec in catalog.ADAPTERS
+    )
+
+
 @pytest.mark.parametrize('spec', catalog.ADAPTERS, ids=lambda spec: spec.key)
 def test_registered_module_is_an_in_tree_adapter(
     spec: catalog.AdapterSpec,

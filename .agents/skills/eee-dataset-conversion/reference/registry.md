@@ -54,12 +54,10 @@ What an adapter author needs here:
   reasoning: `fields.md` model_info.
 - **Disambiguate look-alikes** — `arc` (AI2 Reasoning Challenge, `allenai/ai2_arc`)
   is a *different* dataset from `arc-agi` (Chollet). Confirm from the paper.
-- **Pin what you resolved.** The two most careful adapters vendor the resolution
-  instead of re-querying at convert time: `utils/benchpress/model_id_map.json` pins the
-  batch resolver's output with a `_meta` block (endpoint, date, `n_resolved`/
-  `n_unresolved`, hand-verified `overrides`), and the `paperswithcode` adapter's
-  `registry_snapshot.json` vendors the metric entries with the registry commit the
-  bounds came from (`_meta.registry_revision`), refreshed by a script. Record the
+- **Pin what you resolved.** Vendor the resolution instead of re-querying at convert
+  time: the `paperswithcode` adapter's `registry_snapshot.json` vendors the metric
+  entries with the registry commit the bounds came from (`_meta.registry_revision`),
+  refreshed by a script. Record the
   revision next to any value you took from the registry so a reader can tell which
   registry state produced it — and so bumping it is a reviewable diff.
 - **Decide what an unresolved entity does.** PwC fails closed (an unknown or

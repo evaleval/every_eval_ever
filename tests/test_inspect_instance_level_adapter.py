@@ -443,7 +443,7 @@ def test_score_value_ci_fallback_without_reductions():
     assert instance_log.evaluation.is_correct is True
 
 
-def test_non_binary_numeric_score_marks_correct_even_without_ref_match():
+def test_non_binary_numeric_score_sets_is_correct_false():
     sample = _make_synthetic_sample(
         sample_id='sample_2b',
         target='target_answer',
@@ -455,7 +455,65 @@ def test_non_binary_numeric_score_marks_correct_even_without_ref_match():
     instance_log = _convert_single_synthetic_sample(sample, reductions=None)
 
     assert instance_log.evaluation.score == 0.6
-    assert instance_log.evaluation.is_correct is True
+    assert instance_log.evaluation.is_correct is False
+
+
+def test_fractional_reduction_score_sets_is_correct_false():
+    sample = _make_synthetic_sample(
+        sample_id='sample_2c',
+        target='target_answer',
+        response_content='target_answer',
+        score_value='C',
+        scorer_name='choice',
+    )
+    reductions = [
+        SimpleNamespace(
+            scorer='choice',
+            samples=[
+                SimpleNamespace(
+                    sample_id='sample_2c',
+                    value=0.5,
+                    answer='target_answer',
+                    explanation='',
+                )
+            ],
+        )
+    ]
+
+    instance_log = _convert_single_synthetic_sample(
+        sample, reductions=reductions
+    )
+
+    assert instance_log.evaluation.score == 0.5
+    assert instance_log.evaluation.is_correct is False
+
+
+def test_continuous_metric_score_one_sets_is_correct_false():
+    sample = _make_synthetic_sample(
+        sample_id='sample_2d',
+        target='target_answer',
+        response_content='target_answer',
+        score_value=1.0,
+        scorer_name='rouge',
+    )
+    with tempfile.TemporaryDirectory() as tmpdir:
+        adapter = InspectInstanceLevelDataAdapter(
+            'synthetic_test', 'synthetic_test', 'jsonl', 'sha256', tmpdir
+        )
+        path, rows_count = adapter.convert_instance_level_logs(
+            'synthetic_eval',
+            'synthetic/model',
+            [sample],
+            None,
+            {'rouge': ['rouge:rouge_l']},
+        )
+        assert rows_count == 1
+        row = InstanceLevelEvaluationLog.model_validate(
+            json.loads(Path(path).read_text(encoding='utf-8').strip())
+        )
+
+    assert row.evaluation.score == 1.0
+    assert row.evaluation.is_correct is False
 
 
 def test_unparseable_score_value_falls_back_to_response_reference_match():
