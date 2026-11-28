@@ -255,10 +255,24 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         ),
     ),
     AdapterSpec(
+        key='aider_polyglot',
+        module='every_eval_ever.adapters.aider_polyglot.adapter',
+        collections=('aider-polyglot',),
+        runnable=False,
+        unrunnable_reason=(
+            'model canonicalization and developer attribution need review '
+            'before automatic publication'
+        ),
+    ),
+    AdapterSpec(
         key='artificial_analysis',
         module='every_eval_ever.adapters.artificial_analysis.adapter',
         collections=('artificial-analysis-llms',),
         required_env=('ARTIFICIAL_ANALYSIS_API_KEY',),
+        notes=(
+            'Free-tier API key plus the public leaderboard and CritPt v2 '
+            'pages, scraped with Artificial Analysis permission.'
+        ),
     ),
     AdapterSpec(
         key='benchpress',
@@ -267,6 +281,25 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         notes=(
             'Reads microsoft/benchpress-score-matrix over plain HTTPS at one '
             'resolved commit; --revision reproduces an earlier snapshot.'
+        ),
+    ),
+    AdapterSpec(
+        key='critpt_v1',
+        module='every_eval_ever.adapters.critpt.adapter',
+        collections=('critpt-v1',),
+        extra_args=('--version', 'v1'),
+        runnable=False,
+        unrunnable_reason='the v1 leaderboard is pinned to an immutable commit',
+    ),
+    AdapterSpec(
+        key='critpt_v2',
+        module='every_eval_ever.adapters.critpt.adapter',
+        collections=('critpt-v2',),
+        extra_args=('--version', 'v2'),
+        runnable=False,
+        unrunnable_reason=(
+            'benchmark and model canonicalization and the leaderboard score '
+            'scale need review before automatic publication'
         ),
     ),
     AdapterSpec(
