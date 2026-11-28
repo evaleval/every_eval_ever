@@ -2,7 +2,7 @@
 """Convert OpenEval response data into Every Eval Ever aggregate records.
 
 Data source:
-- OpenEval dataset: https://huggingface.co/datasets/human-centered-eval/OpenEval
+- OpenEval dataset: https://huggingface.co/datasets/Open-Eval-Commons/OpenEval
 
 Usage:
     uv run python -m every_eval_ever.adapters.openeval.adapter --output-dir data/openeval
@@ -81,11 +81,11 @@ from every_eval_ever.instance_level_types import (
     Output,
 )
 
-HF_REPO_ID = 'human-centered-eval/OpenEval'
+HF_REPO_ID = 'Open-Eval-Commons/OpenEval'
 HF_REVISION = 'main'
 DEFAULT_OUTPUT_DIR = 'data/openeval'
 SOURCE_NAME = 'OpenEval'
-SOURCE_ORGANIZATION = 'Human-Centered Eval'
+SOURCE_ORGANIZATION = 'Open Eval Commons'
 SOURCE_ORGANIZATION_URL = 'https://open-eval.github.io/'
 HF_DATASET_URL = f'https://huggingface.co/datasets/{HF_REPO_ID}'
 GITHUB_URL = 'https://github.com/open-eval/OpenEval'
@@ -351,7 +351,12 @@ def fetch_payload(
     files = api.list_repo_files(
         HF_REPO_ID, repo_type='dataset', revision=revision
     )
-    bench_files = [path for path in files if path.startswith('bench/')]
+    # The benchmark table lives under `_all_benchmarks/`; older revisions used `bench/`.
+    bench_files = [
+        path
+        for path in files
+        if path.startswith(('_all_benchmarks/', 'bench/'))
+    ]
     item_files = sorted(path for path in files if path.startswith('item/'))
     response_files = sorted(
         path for path in files if path.startswith('response/')
@@ -361,7 +366,7 @@ def fetch_payload(
         response_files = response_files[:max_response_shards]
     if not bench_files or not response_files:
         raise ValueError(
-            f'Could not find bench/response parquet files in {HF_REPO_ID}.'
+            f'Could not find benchmark/response parquet files in {HF_REPO_ID}.'
         )
     if include_instances and not item_files:
         raise ValueError(f'Could not find item parquet files in {HF_REPO_ID}.')

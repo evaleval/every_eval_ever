@@ -206,6 +206,26 @@ def test_companion_check_accepts_existing_declared_repository_path(tmp_path):
     assert report.valid is True, report.errors
 
 
+def test_companion_rows_split_only_on_newlines(tmp_path):
+    # JSON allows a raw U+2028 inside strings; it must not end a JSONL row.
+    sample = valid_sample()
+    sample['output']['raw'] = ['line one\u2028line two']
+    data = valid_aggregate()
+    data['detailed_evaluation_results'] = {
+        'format': 'jsonl',
+        'file_path': COMPANION_REPO_PATH,
+    }
+    report = validate_data(
+        tmp_path,
+        data,
+        available_files={AGGREGATE_REPO_PATH, COMPANION_REPO_PATH},
+        repo_files={
+            COMPANION_REPO_PATH: json.dumps(sample, ensure_ascii=False) + '\n'
+        },
+    )
+    assert report.valid is True, report.errors
+
+
 def test_aggregate_requires_tag_when_samples_sibling_exists(tmp_path):
     report = validate_data(
         tmp_path,

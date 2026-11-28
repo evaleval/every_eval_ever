@@ -36,6 +36,7 @@ An adapter that automation runs must therefore:
 
 `bfcl`, `cocoabench`, `paperswithcode_drugbank`, and `sciarena` are registered as
 `runnable=False`: they need local inputs and have no live fetch path.
+`critpt_v1` is frozen and `critpt_v2` is paused pending identity and score-scale review.
 
 ### Skipping a run whose source has not changed
 
@@ -73,9 +74,11 @@ re-hosting bytes that are already durably stored.
 | Adapter | Data Source | Description |
 |---------|-------------|-------------|
 | `arc_agi` | ARC Prize leaderboard JSON | Fetches the JSON files behind arcprize.org/leaderboard, maps models to developers via the provider table, and merges canonical model aliases. |
-| `artificial_analysis` | Artificial Analysis LLM API | Converts Artificial Analysis LLM benchmark, pricing, and performance results into `data/artificial-analysis-llms/`. |
+| `aider_polyglot` | Aider Polyglot leaderboard YAML | Converts Aider's published Polyglot runs (pass rates, edit format, run metadata) into `data/aider-polyglot/`. |
+| `artificial_analysis` | Artificial Analysis free-tier API + website | Reads model identity, indexes, pricing and speed from the free-tier language model API, adds per-benchmark scores scraped from the public leaderboard and CritPt v2 pages, and writes `data/artificial-analysis-llms/`. |
 | `vals_ai` | Vals.ai benchmark leaderboards | Scrapes Vals.ai benchmark pages and converts their embedded leaderboard results into `data/vals-ai/`. |
 | `bfcl` | BFCL leaderboard CSV | Converts BFCL leaderboard data with per-metric evaluation names and bounded continuous scores. |
+| `critpt` | CritPt GitHub README leaderboards | Converts the pinned historical v1 and live v2 challenge-accuracy tables separately. |
 | `sciarena` | SciArena leaderboard API | Converts SciArena leaderboard results. |
 | `global_mmlu_lite` | Kaggle API | Fetches Global MMLU Lite leaderboard results from Kaggle. |
 | `hfopenllm_v2` | HuggingFace Spaces API | Fetches the Open LLM Leaderboard v2 (4576+ models). The leaderboard is no longer maintained upstream, so this converts a frozen archive and is not scheduled. |
@@ -85,22 +88,59 @@ re-hosting bytes that are already durably stored.
 | `mercor_eval` | Mercor Evaluation Exports API | Fetches authenticated Mercor benchmark leaderboards and writes aggregate EEE records. |
 | `mt_bench` | LMSYS / FastChat | Converts MT-Bench GPT-4 single-answer judgments into `data/mt-bench/`. Emits overall, turn-1, and turn-2 means per model. |
 | `open_medical_llm` | HuggingFace (`openlifescienceai/results`) | Converts the Open Medical-LLM Leaderboard's lm-evaluation-harness results into `data/open-medical-llm/`. One record per model, one result per medical benchmark (9). See [`open_medical_llm/README.md`](open_medical_llm/README.md). |
-| `openeval` | HuggingFace | Converts OpenEval response scores from `human-centered-eval/OpenEval` into `data/openeval/`; pass `--include-instances` to also write `*_samples.jsonl` sidecars. |
+| `openeval` | HuggingFace | Converts OpenEval response scores from `Open-Eval-Commons/OpenEval` into `data/openeval/`; pass `--include-instances` to also write `*_samples.jsonl` sidecars. |
 | `rewardbench` | HuggingFace | Fetches RewardBench v1 (CSV) and RewardBench v2 (JSON) leaderboard data. |
 | `tau_bench` | tau2-bench leaderboard submissions (GitHub) | Converts the public tau2-bench submissions into `data/tau-bench/`: one record per model, with a Pass^k result per domain and per k, plus cost per trajectory where reported. The raw base URL is pinned to a commit and each submission's payload hash is recorded, so a record names the exact input it was built from. |
 | `terminal_bench` | tbench.ai | Fetches every Terminal-Bench leaderboard version (2.0, 2.1, 3.0, 4.0), one collection each. |
 | `terminal_bench_science` | terminal-bench-science.ai | Converts the Terminal-Bench-Science leaderboard (expert-curated scientific research workflows, run by Harbor) into `data/terminal-bench-science/`. One record per agent+model row, with the overall trial resolution rate plus one result per scientific domain. See [`terminal_bench_science/README.md`](terminal_bench_science/README.md). |
+| `smb_bench` | HuggingFace | Converts the run table of SMB Bench (`oro-agents/smb-bench`, a pinned revision) into `data/smb-bench/`. One record per model: mean profit in US dollars over all 18 tasks, the same on each of the three kinds of quarter, mean profit against the benchmark's fixed buying rule, and inference cost per run. See [`smb_bench/README.md`](smb_bench/README.md). |
 | `hle` | Scale SEAL leaderboard | Converts the Scale SEAL Humanity's Last Exam leaderboard into `data/hle/`. Emits per-model accuracy (with 95% CI) and calibration error. |
 | `mmlu_pro` | TIGER-Lab leaderboard CSV | Converts the MMLU-Pro leaderboard (`TIGER-Lab/mmlu_pro_leaderboard_submission`) into `data/mmlu-pro/`. Emits per-model overall + 14 per-subject accuracies. |
 | `paperswithcode_drugbank` | Local Papers with Code PostgreSQL dump + reviewed YAML manifest | Manually converts DrugBank score cells with reviewed model, source-scale, split, and protocol semantics. The same source cell in `data/paperswithcode/` is matched by `(pwc_evaluation_id, metric_config.metric_name)`. |
 | `lexam` | LEXam project website | Converts the LEXam legal-reasoning leaderboard (open-question judge scores + 4-choice MCQ accuracy) into `data/lexam/`. |
 | `vectara_hallucination_leaderboard` | HuggingFace (`vectara/results`) | Converts the Vectara Hallucination Leaderboard result files, pinned to a source commit, into `data/vectara-hallucination-leaderboard/`. Emits 4 aggregate metrics plus per-category and per-text-complexity breakdowns (40 scores per model). |
-| `benchpress` | HuggingFace (`microsoft/benchpress-score-matrix`) | Converts the BenchPress score matrix into `data/benchpress/`. An aggregator: every cell keeps its own citation, and logs split by `evaluator_relationship`. See [`benchpress/README.md`](benchpress/README.md). |
-| `epoch_ai` | Epoch AI (`epoch.ai/data/benchmark_data.zip`) | Converts the Benchmarking Hub data behind the Epoch Capabilities Index into `data/epoch-ai-benchmarking/`, one log per source row with Epoch's own per-row provenance. CC BY 4.0. See [`epoch_ai/README.md`](epoch_ai/README.md). |
+| `epoch_ai` | Epoch AI (`epoch.ai/data/benchmark_data.zip`) | Converts the Benchmarking Hub data behind the Epoch Capabilities Index into `data/epoch-ai-benchmarking/`, one log per source row with Epoch's own per-row provenance. CC BY 4.0. Optional per-sample `_samples.jsonl` companions from the Inspect logs Epoch links (`--instance-level`). See [`epoch_ai/README.md`](epoch_ai/README.md). |
 | `bountybench` | BountyBench run logs (local JSON tree) | Converts BountyBench cybersecurity agent logs into `data/bountybench/`. Emits one aggregate per (model, workflow, configuration) plus a per-bounty `*_samples.jsonl` sidecar with the full agent transcript. |
 | `typed_decisions` | Local run rows + predictions JSONL (typed-decisions) | Converts one typed-decisions run (two local JSONL files) into `data/typed-decisions/`: one aggregate accuracy over all typed decisions (choice/noul/score) plus a per-decision `*_samples.jsonl` sidecar. Local inputs only — not scheduled. |
 | `paperswithcode` | Papers with Code PostgreSQL dumps | Converts PwC leaderboard entries into `data/paperswithcode/`. Metric bounds and direction are resolved against a vendored eval-card-registry snapshot; unknown metrics fail the run rather than getting invented bounds. Needs the `paperswithcode` extra. |
 | `wild` | HuggingFace (`kensho/WILD-raw`) | Converts the WILD-raw item-level eval responses (65 models × 27 benchmarks, run with Inspect AI) into `data/wild/`: aggregate accuracy per model×benchmark and per subtask, with optional per-item `_samples.jsonl` sidecars (`--include-instances`). See [`wild/README.md`](wild/README.md). |
+
+### Artificial Analysis
+
+EEE uses a free API key, and the free tier carries no per-benchmark scores, so
+those come from the website, which Artificial Analysis permitted. Website
+models join API models on Artificial Analysis's model id; a website model with
+no API match is reported as an exclusion, since it has no model identity.
+CritPt v2 (full set) is the CritPt v2 page's `critptAgentic` field; the hard
+subset and the plain `critpt` score come from the leaderboard. GDPval is not
+mapped: the leaderboard's `gdpval-aa-normalized` values are ratings, negative
+and above 1, not a 0-1 score.
+
+### CritPt
+
+Use `uv run python -m every_eval_ever.adapters.critpt.adapter --version v1 --output-dir data/critpt-v1`
+or `--version v2 --output-dir data/critpt-v2`. `--input-markdown` replays a saved
+README; `--no-registry-resolve` disables lookups. The [v1 README](https://raw.githubusercontent.com/CritPt-Benchmark/CritPt/17c2545c302762d2f2d644d923ea4c301605cb08/README.md)
+is a historical snapshot, not the current v1 leaderboard requested in #354;
+the [current README](https://raw.githubusercontent.com/CritPt-Benchmark/CritPt/main/README.md)
+only presents v2. Both state average challenge accuracy over five runs of 70
+test challenges, while also describing 71 challenges overall. The v1 Gemini-3
+Pro row is explicitly attributed to Artificial Analysis without tools. The
+v2 README does not identify a full or hard subset or a harness for its rows;
+the adapter does not ingest the AA hard subset or infer those details. The
+linked HF dataset is mutable and not verified to match either leaderboard version.
+
+Scores are preserved as printed with unknown bounds and unit: the README does
+not explicitly state the scale. The bundled snapshot is used for benchmark and
+metric lookups; model lookup uses side-effect-free exact registry resolution.
+Unresolved model names are kept as unverified IDs and routed under the
+`unattributed` developer placeholder. No canonical entries are created.
+Artificial Analysis also publishes CritPt v2 scores (`artificial_analysis.critpt_v2`
+in `artificial-analysis-llms`); they differ from this README's v2 table, so both
+are kept, each labelled with its own source and `reported_by`.
+V2 automation is paused pending identity and score-scale review; the frozen v1
+snapshot is not scheduled. Malformed rows are reported and make the run fail
+after valid rows are published.
 
 ### Papers with Code DrugBank
 

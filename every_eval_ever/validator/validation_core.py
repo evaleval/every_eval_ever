@@ -288,7 +288,7 @@ def _summarize_jsonl_text(content: str) -> InstanceFileSummary:
     evaluation_ids: set[str] = set()
     model_ids: set[str] = set()
     line_count = 0
-    for source_line, line in enumerate(content.splitlines(), start=1):
+    for source_line, line in enumerate(content.split('\n'), start=1):
         stripped = line.strip()
         if not stripped:
             continue

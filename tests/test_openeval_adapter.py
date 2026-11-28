@@ -149,11 +149,11 @@ def test_make_logs_validate_against_schema():
         assert validated.source_metadata.source_type.value == 'evaluation_run'
         assert (
             validated.source_metadata.source_organization_name
-            == 'Human-Centered Eval'
+            == 'Open Eval Commons'
         )
         assert (
             validated.source_metadata.additional_details['hf_repo']
-            == 'human-centered-eval/OpenEval'
+            == 'Open-Eval-Commons/OpenEval'
         )
         assert (
             validated.source_metadata.additional_details['partial_export']
@@ -183,7 +183,7 @@ def test_scores_are_aggregated_by_model_benchmark_and_metric():
         == 'true'
     )
     assert result.source_data.source_type == 'hf_dataset'
-    assert result.source_data.hf_repo == 'human-centered-eval/OpenEval'
+    assert result.source_data.hf_repo == 'Open-Eval-Commons/OpenEval'
     assert result.source_data.dataset_name == 'ifeval'
 
 

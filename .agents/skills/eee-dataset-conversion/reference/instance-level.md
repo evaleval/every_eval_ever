@@ -77,9 +77,17 @@ sample_hash = hashlib.sha256(
 ```
 
 ### Scoring (`evaluation`, `token_usage`)
-- `evaluation` = `{score, is_correct}`, both required. `score` is an unconstrained
-  float (per-item contribution; not range-checked, independent of the aggregate
-  score). `is_correct` is only meaningful for binary 0/1 metrics.
+- `evaluation` = `{score, is_correct}`, both required in `0.3.0` (`is_correct` is
+  planned for removal in `v0.4.0`). `score` is the per-item float (binary `0.0`/`1.0`
+  or continuous BLEU/ROUGE/F1; not range-checked, independent of the aggregate
+  score).
+  - **Binary metrics:** set `is_correct` from the source verdict (`score == 1.0`).
+  - **Continuous / non-binary metrics (`0.3.0` interim rule):** either submit
+    aggregate-only until `v0.4.0` or set `is_correct: false` (never threshold a
+    continuous score into `true`; downstream consumers such as IRT filter by the
+    parent aggregate's `metric_config.score_type` and read `evaluation.score`).
+  - **No mixed-benchmark JSONLs:** do not combine mixed benchmarks into a single
+    JSONL sidecar.
 - `token_usage` — optional but all-or-nothing: if present, all three of
   `input_tokens`/`output_tokens`/`total_tokens` are required — with partial data,
   omit the whole object.
