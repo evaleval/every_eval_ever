@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import re
 import time
@@ -66,7 +67,6 @@ class MetricSpec:
     lower_is_better: bool
     min_score: float
     max_score: float | None = None
-    use_observed_max: bool = False
     include_prompt_options: bool = False
 
 
@@ -81,7 +81,7 @@ def _index_spec(key: str, label: str) -> MetricSpec:
         metric_unit='points',
         lower_is_better=False,
         min_score=0.0,
-        use_observed_max=True,
+        max_score=float('inf'),
     )
 
 
@@ -121,7 +121,7 @@ def _speed_spec(
         metric_unit='seconds' if latency else 'tokens_per_second',
         lower_is_better=latency,
         min_score=0.0,
-        use_observed_max=True,
+        max_score=float('inf'),
         include_prompt_options=True,
     )
 
@@ -237,7 +237,7 @@ METRIC_SPECS = [
         metric_unit='usd_per_1m_tokens',
         lower_is_better=True,
         min_score=0.0,
-        use_observed_max=True,
+        max_score=float('inf'),
     ),
     MetricSpec(
         evaluation_name='artificial_analysis.price_1m_output_tokens',
@@ -249,7 +249,7 @@ METRIC_SPECS = [
         metric_unit='usd_per_1m_tokens',
         lower_is_better=True,
         min_score=0.0,
-        use_observed_max=True,
+        max_score=float('inf'),
     ),
     _speed_spec(
         'median_output_tokens_per_second',
@@ -538,26 +538,6 @@ def get_metric_value(model: dict[str, Any], spec: MetricSpec) -> float | None:
     )
 
 
-def compute_observed_max_scores(
-    models: list[dict[str, Any]],
-) -> dict[str, float]:
-    observed_max_scores: dict[str, float] = {}
-
-    for spec in METRIC_SPECS:
-        if not spec.use_observed_max:
-            continue
-
-        values = [
-            value
-            for model in models
-            if (value := _valid_metric_value(model, spec)) is not None
-        ]
-        if values:
-            observed_max_scores[spec.evaluation_name] = max(values)
-
-    return observed_max_scores
-
-
 def _valid_metric_value(
     model: dict[str, Any], spec: MetricSpec
 ) -> float | None:
@@ -645,12 +625,9 @@ def make_model_info(model: dict[str, Any]) -> tuple[ModelInfo, str, str]:
 
 def make_metric_config(
     spec: MetricSpec,
-    observed_max_scores: dict[str, float],
     prompt_options: dict[str, Any],
 ) -> MetricConfig:
     max_score = spec.max_score
-    if max_score is None:
-        max_score = observed_max_scores.get(spec.evaluation_name)
     if max_score is None:
         raise ValueError(
             f'No max_score available for metric {spec.evaluation_name!r}.'
@@ -658,9 +635,7 @@ def make_metric_config(
 
     additional_details = {
         'raw_metric_field': spec.source_key,
-        'bound_strategy': (
-            'observed_max_from_snapshot' if spec.use_observed_max else 'fixed'
-        ),
+        'bound_strategy': ('unbounded' if math.isinf(max_score) else 'fixed'),
     }
 
     metric_parameters: dict[str, str | float | bool | None] | None = None
@@ -738,7 +713,6 @@ def make_score_details(
 def make_evaluation_results(
     model: dict[str, Any],
     payload: dict[str, Any],
-    observed_max_scores: dict[str, float],
     *,
     failures: list[SourceRecordFailure] | None = None,
     source_ref: str | None = None,
@@ -756,9 +730,7 @@ def make_evaluation_results(
                     evaluation_result_id=spec.evaluation_name,
                     evaluation_name=spec.evaluation_name,
                     source_data=make_source_data(spec),
-                    metric_config=make_metric_config(
-                        spec, observed_max_scores, prompt_options
-                    ),
+                    metric_config=make_metric_config(spec, prompt_options),
                     score_details=make_score_details(model, spec, score),
                 )
             )
@@ -789,7 +761,6 @@ def make_evaluation_results(
 def make_log(
     model: dict[str, Any],
     payload: dict[str, Any],
-    observed_max_scores: dict[str, float],
     retrieved_timestamp: str,
     *,
     failures: list[SourceRecordFailure] | None = None,
@@ -822,7 +793,6 @@ def make_log(
         evaluation_results=make_evaluation_results(
             model,
             payload,
-            observed_max_scores,
             failures=failures,
             source_ref=source_ref,
         ),
@@ -851,7 +821,6 @@ def convert_models(
     models: list[dict[str, Any]],
     payload: dict[str, Any],
     output_dir: Path,
-    observed_max_scores: dict[str, float],
     retrieved_timestamp: str,
 ) -> SourceConversionResult[EvaluationLogOutput]:
     """Convert usable models while retaining model and metric failures."""
@@ -877,7 +846,6 @@ def convert_models(
             log, developer, model_path_name = make_log(
                 model,
                 payload,
-                observed_max_scores,
                 retrieved_timestamp,
                 failures=failures,
                 source_ref=source_ref,
@@ -935,14 +903,12 @@ def run(args: argparse.Namespace) -> int:
     maybe_save_raw_json(payload, args.save_raw_json)
     site = payload.get('site') or {}
     models, exclusions = merge_site_scores(validate_payload(payload), site)
-    observed_max_scores = compute_observed_max_scores(models)
     retrieved_timestamp = str(time.time())
 
     result = convert_models(
         models,
         payload,
         args.output_dir,
-        observed_max_scores,
         retrieved_timestamp,
     )
     result.exclusions.extend(exclusions)
