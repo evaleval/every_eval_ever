@@ -294,6 +294,21 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         ),
     ),
     AdapterSpec(
+        key='epoch_ai',
+        module='every_eval_ever.adapters.epoch_ai.adapter',
+        collections=('epoch-ai-benchmarking',),
+        cadence='weekly',
+        weekday=5,
+        timeout_minutes=30,
+        extra_args=('--url', 'https://epoch.ai/data/benchmark_data.zip'),
+        skip_if_unchanged=False,
+        notes=(
+            'Downloads https://epoch.ai/data/benchmark_data.zip (CC BY 4.0). '
+            'Rows Epoch has not attached to a model or organization land in '
+            'the failure report, which the runner reads as partial coverage.'
+        ),
+    ),
+    AdapterSpec(
         key='exgentic',
         module='every_eval_ever.adapters.exgentic.adapter',
         collections=('exgentic',),
